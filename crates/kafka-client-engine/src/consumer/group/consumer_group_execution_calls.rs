@@ -50,6 +50,11 @@ impl ConsumerGroupExecution {
             return Err(ConsumerGroupExecutionError::HeartbeatCallOccupied);
         }
         self.heartbeat_call = Some(call);
+        if self.rediscovery
+            == super::consumer_group_execution::ConsumerGroupRediscoveryState::ReplacementAdmitted
+        {
+            self.rediscovery = super::consumer_group_execution::ConsumerGroupRediscoveryState::Open;
+        }
         Ok(())
     }
 

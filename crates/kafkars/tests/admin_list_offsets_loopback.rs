@@ -13,7 +13,9 @@ use std::{
 };
 
 use admin_list_offsets_loopback::{ListOffsetsBroker, Workflow};
-use kafkars::{Client, DeliveryStatus, ErrorKind, ListOffsetsQuery, OffsetSpec, ReadIsolation};
+use kafkars::{
+    Client, DeliveryStatus, ErrorKind, ListOffsetsQuery, OffsetSpec, ReadIsolation, RetryAdvice,
+};
 
 #[test]
 fn kafka_43_selectors_preserve_order_isolation_fencing_and_leader_routing() {
@@ -112,8 +114,9 @@ fn wait_until_ready(client: &Client, context: &str) {
         match client.ready().wait() {
             Ok(()) => return,
             Err(error)
-                if error.kind() == ErrorKind::Transport
-                    && error.delivery_status() == Some(DeliveryStatus::NotSent)
+                if (error.retry_advice() == RetryAdvice::RetrySafe
+                    || (error.kind() == ErrorKind::Transport
+                        && error.delivery_status() == Some(DeliveryStatus::NotSent)))
                     && Instant::now() < deadline =>
             {
                 thread::sleep(Duration::from_millis(1));

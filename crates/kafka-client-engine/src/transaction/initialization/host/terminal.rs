@@ -57,13 +57,13 @@ impl TransactionInitializationHost {
         }
     }
 
-    fn settle_or_retry_terminal(
+    pub(super) fn settle_or_retry_terminal(
         &mut self,
         index: usize,
         terminal: crate::driver::TransactionInitTerminal,
         now: Moment,
     ) -> Result<(), TransactionInitializationHostError> {
-        if terminal.retry_safe_after_refresh() && self.schedule_retry(index, now)? {
+        if self.schedule_retry(index, now, terminal.retry_delivery())? {
             terminal.discard();
             return Ok(());
         }

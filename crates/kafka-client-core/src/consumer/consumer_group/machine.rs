@@ -17,7 +17,6 @@ pub struct ConsumerGroupHeartbeatMachine {
     pub(super) next_sequence: Option<ConsumerGroupHeartbeatSequence>,
     pub(super) in_flight: Option<ConsumerGroupHeartbeatAttempt>,
     pub(super) deadline: Option<Deadline>,
-    pub(super) rediscovery_replacement_used: bool,
     pub(super) retry_schedule: Option<ConsumerGroupHeartbeatRetrySchedule>,
     pub(super) member_id: Option<MemberId>,
     pub(super) member_epoch: Option<ConsumerGroupMemberEpoch>,
@@ -26,6 +25,7 @@ pub struct ConsumerGroupHeartbeatMachine {
     pub(super) pending_assignment: Option<LiveGroupAssignment>,
     pub(super) schedule: Option<ConsumerGroupHeartbeatSchedule>,
     pub(super) fatal: Option<ConsumerGroupHeartbeatFatal>,
+    pub(super) initial_heartbeat_succeeded: bool,
 }
 
 impl ConsumerGroupHeartbeatMachine {
@@ -38,7 +38,6 @@ impl ConsumerGroupHeartbeatMachine {
             next_sequence: Some(ConsumerGroupHeartbeatSequence::initial()),
             in_flight: None,
             deadline: None,
-            rediscovery_replacement_used: false,
             retry_schedule: None,
             member_id: None,
             member_epoch: None,
@@ -47,6 +46,7 @@ impl ConsumerGroupHeartbeatMachine {
             pending_assignment: None,
             schedule: None,
             fatal: None,
+            initial_heartbeat_succeeded: false,
         }
     }
 
@@ -93,5 +93,14 @@ impl ConsumerGroupHeartbeatMachine {
     /// Returns the retained terminal membership cause.
     pub const fn fatal(&self) -> Option<ConsumerGroupHeartbeatFatal> {
         self.fatal
+    }
+
+    /// Returns a retained terminal only when the broker never accepted a heartbeat.
+    pub const fn startup_fatal(&self) -> Option<ConsumerGroupHeartbeatFatal> {
+        if self.initial_heartbeat_succeeded {
+            None
+        } else {
+            self.fatal
+        }
     }
 }

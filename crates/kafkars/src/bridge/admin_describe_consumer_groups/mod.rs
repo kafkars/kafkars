@@ -6,3 +6,6 @@ mod result;
 
 pub(crate) use operation::AdminDescribeConsumerGroups;
 pub(crate) use request::DescribeConsumerGroupsAdminRequest;
+
+#[cfg(test)]
+mod result_test;

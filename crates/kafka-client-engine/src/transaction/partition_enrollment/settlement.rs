@@ -1,6 +1,6 @@
 //! Driver submission, terminal polling, and deterministic enrollment settlement.
 
-use kafka_client_core::{DeliveryStatus, Moment, TransactionEpoch};
+use kafka_client_core::{DeliveryStatus, Moment};
 
 use super::{
     host::TransactionPartitionEnrollmentOwner,
@@ -11,8 +11,8 @@ use super::{
     },
     port::{
         TransactionPartitionEnrollmentPort, TransactionPartitionEnrollmentPortCallPoll,
-        TransactionPartitionEnrollmentPortEvidence, TransactionPartitionEnrollmentPortFact,
-        TransactionPartitionEnrollmentRequest,
+        TransactionPartitionEnrollmentPortFact, TransactionPartitionEnrollmentRequest,
+        evidence_fact, weaken_delivery,
     },
 };
 
@@ -35,18 +35,20 @@ impl TransactionPartitionEnrollmentOwner {
             .batch
             .take()
             .unwrap_or_else(|| unreachable!("pending enrollment retains its exact batch"));
-        self.terminal = Some(if accepted {
-            TransactionPartitionEnrollmentTerminal::AbortRequired {
-                kind: TransactionPartitionEnrollmentFailureKind::DriverClosed,
-                delivery: DeliveryStatus::PossiblySent,
-                batch,
-            }
-        } else {
-            rejected(
-                TransactionPartitionEnrollmentFailureKind::DriverRejected,
-                batch,
-            )
-        });
+        self.terminal = Some(
+            if accepted || pending.delivery_floor == DeliveryStatus::PossiblySent {
+                TransactionPartitionEnrollmentTerminal::AbortRequired {
+                    kind: TransactionPartitionEnrollmentFailureKind::DriverClosed,
+                    delivery: DeliveryStatus::PossiblySent,
+                    batch,
+                }
+            } else {
+                rejected(
+                    TransactionPartitionEnrollmentFailureKind::DriverRejected,
+                    batch,
+                )
+            },
+        );
     }
 
     pub(super) fn turn_with(
@@ -116,13 +118,26 @@ impl TransactionPartitionEnrollmentOwner {
     }
 
     fn settle_accepted_at(&mut self, now: Moment, fact: TransactionPartitionEnrollmentPortFact) {
+        let delivery_floor = self.pending.as_ref().map_or_else(
+            || unreachable!("terminal fact requires one pending enrollment"),
+            |pending| pending.delivery_floor,
+        );
+        let fact = fact.with_delivery_floor(delivery_floor);
         let fact = match fact {
-            TransactionPartitionEnrollmentPortFact::RetryableCoordinatorLoss { .. }
-                if self.schedule_retry(now) =>
-            {
+            TransactionPartitionEnrollmentPortFact::RetryableConcurrentTransactions {
+                delivery,
+                ..
+            }
+            | TransactionPartitionEnrollmentPortFact::RetryableCoordinatorLoss {
+                delivery, ..
+            } if self.schedule_retry(now, delivery) => {
                 return;
             }
-            TransactionPartitionEnrollmentPortFact::RetryableCoordinatorLoss { kind, delivery } => {
+            TransactionPartitionEnrollmentPortFact::RetryableConcurrentTransactions {
+                kind,
+                delivery,
+            }
+            | TransactionPartitionEnrollmentPortFact::RetryableCoordinatorLoss { kind, delivery } => {
                 TransactionPartitionEnrollmentPortFact::Failed { kind, delivery }
             }
             fact => fact,
@@ -157,13 +172,14 @@ impl TransactionPartitionEnrollmentOwner {
                     batch,
                 }
             }
-            TransactionPartitionEnrollmentPortFact::RetryableCoordinatorLoss { .. } => {
-                unreachable!("retryable coordinator loss is normalized before settlement")
+            TransactionPartitionEnrollmentPortFact::RetryableConcurrentTransactions { .. }
+            | TransactionPartitionEnrollmentPortFact::RetryableCoordinatorLoss { .. } => {
+                unreachable!("retryable enrollment fact is normalized before settlement")
             }
         });
     }
 
-    fn schedule_retry(&mut self, now: Moment) -> bool {
+    fn schedule_retry(&mut self, now: Moment, delivery: DeliveryStatus) -> bool {
         let Some(pending) = self.pending.as_mut() else {
             return false;
         };
@@ -184,6 +200,7 @@ impl TransactionPartitionEnrollmentOwner {
         drop(pending.call.take());
         pending.retry_not_before = Some(not_before);
         pending.retries_started = retries_started;
+        pending.delivery_floor = weaken_delivery(pending.delivery_floor, delivery);
         true
     }
 
@@ -196,37 +213,15 @@ impl TransactionPartitionEnrollmentOwner {
             .batch
             .take()
             .unwrap_or_else(|| unreachable!("pending enrollment retains its exact batch"));
-        self.terminal = Some(rejected(kind, batch));
-    }
-}
-
-fn evidence_fact(
-    epoch: TransactionEpoch,
-    evidence: &dyn TransactionPartitionEnrollmentPortEvidence,
-    deadline_elapsed: bool,
-) -> TransactionPartitionEnrollmentPortFact {
-    if evidence.epoch() != epoch {
-        return TransactionPartitionEnrollmentPortFact::Failed {
-            kind: TransactionPartitionEnrollmentFailureKind::InvalidResponse,
-            delivery: DeliveryStatus::PossiblySent,
-        };
-    }
-    match (deadline_elapsed, evidence.fact()) {
-        (false, fact) => fact,
-        (
-            true,
-            TransactionPartitionEnrollmentPortFact::RetryableCoordinatorLoss { delivery, .. }
-            | TransactionPartitionEnrollmentPortFact::Failed { delivery, .. },
-        ) => TransactionPartitionEnrollmentPortFact::Failed {
-            kind: TransactionPartitionEnrollmentFailureKind::DeadlineElapsed,
-            delivery,
-        },
-        (true, TransactionPartitionEnrollmentPortFact::Enrolled) => {
-            TransactionPartitionEnrollmentPortFact::Failed {
-                kind: TransactionPartitionEnrollmentFailureKind::InvalidResponse,
+        self.terminal = Some(if pending.delivery_floor == DeliveryStatus::PossiblySent {
+            TransactionPartitionEnrollmentTerminal::AbortRequired {
+                kind,
                 delivery: DeliveryStatus::PossiblySent,
+                batch,
             }
-        }
+        } else {
+            rejected(kind, batch)
+        });
     }
 }
 

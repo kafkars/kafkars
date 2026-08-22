@@ -5,10 +5,26 @@ use crate::Moment;
 use super::{
     ConsumerGroupHeartbeatAttempt, ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatErrorKind,
     ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatMachine, ConsumerGroupHeartbeatPhase,
-    ConsumerGroupHeartbeatRequestKind, ConsumerGroupHeartbeatTransition,
+    ConsumerGroupHeartbeatRequestKind, ConsumerGroupHeartbeatRetryCause,
+    ConsumerGroupHeartbeatTransition, load_retry::retry_schedule,
 };
 
 impl ConsumerGroupHeartbeatMachine {
+    pub(super) fn rediscovery_failed(
+        &mut self,
+        schedule: super::ConsumerGroupHeartbeatRetrySchedule,
+        failure: ConsumerGroupHeartbeatFailure,
+    ) -> Result<ConsumerGroupHeartbeatTransition, ConsumerGroupHeartbeatErrorKind> {
+        let kind = self.retry_kind(schedule.attempt())?;
+        if self.retry_schedule != Some(schedule)
+            || schedule.kind() != kind
+            || schedule.cause() != ConsumerGroupHeartbeatRetryCause::Rediscovery
+        {
+            return Err(ConsumerGroupHeartbeatErrorKind::CoordinatorLoadRetryScheduleMismatch);
+        }
+        Ok(self.fail(schedule.attempt(), failure))
+    }
+
     #[allow(
         clippy::too_many_lines,
         reason = "one retry transition validates and transfers the complete heartbeat ownership tuple"
@@ -46,10 +62,6 @@ impl ConsumerGroupHeartbeatMachine {
         if deadline.is_elapsed_at(now) {
             return Ok(self.fail(attempt, ConsumerGroupHeartbeatFailure::DeadlineElapsed));
         }
-        if self.rediscovery_replacement_used {
-            return Ok(self.fail(attempt, failure));
-        }
-
         let (kind, member_id, member_epoch, assignment_generation) = match self.phase {
             ConsumerGroupHeartbeatPhase::Joining => {
                 if attempt.member_epoch().is_some()
@@ -87,6 +99,7 @@ impl ConsumerGroupHeartbeatMachine {
                     {
                         None
                     }
+                    None if self.pending_assignment.is_none() => None,
                     _ => return Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation),
                 };
                 if attempt.member_epoch() != Some(member_epoch) {
@@ -106,15 +119,16 @@ impl ConsumerGroupHeartbeatMachine {
                 let member_epoch = self
                     .member_epoch
                     .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
-                let assignment_generation = self
-                    .live_assignment
-                    .as_ref()
-                    .filter(|assignment| {
-                        assignment.group_id() == self.group_id
-                            && assignment.member_id() == member_id
-                    })
-                    .map(crate::LiveGroupAssignment::assignment_generation)
-                    .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
+                let assignment_generation = match self.live_assignment.as_ref() {
+                    Some(assignment)
+                        if assignment.group_id() == self.group_id
+                            && assignment.member_id() == member_id =>
+                    {
+                        Some(assignment.assignment_generation())
+                    }
+                    None if self.pending_assignment.is_none() => None,
+                    _ => return Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation),
+                };
                 if attempt.member_epoch() != Some(member_epoch) {
                     return Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation);
                 }
@@ -122,23 +136,40 @@ impl ConsumerGroupHeartbeatMachine {
                     ConsumerGroupHeartbeatRequestKind::Leave,
                     Some(member_id),
                     Some(member_epoch),
-                    Some(assignment_generation),
+                    assignment_generation,
                 )
             }
             _ => return Err(ConsumerGroupHeartbeatErrorKind::InvalidPhase),
         };
 
-        self.rediscovery_replacement_used = true;
-        Ok(ConsumerGroupHeartbeatTransition::one(
+        let (replacement, next_sequence) = match self.reserve_attempt(member_epoch) {
+            Ok(reserved) => reserved,
+            Err(ConsumerGroupHeartbeatErrorKind::AttemptExhausted) => {
+                return Ok(self.fail(attempt, ConsumerGroupHeartbeatFailure::Execution));
+            }
+            Err(error) => return Err(error),
+        };
+        let schedule = retry_schedule(
+            replacement,
+            kind,
+            ConsumerGroupHeartbeatRetryCause::Rediscovery,
+            now,
+            deadline,
+        );
+        self.next_sequence = next_sequence;
+        self.in_flight = Some(replacement);
+        self.retry_schedule = Some(schedule);
+        Ok(ConsumerGroupHeartbeatTransition::two(
             ConsumerGroupHeartbeatEffect::Rediscover {
                 group_id: self.group_id,
-                attempt,
+                attempt: replacement,
                 kind,
                 member_id,
                 member_epoch,
                 assignment_generation,
                 deadline,
             },
+            ConsumerGroupHeartbeatEffect::ArmRediscoveryRetry { schedule },
         ))
     }
 }

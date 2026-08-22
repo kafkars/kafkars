@@ -152,16 +152,18 @@ fn submitted_failures_preserve_driver_certainty_and_exact_broker_fencing() {
 }
 
 #[test]
-fn refreshed_broker_rejection_reuses_exact_owner_operation_deadline_and_plan() {
+fn retry_authority_reuses_exact_owner_operation_deadline_and_plan() {
     let owner = owner(7);
     let mut machine = submitted(owner);
 
     let transition = machine
         .apply(
             owner,
-            TransactionInitializationInput::RetryableBrokerRejected,
+            TransactionInitializationInput::RetryAuthorized {
+                delivery: DeliveryStatus::PossiblySent,
+            },
         )
-        .unwrap_or_else(|error| panic!("refreshed replacement: {error}"));
+        .unwrap_or_else(|error| panic!("authorized replacement: {error}"));
 
     assert!(matches!(
         transition.into_effect(),

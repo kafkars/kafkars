@@ -1,4 +1,4 @@
-//! Exact-broker capability omission and request-recovery scenarios.
+//! Exact-broker admission and request-recovery scenarios.
 
 use std::{
     sync::Arc,
@@ -20,15 +20,14 @@ use crate::{
 };
 
 use super::{
-    admission::{FetchAdmissionFailureSource, PartitionFetchRequest},
+    admission::PartitionFetchRequest,
     broker_calls::{BrokerFetchCallAdmission, TrackedBrokerFetchCalls},
     forgotten::{ForgottenFetchRequest, TrackedForgottenFetchCall},
     route::BrokerId,
-    submission::FetchSubmitError,
 };
 
 #[test]
-fn forgotten_only_call_fails_closed_and_returns_exact_request() {
+fn forgotten_only_call_is_accepted_and_recovers_exact_request_after_shutdown() {
     let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("build forgotten Fetch driver: {error}"));
     let session =
@@ -42,28 +41,26 @@ fn forgotten_only_call_fails_closed_and_returns_exact_request() {
         ),
         vec![OwnedForgottenFetchPartition::new(Arc::from("events"), 3)],
     );
-    let failure = TrackedForgottenFetchCall::submit(
+    let call = TrackedForgottenFetchCall::submit(
         &driver,
         BrokerId::new(1).unwrap_or_else(|error| panic!("broker ID: {error}")),
         request,
         Moment::from_tick(0),
     )
-    .err()
-    .unwrap_or_else(|| panic!("exact-broker forgotten Fetch must remain unsent"));
-
-    let (request, kind) = failure.into_parts();
-    assert_eq!(request.session(), session);
-    assert_eq!(
-        kind,
-        super::forgotten::ForgottenFetchSubmitFailureKind::DriverRejected
-    );
+    .unwrap_or_else(|failure| {
+        panic!(
+            "exact-broker forgotten Fetch admission: {:?}",
+            failure.into_parts().1
+        )
+    });
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+    assert_eq!(call.recover_after_driver_shutdown().session(), session);
 }
 
 #[test]
-fn aggregate_call_fails_closed_and_returns_every_partition_request() {
+fn aggregate_call_is_accepted_and_recovers_every_partition_after_shutdown() {
     let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("build aggregate Fetch driver: {error}"));
     let requests = requests();
@@ -72,21 +69,26 @@ fn aggregate_call_fails_closed_and_returns_every_partition_request() {
         .map(PartitionFetchRequest::fence)
         .collect::<Vec<_>>();
     let mut calls = TrackedBrokerFetchCalls::new(1);
-    let failure = match calls.try_submit(
+    match calls.try_submit(
         &driver,
         BrokerId::new(1).unwrap_or_else(|error| panic!("broker ID: {error}")),
         requests,
         &[],
         Moment::from_tick(0),
     ) {
-        BrokerFetchCallAdmission::Rejected(failure) => failure,
-        BrokerFetchCallAdmission::Accepted => panic!("exact-broker Fetch must remain unsent"),
+        BrokerFetchCallAdmission::Accepted => {}
+        BrokerFetchCallAdmission::Rejected(failure) => {
+            panic!("exact-broker Fetch rejected: {:?}", failure.into_parts().1)
+        }
         BrokerFetchCallAdmission::Backpressured(_) => {
             panic!("available admission capacity must not report backpressure")
         }
-    };
-
-    let (requests, source) = failure.into_parts();
+    }
+    assert_eq!(calls.retained_count(), 1);
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+    let (requests, completion) = calls.recover_after_driver_shutdown().into_parts();
     assert_eq!(
         requests
             .iter()
@@ -94,14 +96,8 @@ fn aggregate_call_fails_closed_and_returns_every_partition_request() {
             .collect::<Vec<_>>(),
         fences
     );
-    assert!(matches!(
-        source,
-        FetchAdmissionFailureSource::Driver(FetchSubmitError::ExactBrokerRoutingUnavailable)
-    ));
+    assert!(completion.is_none());
     assert_eq!(calls.retained_count(), 0);
-    driver
-        .shutdown_with_turn_limit(64, Duration::from_millis(10))
-        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
 }
 
 fn requests() -> Vec<PartitionFetchRequest> {

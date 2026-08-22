@@ -47,6 +47,9 @@ impl ConsumerGroupHeartbeatMachine {
                 now,
                 failure,
             } => self.retry_heartbeat(attempt, now, failure),
+            ConsumerGroupHeartbeatInput::RediscoveryFailed { schedule, failure } => {
+                self.rediscovery_failed(schedule, failure)
+            }
             ConsumerGroupHeartbeatInput::RetryCoordinatorLoad {
                 attempt,
                 now,

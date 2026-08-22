@@ -11,7 +11,15 @@ use std::{
 pub(crate) const OPERATION_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub(crate) fn wait_within<F: Future>(future: F, phase: &str) -> Result<F::Output, io::Error> {
-    let deadline = Instant::now() + OPERATION_TIMEOUT;
+    wait_within_for(future, phase, OPERATION_TIMEOUT)
+}
+
+pub(crate) fn wait_within_for<F: Future>(
+    future: F,
+    phase: &str,
+    timeout: Duration,
+) -> Result<F::Output, io::Error> {
+    let deadline = Instant::now() + timeout;
     let mut future = Box::pin(future);
     let mut context = Context::from_waker(Waker::noop());
     loop {
@@ -23,7 +31,7 @@ pub(crate) fn wait_within<F: Future>(future: F, phase: &str) -> Result<F::Output
             Poll::Pending => {
                 return Err(io::Error::new(
                     io::ErrorKind::TimedOut,
-                    format!("{phase} did not complete within {OPERATION_TIMEOUT:?}"),
+                    format!("{phase} did not complete within {timeout:?}"),
                 ));
             }
         }

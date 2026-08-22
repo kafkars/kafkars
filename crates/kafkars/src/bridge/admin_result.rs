@@ -61,8 +61,18 @@ pub(super) fn translate_admission_kind(kind: CreateTopicsAdmissionErrorKind) -> 
         CreateTopicsAdmissionErrorKind::IdentityExhausted
         | CreateTopicsAdmissionErrorKind::HostUnavailable => ErrorKind::Internal,
     };
-    KafkaError::new(public, format!("CreateTopics admission failed: {kind:?}"))
-        .with_delivery_status(DeliveryStatus::NotSent)
+    let error = KafkaError::new(public, format!("CreateTopics admission failed: {kind:?}"))
+        .with_delivery_status(DeliveryStatus::NotSent);
+    match kind {
+        CreateTopicsAdmissionErrorKind::Contended
+        | CreateTopicsAdmissionErrorKind::Capacity
+        | CreateTopicsAdmissionErrorKind::RetainedBytes => error.with_safe_retry(),
+        CreateTopicsAdmissionErrorKind::InvalidRequest
+        | CreateTopicsAdmissionErrorKind::InvalidDeadline
+        | CreateTopicsAdmissionErrorKind::Closed
+        | CreateTopicsAdmissionErrorKind::IdentityExhausted
+        | CreateTopicsAdmissionErrorKind::HostUnavailable => error,
+    }
 }
 
 fn translate_failure(failure: CreateTopicsFailure) -> KafkaError {

@@ -1,15 +1,16 @@
-//! Exact removal of one never-started classic-group registration.
+//! Exact removal of one never-started group registration.
 
-use kafka_client_core::GroupId;
+use kafka_client_core::{ConsumerGroupHeartbeatPhase, GroupId};
 
-use super::{
+use super::super::{
+    consumer_group_execution::ConsumerGroupRediscoveryState,
     registry::GroupConsumerRegistry,
     registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
 };
 
 /// Stable reason one registration could not be removed without group protocol work.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum GroupConsumerDormantUnregisterError {
+pub(in crate::consumer::group) enum GroupConsumerDormantUnregisterError {
     RegistryClosing,
     UnknownGroup,
     GroupClosing,
@@ -23,7 +24,7 @@ impl GroupConsumerRegistry {
     ///
     /// Once any membership cycle or other per-group mechanism has started,
     /// ordinary close and `LeaveGroup` policy remain the only release path.
-    pub(super) fn try_unregister_dormant(
+    pub(in crate::consumer::group) fn try_unregister_dormant(
         &mut self,
         group_id: GroupId,
     ) -> Result<(), GroupConsumerDormantUnregisterError> {
@@ -60,7 +61,18 @@ impl GroupConsumerRegistry {
 }
 
 fn is_pristine_registration(entry: &GroupConsumerEntry) -> bool {
-    entry.catalog.live_assignment().is_none()
+    entry.catalog.current_member_id().is_none()
+        && entry.catalog.membership_cycle().is_none()
+        && entry.catalog.consumer_group_member_epoch().is_none()
+        && entry.catalog.live_assignment().is_none()
+        && entry.consumer.as_ref().is_none_or(|consumer| {
+            consumer.cycle().is_none()
+                && consumer.machine().phase() == ConsumerGroupHeartbeatPhase::Dormant
+                && consumer.prepared().is_none()
+                && consumer.heartbeat_call().is_none()
+                && consumer.topic_identity_call().is_none()
+                && consumer.rediscovery_state() == ConsumerGroupRediscoveryState::Open
+        })
         && entry.classic.is_dormant()
         && entry.classic.pending().is_none()
         && entry.execution.is_idle()

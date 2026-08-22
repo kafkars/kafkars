@@ -17,25 +17,24 @@ use admin_list_partition_reassignments_loopback::{
     ListPartitionReassignmentsBroker, Workflow, wait_within,
 };
 use kafkars::{
-    Client, DeliveryStatus, ErrorKind, KafkaError, ListPartitionReassignmentsResult, TopicPartition,
+    Client, DeliveryStatus, ErrorKind, KafkaError, ListPartitionReassignmentsResult, RetryAdvice,
+    TopicPartition,
 };
 
 #[test]
 fn public_selected_reassignments_v0_route_once_and_restore_caller_order() {
     let broker = ListPartitionReassignmentsBroker::start(Workflow::Selected);
     let client = build_client(&broker, "admin-list-selected-reassignments-loopback");
+    let targets = [
+        TopicPartition::new("zeta", 2),
+        TopicPartition::new("missing", 9),
+        TopicPartition::new("alpha", 0),
+        TopicPartition::new("zeta", 1),
+    ];
 
-    let listed = wait_within(
-        client
-            .admin()
-            .list_partition_reassignments([
-                TopicPartition::new("zeta", 2),
-                TopicPartition::new("missing", 9),
-                TopicPartition::new("alpha", 0),
-                TopicPartition::new("zeta", 1),
-            ])
-            .deadline_after(Duration::from_secs(5))
-            .submit(),
+    let listed = list_selected_within(
+        &client.admin(),
+        &targets,
         "selected ListPartitionReassignments",
     )
     .unwrap_or_else(|error| {
@@ -71,20 +70,13 @@ fn public_all_active_reassignments_use_nullable_selection_and_canonical_order() 
     let broker = ListPartitionReassignmentsBroker::start(Workflow::AllActive);
     let client = build_client(&broker, "admin-list-all-reassignments-loopback");
 
-    let listed = wait_within(
-        client
-            .admin()
-            .list_all_partition_reassignments()
-            .deadline_after(Duration::from_secs(5))
-            .submit(),
-        "all-active ListPartitionReassignments",
-    )
-    .unwrap_or_else(|error| {
-        panic!(
-            "all-active ListPartitionReassignments: {error}; observed {}",
-            broker.observation_summary()
-        )
-    });
+    let listed = list_all_within(&client.admin(), "all-active ListPartitionReassignments")
+        .unwrap_or_else(|error| {
+            panic!(
+                "all-active ListPartitionReassignments: {error}; observed {}",
+                broker.observation_summary()
+            )
+        });
 
     assert_eq!(listed.throttle_time(), Duration::from_millis(37));
     let rows = listed.into_reassignments();
@@ -106,15 +98,8 @@ fn public_reassignment_listing_preserves_signed_controller_diagnostic() {
     let broker = ListPartitionReassignmentsBroker::start(Workflow::BrokerError);
     let client = build_client(&broker, "admin-list-reassignments-error-loopback");
 
-    let error = wait_within(
-        client
-            .admin()
-            .list_all_partition_reassignments()
-            .deadline_after(Duration::from_secs(5))
-            .submit(),
-        "rejected ListPartitionReassignments",
-    )
-    .expect_err("scripted controller rejection must reach the public observer");
+    let error = list_all_within(&client.admin(), "rejected ListPartitionReassignments")
+        .expect_err("scripted controller rejection must reach the public observer");
 
     assert_eq!(error.kind(), ErrorKind::Broker);
     assert_eq!(error.broker_code(), Some(-31_999));
@@ -156,20 +141,45 @@ fn list_all_within(
     admin: &kafkars::Admin,
     phase: &str,
 ) -> Result<ListPartitionReassignmentsResult, KafkaError> {
-    let admission_deadline = Instant::now() + Duration::from_secs(2);
+    let deadline = Instant::now() + Duration::from_secs(5);
     loop {
+        let now = Instant::now();
         let result = wait_within(
             admin
                 .list_all_partition_reassignments()
-                .deadline_after(Duration::from_secs(5))
+                .deadline_after(deadline.saturating_duration_since(now))
                 .submit(),
             phase,
         );
         match result {
             Err(error)
-                if error.kind() == ErrorKind::Backpressure
-                    && error.delivery_status() == Some(DeliveryStatus::NotSent)
-                    && Instant::now() < admission_deadline =>
+                if error.retry_advice() == RetryAdvice::RetrySafe && Instant::now() < deadline =>
+            {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            result => return result,
+        }
+    }
+}
+
+fn list_selected_within(
+    admin: &kafkars::Admin,
+    targets: &[TopicPartition],
+    phase: &str,
+) -> Result<ListPartitionReassignmentsResult, KafkaError> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let now = Instant::now();
+        let result = wait_within(
+            admin
+                .list_partition_reassignments(targets.iter().cloned())
+                .deadline_after(deadline.saturating_duration_since(now))
+                .submit(),
+            phase,
+        );
+        match result {
+            Err(error)
+                if error.retry_advice() == RetryAdvice::RetrySafe && Instant::now() < deadline =>
             {
                 std::thread::sleep(Duration::from_millis(1));
             }
@@ -189,8 +199,9 @@ fn build_client(broker: &ListPartitionReassignmentsBroker, client_id: &str) -> C
         match client.ready().wait() {
             Ok(()) => break,
             Err(error)
-                if error.kind() == ErrorKind::Transport
-                    && error.delivery_status() == Some(DeliveryStatus::NotSent)
+                if (error.retry_advice() == RetryAdvice::RetrySafe
+                    || (error.kind() == ErrorKind::Transport
+                        && error.delivery_status() == Some(DeliveryStatus::NotSent)))
                     && Instant::now() < deadline =>
             {
                 std::thread::sleep(Duration::from_millis(1));

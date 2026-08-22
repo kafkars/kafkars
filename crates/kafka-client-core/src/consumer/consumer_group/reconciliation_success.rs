@@ -38,24 +38,27 @@ impl ConsumerGroupHeartbeatMachine {
             .ok_or(ConsumerGroupHeartbeatErrorKind::DeadlineOverflow)?;
         let (next_attempt, next_sequence) = self.reserve_attempt(Some(member_epoch))?;
 
-        if self.pending_assignment.is_some() {
-            return self.settle_pending_reconciliation(
+        let transition = if self.pending_assignment.is_some() {
+            self.settle_pending_reconciliation(
                 member_id,
                 member_epoch,
                 assignment.as_deref(),
                 next_attempt,
                 next_sequence,
                 cadence_deadline,
-            );
-        }
-        self.settle_without_pending_target(
-            member_id,
-            member_epoch,
-            assignment,
-            next_attempt,
-            next_sequence,
-            cadence_deadline,
-        )
+            )
+        } else {
+            self.settle_without_pending_target(
+                member_id,
+                member_epoch,
+                assignment,
+                next_attempt,
+                next_sequence,
+                cadence_deadline,
+            )
+        }?;
+        self.initial_heartbeat_succeeded = true;
+        Ok(transition)
     }
 
     fn settle_without_pending_target(
@@ -76,7 +79,29 @@ impl ConsumerGroupHeartbeatMachine {
                 next_sequence,
                 cadence_deadline,
             ),
-            (None, None, None) => Err(ConsumerGroupHeartbeatErrorKind::InitialAssignmentMissing),
+            (None, None, None) => self.await_initial_assignment(
+                member_id,
+                member_epoch,
+                next_attempt,
+                next_sequence,
+                cadence_deadline,
+            ),
+            (Some(prior), None, Some(partitions)) if member_epoch >= prior => self
+                .install_initial_assignment(
+                    member_id,
+                    member_epoch,
+                    partitions,
+                    next_attempt,
+                    next_sequence,
+                    cadence_deadline,
+                ),
+            (Some(prior), None, None) if member_epoch >= prior => self.await_initial_assignment(
+                member_id,
+                member_epoch,
+                next_attempt,
+                next_sequence,
+                cadence_deadline,
+            ),
             (Some(prior), Some(live), Some(partitions)) if member_epoch == prior => {
                 if live.partitions() != partitions {
                     return Err(ConsumerGroupHeartbeatErrorKind::AssignmentChangedWithoutEpoch);

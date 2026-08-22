@@ -1,4 +1,4 @@
-//! Sole policy owner for definitely-unsent replacement executions.
+//! Sole policy owner for authorized producer replacement executions.
 
 use crate::{
     BatchExecutionId, BatchTimerGeneration, DeliveryStatus, Moment, ProducerAttemptFailureKind,

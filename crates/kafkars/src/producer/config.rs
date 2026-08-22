@@ -14,7 +14,7 @@ use super::{Compression, ProducerLimits, ProducerRetryConfig};
 /// supplies the default end-to-end duration for each ordinary producer handle
 /// and may be replaced on
 /// [`ProducerBuilder`](super::ProducerBuilder) before that handle builds.
-/// Defaults use a 30-second delivery duration, no compression, three safe
+/// Defaults use a 30-second delivery duration, no compression, ten bounded
 /// replacement attempts with 100-millisecond backoff, and
 /// [`ProducerLimits::default`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -51,7 +51,7 @@ impl ProducerConfig {
         self.compression
     }
 
-    /// Returns the definitely-unsent replacement policy.
+    /// Returns the bounded record-execution and transaction-request replacement policy.
     pub const fn retry(self) -> ProducerRetryConfig {
         self.retry
     }
@@ -75,7 +75,7 @@ impl ProducerConfig {
         self
     }
 
-    /// Replaces the definitely-unsent replacement policy.
+    /// Replaces the bounded record-execution and transaction-request replacement policy.
     #[must_use]
     pub const fn with_retry(mut self, retry: ProducerRetryConfig) -> Self {
         self.retry = retry;

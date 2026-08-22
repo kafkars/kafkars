@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::LegacyAlterConfigsRoute;
-use kafka_driver::{ApiVersion, Route, TrafficClass};
+use kafka_driver::{ApiVersion, BrokerId, Route, TrafficClass};
 
 use super::legacy_alter_configs_submission::{
     legacy_alter_configs_options, legacy_alter_configs_route,
@@ -21,7 +21,9 @@ fn submission_preserves_route_interactive_deadline_and_full_stable_range() {
     assert_eq!(
         legacy_alter_configs_route(LegacyAlterConfigsRoute::ExactBroker(7))
             .unwrap_or_else(|error| panic!("exact broker route: {error}")),
-        Route::AnyBroker
+        Route::Broker {
+            broker_id: BrokerId::new(7).unwrap_or_else(|error| panic!("valid broker: {error}")),
+        }
     );
     assert!(legacy_alter_configs_route(LegacyAlterConfigsRoute::ExactBroker(-1)).is_err());
     assert_eq!(options.deadline(), deadline);

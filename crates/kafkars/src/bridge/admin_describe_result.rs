@@ -27,11 +27,20 @@ pub(super) fn translate_admission_kind(kind: DescribeClusterAdmissionErrorKind) 
         DescribeClusterAdmissionErrorKind::IdentityExhausted
         | DescribeClusterAdmissionErrorKind::HostUnavailable => ErrorKind::Internal,
     };
-    KafkaError::new(
+    let error = KafkaError::new(
         public,
         format!("DescribeCluster admission failed: {kind:?}"),
     )
-    .with_delivery_status(DeliveryStatus::NotSent)
+    .with_delivery_status(DeliveryStatus::NotSent);
+    match kind {
+        DescribeClusterAdmissionErrorKind::Contended
+        | DescribeClusterAdmissionErrorKind::Capacity
+        | DescribeClusterAdmissionErrorKind::RetainedBytes => error.with_safe_retry(),
+        DescribeClusterAdmissionErrorKind::InvalidDeadline
+        | DescribeClusterAdmissionErrorKind::Closed
+        | DescribeClusterAdmissionErrorKind::IdentityExhausted
+        | DescribeClusterAdmissionErrorKind::HostUnavailable => error,
+    }
 }
 
 pub(super) fn translate_accepted_fault(fault: DescribeClusterAcceptedFaultKind) -> KafkaError {

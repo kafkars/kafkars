@@ -5,6 +5,45 @@ use std::time::Duration;
 use super::{GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory, GroupConsumerPort};
 use crate::clock::DeadlineCapture;
 
+/// Exact retained terminal cause for an accepted consumer-protocol membership start.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GroupConsumerStartupFailureKind {
+    /// No usable coordinator route remained before the original deadline.
+    CoordinatorUnavailable,
+    /// The broker does not support the required consumer-group protocol.
+    Compatibility,
+    /// Local execution failed after deterministic ownership was accepted.
+    Execution,
+    /// Kafka returned the retained protocol error code.
+    Broker(i16),
+    /// A broker response violated the expected protocol shape.
+    InvalidResponse,
+    /// The original public membership deadline elapsed.
+    DeadlineElapsed,
+}
+
+impl GroupConsumerStartupFailureKind {
+    pub(in crate::consumer) const fn from_core(
+        failure: kafka_client_core::ConsumerGroupHeartbeatFailure,
+    ) -> Self {
+        match failure {
+            kafka_client_core::ConsumerGroupHeartbeatFailure::CoordinatorUnavailable => {
+                Self::CoordinatorUnavailable
+            }
+            kafka_client_core::ConsumerGroupHeartbeatFailure::Compatibility => Self::Compatibility,
+            kafka_client_core::ConsumerGroupHeartbeatFailure::Execution => Self::Execution,
+            kafka_client_core::ConsumerGroupHeartbeatFailure::Broker(code) => Self::Broker(code),
+            kafka_client_core::ConsumerGroupHeartbeatFailure::InvalidResponse => {
+                Self::InvalidResponse
+            }
+            kafka_client_core::ConsumerGroupHeartbeatFailure::DeadlineElapsed => {
+                Self::DeadlineElapsed
+            }
+        }
+    }
+}
+
 /// Linear membership-start deadline captured before higher-layer input work.
 #[must_use = "a captured group start should be admitted or deliberately discarded"]
 pub struct GroupConsumerStartCapture {

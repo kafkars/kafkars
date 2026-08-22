@@ -62,7 +62,7 @@ impl ConsumerGroupExecution {
             || kind != ConsumerGroupHeartbeatRequestKind::Steady
             || member_id.is_none()
             || member_epoch != attempt.member_epoch()
-            || assignment_generation != Some(schedule.assignment_generation())
+            || assignment_generation != schedule.assignment_generation()
             || deadline != predicted_deadline
             || effects.next().is_some()
         {

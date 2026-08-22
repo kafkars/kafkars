@@ -26,6 +26,15 @@ pub enum ProducerInput {
         generation: ProducerIdentityGeneration,
         /// Exact signed broker code, or no code for local/transport failure.
         broker_code: Option<core::num::NonZeroI16>,
+        /// Monotonic observation when the broker failure was applied.
+        now: Moment,
+    },
+    /// Reports that an exact producer-identity retry schedule became due.
+    ProducerIdentityRetryDue {
+        /// Schedule previously emitted by deterministic producer policy.
+        schedule: crate::ProducerIdentityRetrySchedule,
+        /// Monotonic observation used to enforce backoff and public deadlines.
+        now: Moment,
     },
     /// Reports that the unchanged identity-request deadline elapsed.
     ProducerIdentityDeadlineElapsed {
@@ -153,6 +162,15 @@ pub enum ProducerInput {
         /// Monotonic observation at or after the original public deadline.
         now: Moment,
         /// Driver-owned certainty already established by the failed attempt.
+        delivery: DeliveryStatus,
+    },
+    /// Reports that the exact driver-owned request reached its public deadline.
+    DriverDeadlineElapsed {
+        /// Exact driver-owned execution whose request deadline elapsed.
+        execution: BatchExecutionId,
+        /// Monotonic observation at or after the original public deadline.
+        now: Moment,
+        /// Driver-owned certainty already established by the expired attempt.
         delivery: DeliveryStatus,
     },
     /// Reports transport failure after driver ownership.

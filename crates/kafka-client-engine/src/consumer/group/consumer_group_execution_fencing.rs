@@ -11,6 +11,44 @@ use super::consumer_group_execution::{
     CONSUMER_GROUP_ATTEMPT_TIMEOUT_TICKS, ConsumerGroupExecution, ConsumerGroupExecutionError,
     ConsumerGroupRediscoveryState, PreparedConsumerGroupHeartbeat,
 };
+use super::{
+    consumer_group_close::position_failure_allows_consumer_group_leave,
+    registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
+};
+
+pub(super) fn consumer_group_heartbeat_is_ready(entry: &GroupConsumerEntry) -> bool {
+    let leave_is_closing = entry.state == GroupConsumerEntryState::Closing
+        && entry.consumer.as_ref().is_some_and(|execution| {
+            execution
+                .prepared()
+                .is_some_and(|prepared| prepared.kind() == ConsumerGroupHeartbeatRequestKind::Leave)
+        });
+    (entry.is_active() || leave_is_closing)
+        && (entry.fault.is_none() || position_failure_allows_consumer_group_leave(entry))
+        && entry.consumer.as_ref().is_some_and(|execution| {
+            consumer_group_execution_is_ready(execution)
+                && execution.heartbeat_call().is_none()
+                && join_assignment_is_retired(entry, execution)
+        })
+}
+
+fn join_assignment_is_retired(
+    entry: &GroupConsumerEntry,
+    execution: &ConsumerGroupExecution,
+) -> bool {
+    execution.prepared().is_none_or(|prepared| {
+        prepared.kind() != ConsumerGroupHeartbeatRequestKind::Join
+            || (entry.consumer_revocation.is_none() && entry.catalog.live_assignment().is_none())
+    })
+}
+
+pub(super) fn consumer_group_execution_is_ready(execution: &ConsumerGroupExecution) -> bool {
+    execution.prepared().is_some()
+        && execution.machine().retry_schedule().is_none()
+        && execution.topic_identity_call().is_none()
+        && execution.topic_identities().is_complete()
+        && execution.rediscovery_state().permits_submission()
+}
 
 impl ConsumerGroupExecution {
     pub(super) fn recover_current_fenced_membership(
@@ -51,16 +89,21 @@ impl ConsumerGroupExecution {
             })
             .map_err(|error| ConsumerGroupExecutionError::Core(error.kind()))?;
         let mut effects = transition.into_effects();
-        let Some(ConsumerGroupHeartbeatEffect::Revoke { assignment }) = effects.next() else {
-            return Err(ConsumerGroupExecutionError::EffectShape);
+        let first = effects.next();
+        let (revoked, terminal) = match first {
+            Some(ConsumerGroupHeartbeatEffect::Revoke { assignment }) => {
+                if assignment.group_id() != self.machine.group_id()
+                    || Some(assignment.member_id()) != prepared.member_id()
+                    || Some(assignment.assignment_generation()) != prepared.assignment_generation()
+                {
+                    return Err(ConsumerGroupExecutionError::EffectShape);
+                }
+                (Some(assignment), effects.next())
+            }
+            Some(effect) if prepared.assignment_generation().is_none() => (None, Some(effect)),
+            _ => return Err(ConsumerGroupExecutionError::EffectShape),
         };
-        if assignment.group_id() != self.machine.group_id()
-            || Some(assignment.member_id()) != prepared.member_id()
-            || Some(assignment.assignment_generation()) != prepared.assignment_generation()
-        {
-            return Err(ConsumerGroupExecutionError::EffectShape);
-        }
-        match (effects.next(), recovery) {
+        match (terminal, recovery) {
             (
                 Some(ConsumerGroupHeartbeatEffect::Submit {
                     group_id,
@@ -105,6 +148,6 @@ impl ConsumerGroupExecution {
         if effects.next().is_some() {
             return Err(ConsumerGroupExecutionError::EffectShape);
         }
-        Ok(Some(assignment))
+        Ok(revoked)
     }
 }

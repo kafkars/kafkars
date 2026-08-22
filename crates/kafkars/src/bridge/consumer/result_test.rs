@@ -9,7 +9,7 @@ use super::result::{
     translate_assigned_close_admission_kind, translate_assigned_close_fault,
     translate_assigned_close_observation, translate_assigned_consumer_claim,
 };
-use crate::ErrorKind;
+use crate::{ErrorKind, RetryAdvice};
 
 #[test]
 fn one_shot_claim_failures_have_stable_facade_categories() {
@@ -25,33 +25,41 @@ fn one_shot_claim_failures_have_stable_facade_categories() {
 
 #[test]
 fn every_close_admission_kind_is_translated() {
-    for (kind, expected) in [
+    for (kind, expected, retry) in [
         (
             AssignedConsumerTryCloseErrorKind::Contended,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
-        (AssignedConsumerTryCloseErrorKind::Closed, ErrorKind::State),
+        (
+            AssignedConsumerTryCloseErrorKind::Closed,
+            ErrorKind::State,
+            RetryAdvice::DoNotRetry,
+        ),
         (
             AssignedConsumerTryCloseErrorKind::CompletionCapacity,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
         (
             AssignedConsumerTryCloseErrorKind::Pending,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
         (
             AssignedConsumerTryCloseErrorKind::HostUnavailable,
             ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
         ),
         (
             AssignedConsumerTryCloseErrorKind::InternalInvariant,
             ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
         ),
     ] {
-        assert_eq!(
-            translate_assigned_close_admission_kind(kind).kind(),
-            expected
-        );
+        let error = translate_assigned_close_admission_kind(kind);
+        assert_eq!(error.kind(), expected);
+        assert_eq!(error.retry_advice(), retry);
     }
 }
 

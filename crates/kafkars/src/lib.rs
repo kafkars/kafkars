@@ -5,8 +5,8 @@
 //! 0.0.1 is a source preview for API evaluation, not a production-readiness or
 //! broker-compatibility claim.
 //!
-//! KAFKA is a registered trademark of The Apache Software Foundation and has
-//! been licensed for use by kafkars. kafkars has no affiliation with and is not
+//! Apache Kafka and the Kafka logo are trademarks of The Apache Software
+//! Foundation. kafkars has no affiliation with and is not
 //! endorsed by The Apache Software Foundation.
 #![forbid(unsafe_code)]
 mod admin;

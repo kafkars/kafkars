@@ -9,7 +9,7 @@ use bytes::Bytes;
 use kafka_client_core::{BatchExecutionGeneration, BatchExecutionId, BatchId, Deadline, Moment};
 
 use crate::{
-    EngineConfig,
+    EngineConfig, ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryStatus,
     clock::OperationDeadline,
     driver::{DriverOwner, TrackedProduceCalls},
     producer::{
@@ -20,7 +20,10 @@ use crate::{
     protocol::produce::materialize_explicit_produce_batch,
 };
 
-use super::produce_turn::{admit_after_partitioning, apply_completions};
+use super::{
+    produce::{admit_one, apply_ready},
+    produce_turn::{admit_after_partitioning, apply_completions},
+};
 
 #[test]
 fn matching_retained_partition_lookup_blocks_produce_until_it_settles() {
@@ -153,6 +156,53 @@ fn completion_polling_waits_without_consuming_when_the_shard_is_contended() {
             .is_some()
     );
     calls.discard_settled(Moment::from_tick(12));
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+}
+
+#[test]
+fn terminal_fact_is_applied_before_the_tracked_slot_is_released() {
+    let (producer, observer) = super::produce_test::prepared_producer();
+    let mut driver = driver();
+    let mut calls = TrackedProduceCalls::new(1);
+    {
+        let mut data = producer
+            .try_data()
+            .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
+        admit_one(&driver, &mut calls, &mut data, Moment::from_tick(2))
+            .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"));
+    }
+
+    let mut settled = false;
+    for turn in 0..256 {
+        driver
+            .turn(Duration::from_millis(10))
+            .unwrap_or_else(|error| panic!("driver turn {turn}: {error}"));
+        let mut data = producer
+            .try_data()
+            .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
+        if apply_ready(
+            &driver,
+            &mut calls,
+            &mut data,
+            Moment::from_tick(500_000_000),
+            1,
+        )
+        .unwrap_or_else(|error| panic!("apply Produce terminal: {error}"))
+        {
+            settled = true;
+            break;
+        }
+    }
+
+    assert!(settled, "bounded driver turns must settle the tracked call");
+    let Err(ProducerDeliveryError::Failed(failure)) = observer.wait() else {
+        panic!("unreachable broker must publish one driver-owned failure")
+    };
+    assert_eq!(failure.kind(), ProducerDeliveryFailureKind::DeadlineElapsed);
+    assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
+    assert!(calls.try_reserve().is_some());
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));

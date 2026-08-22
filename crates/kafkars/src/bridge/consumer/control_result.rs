@@ -77,7 +77,21 @@ pub(crate) fn translate_assigned_control_admission_kind(
             "assigned-consumer control ownership is inconsistent",
         ),
     };
-    KafkaError::new(facade_kind, message)
+    let error = KafkaError::new(facade_kind, message);
+    match kind {
+        AssignedConsumerControlErrorKind::Contended | AssignedConsumerControlErrorKind::Pending => {
+            error.with_safe_retry()
+        }
+        AssignedConsumerControlErrorKind::Closed
+        | AssignedConsumerControlErrorKind::NoAssignment
+        | AssignedConsumerControlErrorKind::StaleAssignment
+        | AssignedConsumerControlErrorKind::UnknownPartition
+        | AssignedConsumerControlErrorKind::NegativeOffset
+        | AssignedConsumerControlErrorKind::DeadlineOverflow
+        | AssignedConsumerControlErrorKind::ResourceExhausted
+        | AssignedConsumerControlErrorKind::HostUnavailable
+        | AssignedConsumerControlErrorKind::InternalInvariant => error,
+    }
 }
 
 pub(crate) fn translate_missing_assignment() -> KafkaError {

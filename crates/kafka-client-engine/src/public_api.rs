@@ -1,5 +1,4 @@
 //! Curated public re-exports for engine execution and observation.
-
 pub use crate::admin::add_raft_voter::api::{
     AddRaftVoterAccepted, AddRaftVoterAcceptedFaultKind, AddRaftVoterAdmissionError,
     AddRaftVoterAdmissionErrorKind, AddRaftVoterBrokerError, AddRaftVoterCapture,
@@ -431,9 +430,10 @@ pub use crate::consumer::{
     GroupConsumerSeekAdmissionErrorKind, GroupConsumerSeekCapture, GroupConsumerSeekError,
     GroupConsumerSeekErrorKind, GroupConsumerSeekPosition, GroupConsumerStartAccepted,
     GroupConsumerStartCapture, GroupConsumerStartError, GroupConsumerStartErrorKind,
-    GroupConsumerState, GroupConsumerStateError, GroupConsumerStateErrorKind,
-    GroupConsumerTryTakeBatchError, GroupConsumerTryTakeBatchErrorKind,
-    GroupConsumerTryTakeEventError, GroupConsumerTryTakeEventErrorKind,
+    GroupConsumerStartupFailureKind, GroupConsumerState, GroupConsumerStateError,
+    GroupConsumerStateErrorKind, GroupConsumerTryTakeBatchError,
+    GroupConsumerTryTakeBatchErrorKind, GroupConsumerTryTakeEventError,
+    GroupConsumerTryTakeEventErrorKind,
 };
 pub use crate::delivery::{
     ProducerDeliveryFailure, ProducerDeliveryFailureKind, ProducerDeliveryStatus,

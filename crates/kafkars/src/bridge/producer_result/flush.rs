@@ -9,10 +9,29 @@ use kafka_client_engine::{
 use crate::{ErrorKind, KafkaError};
 
 pub(crate) fn translate_flush_admission(error: &EngineTryFlushError) -> KafkaError {
-    let message = error
-        .detail()
-        .map_or_else(|| admission_message(error.kind()).to_owned(), str::to_owned);
-    KafkaError::new(admission_kind(error.kind()), message)
+    let kind = error.kind();
+    let Some(detail) = error.detail() else {
+        return translate_flush_admission_kind(kind);
+    };
+    flush_admission(kind, detail.to_owned())
+}
+
+pub(super) fn translate_flush_admission_kind(kind: EngineTryFlushErrorKind) -> KafkaError {
+    flush_admission(kind, admission_message(kind).to_owned())
+}
+
+fn flush_admission(kind: EngineTryFlushErrorKind, message: String) -> KafkaError {
+    let error = KafkaError::new(admission_kind(kind), message);
+    match kind {
+        EngineTryFlushErrorKind::Contended | EngineTryFlushErrorKind::CompletionCapacity => {
+            error.with_safe_retry()
+        }
+        EngineTryFlushErrorKind::MomentUnrepresentable
+        | EngineTryFlushErrorKind::Closed
+        | EngineTryFlushErrorKind::LocalIdentityExhausted
+        | EngineTryFlushErrorKind::HostPoisoned
+        | EngineTryFlushErrorKind::InternalInvariant => error,
+    }
 }
 
 pub(crate) fn translate_flush_result(result: EngineFlushResult) -> Result<(), KafkaError> {

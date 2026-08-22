@@ -1,4 +1,4 @@
-//! Deterministic retry limits and normalized definitely-unsent failure facts.
+//! Deterministic retry limits and normalized attempt-failure facts.
 
 use core::fmt;
 

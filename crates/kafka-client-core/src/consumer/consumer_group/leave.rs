@@ -1,6 +1,6 @@
 //! Explicit epoch-minus-one leave transitions for one KIP-848 member.
 
-use crate::{Deadline, LiveGroupAssignment, Moment};
+use crate::{Deadline, Moment};
 
 use super::{
     ConsumerGroupHeartbeatAttempt, ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatErrorKind,
@@ -43,7 +43,10 @@ impl ConsumerGroupHeartbeatMachine {
             self.phase = ConsumerGroupHeartbeatPhase::Closed;
             return Ok(ConsumerGroupHeartbeatTransition::none());
         }
-        if self.phase != ConsumerGroupHeartbeatPhase::Stable {
+        if !matches!(
+            self.phase,
+            ConsumerGroupHeartbeatPhase::Stable | ConsumerGroupHeartbeatPhase::AwaitingAssignment
+        ) {
             return Err(ConsumerGroupHeartbeatErrorKind::InvalidPhase);
         }
         if deadline.is_elapsed_at(now) {
@@ -55,18 +58,23 @@ impl ConsumerGroupHeartbeatMachine {
         let member_epoch = self
             .member_epoch
             .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
-        let assignment_generation = self
-            .live_assignment
-            .as_ref()
-            .map(LiveGroupAssignment::assignment_generation)
-            .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
+        let assignment_generation = match self.live_assignment.as_ref() {
+            Some(assignment) if self.phase == ConsumerGroupHeartbeatPhase::Stable => {
+                Some(assignment.assignment_generation())
+            }
+            None if self.phase == ConsumerGroupHeartbeatPhase::AwaitingAssignment
+                && self.pending_assignment.is_none() =>
+            {
+                None
+            }
+            _ => return Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation),
+        };
         let (attempt, next_sequence) = self.reserve_attempt(Some(member_epoch))?;
         self.phase = ConsumerGroupHeartbeatPhase::Leaving;
         self.next_sequence = next_sequence;
         self.schedule = None;
         self.in_flight = Some(attempt);
         self.deadline = Some(deadline);
-        self.rediscovery_replacement_used = false;
         self.retry_schedule = None;
         Ok(ConsumerGroupHeartbeatTransition::one(
             ConsumerGroupHeartbeatEffect::Submit {
@@ -75,7 +83,7 @@ impl ConsumerGroupHeartbeatMachine {
                 kind: ConsumerGroupHeartbeatRequestKind::Leave,
                 member_id: Some(member_id),
                 member_epoch: Some(member_epoch),
-                assignment_generation: Some(assignment_generation),
+                assignment_generation,
                 deadline,
             },
         ))

@@ -10,14 +10,46 @@ use crate::{clock::MonotonicClock, consumer::GroupConsumerPositionFailureKind};
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
-    consumer_group_execution::ConsumerGroupExecution,
+    consumer_group_execution::{ConsumerGroupExecution, ConsumerGroupExecutionError},
     consumer_group_execution_cadence::ConsumerGroupCoordinatorLoadRetryTurn,
+    consumer_group_execution_fencing::consumer_group_heartbeat_is_ready,
     consumer_group_heartbeat_due::settle_consumer_group_load_retry_turn,
     consumer_group_heartbeat_settlement_test::installed_modern_entry,
-    consumer_group_heartbeat_submission::consumer_group_heartbeat_is_ready,
     consumer_group_heartbeat_submission_test::position_faulted_closing_leave_entry,
     registry_test_support::{started_registry, stop_registry},
 };
+
+#[test]
+fn rediscovery_schedule_with_an_open_route_gate_rejects_without_core_mutation() {
+    let group_id = GroupId::try_from_raw(1).unwrap_or_else(|| panic!("group id"));
+    let mut execution = ConsumerGroupExecution::new(group_id);
+    let capture = MonotonicClock::new()
+        .capture_deadline_after(Duration::from_secs(1))
+        .unwrap_or_else(|error| panic!("capture: {error:?}"));
+    execution
+        .begin(capture)
+        .unwrap_or_else(|error| panic!("begin: {error:?}"));
+    execution
+        .apply_current_rediscovery(
+            capture.now(),
+            ConsumerGroupHeartbeatFailure::CoordinatorUnavailable,
+        )
+        .unwrap_or_else(|error| panic!("rediscovery: {error:?}"));
+    let prepared = execution.prepared();
+    let schedule = execution
+        .machine()
+        .retry_schedule()
+        .unwrap_or_else(|| panic!("rediscovery schedule"));
+    execution.clear_rediscovery();
+
+    assert_eq!(
+        execution
+            .prepare_due_coordinator_load_retry(Moment::from_tick(schedule.not_before().tick(),)),
+        Err(ConsumerGroupExecutionError::EffectShape)
+    );
+    assert_eq!(execution.prepared(), prepared);
+    assert_eq!(execution.machine().retry_schedule(), Some(schedule));
+}
 
 #[test]
 fn replacement_advances_the_fetch_fence_without_changing_initial_install() {

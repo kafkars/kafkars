@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use admin_partition_reassignments_loopback::{PartitionReassignmentsBroker, Workflow, wait_within};
 use kafkars::{
     AlterPartitionReassignmentsResult, Client, DeliveryStatus, ErrorKind, KafkaError,
-    PartitionReassignmentChange, TopicPartition,
+    PartitionReassignmentChange, RetryAdvice, TopicPartition,
 };
 
 #[test]
@@ -154,8 +154,9 @@ fn wait_until_ready(client: &Client, context: &str) {
         match client.ready().wait() {
             Ok(()) => return,
             Err(error)
-                if error.kind() == ErrorKind::Transport
-                    && error.delivery_status() == Some(DeliveryStatus::NotSent)
+                if (error.retry_advice() == RetryAdvice::RetrySafe
+                    || (error.kind() == ErrorKind::Transport
+                        && error.delivery_status() == Some(DeliveryStatus::NotSent)))
                     && Instant::now() < deadline =>
             {
                 std::thread::sleep(Duration::from_millis(1));

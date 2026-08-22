@@ -92,7 +92,7 @@ fn equal_current_assignment_at_new_epoch_advances_without_local_replacement() {
     assert!(matches!(
         transition.into_effects().next(),
         Some(ConsumerGroupHeartbeatEffect::ArmHeartbeat { schedule })
-            if schedule.assignment_generation().get() == 1
+            if schedule.assignment_generation().is_some_and(|generation| generation.get() == 1)
                 && schedule.attempt().member_epoch() == Some(epoch(2))
     ));
     assert!(machine.pending_assignment().is_none());

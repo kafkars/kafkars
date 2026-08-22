@@ -53,7 +53,7 @@ mod validation_test;
 
 const DEFAULT_DELIVERY_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_ADMIN_TIMEOUT: Duration = Duration::from_secs(30);
-const DEFAULT_PRODUCER_RETRIES: u32 = 3;
+const DEFAULT_PRODUCER_RETRIES: u32 = 10;
 const DEFAULT_PRODUCER_RETRY_BACKOFF: Duration = Duration::from_millis(100);
 const DEFAULT_COMPRESSION_WORKERS: usize = 2;
 const DEFAULT_TURN_BUDGET: usize = 64;
@@ -142,10 +142,7 @@ impl EngineConfig {
         self
     }
 
-    /// Replaces the optional identity retained for future header propagation.
-    ///
-    /// The pinned driver does not currently write this value into Kafka
-    /// request headers.
+    /// Replaces the optional identity encoded in Kafka request headers.
     #[must_use]
     pub fn with_client_id(mut self, client_id: Option<String>) -> Self {
         self.client_id = client_id;
@@ -166,7 +163,7 @@ impl EngineConfig {
         self
     }
 
-    /// Replaces bounded definitely-unsent retry intent.
+    /// Replaces bounded record-execution and transaction-request retry intent.
     #[must_use]
     pub const fn with_producer_retry(mut self, max_retries: u32, backoff: Duration) -> Self {
         self.producer_retry_max = max_retries;
@@ -181,7 +178,7 @@ impl EngineConfig {
 
     /// Returns the retained client identity, when configured.
     ///
-    /// The returned value does not imply request-header propagation.
+    /// The configured value is propagated to Kafka request headers.
     pub fn client_id(&self) -> Option<&str> {
         self.client_id.as_deref()
     }
@@ -226,12 +223,12 @@ impl EngineConfig {
         self.assigned_consumer_limits
     }
 
-    /// Returns the maximum definitely-unsent retries per producer batch.
+    /// Returns the maximum replacement attempts per eligible operation.
     pub const fn producer_retry_max(&self) -> u32 {
         self.producer_retry_max
     }
 
-    /// Returns the fixed delay between definitely-unsent producer attempts.
+    /// Returns the fixed delay between eligible replacement attempts.
     pub const fn producer_retry_backoff(&self) -> Duration {
         self.producer_retry_backoff
     }

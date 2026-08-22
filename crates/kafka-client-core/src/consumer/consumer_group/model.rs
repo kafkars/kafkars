@@ -12,6 +12,8 @@ pub enum ConsumerGroupHeartbeatPhase {
     Dormant,
     /// An initial or fenced-recovery epoch-zero Join heartbeat is outstanding.
     Joining,
+    /// The broker accepted the member but has not supplied its first assignment.
+    AwaitingAssignment,
     /// One broker assignment is live and a cadence deadline is armed.
     Stable,
     /// One assignment-fenced steady heartbeat is outstanding.

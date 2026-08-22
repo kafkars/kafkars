@@ -99,9 +99,9 @@ baseline = [
   { path = "crates/kafka-client-core/src/consumer/mod.rs", lines = 84, reason = "the declarative core consumer facade names atomic batch control and its sibling evidence beside direct-assignment policy" },
   { path = "crates/kafka-client-core/src/consumer/resolved_assignment/reconciliation_transition.rs", lines = 292, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-core/src/consumer/resolved_assignment/reconciliation_transition_test.rs", lines = 449, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-core/src/producer/idempotence_transition.rs", lines = 249, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 92, reason = "the declarative producer facade names the complete deterministic producer state surface including bounded waiting and its evidence" },
-  { path = "crates/kafka-client-core/src/public_api.rs", lines = 499, reason = "the explicit generated-free core facade reexports the complete deterministic Rust source-preview vocabulary, including bounded manual topic assignments, after the DescribeLogDirs surface moved behind a focused declarative child" },
+  { path = "crates/kafka-client-core/src/producer/idempotence_transition.rs", lines = 253, reason = "the identity transition keeps exact code-fourteen retry classification beside atomic terminal fencing; this measured baseline ratchets further growth pending a focused split" },
+  { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 95, reason = "the declarative producer facade names the complete deterministic producer state surface including bounded identity retry, waiting, and their evidence" },
+  { path = "crates/kafka-client-core/src/public_api.rs", lines = 500, reason = "the explicit generated-free core facade reexports the complete deterministic Rust source-preview vocabulary, including bounded producer identity retry and manual topic assignments" },
   { path = "crates/kafka-client-core/src/transaction/offset_commit/transition.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/admin/abort_partition_transaction/host.rs", lines = 255, reason = "the bounded API 27 owner retains one leader-routed destructive call, terminal publication, shutdown recovery, and exact byte accounting in one lifecycle seam" },
   { path = "crates/kafka-client-engine/src/admin/completion.rs", lines = 429, reason = "the closed Admin notifier owns the capacity equation, tickets, ports, and worker while typed publisher implementations live in a focused child seam" },
@@ -140,12 +140,10 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret.rs", lines = 249, reason = "Join settlement keeps static MEMBER_ID_REQUIRED staging and dynamic or static terminal interpretation inside one cycle-fenced transition seam" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_leave/completion.rs", lines = 253, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_reconciliation_turn.rs", lines = 451, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs", lines = 280, reason = "the focused owner keeps its reviewed responsibility and fail-closed unrecognized invalidation admission in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs", lines = 258, reason = "the focused owner keeps its reviewed responsibility and terminal-gated invalidation admission in one explicit seam; this exact reduced baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_due.rs", lines = 248, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_install.rs", lines = 313, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/group/consumer_group_close.rs", lines = 241, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_reconciliation_test.rs", lines = 304, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_settlement_test.rs", lines = 311, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/registry_close.rs", lines = 319, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/registry_delivery.rs", lines = 266, reason = "fresh-time processing progress and exact delivery transfer or reclaim remain one registry boundary" },
   { path = "crates/kafka-client-engine/src/consumer/group/registry_delivery_test.rs", lines = 367, reason = "group selection, contention, close, renewal, expiration, and reclaim scenarios exercise one delivery boundary" },
@@ -164,7 +162,6 @@ baseline = [
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/driver/rpc/fetch/route.rs", lines = 260, reason = "the focused route owner keeps its reviewed responsibility and fail-closed non-exhaustive driver projection in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc/remove_raft_voter_terminal.rs", lines = 254, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs", lines = 268, reason = "AddPartitionsToTxn retains exact response correlation, coordinator-refresh eligibility, and retry-safety evidence in one terminal owner" },
@@ -177,7 +174,6 @@ baseline = [
   { path = "crates/kafka-client-engine/src/engine_host/admin/recovery.rs", lines = 251, reason = "the Admin recovery dispatcher exhaustively returns each concrete tracked owner to its exact bounded host after driver shutdown" },
   { path = "crates/kafka-client-engine/src/engine_host/admin/schedule.rs", lines = 451, reason = "the fair Admin scheduler drives every bounded source-preview operation once per fresh-time host cycle" },
   { path = "crates/kafka-client-engine/src/engine_host/error/host_display.rs", lines = 480, reason = "the host error formatter preserves every concrete source-preview Admin invariant identity without collapsing failure ownership" },
-  { path = "crates/kafka-client-engine/src/engine_host/produce_test.rs", lines = 301, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/engine_host/recovery.rs", lines = 244, reason = "the top-level recovery dispatcher keeps exact producer, consumer, transaction, and Admin ownership routing exhaustive" },
   { path = "crates/kafka-client-engine/src/engine_host/start.rs", lines = 505, reason = "host startup explicitly constructs every bounded source-preview operation owner and transfers its exact admission port" },
   { path = "crates/kafka-client-engine/src/producer/host.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -243,6 +239,22 @@ soft = 500
 hard = 700
 
 # Load-bearing modules keep their executable evidence as declared siblings.
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/consumer_group/rediscovery.rs"
+test = "crates/kafka-client-core/src/consumer/consumer_group/rediscovery_retry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_success_settlement/effects.rs"
+test = "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_success_settlement/awaiting_assignment_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_unregister/owner.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_unregister/owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/group_handle.rs"
+test = "crates/kafkars/src/consumer/group_startup_error_test.rs"
+
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/capacity.rs"
 test = "crates/kafka-client-core/src/capacity_test.rs"
@@ -334,6 +346,14 @@ test = "crates/kafka-client-core/src/producer/idempotence_acquisition_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/idempotence_request_terminal.rs"
 test = "crates/kafka-client-core/src/producer/idempotence_fencing_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/idempotence_retry.rs"
+test = "crates/kafka-client-core/src/producer/idempotence_retry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-sim/src/producer_time.rs"
+test = "crates/kafka-client-sim/src/producer_timer_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/model.rs"
@@ -2557,6 +2577,7 @@ forbidden = [
 ]
 allow = [
   { path = "crates/kafka-client-engine/src/transaction/initialization/host.rs", capability = "crate::driver", reason = "The concrete transaction owner retains exactly one accepted call beside its core machine." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/host/delivery_floor_test.rs", capability = "crate::driver", reason = "Focused retry-host evidence constructs one refreshed InitProducerId terminal and drives replacement deadline and shutdown settlement through the reviewed driver owner." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host_test.rs", capability = "crate::driver", reason = "The focused lifecycle fixture embeds the reviewed driver owner to exercise exact begin, end, and owner-loss hosting." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", capability = "crate::driver", reason = "The concrete terminal seam exhaustively translates borrowed driver facts before core settlement." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/turn.rs", capability = "crate::driver", reason = "The concrete host turn submits one core-authorized request through the sanctioned adapter." },
@@ -6393,6 +6414,7 @@ allow = [
   { path = "crates/kafkars/src/silent_broker_test.rs", capability = "std::net", reason = "A test-only silent loopback listener proves the public timeout translation without exposing a production test hook." },
   { path = "crates/kafkars/src/silent_broker_test.rs", capability = "std::thread", reason = "The test broker completes negotiation off the client reactor and joins before the scenario exits." },
   { path = "crates/kafkars/src/producer/send_batch_test.rs", capability = "std::thread", reason = "The public prefix-admission proof delays only its caller while retrying deliberately forced shard contention." },
+  { path = "crates/kafkars/src/consumer/group_startup_error_test.rs", capability = "std::thread", reason = "The public retained-startup proof delays only its caller while polling the accepted membership terminal." },
   { path = "crates/kafkars/src/bridge/client_shutdown/state.rs", capability = "std::sync::Condvar", reason = "The bounded clone-shared shutdown terminal provides a runtime-neutral blocking adapter without borrowing an executor." },
   { path = "crates/kafkars/src/bridge/client_shutdown/state.rs", capability = "std::sync::Mutex", reason = "The facade retains one bounded shutdown phase and observer registry shared across client clones." },
   { path = "crates/kafkars/src/bridge/client_shutdown/state.rs", capability = "std::thread", reason = "One named native waiter observes engine termination and publishes user wakers away from reactor threads." },
@@ -6864,6 +6886,7 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/cancellation.rs",
   "crates/kafka-client-core/src/producer/cancellation_waiting.rs",
   "crates/kafka-client-core/src/producer/execution_stop.rs",
+  "crates/kafka-client-core/src/producer/idempotence_retry.rs",
   "crates/kafka-client-core/src/producer/idempotence_transition.rs",
   "crates/kafka-client-core/src/producer/input_batch.rs",
   "crates/kafka-client-core/src/producer/input_outcome.rs",
@@ -12838,6 +12861,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/session_catalog/static_membership.rs",
   "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment.rs",
   "crates/kafka-client-engine/src/consumer/group/session_catalog_consumer.rs",
+  "crates/kafka-client-engine/src/consumer/group/session_catalog_consumer/assignmentless.rs",
 ]
 
 [[mutation_owners]]
@@ -12848,6 +12872,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/session_catalog/static_membership.rs",
   "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment.rs",
   "crates/kafka-client-engine/src/consumer/group/session_catalog_consumer.rs",
+  "crates/kafka-client-engine/src/consumer/group/session_catalog_consumer/assignmentless.rs",
 ]
 
 [[mutation_owners]]
@@ -13337,7 +13362,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry_fetch_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_processing.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_session.rs",
-  "crates/kafka-client-engine/src/consumer/group/registry_unregister.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_unregister/owner.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_turn.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_position_reset/host.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_reconciliation_loss.rs",
@@ -13369,7 +13394,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry_registration.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_fetch_recovery.rs",
-  "crates/kafka-client-engine/src/consumer/group/registry_unregister.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_unregister/owner.rs",
 ]
 
 [[mutation_owners]]
@@ -13572,6 +13597,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_position/close.rs",
   "crates/kafka-client-engine/src/consumer/group/consumer_group_assignment_install.rs",
   "crates/kafka-client-engine/src/consumer/group/consumer_group_assignment_retirement.rs",
+  "crates/kafka-client-engine/src/consumer/group/consumer_group_execution_fencing.rs",
   "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/consumer_group_topic_identity_turn.rs",
 ]
@@ -13598,7 +13624,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry_delivery.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_processing.rs",
-  "crates/kafka-client-engine/src/consumer/group/registry_unregister.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_unregister/owner.rs",
   "crates/kafka-client-engine/src/consumer/group/consumer_group_assignment_install.rs",
   "crates/kafka-client-engine/src/consumer/group/consumer_group_assignment_retirement.rs",
 ]

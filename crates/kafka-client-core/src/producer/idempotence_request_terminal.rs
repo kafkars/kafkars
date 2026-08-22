@@ -31,6 +31,24 @@ impl ProducerMachine {
         if !self.idempotence.acquisition_is_current(generation) {
             return Ok(ProducerTransition::none());
         }
+        self.commit_identity_request_terminal(now)
+    }
+
+    pub(super) fn producer_identity_retry_deadline_elapsed(
+        &mut self,
+        schedule: crate::ProducerIdentityRetrySchedule,
+        now: Moment,
+    ) -> Result<ProducerTransition, ProducerMachineError> {
+        if self.idempotence.retry_schedule() != Some(schedule) {
+            return Err(ProducerMachineError::ProducerIdentityRetryScheduleMismatch);
+        }
+        self.commit_identity_request_terminal(now)
+    }
+
+    fn commit_identity_request_terminal(
+        &mut self,
+        now: Moment,
+    ) -> Result<ProducerTransition, ProducerMachineError> {
         let mut failures = Vec::new();
         for (batch_id, batch) in &self.batches {
             if !matches!(

@@ -85,7 +85,7 @@ pub(super) fn staged_reconciliation() -> ConsumerGroupHeartbeatMachine {
         }] if previous.assignment_generation().get() == 1
             && assignment.assignment_generation().get() == 2
             && *member_epoch == epoch(2)
-            && schedule.assignment_generation().get() == 1
+            && schedule.assignment_generation().is_some_and(|generation| generation.get() == 1)
     ));
     machine
 }

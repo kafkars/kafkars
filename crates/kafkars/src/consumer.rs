@@ -132,6 +132,8 @@ mod group_recv_test;
 #[cfg(test)]
 mod group_seek_test;
 #[cfg(test)]
+mod group_startup_error_test;
+#[cfg(test)]
 mod group_test;
 #[cfg(test)]
 mod limits_test;

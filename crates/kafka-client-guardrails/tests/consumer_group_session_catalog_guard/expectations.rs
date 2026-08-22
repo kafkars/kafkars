@@ -7,6 +7,8 @@ pub(super) const CATALOG_ASSIGNMENT: &str =
     "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment.rs";
 pub(super) const CATALOG_CONSUMER: &str =
     "crates/kafka-client-engine/src/consumer/group/session_catalog_consumer.rs";
+pub(super) const CATALOG_CONSUMER_ASSIGNMENTLESS: &str =
+    "crates/kafka-client-engine/src/consumer/group/session_catalog_consumer/assignmentless.rs";
 pub(super) const OWNER: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_owner.rs";
 pub(super) const FOLLOWER_OWNER: &str =
@@ -52,6 +54,7 @@ pub(super) const CATALOG_FIELDS: &[(&str, &[&str])] = &[
             CATALOG_STATIC,
             CATALOG_ASSIGNMENT,
             CATALOG_CONSUMER,
+            CATALOG_CONSUMER_ASSIGNMENTLESS,
         ],
     ),
     ("next_topic_id", &[CATALOG, CATALOG_ASSIGNMENT]),
@@ -66,6 +69,7 @@ pub(super) const CATALOG_FIELDS: &[(&str, &[&str])] = &[
             CATALOG_STATIC,
             CATALOG_ASSIGNMENT,
             CATALOG_CONSUMER,
+            CATALOG_CONSUMER_ASSIGNMENTLESS,
         ],
     ),
 ];

@@ -234,20 +234,20 @@ fn assign_and_retain_failure(
 }
 
 fn retain_failure(owner: &crate::consumer::AssignedConsumerShardOwner) {
-    owner
-        .try_with_owner(|assigned| {
-            let fence = assigned
-                .pending_fetches
-                .front()
-                .unwrap_or_else(|| panic!("prepared Fetch"))
-                .fence();
-            assigned
-                .effects
-                .push_back(AssignedConsumerEffect::FetchFailed {
-                    fence,
-                    failure: FetchFailure::Transport,
-                });
-            assert_eq!(assigned.interpret_front_effect(), FrontEffect::Interpreted);
-        })
-        .unwrap_or_else(|error| panic!("retain failure: {error:?}"));
+    let mut guard = owner.lock_for_test();
+    let assigned = guard
+        .as_mut()
+        .unwrap_or_else(|| panic!("assigned owner must remain installed"));
+    let fence = assigned
+        .pending_fetches
+        .front()
+        .unwrap_or_else(|| panic!("prepared Fetch"))
+        .fence();
+    assigned
+        .effects
+        .push_back(AssignedConsumerEffect::FetchFailed {
+            fence,
+            failure: FetchFailure::Transport,
+        });
+    assert_eq!(assigned.interpret_front_effect(), FrontEffect::Interpreted);
 }

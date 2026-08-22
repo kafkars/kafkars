@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "$#" -ne 2 ]]; then
+  echo "usage: qualification/generate-tls OUTPUT PASSWORD" >&2
+  exit 2
+fi
+
+output=$1
+password=$2
+script_root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+mkdir -p "$output"
+umask 077
+
+openssl req -x509 -newkey rsa:2048 -nodes -days 2 \
+  -subj /CN=kafkars-qualification-ca \
+  -keyout "$output/ca.key" -out "$output/ca.pem"
+openssl req -newkey rsa:2048 -nodes \
+  -config "$script_root/tls.cnf" \
+  -keyout "$output/broker.key" -out "$output/broker.csr"
+openssl x509 -req -days 2 -sha256 \
+  -in "$output/broker.csr" -CA "$output/ca.pem" -CAkey "$output/ca.key" \
+  -CAcreateserial -copy_extensions copy -out "$output/broker.pem"
+openssl pkcs12 -export -name kafka-broker \
+  -in "$output/broker.pem" -inkey "$output/broker.key" -certfile "$output/ca.pem" \
+  -out "$output/kafka.keystore.p12" -password "pass:$password"
+keytool -importcert -noprompt -alias qualification-ca \
+  -file "$output/ca.pem" -keystore "$output/kafka.truststore.p12" \
+  -storetype PKCS12 -storepass "$password"
+
+chmod 0444 "$output/kafka.keystore.p12" "$output/kafka.truststore.p12"

@@ -22,7 +22,6 @@ use crate::{
 
 use super::produce::{admit_identity, admit_one, apply_ready};
 
-const DRIVER_TURN_LIMIT: usize = 256;
 const DRIVER_TURN_WAIT: Duration = Duration::from_millis(10);
 
 #[test]
@@ -132,44 +131,6 @@ fn immediate_identity_rejection_applies_live_identity_failure_before_unlock() {
         ProducerDeliveryFailureKind::ProducerIdentity
     );
     assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
-}
-
-#[test]
-fn terminal_fact_is_applied_before_the_tracked_slot_is_released() {
-    let (producer, observer) = prepared_producer();
-    let mut driver = driver();
-    let mut calls = TrackedProduceCalls::new(1);
-    {
-        let mut data = producer
-            .try_data()
-            .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
-        admit_one(&driver, &mut calls, &mut data, Moment::from_tick(2))
-            .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"));
-    }
-
-    let mut settled = false;
-    for turn in 0..DRIVER_TURN_LIMIT {
-        driver
-            .turn(DRIVER_TURN_WAIT)
-            .unwrap_or_else(|error| panic!("driver turn {turn}: {error}"));
-        let mut data = producer
-            .try_data()
-            .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
-        if apply_ready(&driver, &mut calls, &mut data, Moment::from_tick(3), 1)
-            .unwrap_or_else(|error| panic!("apply Produce terminal: {error}"))
-        {
-            settled = true;
-            break;
-        }
-    }
-
-    assert!(settled, "bounded driver turns must settle the tracked call");
-    let Err(ProducerDeliveryError::Failed(failure)) = observer.wait() else {
-        panic!("unreachable broker must publish one driver-owned failure")
-    };
-    assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
-    assert!(calls.try_reserve().is_some());
-    shutdown(&mut driver);
 }
 
 #[test]

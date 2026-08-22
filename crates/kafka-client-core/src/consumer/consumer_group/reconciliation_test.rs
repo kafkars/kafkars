@@ -23,7 +23,12 @@ fn replacement_keeps_old_ownership_and_heartbeats_new_epoch_while_target_waits()
     assert_eq!(target.partitions(), [partition(1, 1)]);
 
     let schedule = machine.schedule().unwrap_or_else(|| panic!("cadence"));
-    assert_eq!(schedule.assignment_generation().get(), 1);
+    assert_eq!(
+        schedule
+            .assignment_generation()
+            .map(crate::AssignmentGeneration::get),
+        Some(1)
+    );
     assert_eq!(schedule.attempt().member_epoch(), Some(epoch(2)));
     let transition = machine
         .apply(ConsumerGroupHeartbeatInput::HeartbeatDue {
@@ -51,7 +56,7 @@ fn replacement_keeps_old_ownership_and_heartbeats_new_epoch_while_target_waits()
     assert!(matches!(
         transition.into_effects().next(),
         Some(ConsumerGroupHeartbeatEffect::ArmHeartbeat { schedule })
-            if schedule.assignment_generation().get() == 1
+            if schedule.assignment_generation().is_some_and(|generation| generation.get() == 1)
     ));
     assert_eq!(
         machine
@@ -77,7 +82,7 @@ fn repeated_target_is_idempotent_but_changed_same_epoch_target_is_rejected() {
     assert!(matches!(
         transition.into_effects().next(),
         Some(ConsumerGroupHeartbeatEffect::ArmHeartbeat { schedule })
-            if schedule.assignment_generation().get() == 1
+            if schedule.assignment_generation().is_some_and(|generation| generation.get() == 1)
     ));
 
     let attempt = due_attempt(&mut machine);
@@ -156,7 +161,10 @@ fn exact_retirement_emits_empty_owned_ack_then_success_authorizes_target_install
     assert_eq!(*member_id, member(9));
     assert_eq!(*member_epoch, epoch(2));
     assert_eq!(assignment_generation.get(), 2);
-    assert_eq!(schedule.assignment_generation(), *assignment_generation);
+    assert_eq!(
+        schedule.assignment_generation(),
+        Some(*assignment_generation)
+    );
     assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Stable);
     assert_eq!(
         machine

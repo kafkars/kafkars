@@ -40,10 +40,7 @@ impl ClientBuilder {
         self
     }
 
-    /// Retains the client identifier in this client's configuration.
-    ///
-    /// The pinned driver does not currently propagate this value into Kafka
-    /// request headers.
+    /// Sets the client identifier encoded in Kafka request headers.
     pub fn client_id(mut self, client_id: impl Into<String>) -> Self {
         self.client_id = Some(client_id.into());
         self
@@ -111,10 +108,7 @@ impl Client {
         ClientBuilder::default()
     }
 
-    /// Returns the configured client identifier retained by this client.
-    ///
-    /// This value is not evidence that the pinned driver sent a client ID in
-    /// Kafka request headers.
+    /// Returns the configured client identifier passed to the driver for Kafka headers.
     pub fn client_id(&self) -> Option<&str> {
         self.engine.client_id()
     }

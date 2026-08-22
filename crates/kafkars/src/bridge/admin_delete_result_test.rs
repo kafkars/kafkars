@@ -9,45 +9,57 @@ use super::admin_delete_result::{
     translate_accepted_fault, translate_admission_kind, translate_failure_parts,
     translate_observer_error, translate_topic_error_parts,
 };
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 #[test]
-fn every_admission_category_maps_without_hidden_retry_policy() {
+fn every_admission_category_preserves_pre_admission_retry_safety() {
     let cases = [
         (
             DeleteTopicsAdmissionErrorKind::InvalidRequest,
             ErrorKind::Configuration,
+            RetryAdvice::DoNotRetry,
         ),
         (
             DeleteTopicsAdmissionErrorKind::InvalidDeadline,
             ErrorKind::Configuration,
+            RetryAdvice::DoNotRetry,
         ),
         (
             DeleteTopicsAdmissionErrorKind::Contended,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
-        (DeleteTopicsAdmissionErrorKind::Closed, ErrorKind::State),
+        (
+            DeleteTopicsAdmissionErrorKind::Closed,
+            ErrorKind::State,
+            RetryAdvice::DoNotRetry,
+        ),
         (
             DeleteTopicsAdmissionErrorKind::Capacity,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
         (
             DeleteTopicsAdmissionErrorKind::RetainedBytes,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
         (
             DeleteTopicsAdmissionErrorKind::IdentityExhausted,
             ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
         ),
         (
             DeleteTopicsAdmissionErrorKind::HostUnavailable,
             ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
         ),
     ];
-    for (engine, public) in cases {
+    for (engine, public, retry) in cases {
         let error = translate_admission_kind(engine);
         assert_eq!(error.kind(), public);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        assert_eq!(error.retry_advice(), retry);
     }
 }
 

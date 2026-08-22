@@ -10,6 +10,18 @@ pub(crate) const fn request_failure_delivery(error: &RequestError) -> DeliverySt
     delivery_status(error.delivery())
 }
 
+/// Identifies expiration of this exact driver-owned request, not collateral
+/// connection loss caused by a different request's deadline.
+pub(crate) const fn request_failure_is_deadline(error: &RequestError) -> bool {
+    matches!(
+        error,
+        RequestError::Rejected {
+            failure: CallFailure::DeadlineExceeded,
+            ..
+        }
+    )
+}
+
 /// Normalizes driver structure without changing authoritative delivery certainty.
 #[allow(
     clippy::match_same_arms,

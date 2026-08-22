@@ -79,14 +79,14 @@ impl ConsumerGroupHeartbeatAttempt {
 pub struct ConsumerGroupHeartbeatSchedule {
     attempt: ConsumerGroupHeartbeatAttempt,
     deadline: Deadline,
-    assignment_generation: AssignmentGeneration,
+    assignment_generation: Option<AssignmentGeneration>,
 }
 
 impl ConsumerGroupHeartbeatSchedule {
     pub(crate) const fn new(
         attempt: ConsumerGroupHeartbeatAttempt,
         deadline: Deadline,
-        assignment_generation: AssignmentGeneration,
+        assignment_generation: Option<AssignmentGeneration>,
     ) -> Self {
         Self {
             attempt,
@@ -105,8 +105,8 @@ impl ConsumerGroupHeartbeatSchedule {
         self.deadline
     }
 
-    /// Returns the assignment generation whose owned partitions will be reported.
-    pub const fn assignment_generation(self) -> AssignmentGeneration {
+    /// Returns the live assignment generation to report, absent while awaiting the first target.
+    pub const fn assignment_generation(self) -> Option<AssignmentGeneration> {
         self.assignment_generation
     }
 }

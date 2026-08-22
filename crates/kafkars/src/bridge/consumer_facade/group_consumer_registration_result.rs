@@ -37,11 +37,13 @@ pub(super) fn translate_group_registration_kind(
         GroupConsumerRegistrationErrorKind::Contended => KafkaError::new(
             ErrorKind::Backpressure,
             "group-consumer registration is temporarily contended",
-        ),
+        )
+        .with_safe_retry(),
         GroupConsumerRegistrationErrorKind::Backpressure => KafkaError::new(
             ErrorKind::Backpressure,
             "bounded group-consumer registration capacity is full",
-        ),
+        )
+        .with_safe_retry(),
         GroupConsumerRegistrationErrorKind::InvalidInput => KafkaError::new(
             ErrorKind::Configuration,
             "group-consumer registration policy is outside the supported bounded domain",
@@ -54,14 +56,19 @@ pub(super) fn translate_group_registration_kind(
 }
 
 pub(crate) fn translate_group_start(error: GroupConsumerStartError) -> KafkaError {
-    match error.kind() {
+    translate_group_start_kind(error.kind())
+}
+
+pub(super) fn translate_group_start_kind(kind: GroupConsumerStartErrorKind) -> KafkaError {
+    match kind {
         GroupConsumerStartErrorKind::Closed => {
             KafkaError::new(ErrorKind::State, "group membership admission is closed")
         }
         GroupConsumerStartErrorKind::Contended => KafkaError::new(
             ErrorKind::Backpressure,
             "group membership owner is temporarily contended",
-        ),
+        )
+        .with_safe_retry(),
         GroupConsumerStartErrorKind::AlreadyStarted => {
             KafkaError::new(ErrorKind::State, "group membership has already started")
         }

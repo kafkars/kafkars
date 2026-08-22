@@ -6,6 +6,8 @@ use kafka_wire::InitProducerIdResponse;
 
 use super::super::request_failure_delivery;
 
+const CONCURRENT_TRANSACTIONS: i16 = 51;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TransactionInitDriverFailureKind {
     DeadlineElapsed,
@@ -63,13 +65,47 @@ impl TransactionInitTerminal {
         self.coordinator_refresh_completed = true;
     }
 
-    pub(crate) fn retry_safe_after_refresh(&self) -> bool {
-        self.coordinator_refresh_completed
-            && matches!(
-                self.fact(),
-                TransactionInitTerminalFact::Response { response, .. }
-                    if matches!(response.error_code, 14..=16)
-            )
+    pub(crate) fn retry_delivery(&self) -> Option<DeliveryStatus> {
+        match self.fact() {
+            TransactionInitTerminalFact::Response { response, .. }
+                if response.error_code == CONCURRENT_TRANSACTIONS =>
+            {
+                Some(DeliveryStatus::PossiblySent)
+            }
+            TransactionInitTerminalFact::Response { response, .. }
+                if self.coordinator_refresh_completed && matches!(response.error_code, 14..=16) =>
+            {
+                Some(DeliveryStatus::PossiblySent)
+            }
+            TransactionInitTerminalFact::Failed {
+                kind:
+                    TransactionInitDriverFailureKind::Transport
+                    | TransactionInitDriverFailureKind::DeadlineElapsed,
+                delivery: DeliveryStatus::NotSent,
+            } if self.coordinator_refresh_completed => Some(DeliveryStatus::NotSent),
+            TransactionInitTerminalFact::Response { .. }
+            | TransactionInitTerminalFact::Failed { .. } => None,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn response_for_test(error_code: i16) -> Self {
+        let mut response = InitProducerIdResponse::default();
+        response.error_code = error_code;
+        Self {
+            result: Ok(response),
+            selected_version: Some(5),
+            route_token: None,
+            coordinator_refresh_completed: false,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn refreshed_response_for_test(error_code: i16) -> Self {
+        Self {
+            coordinator_refresh_completed: true,
+            ..Self::response_for_test(error_code)
+        }
     }
 
     pub(crate) fn discard(self) {

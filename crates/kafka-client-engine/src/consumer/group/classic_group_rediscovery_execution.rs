@@ -48,25 +48,6 @@ impl GroupConsumerRegistry {
             .as_ref()
             .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
             .rediscovery_state();
-        if state == ConsumerGroupRediscoveryState::ReplacementAdmitted {
-            route.accept();
-            let is_leave = consumer_group_rediscovery_is_leave(&self.entries[index])?;
-            let decision = self.entries[index]
-                .consumer
-                .as_mut()
-                .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
-                .apply_current_rediscovery(now, failure)?;
-            let ConsumerGroupRediscoveryDecision::Terminal { revoked, failure } = decision else {
-                return Err(ConsumerGroupExecutionError::EffectShape);
-            };
-            finish_consumer_group_rediscovery_terminal(
-                &mut self.entries[index],
-                is_leave,
-                revoked,
-                failure,
-            )?;
-            return Ok(());
-        }
         if state != ConsumerGroupRediscoveryState::Open {
             route.accept();
             return Err(ConsumerGroupExecutionError::EffectShape);
@@ -155,8 +136,7 @@ impl GroupConsumerRegistry {
             ClassicCoordinatorInvalidationPoll::Idle => {
                 Ok(ClassicCoordinatorInvalidationTurn::Idle)
             }
-            ClassicCoordinatorInvalidationPoll::Submitted { group_id } => {
-                self.permit_consumer_group_rediscovery_after_invalidation_admission(group_id)?;
+            ClassicCoordinatorInvalidationPoll::Submitted { .. } => {
                 Ok(ClassicCoordinatorInvalidationTurn::Progress)
             }
             ClassicCoordinatorInvalidationPoll::Pending { .. } => {
@@ -190,12 +170,28 @@ impl GroupConsumerRegistry {
             return Ok(());
         }
         if let Some(consumer) = entry.consumer.as_ref() {
-            if consumer.rediscovery_state()
-                == ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission
-            {
-                return Err(ClassicGroupExecutionError::CoordinatorInvalidationGate);
-            }
-            return Ok(());
+            return match consumer.rediscovery_state() {
+                ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission => match result {
+                    Ok(
+                        ClassicCoordinatorInvalidationPermission::Applied
+                        | ClassicCoordinatorInvalidationPermission::IgnoredStale,
+                    ) => entry
+                        .consumer
+                        .as_mut()
+                        .ok_or(ClassicGroupExecutionError::CoordinatorInvalidationGate)?
+                        .permit_rediscovery_replacement()
+                        .map_err(|_error| ClassicGroupExecutionError::CoordinatorInvalidationGate),
+                    Err(_failure) => fail_consumer_group_rediscovery_entry(
+                        entry,
+                        ConsumerGroupHeartbeatFailure::Execution,
+                    )
+                    .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup),
+                },
+                ConsumerGroupRediscoveryState::Open => Ok(()),
+                ConsumerGroupRediscoveryState::ReplacementAdmitted => {
+                    Err(ClassicGroupExecutionError::CoordinatorInvalidationGate)
+                }
+            };
         }
         match result {
             Ok(
@@ -210,32 +206,6 @@ impl GroupConsumerRegistry {
                     failure,
                 ));
                 Err(ClassicGroupExecutionError::CoordinatorInvalidationTerminal)
-            }
-        }
-    }
-
-    fn permit_consumer_group_rediscovery_after_invalidation_admission(
-        &mut self,
-        group_id: GroupId,
-    ) -> Result<(), ClassicGroupExecutionError> {
-        let entry = self
-            .entries
-            .iter_mut()
-            .find(|entry| entry.group_id() == group_id)
-            .ok_or(ClassicGroupExecutionError::CallIdentityMismatch)?;
-        if entry.leave.owns_coordinator_invalidation() {
-            return Ok(());
-        }
-        let Some(consumer) = entry.consumer.as_mut() else {
-            return Ok(());
-        };
-        match consumer.rediscovery_state() {
-            ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission => consumer
-                .permit_rediscovery_replacement()
-                .map_err(|_error| ClassicGroupExecutionError::CoordinatorInvalidationGate),
-            ConsumerGroupRediscoveryState::Open => Ok(()),
-            ConsumerGroupRediscoveryState::ReplacementAdmitted => {
-                Err(ClassicGroupExecutionError::CoordinatorInvalidationGate)
             }
         }
     }
@@ -275,6 +245,14 @@ pub(super) fn finish_consumer_group_rediscovery_terminal(
         finish_consumer_group_leave_failure(entry, revoked, core_close_terminal(failure))
     } else {
         drop(entry.consumer_reconciliation.take());
+        if revoked.is_none()
+            && entry.catalog.current_member_id().is_some()
+            && entry.catalog.live_assignment().is_none()
+        {
+            entry
+                .catalog
+                .commit_consumer_group_close_without_assignment();
+        }
         stage_consumer_group_revocation(entry, revoked)
     }
 }

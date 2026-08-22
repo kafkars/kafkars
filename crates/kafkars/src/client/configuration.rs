@@ -21,7 +21,7 @@ impl ClientBuilder {
         self
     }
 
-    /// Sets bounded definitely-unsent producer retries and their fixed backoff.
+    /// Sets bounded safe record-execution and transaction-request replacements.
     ///
     /// A zero retry count disables retries and ignores the backoff value.
     #[must_use]

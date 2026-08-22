@@ -138,8 +138,14 @@ impl GroupConsumerEntry {
     fn membership_unsettled(&self) -> usize {
         let classic_reconciliation = usize::from(self.classic_reconciliation.is_some());
         if let Some(consumer) = self.consumer.as_ref() {
+            let closing_membership = usize::from(
+                self.state == GroupConsumerEntryState::Closing
+                    && consumer.machine().phase()
+                        != kafka_client_core::ConsumerGroupHeartbeatPhase::Closed,
+            );
             return consumer
                 .unsettled()
+                .max(closing_membership)
                 .saturating_add(usize::from(self.consumer_revocation.is_some()))
                 .saturating_add(usize::from(self.consumer_reconciliation.is_some()))
                 .saturating_add(classic_reconciliation);

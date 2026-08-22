@@ -10,7 +10,7 @@ use super::{
 };
 use crate::consumer::{
     GroupConsumerEventPortError, GroupConsumerHandle, GroupConsumerPort,
-    GroupConsumerStatePortError,
+    GroupConsumerStartupFailureKind, GroupConsumerStatePortError,
 };
 
 /// Linear capability for completing one observed graceful-revocation lease.
@@ -46,6 +46,15 @@ impl core::fmt::Debug for GroupConsumerRevocationControl {
 }
 
 impl GroupConsumerHandle {
+    /// Returns the exact retained KIP-848 terminal cause, if one exists.
+    #[doc(hidden)]
+    pub fn startup_failure(&self) -> Option<GroupConsumerStartupFailureKind> {
+        self.port
+            .try_consumer_group_startup_failure(self.group_id)
+            .ok()
+            .flatten()
+    }
+
     /// Transfers one completion capability to the next observed revocation.
     pub fn revocation_control(&self) -> GroupConsumerRevocationControl {
         GroupConsumerRevocationControl {

@@ -1,6 +1,6 @@
 //! Public error-category and delivery-certainty translation tests.
 
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 use super::{
     engine::{
@@ -31,6 +31,17 @@ fn admission_categories_remain_exhaustive_and_definitely_unsent() {
         let error = translate_admission_kind(kind);
         assert_eq!(error.kind(), expected);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        let retry = match kind {
+            AdmissionErrorKind::Contended
+            | AdmissionErrorKind::Capacity
+            | AdmissionErrorKind::RetainedBytes => RetryAdvice::RetrySafe,
+            AdmissionErrorKind::InvalidRequest
+            | AdmissionErrorKind::InvalidDeadline
+            | AdmissionErrorKind::Closed
+            | AdmissionErrorKind::IdentityExhausted
+            | AdmissionErrorKind::HostUnavailable => RetryAdvice::DoNotRetry,
+        };
+        assert_eq!(error.retry_advice(), retry);
     }
 }
 

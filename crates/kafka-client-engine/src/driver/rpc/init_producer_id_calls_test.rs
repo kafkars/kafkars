@@ -39,7 +39,10 @@ fn broker_failure_preserves_exact_signed_code() {
         ProducerInput::ProducerIdentityFailed {
             generation,
             broker_code: Some(code),
-        } if generation == ProducerIdentityGeneration::initial() && code.get() == -47
+            now,
+        } if generation == ProducerIdentityGeneration::initial()
+            && code.get() == -47
+            && now == Moment::from_tick(9)
     ));
 }
 
@@ -55,6 +58,7 @@ fn invalid_success_fields_do_not_create_an_identity() {
         ProducerInput::ProducerIdentityFailed {
             generation: ProducerIdentityGeneration::initial(),
             broker_code: None,
+            now: Moment::from_tick(9),
         }
     );
 }

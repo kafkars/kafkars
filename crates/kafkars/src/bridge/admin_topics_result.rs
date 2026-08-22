@@ -31,8 +31,18 @@ pub(super) fn translate_admission_kind(kind: DescribeTopicsAdmissionErrorKind) -
         DescribeTopicsAdmissionErrorKind::IdentityExhausted
         | DescribeTopicsAdmissionErrorKind::HostUnavailable => ErrorKind::Internal,
     };
-    KafkaError::new(public, format!("DescribeTopics admission failed: {kind:?}"))
-        .with_delivery_status(DeliveryStatus::NotSent)
+    let error = KafkaError::new(public, format!("DescribeTopics admission failed: {kind:?}"))
+        .with_delivery_status(DeliveryStatus::NotSent);
+    match kind {
+        DescribeTopicsAdmissionErrorKind::Contended
+        | DescribeTopicsAdmissionErrorKind::Capacity
+        | DescribeTopicsAdmissionErrorKind::RetainedBytes => error.with_safe_retry(),
+        DescribeTopicsAdmissionErrorKind::InvalidRequest
+        | DescribeTopicsAdmissionErrorKind::InvalidDeadline
+        | DescribeTopicsAdmissionErrorKind::Closed
+        | DescribeTopicsAdmissionErrorKind::IdentityExhausted
+        | DescribeTopicsAdmissionErrorKind::HostUnavailable => error,
+    }
 }
 
 pub(in crate::bridge) fn translate_accepted_fault(

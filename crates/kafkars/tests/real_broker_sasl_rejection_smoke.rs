@@ -1,19 +1,19 @@
-//! Opt-in real-cluster rejection and redaction coverage for SASL/PLAIN.
+//! Opt-in real-cluster rejection and redaction coverage for configured SASL security.
 
 #[path = "real_broker_support/error.rs"]
 mod error;
 #[path = "real_broker_support/operation.rs"]
 mod operation;
 
-use std::{env, io};
+use std::{env, fs, io};
 
 use error::TestError;
-use kafkars::{Client, ErrorKind, Sasl, Security};
+use kafkars::{Client, ErrorKind, Sasl, Security, Tls};
 use operation::wait_within;
 
 #[test]
 #[ignore = "requires SASL smoke environment variables and an authenticated Kafka cluster"]
-fn public_sasl_plain_rejects_wrong_password_without_exposing_credentials() {
+fn configured_sasl_rejects_wrong_password_without_exposing_credentials() {
     run().unwrap_or_else(|error| panic!("real Kafka SASL rejection smoke failed: {error}"));
 }
 
@@ -29,11 +29,11 @@ fn run() -> Result<(), TestError> {
                 .map(str::trim)
                 .filter(|server| !server.is_empty()),
         )
-        .client_id("kafka-client-real-sasl-rejection-smoke")
-        .security(Security::sasl_plaintext(Sasl::plain(
+        .client_id("kafkars-real-sasl-rejection-smoke")
+        .security(security_from_environment(
             username,
             attempted_password.clone(),
-        )))
+        )?)
         .build()?;
 
     let readiness = wait_within(client.ready(), "wrong-password SASL readiness");
@@ -54,6 +54,42 @@ fn run() -> Result<(), TestError> {
         return Err(io::Error::other("SASL authentication error exposed password material").into());
     }
     Ok(())
+}
+
+fn security_from_environment(username: String, password: String) -> Result<Security, TestError> {
+    let sasl = match env::var("KAFKA_CLIENT_TEST_SASL_MECHANISM").as_deref() {
+        Err(env::VarError::NotPresent) | Ok("plain") => Sasl::plain(username, password),
+        Ok("scram_sha_256") => Sasl::scram_sha_256(username, password),
+        Ok("scram_sha_512") => Sasl::scram_sha_512(username, password),
+        Ok(_) | Err(env::VarError::NotUnicode(_)) => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "KAFKA_CLIENT_TEST_SASL_MECHANISM must be plain, scram_sha_256, or scram_sha_512",
+            )
+            .into());
+        }
+    };
+    match env::var("KAFKA_CLIENT_TEST_SECURITY").as_deref() {
+        Err(env::VarError::NotPresent) | Ok("sasl_plaintext") => Ok(Security::sasl_plaintext(sasl)),
+        Ok("sasl_tls") => Ok(Security::sasl_tls(tls_from_environment()?, sasl)),
+        Ok(_) | Err(env::VarError::NotUnicode(_)) => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "KAFKA_CLIENT_TEST_SECURITY must be sasl_plaintext or sasl_tls",
+        )
+        .into()),
+    }
+}
+
+fn tls_from_environment() -> Result<Tls, TestError> {
+    match env::var("KAFKA_CLIENT_TEST_TLS_CA_PEM") {
+        Ok(path) => Ok(Tls::custom_roots_pem(fs::read(path)?)),
+        Err(env::VarError::NotPresent) => Ok(Tls::system_roots()),
+        Err(env::VarError::NotUnicode(_)) => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "KAFKA_CLIENT_TEST_TLS_CA_PEM must be a valid path",
+        )
+        .into()),
+    }
 }
 
 fn required_environment(name: &str) -> Result<String, io::Error> {

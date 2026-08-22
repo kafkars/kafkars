@@ -32,7 +32,24 @@ pub(super) fn translate_control_kind(kind: TransactionControlErrorKind) -> Kafka
         TransactionControlErrorKind::IdentityExhausted
         | TransactionControlErrorKind::HostUnavailable => ErrorKind::Internal,
     };
-    KafkaError::new(public, format!("transaction control rejected: {kind:?}"))
+    let error = KafkaError::new(public, format!("transaction control rejected: {kind:?}"));
+    match kind {
+        TransactionControlErrorKind::Contended | TransactionControlErrorKind::Backpressure => {
+            error.with_safe_retry()
+        }
+        TransactionControlErrorKind::InvalidDeadline
+        | TransactionControlErrorKind::Closed
+        | TransactionControlErrorKind::StaleOwner
+        | TransactionControlErrorKind::AlreadyActive
+        | TransactionControlErrorKind::NotActive
+        | TransactionControlErrorKind::StaleTransaction
+        | TransactionControlErrorKind::OutstandingOperations
+        | TransactionControlErrorKind::AbortRequired
+        | TransactionControlErrorKind::EndInProgress
+        | TransactionControlErrorKind::Fenced
+        | TransactionControlErrorKind::IdentityExhausted
+        | TransactionControlErrorKind::HostUnavailable => error,
+    }
 }
 
 pub(super) fn translate_end_observation(
@@ -91,11 +108,20 @@ pub(super) fn translate_admission_kind(
         TransactionInitializationAdmissionErrorKind::IdentityExhausted
         | TransactionInitializationAdmissionErrorKind::HostUnavailable => ErrorKind::Internal,
     };
-    KafkaError::new(
+    let error = KafkaError::new(
         public,
         format!("transaction initialization admission failed: {kind:?}"),
     )
-    .with_delivery_status(DeliveryStatus::NotSent)
+    .with_delivery_status(DeliveryStatus::NotSent);
+    match kind {
+        TransactionInitializationAdmissionErrorKind::Contended
+        | TransactionInitializationAdmissionErrorKind::Capacity
+        | TransactionInitializationAdmissionErrorKind::RetainedBytes => error.with_safe_retry(),
+        TransactionInitializationAdmissionErrorKind::InvalidRequest
+        | TransactionInitializationAdmissionErrorKind::Closed
+        | TransactionInitializationAdmissionErrorKind::IdentityExhausted
+        | TransactionInitializationAdmissionErrorKind::HostUnavailable => error,
+    }
 }
 
 pub(super) fn translate_accepted_fault(

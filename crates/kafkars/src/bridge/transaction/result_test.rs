@@ -13,44 +13,52 @@ use super::result::{
     translate_control_kind, translate_end_observation, translate_failure_parts,
     translate_observer_error,
 };
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 #[test]
-fn every_local_rejection_category_maps_without_hidden_retry_policy() {
+fn every_local_rejection_category_preserves_pre_admission_retry_safety() {
     let cases = [
         (
             TransactionInitializationAdmissionErrorKind::InvalidRequest,
             ErrorKind::Configuration,
+            RetryAdvice::DoNotRetry,
         ),
         (
             TransactionInitializationAdmissionErrorKind::Contended,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
         (
             TransactionInitializationAdmissionErrorKind::Closed,
             ErrorKind::State,
+            RetryAdvice::DoNotRetry,
         ),
         (
             TransactionInitializationAdmissionErrorKind::Capacity,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
         (
             TransactionInitializationAdmissionErrorKind::RetainedBytes,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
         (
             TransactionInitializationAdmissionErrorKind::IdentityExhausted,
             ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
         ),
         (
             TransactionInitializationAdmissionErrorKind::HostUnavailable,
             ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
         ),
     ];
-    for (input, expected) in cases {
+    for (input, expected, retry) in cases {
         let error = translate_admission_kind(input);
         assert_eq!(error.kind(), expected);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        assert_eq!(error.retry_advice(), retry);
     }
     assert_eq!(
         translate_capture_error(TransactionInitializationCaptureError::InvalidOperationDeadline)
@@ -135,23 +143,65 @@ fn observer_and_accepted_faults_remain_stable_internal_categories() {
 fn lifecycle_control_categories_translate_exhaustively() {
     use TransactionControlErrorKind as Kind;
     let cases = [
-        (Kind::InvalidDeadline, ErrorKind::Configuration),
-        (Kind::Contended, ErrorKind::Backpressure),
-        (Kind::Closed, ErrorKind::State),
-        (Kind::StaleOwner, ErrorKind::State),
-        (Kind::AlreadyActive, ErrorKind::State),
-        (Kind::NotActive, ErrorKind::State),
-        (Kind::StaleTransaction, ErrorKind::State),
-        (Kind::OutstandingOperations, ErrorKind::State),
-        (Kind::AbortRequired, ErrorKind::State),
-        (Kind::EndInProgress, ErrorKind::State),
-        (Kind::Fenced, ErrorKind::Fenced),
-        (Kind::Backpressure, ErrorKind::Backpressure),
-        (Kind::IdentityExhausted, ErrorKind::Internal),
-        (Kind::HostUnavailable, ErrorKind::Internal),
+        (
+            Kind::InvalidDeadline,
+            ErrorKind::Configuration,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::Contended,
+            ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
+        ),
+        (Kind::Closed, ErrorKind::State, RetryAdvice::DoNotRetry),
+        (Kind::StaleOwner, ErrorKind::State, RetryAdvice::DoNotRetry),
+        (
+            Kind::AlreadyActive,
+            ErrorKind::State,
+            RetryAdvice::DoNotRetry,
+        ),
+        (Kind::NotActive, ErrorKind::State, RetryAdvice::DoNotRetry),
+        (
+            Kind::StaleTransaction,
+            ErrorKind::State,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::OutstandingOperations,
+            ErrorKind::State,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::AbortRequired,
+            ErrorKind::State,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::EndInProgress,
+            ErrorKind::State,
+            RetryAdvice::DoNotRetry,
+        ),
+        (Kind::Fenced, ErrorKind::Fenced, RetryAdvice::DoNotRetry),
+        (
+            Kind::Backpressure,
+            ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
+        ),
+        (
+            Kind::IdentityExhausted,
+            ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::HostUnavailable,
+            ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
+        ),
     ];
-    for (input, expected) in cases {
-        assert_eq!(translate_control_kind(input).kind(), expected);
+    for (input, expected_kind, expected_retry) in cases {
+        let error = translate_control_kind(input);
+        assert_eq!(error.kind(), expected_kind);
+        assert_eq!(error.retry_advice(), expected_retry);
     }
 }
 

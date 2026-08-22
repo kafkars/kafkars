@@ -2,7 +2,9 @@
 
 use std::{error::Error, fmt, time::Instant};
 
-use kafka_driver::{ApiVersion, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass};
+use kafka_driver::{
+    ApiVersion, BrokerId, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass,
+};
 use kafka_wire::{
     DescribeClusterRequest, DescribeClusterResponse, ListGroupsRequest, ListGroupsResponse,
 };
@@ -83,8 +85,8 @@ pub(super) const fn list_consumer_groups_discovery_route() -> Route {
 }
 
 pub(super) fn list_consumer_groups_broker_route(broker_id: i32) -> Result<Route, InvalidBroker> {
-    validate_broker_id(broker_id)?;
-    Ok(Route::AnyBroker)
+    let broker_id = BrokerId::new(broker_id).map_err(|_error| InvalidBroker(broker_id))?;
+    Ok(Route::Broker { broker_id })
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -97,13 +99,6 @@ impl fmt::Display for InvalidBroker {
 }
 
 impl Error for InvalidBroker {}
-
-const fn validate_broker_id(broker_id: i32) -> Result<(), InvalidBroker> {
-    if broker_id < 0 {
-        return Err(InvalidBroker(broker_id));
-    }
-    Ok(())
-}
 
 pub(super) const fn list_consumer_groups_discovery_options(deadline: Instant) -> RequestOptions {
     RequestOptions::new(deadline)

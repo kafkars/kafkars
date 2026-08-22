@@ -2,7 +2,8 @@
 
 use kafka_client_core::{
     ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatInput,
-    ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatRequestKind, LiveGroupAssignment, Moment,
+    ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatRequestKind,
+    ConsumerGroupHeartbeatRetryCause, LiveGroupAssignment, Moment,
 };
 
 use super::{
@@ -29,6 +30,14 @@ pub(super) fn fail_consumer_group_entry(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
         .apply_current_failure(failure)?;
+    if revoked.is_none()
+        && entry.catalog.current_member_id().is_some()
+        && entry.catalog.live_assignment().is_none()
+    {
+        entry
+            .catalog
+            .commit_consumer_group_close_without_assignment();
+    }
     drop(entry.consumer_reconciliation.take());
     stage_consumer_group_revocation(entry, revoked)?;
     Ok(())
@@ -68,15 +77,33 @@ impl ConsumerGroupExecution {
                     assignment_generation,
                     deadline,
                 }),
-                None,
+                Some(ConsumerGroupHeartbeatEffect::ArmRediscoveryRetry { schedule }),
             ) if group_id == self.machine.group_id()
-                && attempt == prepared.attempt()
+                && attempt != prepared.attempt()
                 && kind == prepared.kind()
                 && member_id == prepared.member_id()
                 && member_epoch == prepared.member_epoch()
                 && assignment_generation == prepared.assignment_generation()
-                && deadline == prepared.deadline().core() =>
+                && deadline == prepared.deadline().core()
+                && schedule.attempt() == attempt
+                && schedule.kind() == kind
+                && schedule.cause() == ConsumerGroupHeartbeatRetryCause::Rediscovery
+                && schedule.not_before().tick() > now.tick()
+                && schedule.not_before().tick() <= deadline.tick()
+                && schedule.deadline() == deadline
+                && self.machine.in_flight() == Some(attempt)
+                && self.machine.retry_schedule() == Some(schedule) =>
             {
+                self.prepared = Some(
+                    super::consumer_group_execution::PreparedConsumerGroupHeartbeat {
+                        attempt,
+                        kind,
+                        member_id,
+                        member_epoch,
+                        assignment_generation,
+                        deadline: prepared.deadline(),
+                    },
+                );
                 self.await_rediscovery_admission()?;
                 Ok(ConsumerGroupRediscoveryDecision::Rediscover)
             }
@@ -115,23 +142,31 @@ impl ConsumerGroupExecution {
         let prepared = self
             .prepared
             .ok_or(ConsumerGroupExecutionError::MissingPrepared)?;
+        let input =
+            if let Some(schedule) = self.machine.retry_schedule().filter(|schedule| {
+                schedule.cause() == ConsumerGroupHeartbeatRetryCause::Rediscovery
+            }) {
+                ConsumerGroupHeartbeatInput::RediscoveryFailed { schedule, failure }
+            } else {
+                match prepared.kind() {
+                    ConsumerGroupHeartbeatRequestKind::Join
+                    | ConsumerGroupHeartbeatRequestKind::Steady => {
+                        ConsumerGroupHeartbeatInput::HeartbeatFailed {
+                            attempt: prepared.attempt(),
+                            failure,
+                        }
+                    }
+                    ConsumerGroupHeartbeatRequestKind::Leave => {
+                        ConsumerGroupHeartbeatInput::LeaveFailed {
+                            attempt: prepared.attempt(),
+                            failure,
+                        }
+                    }
+                }
+            };
         let transition = self
             .machine
-            .apply(match prepared.kind() {
-                ConsumerGroupHeartbeatRequestKind::Join
-                | ConsumerGroupHeartbeatRequestKind::Steady => {
-                    ConsumerGroupHeartbeatInput::HeartbeatFailed {
-                        attempt: prepared.attempt(),
-                        failure,
-                    }
-                }
-                ConsumerGroupHeartbeatRequestKind::Leave => {
-                    ConsumerGroupHeartbeatInput::LeaveFailed {
-                        attempt: prepared.attempt(),
-                        failure,
-                    }
-                }
-            })
+            .apply(input)
             .map_err(|error| ConsumerGroupExecutionError::Core(error.kind()))?;
         let mut effects = transition.into_effects().peekable();
         let revoked = match effects.peek() {

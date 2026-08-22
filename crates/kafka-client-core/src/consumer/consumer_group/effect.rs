@@ -27,13 +27,13 @@ pub enum ConsumerGroupHeartbeatEffect {
         /// Original absolute attempt deadline.
         deadline: Deadline,
     },
-    /// Rediscover the coordinator and replace the exact in-flight join or steady heartbeat once.
+    /// Invalidate one stale coordinator route before a delayed replacement heartbeat.
     Rediscover {
         /// Stable engine-catalog group identity used for coordinator discovery.
         group_id: GroupId,
-        /// Exact original request identity retained by the replacement.
+        /// Fresh nonreused replacement request identity.
         attempt: ConsumerGroupHeartbeatAttempt,
-        /// Join or steady request shape; leave replacement is deliberately unsupported.
+        /// Join, steady, or leave request shape retained across route replacement.
         kind: ConsumerGroupHeartbeatRequestKind,
         /// Stable member identity, absent only for the initial v0 join request.
         member_id: Option<MemberId>,
@@ -49,6 +49,11 @@ pub enum ConsumerGroupHeartbeatEffect {
         /// Exact attempt, request shape, backoff deadline, and original deadline fence.
         schedule: ConsumerGroupHeartbeatRetrySchedule,
     },
+    /// Arm one positive delay paired with stale coordinator-route invalidation.
+    ArmRediscoveryRetry {
+        /// Fresh attempt, request shape, backoff deadline, and original deadline fence.
+        schedule: ConsumerGroupHeartbeatRetrySchedule,
+    },
     /// Stage a broker target and arm cadence for the still-reportable assignment.
     Reconcile {
         /// Prior live assignment to retire before installation.
@@ -58,6 +63,15 @@ pub enum ConsumerGroupHeartbeatEffect {
         /// Exact broker member epoch paired with the new assignment.
         member_epoch: ConsumerGroupMemberEpoch,
         /// First heartbeat schedule fenced by the still-reportable assignment.
+        schedule: ConsumerGroupHeartbeatSchedule,
+    },
+    /// Retain one accepted member while Kafka computes its first assignment.
+    AwaitAssignment {
+        /// Stable member identity accepted by the coordinator.
+        member_id: MemberId,
+        /// Current positive broker member epoch.
+        member_epoch: ConsumerGroupMemberEpoch,
+        /// Broker-paced schedule for the next assignment-less heartbeat.
         schedule: ConsumerGroupHeartbeatSchedule,
     },
     /// Authorize installation of the exact retained target after its empty-owned acknowledgement.

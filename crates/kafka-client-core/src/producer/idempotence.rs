@@ -2,7 +2,10 @@
 
 use std::collections::{BTreeMap, VecDeque};
 
-use crate::{ProducerIdentity, ProducerIdentityGeneration, ProducerMachineError};
+use crate::{
+    ProducerIdentity, ProducerIdentityGeneration, ProducerIdentityRetrySchedule,
+    ProducerMachineError,
+};
 
 use super::BatchRoute;
 use super::idempotence_lease::SequenceLeaseState;
@@ -12,6 +15,7 @@ use super::idempotence_lease::SequenceLeaseState;
 pub(crate) enum ProducerIdentityState {
     Uninitialized,
     Acquiring(ProducerIdentityGeneration),
+    RetryWaiting(ProducerIdentityRetrySchedule),
     Ready(ProducerIdentity),
     Fenced,
 }
@@ -40,6 +44,7 @@ impl IdempotentProducer {
             ProducerIdentityState::Ready(identity) => Some(identity),
             ProducerIdentityState::Uninitialized
             | ProducerIdentityState::Acquiring(_)
+            | ProducerIdentityState::RetryWaiting(_)
             | ProducerIdentityState::Fenced => None,
         }
     }
@@ -48,6 +53,7 @@ impl IdempotentProducer {
         match self.state {
             ProducerIdentityState::Acquiring(generation) => Some(generation),
             ProducerIdentityState::Uninitialized
+            | ProducerIdentityState::RetryWaiting(_)
             | ProducerIdentityState::Ready(_)
             | ProducerIdentityState::Fenced => None,
         }
@@ -59,6 +65,16 @@ impl IdempotentProducer {
 
     pub(crate) const fn is_fenced(&self) -> bool {
         matches!(self.state, ProducerIdentityState::Fenced)
+    }
+
+    pub(crate) const fn retry_schedule(&self) -> Option<ProducerIdentityRetrySchedule> {
+        match self.state {
+            ProducerIdentityState::RetryWaiting(schedule) => Some(schedule),
+            ProducerIdentityState::Uninitialized
+            | ProducerIdentityState::Acquiring(_)
+            | ProducerIdentityState::Ready(_)
+            | ProducerIdentityState::Fenced => None,
+        }
     }
 
     pub(crate) fn begin_acquisition(&mut self) -> ProducerIdentityGeneration {
@@ -87,6 +103,18 @@ impl IdempotentProducer {
 
     pub(crate) fn acquisition_is_current(&self, generation: ProducerIdentityGeneration) -> bool {
         self.acquisition() == Some(generation)
+    }
+
+    pub(crate) fn wait_for_retry(&mut self, schedule: ProducerIdentityRetrySchedule) {
+        self.state = ProducerIdentityState::RetryWaiting(schedule);
+    }
+
+    pub(crate) fn retry_acquisition(&mut self, schedule: ProducerIdentityRetrySchedule) {
+        self.state = ProducerIdentityState::Acquiring(schedule.retry_generation());
+    }
+
+    pub(crate) fn cancel_retry(&mut self) {
+        self.state = ProducerIdentityState::Uninitialized;
     }
 
     pub(crate) fn fence(&mut self) {

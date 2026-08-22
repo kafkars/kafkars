@@ -1,12 +1,14 @@
-//! Exact transfer of one core-declared identity acquisition to the driver join.
+//! Exact identity acquisition handoff and retry-schedule execution.
 
 use std::{error::Error, fmt};
 
-use kafka_client_core::{Deadline, OperationId, ProducerEffect, ProducerIdentityGeneration};
+use kafka_client_core::{
+    Deadline, Moment, OperationId, ProducerEffect, ProducerIdentityGeneration, ProducerInput,
+};
 
 use crate::clock::OperationDeadline;
 
-use super::ProducerHost;
+use super::{ProducerHost, ProducerHostInvariantError};
 
 /// Original-deadline identity request ready for one tracked driver slot.
 #[derive(Debug)]
@@ -63,6 +65,47 @@ impl fmt::Display for ProducerIdentityHandoffError {
 impl Error for ProducerIdentityHandoffError {}
 
 impl ProducerHost {
+    /// Applies the one due identity retry before an equal-tick batch deadline.
+    pub(super) fn fire_due_identity_retry(
+        &mut self,
+        now: Moment,
+    ) -> Result<usize, ProducerHostInvariantError> {
+        if let Some(error) = self.poison_reason() {
+            return Err(error);
+        }
+        let Some(index) = self.pending_effects.iter().position(|effect| {
+            matches!(
+                effect,
+                ProducerEffect::ArmProducerIdentityRetry { schedule }
+                    if schedule.not_before().is_elapsed_at(now)
+            )
+        }) else {
+            return Ok(0);
+        };
+        let ProducerEffect::ArmProducerIdentityRetry { schedule } =
+            self.pending_effects.remove(index)
+        else {
+            unreachable!("identity retry position must select an identity retry")
+        };
+        self.apply_generated(
+            now,
+            ProducerInput::ProducerIdentityRetryDue { schedule, now },
+        )?;
+        Ok(1)
+    }
+
+    pub(super) fn pending_identity_retry_deadline(&self) -> Option<Deadline> {
+        self.pending_effects
+            .iter()
+            .filter_map(|effect| match effect {
+                ProducerEffect::ArmProducerIdentityRetry { schedule } => {
+                    Some(schedule.not_before())
+                }
+                _ => None,
+            })
+            .min()
+    }
+
     pub(crate) fn take_identity_submission(
         &mut self,
     ) -> Result<Option<ProducerIdentitySubmission>, ProducerIdentityHandoffError> {

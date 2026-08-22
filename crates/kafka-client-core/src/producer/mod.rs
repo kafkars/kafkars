@@ -41,6 +41,9 @@ mod idempotence_acquisition_test;
 mod idempotence_fencing_test;
 mod idempotence_lease;
 mod idempotence_request_terminal;
+mod idempotence_retry;
+#[cfg(test)]
+mod idempotence_retry_test;
 #[cfg(test)]
 mod idempotence_sequence_test;
 mod idempotence_transition;

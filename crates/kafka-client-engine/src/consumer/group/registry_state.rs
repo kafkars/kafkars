@@ -6,7 +6,8 @@ use kafka_client_core::GroupId;
 
 use crate::consumer::{
     GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerMembershipEpoch,
-    GroupConsumerMetadata, GroupConsumerState, group_registration_request::GroupConsumerProtocol,
+    GroupConsumerMetadata, GroupConsumerStartupFailureKind, GroupConsumerState,
+    group_registration_request::GroupConsumerProtocol,
 };
 
 use super::{
@@ -52,6 +53,28 @@ impl GroupConsumerStatePortError {
 }
 
 impl GroupConsumerRegistry {
+    pub(in crate::consumer::group) fn consumer_group_startup_failure(
+        &self,
+        group_id: GroupId,
+    ) -> Result<Option<GroupConsumerStartupFailureKind>, GroupConsumerStateSnapshotError> {
+        let entry = self
+            .entries
+            .iter()
+            .find(|entry| entry.group_id() == group_id)
+            .ok_or(GroupConsumerStateSnapshotError::UnknownGroup)?;
+        if entry.protocol != GroupConsumerProtocol::Consumer {
+            return Ok(None);
+        }
+        let execution = entry
+            .consumer
+            .as_ref()
+            .ok_or(GroupConsumerStateSnapshotError::EntryFault)?;
+        Ok(execution
+            .machine()
+            .startup_fatal()
+            .map(|fatal| GroupConsumerStartupFailureKind::from_core(fatal.failure())))
+    }
+
     pub(in crate::consumer::group) fn group_state(
         &self,
         group_id: GroupId,
@@ -146,6 +169,22 @@ impl GroupConsumerRegistry {
 }
 
 impl GroupConsumerPort {
+    pub(in crate::consumer) fn try_consumer_group_startup_failure(
+        &self,
+        group_id: GroupId,
+    ) -> Result<Option<GroupConsumerStartupFailureKind>, GroupConsumerStatePortError> {
+        if self.shared.admission_is_closed() {
+            return Err(GroupConsumerStatePortError::Closed);
+        }
+        let registry = self
+            .shared
+            .try_registry()
+            .map_err(GroupConsumerStatePortError::Lock)?;
+        registry
+            .consumer_group_startup_failure(group_id)
+            .map_err(GroupConsumerStatePortError::Registry)
+    }
+
     pub(in crate::consumer) fn try_group_state(
         &self,
         group_id: GroupId,

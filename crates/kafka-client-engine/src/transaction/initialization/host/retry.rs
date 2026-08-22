@@ -1,7 +1,7 @@
 //! Pure scheduling for bounded `InitProducerId` replacement attempts.
 
 use kafka_client_core::{
-    Deadline, Moment, ProducerRetryPolicy, TransactionInitializationEffect,
+    Deadline, DeliveryStatus, Moment, ProducerRetryPolicy, TransactionInitializationEffect,
     TransactionInitializationInput,
 };
 
@@ -38,7 +38,11 @@ impl TransactionInitializationHost {
         &mut self,
         index: usize,
         now: Moment,
+        delivery: Option<DeliveryStatus>,
     ) -> Result<bool, TransactionInitializationHostError> {
+        let Some(delivery) = delivery else {
+            return Ok(false);
+        };
         let operation = &self.operations[index];
         let Some(schedule) = plan_retry(
             self.execution_limits.send_retry_policy(),
@@ -58,7 +62,7 @@ impl TransactionInitializationHost {
             .transaction_timeout_ms();
         let transition = self.operations[index].machine.apply(
             owner_id,
-            TransactionInitializationInput::RetryableBrokerRejected,
+            TransactionInitializationInput::RetryAuthorized { delivery },
         )?;
         match transition.into_effect() {
             Some(TransactionInitializationEffect::Submit {

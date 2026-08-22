@@ -12,8 +12,9 @@ use super::{
         ConsumerGroupAssignmentRetirementTurn, retire_entry_assignment,
         stage_consumer_group_revocation,
     },
+    consumer_group_execution_fencing::consumer_group_heartbeat_is_ready,
     consumer_group_heartbeat_settlement_test::installed_modern_entry,
-    consumer_group_heartbeat_submission::{consumer_group_heartbeat_is_ready, prepare_request},
+    consumer_group_heartbeat_submission::prepare_request,
 };
 
 #[test]
@@ -105,6 +106,6 @@ fn fenced_member_is_lost_then_rejoins_at_epoch_zero_with_the_same_identity() {
         assert_eq!(request.member_id.as_str(), member.as_ref());
         assert_eq!(request.member_epoch, 0);
         assert!(request.subscribed_topic_names.is_some());
-        assert!(request.topic_partitions.is_none());
+        assert_eq!(request.topic_partitions.as_deref(), Some(&[][..]));
     }
 }

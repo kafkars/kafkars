@@ -56,7 +56,6 @@ impl ConsumerGroupExecution {
             || kind != ConsumerGroupHeartbeatRequestKind::Leave
             || member_id.is_none()
             || member_epoch != attempt.member_epoch()
-            || assignment_generation.is_none()
             || core_deadline != deadline.core()
         {
             return Err(ConsumerGroupExecutionError::EffectShape);

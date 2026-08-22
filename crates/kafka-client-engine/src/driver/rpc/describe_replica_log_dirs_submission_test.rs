@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::DescribeReplicaLogDirsReplica;
-use kafka_driver::{CompletionError, Route, TrafficClass};
+use kafka_driver::{BrokerId, CompletionError, Route, TrafficClass};
 
 use crate::{EngineConfig, driver::DriverOwner};
 
@@ -19,7 +19,9 @@ fn route_targets_the_requested_broker() {
     assert_eq!(
         describe_replica_log_dirs_route(17)
             .unwrap_or_else(|error| panic!("valid broker: {error:?}")),
-        Route::AnyBroker
+        Route::Broker {
+            broker_id: BrokerId::new(17).unwrap_or_else(|error| panic!("valid broker: {error}")),
+        }
     );
     assert!(describe_replica_log_dirs_route(-1).is_err());
 }

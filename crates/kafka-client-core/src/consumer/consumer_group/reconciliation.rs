@@ -12,6 +12,38 @@ use super::{
 };
 
 impl ConsumerGroupHeartbeatMachine {
+    pub(super) fn await_initial_assignment(
+        &mut self,
+        member_id: MemberId,
+        member_epoch: ConsumerGroupMemberEpoch,
+        next_attempt: ConsumerGroupHeartbeatAttempt,
+        next_sequence: Option<ConsumerGroupHeartbeatSequence>,
+        cadence_deadline: crate::Deadline,
+    ) -> Result<ConsumerGroupHeartbeatTransition, ConsumerGroupHeartbeatErrorKind> {
+        if self.live_assignment.is_some()
+            || self.pending_assignment.is_some()
+            || self.next_assignment_generation.is_none()
+        {
+            return Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation);
+        }
+        let schedule = ConsumerGroupHeartbeatSchedule::new(next_attempt, cadence_deadline, None);
+        self.phase = ConsumerGroupHeartbeatPhase::AwaitingAssignment;
+        self.next_sequence = next_sequence;
+        self.in_flight = None;
+        self.deadline = None;
+        self.retry_schedule = None;
+        self.member_id = Some(member_id);
+        self.member_epoch = Some(member_epoch);
+        self.schedule = Some(schedule);
+        Ok(ConsumerGroupHeartbeatTransition::one(
+            ConsumerGroupHeartbeatEffect::AwaitAssignment {
+                member_id,
+                member_epoch,
+                schedule,
+            },
+        ))
+    }
+
     pub(super) fn assignment_retired(
         &mut self,
         now: Moment,
@@ -40,7 +72,7 @@ impl ConsumerGroupHeartbeatMachine {
             || current.assignment_generation() != assignment_generation
             || pending.group_id() != self.group_id
             || pending.member_id() != member_id
-            || schedule.assignment_generation() != assignment_generation
+            || schedule.assignment_generation() != Some(assignment_generation)
             || schedule.attempt().member_epoch() != Some(member_epoch)
             || self.in_flight.is_some()
             || self.deadline.is_some()
@@ -57,7 +89,6 @@ impl ConsumerGroupHeartbeatMachine {
         self.schedule = None;
         self.in_flight = Some(attempt);
         self.deadline = Some(deadline);
-        self.rediscovery_replacement_used = false;
         self.retry_schedule = None;
         Ok(ConsumerGroupHeartbeatTransition::one(
             ConsumerGroupHeartbeatEffect::Submit {
@@ -94,7 +125,7 @@ impl ConsumerGroupHeartbeatMachine {
         let schedule = ConsumerGroupHeartbeatSchedule::new(
             next_attempt,
             cadence_deadline,
-            assignment_generation,
+            Some(assignment_generation),
         );
         self.commit_success(member_id, member_epoch, next_sequence, retained, schedule);
         Ok(ConsumerGroupHeartbeatTransition::one(
@@ -123,13 +154,12 @@ impl ConsumerGroupHeartbeatMachine {
         let schedule = ConsumerGroupHeartbeatSchedule::new(
             next_attempt,
             cadence_deadline,
-            assignment_generation,
+            Some(assignment_generation),
         );
         self.phase = ConsumerGroupHeartbeatPhase::Stable;
         self.next_sequence = next_sequence;
         self.in_flight = None;
         self.deadline = None;
-        self.rediscovery_replacement_used = false;
         self.retry_schedule = None;
         self.member_id = Some(member_id);
         self.member_epoch = Some(member_epoch);
@@ -172,8 +202,11 @@ impl ConsumerGroupHeartbeatMachine {
             .pending_assignment
             .take()
             .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
-        let schedule =
-            ConsumerGroupHeartbeatSchedule::new(next_attempt, cadence_deadline, target_generation);
+        let schedule = ConsumerGroupHeartbeatSchedule::new(
+            next_attempt,
+            cadence_deadline,
+            Some(target_generation),
+        );
         self.commit_success(member_id, member_epoch, next_sequence, target, schedule);
         Ok(ConsumerGroupHeartbeatTransition::one(
             ConsumerGroupHeartbeatEffect::InstallReconciled {

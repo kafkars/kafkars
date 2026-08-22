@@ -111,6 +111,7 @@ fn identity_failure_settles_waiting_and_open_batches_atomically() {
         .apply(ProducerInput::ProducerIdentityFailed {
             generation: ProducerIdentityGeneration::initial(),
             broker_code: Some(code),
+            now: Moment::from_tick(2),
         })
         .unwrap_or_else(|error| panic!("identity failure failed: {error}"));
 
@@ -153,6 +154,7 @@ fn failed_fence_preflight_does_not_partially_settle_or_close() {
         producer.apply(ProducerInput::ProducerIdentityFailed {
             generation: ProducerIdentityGeneration::initial(),
             broker_code: None,
+            now: Moment::from_tick(2),
         }),
         Err(ProducerMachineError::UnknownOperation)
     );

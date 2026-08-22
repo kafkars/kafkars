@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::TransactionEpoch;
+use kafka_client_core::{DeliveryStatus, TransactionEpoch};
 
 use crate::{
     clock::OperationDeadline, producer::materialization::TransactionalMaterializationBatch,
@@ -100,6 +100,7 @@ impl TransactionPartitionEnrollmentOwner {
             deadline,
             retry_not_before: None,
             retries_started: 0,
+            delivery_floor: DeliveryStatus::NotSent,
             batch: Some(batch),
             call: None,
         });

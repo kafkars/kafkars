@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::AdminDescribeLogDirsSelection;
-use kafka_driver::{CompletionError, Route, TrafficClass};
+use kafka_driver::{BrokerId, CompletionError, Route, TrafficClass};
 
 use crate::{EngineConfig, driver::DriverOwner};
 
@@ -14,7 +14,9 @@ use super::describe_log_dirs_submission::{describe_log_dirs_options, describe_lo
 fn route_targets_the_requested_broker() {
     assert_eq!(
         describe_log_dirs_route(17).unwrap_or_else(|error| panic!("valid broker: {error:?}")),
-        Route::AnyBroker
+        Route::Broker {
+            broker_id: BrokerId::new(17).unwrap_or_else(|error| panic!("valid broker: {error}")),
+        }
     );
     assert!(describe_log_dirs_route(-1).is_err());
 }

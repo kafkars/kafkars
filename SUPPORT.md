@@ -14,20 +14,20 @@ repository.
 - Intended audience: design review, source evaluation, and contribution
 
 The current source is not a public beta and is not recommended for production
-traffic. A supported release requires a real-broker matrix and separate
-release authorization.
+traffic. A supported release requires complete passing archived real-broker
+evidence and separate release authorization.
 
 ## Runtime surface
 
 | Area | Source status | Qualification status |
 | --- | --- | --- |
 | Rust facade | Concrete runtime-neutral builders, futures, blocking observation, and error vocabulary | Unit-tested; no stable API promise |
-| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | No maintained real-broker matrix |
-| Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | No maintained real-broker matrix |
-| Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | No maintained real-broker matrix |
-| KIP-848 consumer group | Concrete count-only behavior | Partial; paths requiring Kafka topic IDs fail closed |
-| Admin | Broad concrete request-specific core, engine, and facade paths | Exact-broker limitation below; no maintained real-broker matrix |
-| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | No maintained real-broker matrix |
+| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
+| Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
+| Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
+| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, and owned-topic acknowledgement | Initial-assignment scenario defined; fetch, commit, and multi-member reconciliation are not yet broker-qualified |
+| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | PR and nightly scenarios defined; no archived passing qualification cell |
+| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
 | Foreign bindings | Not included | No ABI or compatibility promise |
 
@@ -42,22 +42,45 @@ No Kafka broker version is release-supported in this preview. The protocol
 adapters negotiate bounded per-request version windows, but that is not a
 substitute for end-to-end qualification.
 
-Before a beta or production-supported release, the project intends to qualify
-maintained Kafka 3.x and current Kafka 4.x releases across produce and consume,
-group coordination, administration, transactions, reconnects, retries,
-deadlines, and shutdown. Until that evidence exists, compatibility reports
-should include the exact broker distribution and version.
+The qualification target matrix is explicit even though no cell has archived
+passing evidence yet:
+
+<!-- qualification-evidence:begin -->
+| Kafka | Pull-request profile | Scheduled profile | Current evidence status |
+| --- | --- | --- | --- |
+| 4.3.1 | Full plaintext plus three security-smoke cells | Full over eight matrix security modes | Not yet qualified |
+| 4.2.1 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
+| 4.1.2 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
+| 4.0.2 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
+| 3.9.2 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
+| 3.8.1 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
+| 3.7.2 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
+<!-- qualification-evidence:end -->
+
+The Kafka 3.x targets are legacy lanes, not maintained upstream releases. Their
+scheduled results are advisory, but all three are mandatory pull-request
+gates. Every future qualified cell must be generated from archived
+qualification evidence rather than maintained as a prose promise. Until that
+evidence exists, compatibility reports should include the exact broker
+distribution and version.
+
+`.github/workflows/qualification.yml` runs ten explicit pull-request cells and
+fourteen explicit scheduled cells. It has no release profile. The pull-request
+gate downloads the cell artifacts and archives an evidence-generated aggregate
+containing `compatibility.json`, `COMPATIBILITY.md`, and `SUPPORT.md`.
+Incomplete sets, mixed crate graphs, mutable image references, failed runners,
+and failed gating cells cannot produce a qualified aggregate.
 
 ## Transport and authentication
 
 | Configuration | Code path | Real-broker qualification |
 | --- | --- | --- |
-| Plain TCP without SASL | Present and the default | Not release-qualified |
-| TLS with platform roots | Present | Not release-qualified |
-| TLS with a custom PEM root bundle | Present | Not release-qualified |
-| SASL/PLAIN over plain TCP or TLS | Present | Not release-qualified |
-| SCRAM-SHA-256 over plain TCP or TLS | Present | Not release-qualified |
-| SCRAM-SHA-512 over plain TCP or TLS | Present | Not release-qualified |
+| Plain TCP without SASL | Present and the default | Targeted; no archived passing evidence |
+| TLS with platform roots | Present | Explicitly unqualified by the self-signed test matrix |
+| TLS with a custom PEM root bundle | Present | Targeted with hostname-rejection checks; no archived passing evidence |
+| SASL/PLAIN over plain TCP or custom-root TLS | Present | Targeted with wrong-secret checks; no archived passing evidence |
+| SCRAM-SHA-256 over plain TCP or custom-root TLS | Present | Targeted with wrong-secret checks; no archived passing evidence |
+| SCRAM-SHA-512 over plain TCP or custom-root TLS | Present | Targeted with wrong-secret checks; no archived passing evidence |
 | Mutual TLS client certificates | Not exposed | Unsupported |
 | SASL/OAUTHBEARER | Not exposed | Unsupported |
 | SASL/GSSAPI or Kerberos | Not exposed | Unsupported |
@@ -66,29 +89,37 @@ Credentials are retained with redacted diagnostics and zeroized on final
 release, but operational secret storage and rotation remain the embedding
 application's responsibility.
 
-## Known integration limits
+## Reviewed-pair integration audit
 
-### Exact-broker operations
+The current reviewed driver/wire pair closes the three previously documented
+integration omissions. These are implementation claims, not broker-version
+qualification claims.
 
-The pinned `kafka-driver` does not expose broker IDs or an exact-broker route.
-Operations that require exact-broker aggregation or fetch therefore fail
-closed. A safe individual name-routed request is used only when it preserves
-the operation's ordering, correlation, deadline, and delivery contract. The
-client does not invent a broker cache or silently downgrade routing.
+| Contract | Reviewed-pair status | Local evidence |
+| --- | --- | --- |
+| Exact broker identity and routing | Driver `TopicView` broker identities are projected into tracked `Route::Broker` calls for aggregate Fetch and exact-broker Admin operations | `exact_broker_submission_reaches_the_selected_loopback_broker` plus route-specific submission tests |
+| Kafka protocol topic UUIDs | Nonzero driver topic UUIDs are retained as exact bytes, then translated through KIP-848 assignment, reconciliation, and owned-topic acknowledgement | `live_topic_view_retains_broker_issued_topic_identity`, `resolved_topic_uuids_translate_assignments_and_owned_partitions`, and KIP-848 reconciliation tests |
+| Configured client ID | The validated facade value is passed into the driver builder and encoded in Kafka request headers | `generated_request_and_response_complete_through_a_loopback_broker` verifies the configured header value |
 
-### KIP-848 topic IDs
+Local topic identities remain client ownership keys and are deliberately
+distinct from Kafka protocol topic UUIDs.
 
-The pinned driver projection does not expose Kafka topic IDs. KIP-848 behavior
-that requires those IDs fails closed; count-only behavior that does not require
-them remains available. Local client topic identities are ownership keys and
-must not be confused with Kafka protocol topic IDs.
+## Retained integration limits
 
-### Client ID propagation
+### Multi-member group progress
 
-`ClientBuilder::client_id` validates and retains the configured value, and
-`Client::client_id` returns it. The pinned driver cannot currently propagate
-that value into Kafka request headers. Do not rely on broker logs, quotas, or
-metrics seeing this configured client ID.
+The broker matrix is scoped to cover initial classic cooperative assignment, initial
+KIP-848 assignment, and classic member shutdown/resume across separate client
+hosts. KIP-848 fetch and commit and concurrent multi-member progress within one
+client host are not yet qualified and must not be inferred from the
+single-member scenarios.
+
+### Fetch leader movement
+
+Broker Fetch is currently name-routed through Fetch v12. KIP-951
+current-leader hints require Fetch v16 and topic IDs, so that recovery path is
+not implemented. Leader movement may require external reassignment or a client
+restart; qualification does not claim in-process recovery.
 
 ### Foreign interfaces
 

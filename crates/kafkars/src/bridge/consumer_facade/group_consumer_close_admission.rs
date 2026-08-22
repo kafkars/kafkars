@@ -41,7 +41,7 @@ impl GroupConsumerEngine {
     }
 }
 
-fn translate_close_admission(kind: GroupConsumerCloseAdmissionErrorKind) -> KafkaError {
+pub(super) fn translate_close_admission(kind: GroupConsumerCloseAdmissionErrorKind) -> KafkaError {
     match kind {
         GroupConsumerCloseAdmissionErrorKind::Closed
         | GroupConsumerCloseAdmissionErrorKind::GroupUnavailable => KafkaError::new(
@@ -51,7 +51,8 @@ fn translate_close_admission(kind: GroupConsumerCloseAdmissionErrorKind) -> Kafk
         GroupConsumerCloseAdmissionErrorKind::Contended => KafkaError::new(
             ErrorKind::Backpressure,
             "group close owner is temporarily contended",
-        ),
+        )
+        .with_safe_retry(),
         GroupConsumerCloseAdmissionErrorKind::HostUnavailable
         | GroupConsumerCloseAdmissionErrorKind::InternalInvariant => {
             KafkaError::new(ErrorKind::Internal, "group close ownership is unavailable")

@@ -9,10 +9,10 @@ use super::admin_result::{
     translate_accepted_fault, translate_admission_kind, translate_failure_parts,
     translate_observer_error, translate_topic_error_parts,
 };
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 #[test]
-fn every_admission_category_maps_without_hidden_retry_policy() {
+fn every_admission_category_preserves_pre_admission_retry_safety() {
     let cases = [
         (
             CreateTopicsAdmissionErrorKind::InvalidRequest,
@@ -48,6 +48,17 @@ fn every_admission_category_maps_without_hidden_retry_policy() {
         let error = translate_admission_kind(engine);
         assert_eq!(error.kind(), public);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        let expected = match engine {
+            CreateTopicsAdmissionErrorKind::Contended
+            | CreateTopicsAdmissionErrorKind::Capacity
+            | CreateTopicsAdmissionErrorKind::RetainedBytes => RetryAdvice::RetrySafe,
+            CreateTopicsAdmissionErrorKind::InvalidRequest
+            | CreateTopicsAdmissionErrorKind::InvalidDeadline
+            | CreateTopicsAdmissionErrorKind::Closed
+            | CreateTopicsAdmissionErrorKind::IdentityExhausted
+            | CreateTopicsAdmissionErrorKind::HostUnavailable => RetryAdvice::DoNotRetry,
+        };
+        assert_eq!(error.retry_advice(), expected);
     }
 }
 
