@@ -5,8 +5,7 @@ use std::{io, time::Duration};
 use kafkars::{OffsetReset, Record};
 
 use crate::real_broker_support::{
-    OPERATION_TIMEOUT, TestError, client_builder_from_environment, ready_client, unique_name,
-    wait_within,
+    TestError, client_builder_from_environment, ready_client, unique_name, wait_within,
 };
 
 use super::{consume, nightly_control, nightly_control::BrokerGuard, nightly_support};
@@ -86,13 +85,14 @@ pub(super) fn group_usable_after_coordinator_restart() -> Result<(), TestError> 
         ),
         "coordinator-restart seed",
     )??;
-    let mut consumer = fixture
-        .client
-        .consumer(&group_id)
-        .subscribe([&fixture.topic])
-        .on_missing_offset(OffsetReset::Earliest)
-        .membership_start_timeout(OPERATION_TIMEOUT)
-        .build()?;
+    let mut consumer = consume::build_group(
+        fixture
+            .client
+            .consumer(&group_id)
+            .subscribe([&fixture.topic])
+            .on_missing_offset(OffsetReset::Earliest),
+        "coordinator-restart member build",
+    )?;
     let first = wait_within(consumer.recv(), "pre-loss group receive")??
         .ok_or_else(|| io::Error::other("group closed before coordinator disruption"))?;
     consume::commit_group(&mut consumer, first.checkpoint(), "pre-loss group commit")?;

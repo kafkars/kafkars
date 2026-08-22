@@ -6,8 +6,8 @@ use std::{
 };
 
 use kafkars::{
-    AssignedConsumer, Checkpoint, Client, Consumer, KafkaError, OffsetReset, RetryAdvice,
-    StartPosition, TopicPartition,
+    AssignedConsumer, Checkpoint, Client, Consumer, ConsumerBuilder, KafkaError, OffsetReset,
+    RetryAdvice, StartPosition, TopicPartition,
 };
 
 use crate::real_broker_support::{OPERATION_TIMEOUT, TestError, wait_within, wait_within_for};
@@ -79,12 +79,13 @@ pub(super) fn classic_group(
     group_id: &str,
     expected: &[&[u8]],
 ) -> Result<(), TestError> {
-    let mut consumer = client
-        .consumer(group_id)
-        .subscribe([topic])
-        .on_missing_offset(OffsetReset::Earliest)
-        .membership_start_timeout(OPERATION_TIMEOUT)
-        .build()?;
+    let mut consumer = build_group(
+        client
+            .consumer(group_id)
+            .subscribe([topic])
+            .on_missing_offset(OffsetReset::Earliest),
+        "classic group build",
+    )?;
     let batch = wait_within(consumer.recv(), "classic group receive")??
         .ok_or_else(|| io::Error::other("classic group closed before a batch arrived"))?;
     let values = batch
@@ -95,6 +96,37 @@ pub(super) fn classic_group(
     commit_group(&mut consumer, batch.checkpoint(), "classic group commit")?;
     close_group(consumer, "classic group close")?;
     Ok(())
+}
+
+pub(super) fn build_group(
+    mut builder: ConsumerBuilder,
+    phase: &str,
+) -> Result<Consumer, TestError> {
+    let deadline = Instant::now() + OPERATION_TIMEOUT;
+    loop {
+        let now = Instant::now();
+        if now >= deadline {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!("{phase} admission remained backpressured"),
+            )
+            .into());
+        }
+        match builder
+            .membership_start_timeout(deadline.saturating_duration_since(now))
+            .build()
+        {
+            Ok(consumer) => return Ok(consumer),
+            Err(rejection) => {
+                let (returned, error) = rejection.into_parts();
+                if error.retry_advice() != RetryAdvice::RetrySafe {
+                    return Err(error.into());
+                }
+                builder = returned;
+                thread::sleep(Duration::from_millis(1));
+            }
+        }
+    }
 }
 
 pub(super) fn commit_group(

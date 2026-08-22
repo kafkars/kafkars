@@ -46,13 +46,14 @@ pub(super) fn fetch_seek_and_offset_reset() -> Result<(), TestError> {
     consume::close_assigned(&mut direct, "direct seek consumer close")?;
 
     let group_id = crate::real_broker_support::unique_name("kafkars-offset-reset");
-    let mut group = fixture
-        .client
-        .consumer(group_id)
-        .subscribe([&fixture.topic])
-        .on_missing_offset(OffsetReset::Earliest)
-        .membership_start_timeout(OPERATION_TIMEOUT)
-        .build()?;
+    let mut group = consume::build_group(
+        fixture
+            .client
+            .consumer(group_id)
+            .subscribe([&fixture.topic])
+            .on_missing_offset(OffsetReset::Earliest),
+        "offset-reset member build",
+    )?;
     let batch = wait_within(group.recv(), "offset-reset group receive")??
         .ok_or_else(|| io::Error::other("offset-reset group closed before delivery"))?;
     if !batch

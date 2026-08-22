@@ -98,14 +98,15 @@ pub(super) fn fencing_abort_commit_and_read_committed() -> Result<(), TestError>
 }
 
 fn assert_read_committed_visibility(fixture: &nightly_support::Fixture) -> Result<(), TestError> {
-    let mut consumer = fixture
-        .client
-        .consumer(unique_name("kafkars-read-committed"))
-        .subscribe([&fixture.topic])
-        .on_missing_offset(OffsetReset::Earliest)
-        .read_isolation(ReadIsolation::ReadCommitted)
-        .membership_start_timeout(OPERATION_TIMEOUT)
-        .build()?;
+    let mut consumer = consume::build_group(
+        fixture
+            .client
+            .consumer(unique_name("kafkars-read-committed"))
+            .subscribe([&fixture.topic])
+            .on_missing_offset(OffsetReset::Earliest)
+            .read_isolation(ReadIsolation::ReadCommitted),
+        "read-committed member build",
+    )?;
     let mut saw_committed = false;
     let mut saw_sentinel = false;
     for _ in 0..4 {

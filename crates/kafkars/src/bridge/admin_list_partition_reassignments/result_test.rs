@@ -1,10 +1,63 @@
 //! Stable translation category smoke tests.
 
-use kafka_client_engine::ListPartitionReassignmentsAcceptedFaultKind;
+use kafka_client_engine::{
+    ListPartitionReassignmentsAcceptedFaultKind, ListPartitionReassignmentsAdmissionErrorKind,
+};
 
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
-use super::result::{translate_accepted_fault, translate_broker_parts};
+use super::result::{translate_accepted_fault, translate_admission_kind, translate_broker_parts};
+
+#[test]
+fn only_transient_pre_admission_categories_are_safe_to_retry() {
+    for (kind, expected, retry) in [
+        (
+            ListPartitionReassignmentsAdmissionErrorKind::InvalidRequest,
+            ErrorKind::Configuration,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            ListPartitionReassignmentsAdmissionErrorKind::InvalidDeadline,
+            ErrorKind::Configuration,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            ListPartitionReassignmentsAdmissionErrorKind::Contended,
+            ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
+        ),
+        (
+            ListPartitionReassignmentsAdmissionErrorKind::Closed,
+            ErrorKind::State,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            ListPartitionReassignmentsAdmissionErrorKind::Capacity,
+            ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
+        ),
+        (
+            ListPartitionReassignmentsAdmissionErrorKind::RetainedBytes,
+            ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
+        ),
+        (
+            ListPartitionReassignmentsAdmissionErrorKind::IdentityExhausted,
+            ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            ListPartitionReassignmentsAdmissionErrorKind::HostUnavailable,
+            ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
+        ),
+    ] {
+        let error = translate_admission_kind(kind);
+        assert_eq!(error.kind(), expected);
+        assert_eq!(error.retry_advice(), retry);
+        assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+    }
+}
 
 #[test]
 fn accepted_faults_remain_internal_diagnostics() {

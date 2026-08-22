@@ -8,8 +8,7 @@ use kafkars::{
 };
 
 use crate::real_broker_support::{
-    OPERATION_TIMEOUT, TestError, client_builder_from_environment, ready_client, unique_name,
-    wait_within,
+    TestError, client_builder_from_environment, ready_client, unique_name, wait_within,
 };
 
 use super::{consume, nightly_support};
@@ -57,12 +56,13 @@ pub(super) fn member_shutdown_commit_and_resume() -> Result<(), TestError> {
     let first_client =
         client_builder_from_environment("kafkars-nightly-classic-resume-first")?.build()?;
     ready_client(&first_client)?;
-    let mut first = first_client
-        .consumer(&group_id)
-        .subscribe([&fixture.topic])
-        .on_missing_offset(OffsetReset::Earliest)
-        .membership_start_timeout(OPERATION_TIMEOUT)
-        .build()?;
+    let mut first = consume::build_group(
+        first_client
+            .consumer(&group_id)
+            .subscribe([&fixture.topic])
+            .on_missing_offset(OffsetReset::Earliest),
+        "classic first member build",
+    )?;
     let batch = wait_within(first.recv(), "classic first member receive")??
         .ok_or_else(|| io::Error::other("first member closed before receiving"))?;
     consume::commit_group(
@@ -84,13 +84,14 @@ pub(super) fn member_shutdown_commit_and_resume() -> Result<(), TestError> {
         ),
         "classic resumed delivery",
     )??;
-    let mut resumed = fixture
-        .client
-        .consumer(&group_id)
-        .subscribe([&fixture.topic])
-        .on_missing_offset(OffsetReset::Earliest)
-        .membership_start_timeout(OPERATION_TIMEOUT)
-        .build()?;
+    let mut resumed = consume::build_group(
+        fixture
+            .client
+            .consumer(&group_id)
+            .subscribe([&fixture.topic])
+            .on_missing_offset(OffsetReset::Earliest),
+        "classic resumed member build",
+    )?;
     let resumed_batch = wait_within(resumed.recv(), "classic resumed member receive")??
         .ok_or_else(|| io::Error::other("replacement member closed before receiving"))?;
     let values = resumed_batch
@@ -151,13 +152,14 @@ fn consumer_protocol_consumer(
     topic: &str,
     group_id: &str,
 ) -> Result<kafkars::Consumer, TestError> {
-    Ok(client
-        .consumer(group_id)
-        .subscribe([topic])
-        .group_protocol(ConsumerGroupProtocol::Consumer)
-        .on_missing_offset(OffsetReset::Earliest)
-        .membership_start_timeout(OPERATION_TIMEOUT)
-        .build()?)
+    consume::build_group(
+        client
+            .consumer(group_id)
+            .subscribe([topic])
+            .group_protocol(ConsumerGroupProtocol::Consumer)
+            .on_missing_offset(OffsetReset::Earliest),
+        "KIP-848 member build",
+    )
 }
 
 fn cooperative_consumer(
@@ -165,13 +167,14 @@ fn cooperative_consumer(
     topic: &str,
     group_id: &str,
 ) -> Result<kafkars::Consumer, TestError> {
-    Ok(client
-        .consumer(group_id)
-        .subscribe([topic])
-        .classic_group_assignor(ClassicGroupAssignor::CooperativeSticky)
-        .on_missing_offset(OffsetReset::Earliest)
-        .membership_start_timeout(OPERATION_TIMEOUT)
-        .build()?)
+    consume::build_group(
+        client
+            .consumer(group_id)
+            .subscribe([topic])
+            .classic_group_assignor(ClassicGroupAssignor::CooperativeSticky)
+            .on_missing_offset(OffsetReset::Earliest),
+        "cooperative member build",
+    )
 }
 
 fn assignment_set(assignment: &kafkars::ConsumerAssignment) -> BTreeSet<(String, i32)> {

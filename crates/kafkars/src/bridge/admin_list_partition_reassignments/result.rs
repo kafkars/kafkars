@@ -20,7 +20,12 @@ use super::operation::AdminListPartitionReassignmentsResult;
 pub(super) fn translate_admission_error(
     error: ListPartitionReassignmentsAdmissionError,
 ) -> KafkaError {
-    let kind = error.kind();
+    translate_admission_kind(error.kind())
+}
+
+pub(super) fn translate_admission_kind(
+    kind: ListPartitionReassignmentsAdmissionErrorKind,
+) -> KafkaError {
     let public = match kind {
         ListPartitionReassignmentsAdmissionErrorKind::InvalidRequest
         | ListPartitionReassignmentsAdmissionErrorKind::InvalidDeadline => ErrorKind::Configuration,
@@ -31,11 +36,21 @@ pub(super) fn translate_admission_error(
         ListPartitionReassignmentsAdmissionErrorKind::IdentityExhausted
         | ListPartitionReassignmentsAdmissionErrorKind::HostUnavailable => ErrorKind::Internal,
     };
-    KafkaError::new(
+    let error = KafkaError::new(
         public,
         format!("ListPartitionReassignments admission failed: {kind:?}"),
     )
-    .with_delivery_status(DeliveryStatus::NotSent)
+    .with_delivery_status(DeliveryStatus::NotSent);
+    match kind {
+        ListPartitionReassignmentsAdmissionErrorKind::Contended
+        | ListPartitionReassignmentsAdmissionErrorKind::Capacity
+        | ListPartitionReassignmentsAdmissionErrorKind::RetainedBytes => error.with_safe_retry(),
+        ListPartitionReassignmentsAdmissionErrorKind::InvalidRequest
+        | ListPartitionReassignmentsAdmissionErrorKind::InvalidDeadline
+        | ListPartitionReassignmentsAdmissionErrorKind::Closed
+        | ListPartitionReassignmentsAdmissionErrorKind::IdentityExhausted
+        | ListPartitionReassignmentsAdmissionErrorKind::HostUnavailable => error,
+    }
 }
 
 pub(super) fn translate_accepted_fault(

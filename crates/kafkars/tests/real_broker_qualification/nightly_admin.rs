@@ -56,13 +56,14 @@ pub(super) fn controller_coordinator_and_exact_broker() -> Result<(), TestError>
         "admin coordinator seed",
     )??;
     let group_id = unique_name("kafkars-admin-coordinator");
-    let mut consumer = fixture
-        .client
-        .consumer(&group_id)
-        .subscribe([&fixture.topic])
-        .on_missing_offset(OffsetReset::Earliest)
-        .membership_start_timeout(OPERATION_TIMEOUT)
-        .build()?;
+    let mut consumer = consume::build_group(
+        fixture
+            .client
+            .consumer(&group_id)
+            .subscribe([&fixture.topic])
+            .on_missing_offset(OffsetReset::Earliest),
+        "admin coordinator member build",
+    )?;
     let batch = wait_within(consumer.recv(), "admin coordinator group receive")??
         .ok_or_else(|| io::Error::other("coordinator group closed before delivery"))?;
     let groups = describe_consumer_groups(&admin, &group_id)?;
