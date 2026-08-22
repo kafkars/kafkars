@@ -45,9 +45,10 @@ pub(crate) use super::fetch::{
     BrokerFetchCallAdmission, BrokerFetchCloseCall, BrokerFetchRouteCall,
     BrokerFetchRouteFailureKind, BrokerId, FetchBeginSettlementError, FetchCallAdmission,
     FetchCompletionObservation, FetchConfirmationError, FetchControlPending, FetchPoll,
-    FetchRecovery, FetchTerminal, ForgottenFetchCompletionFailure, ForgottenFetchConfirmation,
-    ForgottenFetchRequest, ForgottenFetchSubmitFailureKind, ForgottenFetchTerminal,
-    PartitionFetchRequest, StaleFetchConfirmationError, TrackedBrokerFetchCalls, TrackedFetchCalls,
+    FetchRecovery, FetchRouteRefresh, FetchRouteRefreshPoll, FetchTerminal,
+    ForgottenFetchCompletionFailure, ForgottenFetchConfirmation, ForgottenFetchRequest,
+    ForgottenFetchSubmitFailureKind, ForgottenFetchTerminal, PartitionFetchRequest,
+    StaleFetchConfirmationError, TrackedBrokerFetchCalls, TrackedFetchCalls,
     TrackedForgottenFetchCall, classify_fetch_admission, classify_fetch_request_error,
 };
 pub(crate) use super::group_offset_alter_call::GroupOffsetAlterCall;

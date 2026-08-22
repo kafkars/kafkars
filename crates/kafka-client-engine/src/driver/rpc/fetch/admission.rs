@@ -1,18 +1,12 @@
 //! Exact prepared ownership and local admission for one partition Fetch.
 
-use kafka_client_core::{AssignedConsumerEffect, FetchFence, Moment, NextFetchOffset};
-use kafka_driver::RoutedCall;
-use kafka_wire::{FetchRequest, FetchResponse as WireFetchResponse};
+use kafka_client_core::{AssignedConsumerEffect, FetchFence, NextFetchOffset};
 
 use crate::{
     clock::OperationDeadline,
-    driver::DriverOwner,
-    protocol::{
-        consumer::remaining_timeout_ms,
-        fetch::{
-            FetchDecodeLimits, FetchIsolation, FetchRequestFailure, FetchRequestSettings,
-            FetchSessionRequest, fetch_request_with_session,
-        },
+    protocol::fetch::{
+        FetchDecodeLimits, FetchIsolation, FetchRequestFailure, FetchRequestSettings,
+        FetchSessionRequest,
     },
 };
 
@@ -103,8 +97,47 @@ impl PartitionFetchRequest {
         self.topic_route.map(FetchTopicRoute::topic_id)
     }
 
+    pub(crate) fn leader_epoch(&self) -> Option<i32> {
+        self.topic_route.and_then(FetchTopicRoute::leader_epoch)
+    }
+
     pub(crate) fn bind_topic_route(&mut self, route: FetchTopicRoute) {
         self.topic_route = Some(route);
+    }
+
+    pub(crate) fn bind_cached_topic_route(
+        &mut self,
+        topic_id: [u8; 16],
+        leader_epoch: Option<i32>,
+    ) {
+        self.bind_topic_route(FetchTopicRoute::new(topic_id, leader_epoch));
+    }
+
+    #[cfg(test)]
+    pub(crate) fn bind_topic_route_for_test(
+        &mut self,
+        topic_id: [u8; 16],
+        leader_epoch: Option<i32>,
+    ) {
+        self.bind_topic_route(FetchTopicRoute::new(topic_id, leader_epoch));
+    }
+
+    pub(crate) fn bind_retry(
+        &mut self,
+        fence: FetchFence,
+        next_offset: NextFetchOffset,
+        leader_epoch: Option<i32>,
+    ) {
+        self.fence = fence;
+        self.next_offset = next_offset;
+        if let (Some(route), Some(epoch)) = (self.topic_route, leader_epoch) {
+            self.topic_route = Some(route.with_leader_epoch(epoch));
+        }
+        self.session = FetchSessionRequest::INITIAL;
+    }
+
+    pub(crate) fn clear_leader_epoch(&mut self) {
+        self.topic_route = self.topic_route.map(FetchTopicRoute::without_leader_epoch);
     }
 
     pub(crate) const fn operation_deadline(&self) -> OperationDeadline {
@@ -138,11 +171,6 @@ pub(crate) enum FetchRequestPreparationError {
     UnexpectedEffect,
 }
 
-pub(super) struct AcceptedFetchCall {
-    pub(super) request: PartitionFetchRequest,
-    pub(super) call: RoutedCall<WireFetchResponse>,
-}
-
 /// Definitely-unsent request construction or driver admission failure.
 #[must_use = "the exact rejected Fetch request remains owned"]
 pub(crate) struct FetchAdmissionFailure {
@@ -151,6 +179,10 @@ pub(crate) struct FetchAdmissionFailure {
 }
 
 impl FetchAdmissionFailure {
+    pub(super) fn new(request: PartitionFetchRequest, source: FetchAdmissionFailureSource) -> Self {
+        Self { request, source }
+    }
+
     pub(super) fn deadline_elapsed(request: PartitionFetchRequest) -> Self {
         Self {
             request,
@@ -179,61 +211,4 @@ pub(crate) enum FetchCallAdmission {
     Accepted,
     Backpressured(PartitionFetchRequest),
     Rejected(FetchAdmissionFailure),
-}
-
-#[allow(
-    clippy::result_large_err,
-    reason = "local rejection must return the exact linear prepared Fetch without allocation"
-)]
-pub(super) fn submit_partition_fetch(
-    driver: &DriverOwner,
-    request: PartitionFetchRequest,
-    now: Moment,
-) -> Result<AcceptedFetchCall, FetchAdmissionFailure> {
-    let (generated, partition) = match generated_fetch_request(&request, now) {
-        Ok(generated) => generated,
-        Err(source) => {
-            return Err(FetchAdmissionFailure { request, source });
-        }
-    };
-    let call = match driver.submit_tracked_fetch(
-        &request.topic,
-        partition,
-        generated,
-        request.operation_deadline.transport(),
-    ) {
-        Ok(call) => call,
-        Err(source) => {
-            return Err(FetchAdmissionFailure {
-                request,
-                source: FetchAdmissionFailureSource::Driver(source),
-            });
-        }
-    };
-    Ok(AcceptedFetchCall { request, call })
-}
-
-pub(super) fn generated_fetch_request(
-    request: &PartitionFetchRequest,
-    now: Moment,
-) -> Result<(FetchRequest, i32), FetchAdmissionFailureSource> {
-    let remaining = remaining_timeout_ms(now, request.operation_deadline.core())
-        .map_err(|_error| FetchAdmissionFailureSource::DeadlineElapsed)?;
-    let remaining =
-        u32::try_from(remaining).map_err(|_error| FetchAdmissionFailureSource::DeadlineElapsed)?;
-    let partition = request.fence.position().partition().partition().get();
-    let generated = fetch_request_with_session(
-        &request.topic,
-        partition,
-        request.next_offset.get(),
-        request.settings.cap_max_wait_ms(remaining),
-        request.session,
-    )
-    .map_err(FetchAdmissionFailureSource::Request)?;
-    let partition = i32::try_from(partition).map_err(|_error| {
-        FetchAdmissionFailureSource::Request(FetchRequestFailure::PartitionOutOfRange {
-            actual: partition,
-        })
-    })?;
-    Ok((generated, partition))
 }

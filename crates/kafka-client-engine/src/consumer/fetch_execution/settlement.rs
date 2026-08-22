@@ -2,9 +2,10 @@
 
 use kafka_client_core::{AssignedConsumerMachine, AssignedConsumerTransition, Moment};
 
-use crate::driver::FetchPoll;
+use crate::driver::{DriverOwner, FetchPoll};
 
 use super::{
+    super::assigned_event::AssignedConsumerEventStore,
     executor::DirectFetchExecutor,
     fault::{FetchExecutionError, RetainedFetchFault},
     terminal_proposal::FetchTerminalProposal,
@@ -32,6 +33,21 @@ impl DirectFetchExecutor {
             FetchTerminalPoll::Idle | FetchTerminalPoll::Progressed => Ok(None),
             FetchTerminalPoll::Proposed(proposal) => {
                 self.apply_terminal_proposal(machine, proposal)
+            }
+        }
+    }
+
+    pub(crate) fn poll_with_driver(
+        &mut self,
+        driver: &DriverOwner,
+        machine: &mut AssignedConsumerMachine,
+        events: &mut AssignedConsumerEventStore,
+        now: Moment,
+    ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
+        match self.poll_proposal(now)? {
+            FetchTerminalPoll::Idle | FetchTerminalPoll::Progressed => Ok(None),
+            FetchTerminalPoll::Proposed(proposal) => {
+                self.apply_terminal_proposal_with_driver(driver, machine, events, proposal, now)
             }
         }
     }

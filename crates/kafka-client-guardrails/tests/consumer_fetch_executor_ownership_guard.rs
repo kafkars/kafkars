@@ -1,6 +1,9 @@
 //! Ownership, capability, and machine-binding guards for direct Fetch execution.
+#[path = "consumer_fetch_executor_ownership_guard/policy.rs"]
+mod policy;
 mod support;
 
+use policy::{CAPABILITY_ALLOWS, FORBIDDEN};
 use support::{
     LinearOwner, MutationOwner, fixture_files, linear_violations, load_config, mutation_violations,
     workspace_root,
@@ -13,6 +16,8 @@ const BROKER_CLOSE: &str =
     "crates/kafka-client-engine/src/consumer/fetch_execution/broker_close.rs";
 const BROKER_EXECUTION: &str =
     "crates/kafka-client-engine/src/consumer/fetch_execution/broker_execution.rs";
+const BROKER_ROUTE_POLL: &str =
+    "crates/kafka-client-engine/src/consumer/fetch_execution/broker_route_poll.rs";
 const BROKER_MAINTENANCE: &str =
     "crates/kafka-client-engine/src/consumer/fetch_execution/broker_maintenance.rs";
 const BROKER_MAINTENANCE_SETTLEMENT: &str =
@@ -26,6 +31,8 @@ const DEADLINE: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/
 const DELIVERY: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/delivery.rs";
 const EXECUTOR: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs";
 const FAULT: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/fault.rs";
+const LEADER_RETRY: &str =
+    "crates/kafka-client-engine/src/consumer/fetch_execution/leader_retry.rs";
 const PREPARED: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/prepared.rs";
 const SETTLEMENT: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs";
 const TERMINAL: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/terminal.rs";
@@ -67,6 +74,7 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
             CONTROL,
             DELIVERY,
             EXECUTOR,
+            LEADER_RETRY,
             TERMINAL,
             BROKER_CLOSE,
             BROKER_SUBMISSION,
@@ -86,10 +94,12 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
             CONTROL,
             DELIVERY,
             EXECUTOR,
+            LEADER_RETRY,
             SETTLEMENT,
             TERMINAL,
             BROKER_CLOSE,
             BROKER_EXECUTION,
+            BROKER_ROUTE_POLL,
             BROKER_MAINTENANCE,
             BROKER_MAINTENANCE_SETTLEMENT,
             BROKER_SUBMISSION,
@@ -112,39 +122,6 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         "broker_session_policy",
         &[BROKER_CLOSE, BROKER_MAINTENANCE, EXECUTOR],
     ),
-];
-
-const FORBIDDEN: &[&str] = &[
-    "crate::admin",
-    "crate::producer",
-    "crate::transaction",
-    "kafka_driver",
-    "kafka_wire",
-    "kafka_wire_core",
-    "kafka_wire_records",
-    "std::future",
-    "std::time",
-    "Instant::now",
-    "Future",
-    "async",
-    "Transport",
-    "Retry",
-    "Metadata",
-];
-
-const CAPABILITY_ALLOWS: &[(&str, &str)] = &[
-    ("admission_test.rs", "std::time"),
-    ("admission_test.rs", "Instant::now"),
-    ("control_test.rs", "std::time"),
-    ("control_test.rs", "Instant::now"),
-    ("deadline.rs", "std::time"),
-    ("deadline_test.rs", "std::time"),
-    ("deadline_test.rs", "Instant::now"),
-    ("fault_test.rs", "std::time"),
-    ("settlement_test.rs", "std::time"),
-    ("settlement_test.rs", "Instant::now"),
-    ("broker_close.rs", "std::time"),
-    ("executor.rs", "std::time"),
 ];
 
 #[test]

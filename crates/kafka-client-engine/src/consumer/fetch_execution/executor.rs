@@ -12,6 +12,7 @@ use super::{
     broker_session::BrokerFetchSessions,
     fault::RetainedFetchFault,
     partition_session::DirectFetchSession,
+    route_refresh::LeaderMovementRecovery,
 };
 
 pub(super) struct ActiveFetchReservation {
@@ -39,6 +40,7 @@ pub(crate) struct DirectFetchExecutor {
     pub(super) broker_close_requested: bool,
     pub(super) broker_close_deadline: Option<crate::clock::OperationDeadline>,
     pub(super) active_broker_close: Option<ActiveBrokerSessionClose>,
+    pub(super) leader_recovery: LeaderMovementRecovery,
     pub(super) fault: Option<RetainedFetchFault>,
 }
 
@@ -73,6 +75,7 @@ impl DirectFetchExecutor {
             broker_close_requested: false,
             broker_close_deadline: None,
             active_broker_close: None,
+            leader_recovery: LeaderMovementRecovery::new(),
             fault: None,
         }
     }
@@ -90,6 +93,9 @@ impl DirectFetchExecutor {
             .map_err(|_error| ())?;
         self.active_broker_sessions
             .try_reserve_exact(session_capacity)
+            .map_err(|_error| ())?;
+        self.leader_recovery
+            .try_reserve(session_capacity)
             .map_err(|_error| ())?;
         let member_capacity = session_capacity.checked_mul(2).ok_or(())?;
         self.broker_sessions = Some(
@@ -151,7 +157,8 @@ impl DirectFetchExecutor {
                 .saturating_add(self.route_calls.len())
                 .saturating_add(self.routed.len())
                 .saturating_add(usize::from(self.broker_maintenance.is_some()))
-                .saturating_add(usize::from(self.active_broker_close.is_some())),
+                .saturating_add(usize::from(self.active_broker_close.is_some()))
+                .saturating_add(self.leader_recovery.retained()),
             deliveries,
             bytes,
         )

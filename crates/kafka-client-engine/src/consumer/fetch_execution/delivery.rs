@@ -53,6 +53,16 @@ impl DirectFetchExecutor {
                 .map(|pending| pending.call.recover_after_driver_shutdown()),
         );
         requests.extend(self.routed.drain(..).map(|routed| routed.request));
+        let leader_recovery = std::mem::replace(
+            &mut self.leader_recovery,
+            super::route_refresh::LeaderMovementRecovery::new(),
+        );
+        requests.extend(
+            leader_recovery
+                .recover_after_driver_shutdown()
+                .into_iter()
+                .map(|prepared| prepared.into_parts().0),
+        );
         self.active_broker_sessions.clear();
         self.release_forgotten_maintenance_after_driver_shutdown();
         let driver = crate::driver::FetchRecovery::new(requests, completion.or(broker_completion));

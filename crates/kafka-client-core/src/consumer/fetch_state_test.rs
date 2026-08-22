@@ -80,6 +80,32 @@ fn armed_throttle_fence_cannot_be_forged_into_fetch_ready_ownership() {
 }
 
 #[test]
+fn authorized_fetch_retry_preserves_position_and_offset_with_a_fresh_revision() {
+    let mut machine = AssignedConsumerMachine::new();
+    let completed = first_fetch(&mut machine);
+    let replacement = machine
+        .apply(AssignedConsumerInput::FetchRetryAuthorized { fence: completed })
+        .unwrap_or_else(|error| panic!("authorize Fetch retry: {error}"));
+    let [AssignedConsumerEffect::FetchReady { fence, next_offset }] = replacement.effects() else {
+        panic!("Fetch retry must issue one replacement");
+    };
+    assert_eq!(fence.position(), completed.position());
+    assert!(fence.revision() > completed.revision());
+    assert_eq!(*next_offset, offset(10));
+    assert_eq!(
+        machine.fetch_ownership(completed),
+        Ok(FetchOwnership::Superseded)
+    );
+    assert_eq!(machine.fetch_ownership(*fence), Ok(FetchOwnership::Active));
+    assert_eq!(
+        machine.apply(AssignedConsumerInput::FetchRetryAuthorized { fence: completed }),
+        Err(AssignedConsumerMachineError::StaleFetch {
+            supplied: completed,
+        })
+    );
+}
+
+#[test]
 fn seek_and_assignment_replacement_fence_old_fetch_throttle_timers() {
     let mut machine = AssignedConsumerMachine::new();
     let completed = first_fetch(&mut machine);

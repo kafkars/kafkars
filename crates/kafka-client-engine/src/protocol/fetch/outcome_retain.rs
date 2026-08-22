@@ -5,6 +5,7 @@ use core::num::NonZeroI16;
 use super::{
     FetchBrokerFailure, FetchBrokerLevel, FetchOutcome, FetchOutcomeFailure, FetchResponse,
     RejectedFetchOutcome, RetainedFetchOutcome,
+    model::FetchLeader,
     outcome::reject,
     retention::{FetchOutputReservation, settle},
 };
@@ -12,6 +13,7 @@ use super::{
 pub(super) fn retain_broker(
     level: FetchBrokerLevel,
     code: NonZeroI16,
+    leader: Option<FetchLeader>,
     reservation: FetchOutputReservation,
 ) -> Result<RetainedFetchOutcome, RejectedFetchOutcome> {
     let charge = settle(reservation, &[]).map_err(|(failure, reservation)| {
@@ -19,7 +21,7 @@ pub(super) fn retain_broker(
     })?;
     Ok(RetainedFetchOutcome::new(
         None,
-        FetchOutcome::BrokerFailure(FetchBrokerFailure::new(level, code)),
+        FetchOutcome::BrokerFailure(FetchBrokerFailure::new(level, code, leader)),
         charge,
     ))
 }

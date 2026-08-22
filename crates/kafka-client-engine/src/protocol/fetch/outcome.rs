@@ -4,6 +4,7 @@ use core::num::NonZeroI16;
 
 use super::{
     FetchBatch, FetchResponseFailure,
+    model::FetchLeader,
     retention::{FetchOutputReservation, FetchRetainedCharge, FetchRetentionFailure},
 };
 
@@ -19,11 +20,20 @@ pub(crate) enum FetchBrokerLevel {
 pub(crate) struct FetchBrokerFailure {
     level: FetchBrokerLevel,
     code: NonZeroI16,
+    leader: Option<FetchLeader>,
 }
 
 impl FetchBrokerFailure {
-    pub(super) const fn new(level: FetchBrokerLevel, code: NonZeroI16) -> Self {
-        Self { level, code }
+    pub(super) const fn new(
+        level: FetchBrokerLevel,
+        code: NonZeroI16,
+        leader: Option<FetchLeader>,
+    ) -> Self {
+        Self {
+            level,
+            code,
+            leader,
+        }
     }
 
     pub(crate) const fn level(self) -> FetchBrokerLevel {
@@ -32,6 +42,10 @@ impl FetchBrokerFailure {
 
     pub(crate) const fn code(self) -> NonZeroI16 {
         self.code
+    }
+
+    pub(crate) const fn leader(self) -> Option<FetchLeader> {
+        self.leader
     }
 }
 

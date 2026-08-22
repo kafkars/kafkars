@@ -12,7 +12,10 @@ use super::{
     outcome::reject,
     outcome_retain::{retain_broker, retain_empty_success, retain_success},
     read_committed::filter_read_committed,
-    response::{correlate_partition, normalize_correlated_response, validate_selected_version},
+    response::{
+        correlate_partition, normalize_correlated_response, partition_leader_hint,
+        validate_selected_version,
+    },
 };
 
 const FETCH_SESSION_MIN_VERSION: i16 = 7;
@@ -96,19 +99,30 @@ pub(crate) fn normalize_session_fetch_outcome(
         return Err(reject(FetchOutcomeFailure::Response(failure), reservation));
     }
     if let Some(code) = NonZeroI16::new(response.error_code) {
-        return retain_broker(FetchBrokerLevel::TopLevel, code, reservation)
+        return retain_broker(FetchBrokerLevel::TopLevel, code, None, reservation)
             .map(|outcome| (outcome, FetchSessionUpdate::Reset));
     }
     if !(session.is_incremental() && response.responses.is_empty()) {
-        let partition_code =
+        let (partition_code, leader) =
             match correlate_partition(topic, topic_id, partition, selected_version, &response) {
-                Ok(partition) => NonZeroI16::new(partition.error_code),
+                Ok(partition) => match selected_version {
+                    16 => match partition_leader_hint(partition) {
+                        Ok(leader) => (NonZeroI16::new(partition.error_code), leader),
+                        Err(failure) => {
+                            return Err(reject(
+                                FetchOutcomeFailure::Response(failure),
+                                reservation,
+                            ));
+                        }
+                    },
+                    _ => (NonZeroI16::new(partition.error_code), None),
+                },
                 Err(failure) => {
                     return Err(reject(FetchOutcomeFailure::Response(failure), reservation));
                 }
             };
         if let Some(code) = partition_code {
-            return retain_broker(FetchBrokerLevel::Partition, code, reservation)
+            return retain_broker(FetchBrokerLevel::Partition, code, leader, reservation)
                 .map(|outcome| (outcome, FetchSessionUpdate::Reset));
         }
     }

@@ -419,8 +419,8 @@ class RendererTests(unittest.TestCase):
             "kip848_initial_assignment",
             self.matrix["profiles"]["classic"]["scenarios"],
         )
-        self.assertEqual(len(self.matrix["profiles"]["full"]["scenarios"]), 13)
-        self.assertEqual(len(self.matrix["profiles"]["classic"]["scenarios"]), 12)
+        self.assertEqual(len(self.matrix["profiles"]["full"]["scenarios"]), 14)
+        self.assertEqual(len(self.matrix["profiles"]["classic"]["scenarios"]), 13)
         self.assertEqual(
             self.matrix["profiles"]["classic"]["scenarios"],
             [
@@ -443,6 +443,7 @@ class RendererTests(unittest.TestCase):
         )
         truthful_scenarios = {
             "producer_delivers_after_leader_movement",
+            "consumer_fetch_recovers_across_leader_movement",
             "producer_cancellation_preserves_delivery_certainty",
             "cluster_usable_after_broker_restart",
             "group_usable_after_coordinator_restart",

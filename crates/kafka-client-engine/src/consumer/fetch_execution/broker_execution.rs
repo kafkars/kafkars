@@ -45,6 +45,20 @@ impl DirectFetchExecutor {
         if prepared.deadline().is_elapsed_at(now) {
             return self.settle_unadmitted(machine, prepared, FetchFailure::DeadlineElapsed);
         }
+        if let Some((broker_id, topic_id, leader_epoch)) = self
+            .broker_sessions
+            .as_ref()
+            .and_then(|sessions| sessions.route_for_position(prepared.fence().position()))
+        {
+            let (mut request, hard_output_bytes) = prepared.into_parts();
+            request.bind_cached_topic_route(topic_id, leader_epoch);
+            self.routed.push(RoutedBrokerFetch {
+                broker_id,
+                request,
+                hard_output_bytes,
+            });
+            return Ok(super::FetchSubmission::Accepted);
+        }
         // One TopicView call reserves its worst-case projection bytes. Keep that
         // ownership linear and retain later Fetches for the next bounded turn.
         if !self.route_calls.is_empty() {
@@ -90,11 +104,21 @@ impl DirectFetchExecutor {
         if self.broker_sessions.is_none() || self.fault.is_some() {
             return Ok((None, false));
         }
+        if self.leader_recovery.poll(driver) {
+            return Ok((None, true));
+        }
+        if let Some(waiting) = self.leader_recovery.take_waiting() {
+            return self.drive_waiting_leader_route(driver, machine, waiting, now);
+        }
         let routed_before = self.routed.len();
+        let route_calls_before = self.route_calls.len();
         if let Some(transition) = self.poll_one_broker_route(machine)? {
             return Ok((Some(transition), true));
         }
         if self.routed.len() > routed_before {
+            return Ok((None, true));
+        }
+        if self.route_calls.len() < route_calls_before {
             return Ok((None, true));
         }
         // Routed partitions accumulate until the admitted projection phase is
@@ -119,52 +143,6 @@ impl DirectFetchExecutor {
             return Ok((None, false));
         }
         Ok((None, false))
-    }
-
-    fn poll_one_broker_route(
-        &mut self,
-        machine: &mut AssignedConsumerMachine,
-    ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
-        let Some((index, terminal)) = self
-            .route_calls
-            .iter_mut()
-            .enumerate()
-            .find_map(|(index, pending)| pending.call.try_terminal().map(|value| (index, value)))
-        else {
-            return Ok(None);
-        };
-        let pending = self.route_calls.swap_remove(index);
-        match terminal {
-            Ok(routed) => {
-                let (request, broker_id) = routed.into_parts();
-                self.routed.push(RoutedBrokerFetch {
-                    broker_id,
-                    request,
-                    hard_output_bytes: pending.hard_output_bytes,
-                });
-                Ok(None)
-            }
-            Err(failure) => {
-                let (request, kind) = failure.into_parts();
-                let prepared =
-                    PreparedFetchExecution::from_parts(request, pending.hard_output_bytes);
-                match kind {
-                    BrokerFetchRouteFailureKind::Terminal(failure) => {
-                        match self.settle_unadmitted(machine, prepared, failure)? {
-                            super::FetchSubmission::Settled(transition) => Ok(transition),
-                            _ => unreachable!("terminal route fact settles immediately"),
-                        }
-                    }
-                    BrokerFetchRouteFailureKind::Backpressured
-                    | BrokerFetchRouteFailureKind::Completion => {
-                        self.fault = Some(RetainedFetchFault::Prepared {
-                            _prepared: prepared,
-                        });
-                        Err(FetchExecutionError::BrokerRouteCompletion)
-                    }
-                }
-            }
-        }
     }
 
     fn dispatch_one_routed(

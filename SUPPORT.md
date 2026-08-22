@@ -116,10 +116,15 @@ single-member scenarios.
 
 ### Fetch leader movement
 
-Broker Fetch is currently name-routed through Fetch v12. KIP-951
-current-leader hints require Fetch v16 and topic IDs, so that recovery path is
-not implemented. Leader movement may require external reassignment or a client
-restart; qualification does not claim in-process recovery.
+Normal broker Fetch resolves the broker-issued topic UUID and leader epoch,
+then uses the exact Fetch v16 topic-ID route. KIP-951 current-leader hints for
+`NOT_LEADER_OR_FOLLOWER` and `FENCED_LEADER_EPOCH` invalidate the old route and
+replace the same offset under its original deadline; absent or stale hints fall
+back to bounded metadata refresh, and `UNKNOWN_LEADER_EPOCH` retries the
+established broker route without carrying the rejected epoch. The qualification
+matrix includes in-process direct and classic-group recovery across broker
+leader movement. This is source and qualification-scenario coverage, not a
+production support promise without archived passing cells.
 
 ### Foreign interfaces
 

@@ -6,10 +6,12 @@ use kafka_client_core::{
 };
 
 use crate::{
+    EngineConfig,
     clock::MonotonicClock,
     consumer::fetch_execution::{
         FetchTerminalFixture, FetchTerminalPoll, install_terminal_for_test,
     },
+    driver::DriverOwner,
 };
 
 use super::{
@@ -35,7 +37,7 @@ fn partition_offset_out_of_range_uses_the_selected_reset_position() {
             .unwrap_or_else(|error| panic!("clock before reset: {error}"));
 
         let transition = owner
-            .settle_terminal_proposal(&clock, proposal)
+            .settle_terminal_proposal(&clock, &driver(), Moment::from_tick(50), proposal)
             .unwrap_or_else(|error| panic!("settle reset proposal: {error:?}"))
             .unwrap_or_else(|| panic!("active reset transition"));
 
@@ -77,7 +79,12 @@ fn admitted_recovery_capacity_failure_retains_the_exact_terminal_proposal() {
 
     assert!(
         owner
-            .settle_terminal_proposal(&MonotonicClock::new(), proposal)
+            .settle_terminal_proposal(
+                &MonotonicClock::new(),
+                &driver(),
+                Moment::from_tick(50),
+                proposal,
+            )
             .unwrap_or_else(|error| panic!("retain capacity failure: {error:?}"))
             .is_none()
     );
@@ -119,7 +126,12 @@ fn error_policy_and_nonmatching_broker_levels_remain_exact_fetch_failures() {
     ] {
         let (mut owner, proposal) = prepared_terminal(policy, fixture);
         let transition = owner
-            .settle_terminal_proposal(&MonotonicClock::new(), proposal)
+            .settle_terminal_proposal(
+                &MonotonicClock::new(),
+                &driver(),
+                Moment::from_tick(50),
+                proposal,
+            )
             .unwrap_or_else(|error| panic!("settle generic proposal: {error:?}"))
             .unwrap_or_else(|| panic!("generic failure transition"));
 
@@ -178,4 +190,9 @@ fn prepared_terminal(
         }
     };
     (owner, proposal)
+}
+
+fn driver() -> DriverOwner {
+    DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver: {error}"))
 }

@@ -42,6 +42,22 @@ impl BrokerFetchSessions {
         self.entries.first().map(|entry| entry.broker_id)
     }
 
+    pub(super) fn route_for_position(
+        &self,
+        position: PositionFence,
+    ) -> Option<(BrokerId, [u8; 16], Option<i32>)> {
+        self.members
+            .iter()
+            .find(|retained| !retained.forgotten && retained.member.position() == position)
+            .map(|retained| {
+                (
+                    retained.broker_id,
+                    retained.member.topic_id(),
+                    retained.member.leader_epoch(),
+                )
+            })
+    }
+
     pub(super) fn has_forgotten_ready(&self) -> bool {
         self.entries.iter().any(|entry| {
             !entry.in_flight

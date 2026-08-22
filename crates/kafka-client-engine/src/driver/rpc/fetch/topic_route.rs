@@ -22,4 +22,18 @@ impl FetchTopicRoute {
     pub(crate) const fn leader_epoch(self) -> Option<i32> {
         self.leader_epoch
     }
+
+    pub(crate) const fn with_leader_epoch(self, leader_epoch: i32) -> Self {
+        Self {
+            topic_id: self.topic_id,
+            leader_epoch: Some(leader_epoch),
+        }
+    }
+
+    pub(crate) const fn without_leader_epoch(self) -> Self {
+        Self {
+            topic_id: self.topic_id,
+            leader_epoch: None,
+        }
+    }
 }

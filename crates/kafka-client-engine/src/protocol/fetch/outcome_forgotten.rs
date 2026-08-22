@@ -67,7 +67,7 @@ pub(crate) fn normalize_forgotten_fetch_outcome(
     }
     if let Some(code) = NonZeroI16::new(response.error_code) {
         return Ok(ForgottenFetchOutcome::BrokerFailure(
-            FetchBrokerFailure::new(FetchBrokerLevel::TopLevel, code),
+            FetchBrokerFailure::new(FetchBrokerLevel::TopLevel, code, None),
         ));
     }
     if !response.responses.is_empty() {

@@ -4,9 +4,13 @@ use kafka_wire::FetchResponse as WireFetchResponse;
 use kafka_wire::fetch_response::PartitionData;
 
 use super::{
-    decode::normalize_fetch_response, failure::FetchDecodeFailure, limits::FetchDecodeLimits,
-    model::FetchResponse, request::FETCH_NAME_ROUTE_MAX_VERSION,
-    request::FETCH_NAME_ROUTE_MIN_VERSION, request::FETCH_TOPIC_ID_ROUTE_VERSION,
+    decode::{normalize_fetch_response, normalize_leader},
+    failure::FetchDecodeFailure,
+    limits::FetchDecodeLimits,
+    model::{FetchLeader, FetchResponse},
+    request::FETCH_NAME_ROUTE_MAX_VERSION,
+    request::FETCH_NAME_ROUTE_MIN_VERSION,
+    request::FETCH_TOPIC_ID_ROUTE_VERSION,
 };
 
 /// Why a generated response cannot settle one exact partition fetch.
@@ -20,6 +24,16 @@ pub(crate) enum FetchResponseFailure {
     PartitionCount { actual: usize },
     PartitionIndexMismatch { actual: i32 },
     Decode(FetchDecodeFailure),
+}
+
+pub(super) fn partition_leader_hint(
+    partition: &PartitionData,
+) -> Result<Option<FetchLeader>, FetchResponseFailure> {
+    normalize_leader(
+        partition.current_leader.leader_id,
+        partition.current_leader.leader_epoch,
+    )
+    .map_err(FetchResponseFailure::Decode)
 }
 
 pub(super) fn validate_selected_version(selected_version: i16) -> Result<(), FetchResponseFailure> {

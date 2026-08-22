@@ -73,14 +73,15 @@ pub(super) fn broker_session_members(
     prepared
         .iter()
         .map(|prepared| {
-            BrokerSessionMember::new(
+            let route = prepared
+                .request
+                .topic_route()
+                .unwrap_or_else(|| unreachable!("broker-routed Fetch retains topic identity"));
+            BrokerSessionMember::with_route(
                 prepared.fence().position(),
                 Arc::from(prepared.request.topic()),
-                prepared
-                    .request
-                    .topic_route()
-                    .unwrap_or_else(|| unreachable!("broker-routed Fetch retains topic identity"))
-                    .topic_id(),
+                route.topic_id(),
+                route.leader_epoch(),
             )
         })
         .collect()

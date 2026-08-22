@@ -48,7 +48,47 @@ impl AssignedConsumerOwner {
                 return false;
             }
         }
-        self.poll_fetch_executor(now)
+        self.poll_fetch_executor_with_driver(driver, now)
+    }
+
+    fn poll_fetch_executor_with_driver(&mut self, driver: &DriverOwner, now: Moment) -> bool {
+        let retained = self.fetches.retained();
+        match self
+            .fetches
+            .poll_with_driver(driver, &mut self.machine, &mut self.events, now)
+        {
+            Ok(Some(transition)) => {
+                self.enqueue_transition(transition, None);
+                true
+            }
+            Ok(None) => self.fetches.retained() < retained,
+            Err(error) => {
+                self.fault = Some(AssignedConsumerOwnerFault::Fetch(error));
+                false
+            }
+        }
+    }
+
+    pub(super) fn poll_fetch_executor_for_control(
+        &mut self,
+        driver: &DriverOwner,
+        now: Moment,
+    ) -> bool {
+        let retained = self.fetches.retained();
+        match self
+            .fetches
+            .poll_with_driver(driver, &mut self.machine, &mut self.events, now)
+        {
+            Ok(Some(transition)) => {
+                self.retain_transition(transition, None);
+                true
+            }
+            Ok(None) => self.fetches.retained() < retained,
+            Err(error) => {
+                self.fault = Some(AssignedConsumerOwnerFault::Fetch(error));
+                true
+            }
+        }
     }
 
     pub(super) fn poll_fetch_executor(&mut self, now: Moment) -> bool {

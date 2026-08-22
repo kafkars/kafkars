@@ -3,7 +3,11 @@
 use core::num::NonZeroI16;
 
 use bytes::BytesMut;
-use kafka_wire::FetchResponse as WireFetchResponse;
+use kafka_wire::{
+    FetchResponse as WireFetchResponse,
+    fetch_response::{FetchableTopicResponse, PartitionData},
+};
+use kafka_wire_core::Uuid;
 
 use super::{
     FetchBrokerLevel, FetchDecodeLimits, FetchIsolation, FetchOutcomeFailure, FetchResponseFailure,
@@ -72,6 +76,36 @@ fn partition_broker_failure_needs_no_record_decode_or_success_session() {
     assert_eq!(normalized.outcome().next_offset(), None);
     assert_eq!(normalized.outcome().data_batches(), None);
     assert_eq!(normalized.retained_bytes(), 0);
+}
+
+#[test]
+fn fetch_v16_partition_failure_retains_only_a_well_formed_leader_hint() {
+    let mut partition = PartitionData::default();
+    partition.partition_index = i32::try_from(PARTITION).unwrap_or_else(|_| panic!("partition"));
+    partition.error_code = 6;
+    partition.current_leader.leader_id = 4;
+    partition.current_leader.leader_epoch = 10;
+    let failure = normalize_v16(partition)
+        .unwrap_or_else(|rejected| panic!("v16 leader hint: {:?}", rejected.failure()))
+        .0
+        .outcome()
+        .broker_failure()
+        .unwrap_or_else(|| panic!("partition failure"));
+    let leader = failure.leader().unwrap_or_else(|| panic!("leader hint"));
+    assert_eq!((leader.broker_id, leader.epoch), (4, 10));
+
+    let mut malformed = PartitionData::default();
+    malformed.partition_index = i32::try_from(PARTITION).unwrap_or_else(|_| panic!("partition"));
+    malformed.error_code = 6;
+    malformed.current_leader.leader_id = -2;
+    malformed.current_leader.leader_epoch = 10;
+    let Err(rejected) = normalize_v16(malformed) else {
+        panic!("malformed v16 leader must reject");
+    };
+    assert!(matches!(
+        rejected.failure(),
+        FetchOutcomeFailure::Response(FetchResponseFailure::Decode(_))
+    ));
 }
 
 #[test]
@@ -199,6 +233,30 @@ fn normalize_session(
         requested_offset,
         metadata,
         SELECTED_VERSION,
+        response,
+        FetchDecodeLimits::default(),
+        reservation,
+    )
+}
+
+fn normalize_v16(
+    partition: PartitionData,
+) -> Result<(super::RetainedFetchOutcome, FetchSessionUpdate), super::RejectedFetchOutcome> {
+    let domain = FetchReservationDomain::create_store_domain();
+    let (_, reservation) = domain.issue_pair(0, 4_096);
+    let mut topic = FetchableTopicResponse::default();
+    topic.topic_id = Uuid::from_bytes([7; 16]);
+    topic.partitions = vec![partition];
+    let mut response = WireFetchResponse::default();
+    response.responses = vec![topic];
+    normalize_session_fetch_outcome(
+        FetchIsolation::ReadUncommitted,
+        TOPIC,
+        Some([7; 16]),
+        PARTITION,
+        REQUESTED_OFFSET,
+        FetchSessionRequest::INITIAL,
+        16,
         response,
         FetchDecodeLimits::default(),
         reservation,

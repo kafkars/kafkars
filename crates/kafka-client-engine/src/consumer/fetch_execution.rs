@@ -26,6 +26,8 @@ mod broker_maintenance_state;
 mod broker_maintenance_test;
 #[cfg(test)]
 mod broker_reestablishment_test;
+#[path = "fetch_execution/broker_route_poll.rs"]
+mod broker_route_poll;
 #[path = "fetch_execution/broker_session.rs"]
 mod broker_session;
 #[path = "fetch_execution/broker_session_begin.rs"]
@@ -56,12 +58,20 @@ mod executor;
 mod fault;
 #[cfg(test)]
 mod fault_test;
+#[path = "fetch_execution/leader_retry.rs"]
+mod leader_retry;
+#[cfg(test)]
+mod leader_retry_test;
+#[cfg(test)]
+mod leader_route_test;
 #[path = "fetch_execution/partition_session.rs"]
 mod partition_session;
 #[path = "fetch_execution/prepared.rs"]
 mod prepared;
 #[cfg(test)]
 mod prepared_test;
+#[path = "fetch_execution/route_refresh.rs"]
+mod route_refresh;
 #[cfg(test)]
 mod session_test;
 #[path = "fetch_execution/settlement.rs"]
@@ -72,6 +82,8 @@ mod settlement_test;
 mod stale_test;
 #[path = "fetch_execution/terminal.rs"]
 mod terminal;
+#[path = "fetch_execution/terminal_fact.rs"]
+mod terminal_fact;
 #[path = "fetch_execution/terminal_proposal.rs"]
 mod terminal_proposal;
 #[cfg(test)]

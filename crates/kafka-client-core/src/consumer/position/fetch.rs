@@ -44,6 +44,17 @@ impl AssignedPartitionState {
         self.position.fetch_failed(supplied, failure)
     }
 
+    pub(in crate::consumer) fn fetch_retry(
+        &mut self,
+        supplied: FetchFence,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        self.ensure_position_fence(supplied.position())?;
+        if self.paused {
+            return Err(AssignedConsumerMachineError::StaleFetch { supplied });
+        }
+        self.position.fetch_retry(supplied, self.partition)
+    }
+
     pub(in crate::consumer) fn fetch_throttle_elapsed(
         &mut self,
         supplied: FetchFence,

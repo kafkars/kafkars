@@ -26,6 +26,10 @@ impl BrokerId {
         Self(value)
     }
 
+    pub(crate) fn from_raw(value: i32) -> Result<Self, kafka_driver::BrokerIdError> {
+        DriverBrokerId::new(value).map(Self)
+    }
+
     pub(crate) const fn driver(self) -> DriverBrokerId {
         self.0
     }

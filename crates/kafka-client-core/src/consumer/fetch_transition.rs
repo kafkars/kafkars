@@ -74,6 +74,21 @@ impl AssignedConsumerMachine {
         ))
     }
 
+    pub(super) fn fetch_retry(
+        &mut self,
+        fence: FetchFence,
+    ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
+        let position = fence.position();
+        let effect = self
+            .assignment_mut(position.assignment_epoch())?
+            .find_mut(position.partition())?
+            .fetch_retry(fence)?;
+        Ok(AssignedConsumerTransition::new(
+            position.assignment_epoch(),
+            vec![effect],
+        ))
+    }
+
     pub(super) fn fetch_throttle_elapsed(
         &mut self,
         fence: FetchFence,

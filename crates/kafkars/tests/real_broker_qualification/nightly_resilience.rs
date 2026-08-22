@@ -1,11 +1,15 @@
 //! Leader, broker, coordinator, and metadata recovery under managed disruption.
 
-use std::{io, time::Duration};
+use std::{
+    io, thread,
+    time::{Duration, Instant},
+};
 
-use kafkars::{OffsetReset, Record};
+use kafkars::{ConsumerFetchConfig, ErrorKind, OffsetReset, Record, StartPosition, TopicPartition};
 
 use crate::real_broker_support::{
-    TestError, client_builder_from_environment, ready_client, unique_name, wait_within,
+    OPERATION_TIMEOUT, TestError, client_builder_from_environment, ready_client, unique_name,
+    wait_within,
 };
 
 use super::{consume, nightly_control, nightly_control::BrokerGuard, nightly_support};
@@ -42,6 +46,71 @@ pub(super) fn producer_delivers_after_leader_movement() -> Result<(), TestError>
         "delivery after leader movement",
     )??;
     nightly_support::close_producer(&producer, "leader movement producer close")?;
+    fixture.finish()
+}
+
+pub(super) fn consumer_recovers_fetch_across_leader_movement() -> Result<(), TestError> {
+    let builder = client_builder_from_environment("kafkars-nightly-consumer-leader-movement")?
+        .assigned_consumer_fetch(
+            ConsumerFetchConfig::default().with_attempt_timeout(Duration::from_secs(60)),
+        );
+    let fixture = nightly_support::Fixture::from_builder(builder, "consumer-leader-movement", 1)?;
+    let seed_client =
+        client_builder_from_environment("kafkars-nightly-consumer-movement-seed")?.build()?;
+    ready_client(&seed_client)?;
+    let producer = seed_client.producer().build()?;
+    wait_within(
+        producer.send(
+            Record::to(fixture.topic.as_str())
+                .partition(0)
+                .value("before-move"),
+        ),
+        "consumer pre-movement seed",
+    )??;
+    nightly_support::close_producer(&producer, "consumer pre-movement producer close")?;
+    wait_within(
+        seed_client.shutdown(),
+        "consumer movement seed client shutdown",
+    )??;
+    let mut consumer = fixture.client.assigned_consumer().build()?;
+    consume::retry_assigned_control("consumer movement assignment", || {
+        consumer.try_replace_assignment(
+            [TopicPartition::new(&fixture.topic, 0).start_at(StartPosition::Beginning)],
+            OPERATION_TIMEOUT,
+        )
+    })?;
+    require_direct_value(&mut consumer, b"before-move")?;
+
+    let original_leader = leader(&fixture)?;
+    let stopped = BrokerGuard::stop(original_leader)?;
+    let replacement = nightly_support::poll_until(|| {
+        let current = leader(&fixture).ok()?;
+        (current != original_leader).then_some(current)
+    })?;
+    stopped.restore()?;
+    if replacement == original_leader {
+        return Err(io::Error::other("consumer partition leader did not move").into());
+    }
+    wait_for_writable_isr(&fixture)?;
+    let post_client =
+        client_builder_from_environment("kafkars-nightly-consumer-movement-post")?.build()?;
+    ready_client(&post_client)?;
+    let producer = post_client.producer().build()?;
+    wait_within(
+        producer.send(
+            Record::to(fixture.topic.as_str())
+                .partition(0)
+                .value("after-move"),
+        ),
+        "consumer post-movement seed",
+    )??;
+    require_direct_value(&mut consumer, b"after-move")?;
+    consume::close_assigned(&mut consumer, "consumer movement close")?;
+    nightly_support::close_producer(&producer, "consumer movement producer close")?;
+    wait_within(
+        post_client.shutdown(),
+        "consumer movement producer client shutdown",
+    )??;
     fixture.finish()
 }
 
@@ -125,4 +194,55 @@ fn leader(fixture: &nightly_support::Fixture) -> Result<i32, TestError> {
         .first()
         .and_then(kafkars::TopicPartitionDescription::leader_id)
         .ok_or_else(|| io::Error::other("qualification partition has no leader").into())
+}
+
+fn wait_for_writable_isr(fixture: &nightly_support::Fixture) -> Result<(), TestError> {
+    nightly_support::poll_until(|| {
+        let topic =
+            nightly_support::describe_topic(&fixture.client.admin(), &fixture.topic).ok()?;
+        let partition = topic.partitions().first()?;
+        (partition.in_sync_replicas().len() >= 2).then_some(())
+    })
+}
+
+fn require_direct_value(
+    consumer: &mut kafkars::AssignedConsumer,
+    expected: &[u8],
+) -> Result<(), TestError> {
+    let deadline = Instant::now() + OPERATION_TIMEOUT;
+    loop {
+        match consumer.try_take_batch() {
+            Ok(Some(batch)) => {
+                let found = batch
+                    .records()
+                    .any(|record| record.value() == Some(expected));
+                drop(batch);
+                if found {
+                    return Ok(());
+                }
+            }
+            Ok(None) => {}
+            Err(error) if error.kind() == ErrorKind::Backpressure => {}
+            Err(error) => return Err(error.into()),
+        }
+        match consumer.try_take_event() {
+            Ok(Some(event)) => {
+                return Err(io::Error::other(format!(
+                    "consumer failed during leader movement: {event:?}"
+                ))
+                .into());
+            }
+            Ok(None) => {}
+            Err(error) if error.kind() == ErrorKind::Backpressure => {}
+            Err(error) => return Err(error.into()),
+        }
+        if Instant::now() >= deadline {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "leader movement consumer receive did not complete within 30s",
+            )
+            .into());
+        }
+        thread::sleep(Duration::from_millis(1));
+    }
 }

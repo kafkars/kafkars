@@ -15,9 +15,10 @@ use crate::{
     protocol::fetch::{FetchDecodeLimits, FetchRequestFailure, FetchRequestSettings},
 };
 
-use super::admission::{
-    FetchAdmissionFailureSource, FetchRequestPreparationError, PartitionFetchRequest,
-    generated_fetch_request, submit_partition_fetch,
+use super::{
+    admission::{FetchAdmissionFailureSource, FetchRequestPreparationError, PartitionFetchRequest},
+    legacy_request::generated_fetch_request,
+    partition_submission::submit_partition_fetch,
 };
 
 #[test]

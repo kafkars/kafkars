@@ -1,7 +1,5 @@
 //! Exact ownership and capability ratchets for private assigned-consumer events.
-
 mod support;
-
 use support::{
     CapabilityRule, LinearOwner, MethodCapabilityRule, MutationOwner, capability_violations,
     fixture_files, linear_violations, load_config, method_capability_violations,
@@ -45,6 +43,7 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_event.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_recovery.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
         ],
@@ -58,6 +57,7 @@ const CLAIM_TRANSFERS: &[&str] = &[
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/fetch_terminal.rs",
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/reconciliation.rs",
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek.rs",
+    "crates/kafka-client-engine/src/consumer/fetch_execution/leader_retry.rs",
 ];
 const METHODS: &[(&str, &[&str])] = &[
     ("install_replacement_claims", &[PREPARED_COMMIT]),

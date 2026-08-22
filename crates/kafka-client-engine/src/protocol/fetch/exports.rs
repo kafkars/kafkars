@@ -9,8 +9,8 @@ pub(crate) use super::{
     isolation::FetchIsolation,
     limits::FetchDecodeLimits,
     model::{
-        FetchBatch, FetchEndpoint, FetchHeader, FetchPartition, FetchProducerIdentity, FetchRecord,
-        FetchResponse, FetchTimestampType, FetchTopic,
+        FetchBatch, FetchEndpoint, FetchHeader, FetchLeader, FetchPartition, FetchProducerIdentity,
+        FetchRecord, FetchResponse, FetchTimestampType, FetchTopic,
     },
     outcome::{
         FetchBrokerFailure, FetchBrokerLevel, FetchOutcome, FetchOutcomeFailure,

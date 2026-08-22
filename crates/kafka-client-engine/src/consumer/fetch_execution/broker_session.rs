@@ -17,6 +17,7 @@ pub(super) struct BrokerSessionMember {
     position: PositionFence,
     topic: Arc<str>,
     topic_id: [u8; 16],
+    leader_epoch: Option<i32>,
 }
 
 impl BrokerSessionMember {
@@ -25,6 +26,21 @@ impl BrokerSessionMember {
             position,
             topic,
             topic_id,
+            leader_epoch: None,
+        }
+    }
+
+    pub(super) fn with_route(
+        position: PositionFence,
+        topic: Arc<str>,
+        topic_id: [u8; 16],
+        leader_epoch: Option<i32>,
+    ) -> Self {
+        Self {
+            position,
+            topic,
+            topic_id,
+            leader_epoch,
         }
     }
 
@@ -42,6 +58,10 @@ impl BrokerSessionMember {
 
     pub(super) const fn topic_id(&self) -> [u8; 16] {
         self.topic_id
+    }
+
+    pub(super) const fn leader_epoch(&self) -> Option<i32> {
+        self.leader_epoch
     }
 }
 

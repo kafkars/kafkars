@@ -24,20 +24,7 @@ impl AssignedConsumerOwner {
                 let Some(now) = self.capture_turn_now() else {
                     return work;
                 };
-                let retained = self.fetches.retained();
-                match self.fetches.poll(&mut self.machine, now) {
-                    Ok(Some(transition)) => {
-                        work.fetch_polled = true;
-                        self.retain_transition(transition, None);
-                    }
-                    Ok(None) => {
-                        work.fetch_polled = self.fetches.retained() < retained;
-                    }
-                    Err(error) => {
-                        work.fetch_polled = true;
-                        self.fault = Some(AssignedConsumerOwnerFault::Fetch(error));
-                    }
-                }
+                work.fetch_polled = self.poll_fetch_executor_for_control(driver, now);
                 return work;
             }
             FrontEffect::Idle => {}

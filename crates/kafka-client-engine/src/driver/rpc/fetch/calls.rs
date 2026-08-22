@@ -5,10 +5,9 @@ use kafka_driver::RoutedCall;
 use kafka_wire::FetchResponse as WireFetchResponse;
 
 use super::{
-    admission::{
-        FetchAdmissionFailure, FetchCallAdmission, PartitionFetchRequest, submit_partition_fetch,
-    },
+    admission::{FetchAdmissionFailure, FetchCallAdmission, PartitionFetchRequest},
     fence::supersedes,
+    partition_submission::submit_partition_fetch,
     settlement::{FetchPoll, PendingFetchConfirmation, SettledFetchCall},
     stale::{FetchControlPending, StaleFetchDrains},
     terminal::{FetchCompletionFailure, FetchCompletionObservation, retain_fetch_terminal},

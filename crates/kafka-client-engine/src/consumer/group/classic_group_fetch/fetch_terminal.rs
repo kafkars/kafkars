@@ -13,6 +13,7 @@ use crate::{
             FetchExecutionError, FetchTerminalProposal, PartitionOffsetOutOfRangeProposal,
         },
     },
+    driver::DriverOwner,
 };
 
 use super::{
@@ -27,14 +28,20 @@ impl ClassicGroupFetchOwner {
     pub(super) fn settle_terminal_proposal(
         &mut self,
         clock: &MonotonicClock,
+        driver: &DriverOwner,
+        now: kafka_client_core::Moment,
         proposal: FetchTerminalProposal,
     ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
         let proposal = match proposal.into_partition_offset_out_of_range() {
             Ok(proposal) => proposal,
             Err(proposal) => {
-                return self
-                    .fetches
-                    .apply_terminal_proposal(&mut self.machine, proposal);
+                return self.fetches.apply_terminal_proposal_with_driver(
+                    driver,
+                    &mut self.machine,
+                    &mut self.events,
+                    proposal,
+                    now,
+                );
             }
         };
         let Some(position) = reset_position(self.missing_offset_policy) else {

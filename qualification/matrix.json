@@ -39,6 +39,7 @@
       "scenarios": [
         "producer_batching_partitioning",
         "producer_delivers_after_leader_movement",
+        "consumer_fetch_recovers_across_leader_movement",
         "producer_cancellation_preserves_delivery_certainty",
         "direct_fetch_seek_offset_reset",
         "classic_cooperative_initial_assignment",
@@ -101,6 +102,7 @@
       "scenarios": [
         "producer_batching_partitioning",
         "producer_delivers_after_leader_movement",
+        "consumer_fetch_recovers_across_leader_movement",
         "producer_cancellation_preserves_delivery_certainty",
         "direct_fetch_seek_offset_reset",
         "classic_cooperative_initial_assignment",

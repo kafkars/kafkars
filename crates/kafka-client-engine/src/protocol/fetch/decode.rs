@@ -192,7 +192,7 @@ fn normalize_epoch_end(
     }
 }
 
-fn normalize_leader(
+pub(super) fn normalize_leader(
     leader_id: i32,
     leader_epoch: i32,
 ) -> Result<Option<FetchLeader>, FetchDecodeFailure> {

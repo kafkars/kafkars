@@ -11,7 +11,7 @@ use super::{
 
 type Scenario = (&'static str, fn() -> Result<(), TestError>);
 
-const BEFORE_KIP_848: [Scenario; 6] = [
+const BEFORE_KIP_848: [Scenario; 7] = [
     (
         "producer_batching_partitioning",
         nightly_producer::batching_and_partitioning,
@@ -19,6 +19,10 @@ const BEFORE_KIP_848: [Scenario; 6] = [
     (
         "producer_delivers_after_leader_movement",
         nightly_resilience::producer_delivers_after_leader_movement,
+    ),
+    (
+        "consumer_fetch_recovers_across_leader_movement",
+        nightly_resilience::consumer_recovers_fetch_across_leader_movement,
     ),
     (
         "producer_cancellation_preserves_delivery_certainty",

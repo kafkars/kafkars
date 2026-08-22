@@ -106,4 +106,19 @@ impl PartitionPosition {
             failure,
         })
     }
+
+    pub(in crate::consumer) fn fetch_retry(
+        &mut self,
+        supplied: FetchFence,
+        partition: AssignedTopicPartition,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        let PositionPhase::Fetching { fence, next_offset } = self.phase else {
+            return Err(AssignedConsumerMachineError::StaleFetch { supplied });
+        };
+        if fence != supplied {
+            return Err(AssignedConsumerMachineError::StaleFetch { supplied });
+        }
+        let (replacement, next_revision) = self.plan_fetch(supplied.position(), partition)?;
+        Ok(self.install_fetch(replacement, next_revision, next_offset))
+    }
 }

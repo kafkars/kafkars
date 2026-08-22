@@ -23,11 +23,12 @@ impl ClassicGroupFetchOwner {
     fn poll_terminal_proposal(
         &mut self,
         clock: &MonotonicClock,
+        driver: &DriverOwner,
         now: Moment,
     ) -> Result<(Option<AssignedConsumerTransition>, bool), FetchExecutionError> {
         match self.fetches.poll_proposal(now)? {
             FetchTerminalPoll::Proposed(proposal) => self
-                .settle_terminal_proposal(clock, proposal)
+                .settle_terminal_proposal(clock, driver, now, proposal)
                 .map(|transition| (transition, true)),
             FetchTerminalPoll::Progressed => Ok((None, true)),
             FetchTerminalPoll::Idle => Ok((None, false)),
@@ -64,7 +65,6 @@ impl ClassicGroupFetchOwner {
             work.fault_retained = true;
             return work;
         }
-
         if !blocked_front && !self.apply_one_due_timer(clock, &mut work) {
             return work;
         }
@@ -184,7 +184,7 @@ impl ClassicGroupFetchOwner {
                 return;
             }
         }
-        match self.poll_terminal_proposal(clock, now) {
+        match self.poll_terminal_proposal(clock, driver, now) {
             Ok((Some(transition), progressed)) => {
                 work.fetch_polled = progressed;
                 self.append_transition(transition, work);

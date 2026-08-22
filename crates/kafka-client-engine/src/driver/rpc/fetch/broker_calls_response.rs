@@ -174,7 +174,7 @@ impl TrackedBrokerFetchCalls {
         );
         self.settled = Some(SettledBrokerFetchBatch {
             slots,
-            _route_token: None,
+            route_token: None,
         });
     }
 

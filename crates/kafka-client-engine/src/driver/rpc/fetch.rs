@@ -7,12 +7,15 @@ mod broker_admission;
 #[cfg(test)]
 mod broker_admission_test;
 mod broker_calls;
+mod broker_calls_helpers;
 #[cfg(test)]
 mod broker_calls_loopback_test;
 mod broker_calls_response;
 mod broker_calls_settlement;
 #[cfg(test)]
 mod broker_calls_test;
+#[cfg(test)]
+mod broker_calls_test_support;
 mod broker_close;
 #[cfg(test)]
 mod broker_close_test;
@@ -35,8 +38,11 @@ mod fence_test;
 mod forgotten;
 #[cfg(test)]
 mod forgotten_test;
+mod legacy_request;
+mod partition_submission;
 mod route;
 mod route_correlation;
+mod route_refresh;
 #[cfg(test)]
 mod route_test;
 #[cfg(test)]
@@ -72,6 +78,7 @@ pub(crate) use forgotten::{
     ForgottenFetchSubmitFailureKind, ForgottenFetchTerminal, TrackedForgottenFetchCall,
 };
 pub(crate) use route::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId};
+pub(crate) use route_refresh::{FetchRouteRefresh, FetchRouteRefreshPoll};
 pub(crate) use settlement::{
     FetchBeginSettlementError, FetchConfirmationError, FetchPoll, StaleFetchConfirmationError,
 };

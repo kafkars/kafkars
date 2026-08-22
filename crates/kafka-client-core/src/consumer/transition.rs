@@ -1,5 +1,6 @@
 //! Atomic transitions for one concrete directly assigned consumer.
 
+use super::AssignedConsumerInput::FetchFailed;
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
     AssignedConsumerMachineError, AssignedConsumerTransition, AssignedTopicPartition,
@@ -107,9 +108,8 @@ impl AssignedConsumerMachine {
                 now,
                 throttle_ticks,
             } => self.fetch_advanced(fence, records, next_offset, now, throttle_ticks),
-            AssignedConsumerInput::FetchFailed { fence, failure } => {
-                self.fetch_failed(fence, failure)
-            }
+            FetchFailed { fence, failure } => self.fetch_failed(fence, failure),
+            AssignedConsumerInput::FetchRetryAuthorized { fence } => self.fetch_retry(fence),
             AssignedConsumerInput::FetchThrottleElapsed { fence, now } => {
                 self.fetch_throttle_elapsed(fence, now)
             }

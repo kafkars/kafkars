@@ -1,12 +1,41 @@
-//! Broker Fetch-session membership across assignment replacement.
+//! Broker Fetch-session membership and route authority across replacements.
+
+use std::sync::Arc;
 
 use kafka_client_core::AssignedConsumerEffect;
 
 use crate::protocol::fetch::FetchSessionUpdate;
 
-use super::broker_session_test::{
-    assignment, broker, established, fetch_fence, incremental, member,
+use super::{
+    broker_session::{BrokerFetchSessions, BrokerSessionMember},
+    broker_session_test::{assignment, broker, established, fetch_fence, incremental, member},
 };
+
+#[test]
+fn established_member_retains_the_exact_route_for_the_next_fetch_revision() {
+    let (effects, _machine) = assignment();
+    let broker = broker(3);
+    let member = BrokerSessionMember::with_route(
+        fetch_fence(effects[0]).position(),
+        Arc::from("alpha"),
+        [7; 16],
+        Some(11),
+    );
+    let position = member.position();
+    let mut sessions = BrokerFetchSessions::try_new(4, 8)
+        .unwrap_or_else(|error| panic!("reserve broker sessions: {error:?}"));
+    let plan = sessions
+        .try_begin(broker, vec![member])
+        .unwrap_or_else(|(error, _active)| panic!("begin routed member: {error:?}"));
+    sessions
+        .complete(plan, FetchSessionUpdate::Continue(incremental(91, 1)))
+        .unwrap_or_else(|error| panic!("complete routed member: {error:?}"));
+
+    assert_eq!(
+        sessions.route_for_position(position),
+        Some((broker, [7; 16], Some(11)))
+    );
+}
 
 #[test]
 fn carried_partition_is_active_while_only_removed_partition_is_forgotten() {

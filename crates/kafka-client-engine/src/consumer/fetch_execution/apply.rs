@@ -40,6 +40,7 @@ impl DirectFetchExecutor {
         let fact = proposal.into_fact();
         let FetchTerminalFact {
             request,
+            hard_output_bytes: _hard_output_bytes,
             action,
             storage,
             session,
@@ -177,7 +178,7 @@ impl DirectFetchExecutor {
         Ok(None)
     }
 
-    fn retain_transition(
+    pub(super) fn retain_transition(
         &mut self,
         request: crate::driver::PartitionFetchRequest,
         transition: AssignedConsumerTransition,

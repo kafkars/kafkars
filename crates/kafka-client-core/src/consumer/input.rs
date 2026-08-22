@@ -129,6 +129,11 @@ pub enum AssignedConsumerInput {
         /// Normalized semantic terminal reason, free of driver and wire types.
         failure: FetchFailure,
     },
+    /// Authorizes one replacement for an exact recoverable Fetch attempt.
+    FetchRetryAuthorized {
+        /// Exact completed attempt whose position and offset must be preserved.
+        fence: FetchFence,
+    },
     /// Reports that one exact successful-Fetch throttle elapsed.
     FetchThrottleElapsed {
         /// Exact future fetch fenced by the timer.

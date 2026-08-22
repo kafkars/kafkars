@@ -11,7 +11,10 @@ use crate::{
 };
 
 use super::{
-    super::fetch_store::{FetchDelivery, FetchStageProof, FetchStoreFailure},
+    super::{
+        assigned_event::AssignedConsumerEventStoreError,
+        fetch_store::{FetchDelivery, FetchStageProof, FetchStoreFailure},
+    },
     prepared::PreparedFetchExecution,
 };
 
@@ -29,8 +32,11 @@ pub(crate) enum FetchExecutionError {
     MissingReservation { fence: FetchFence },
     UnexpectedStaleReservation { fence: FetchFence },
     Store(FetchStoreFailure),
+    Event(AssignedConsumerEventStoreError),
     Core(AssignedConsumerMachineError),
     UnexpectedDeliveryAuthorization { fence: FetchFence },
+    UnexpectedRetryAuthorization { fence: FetchFence },
+    UnexpectedRetryStorage { fence: FetchFence },
 }
 
 #[allow(

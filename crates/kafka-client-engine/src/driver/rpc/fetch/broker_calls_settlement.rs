@@ -4,35 +4,17 @@ use kafka_client_core::{AssignedConsumerEffect, FetchFence, Moment};
 
 use super::{
     broker_calls::{
-        BrokerFetchCompletionFailure, BrokerFetchSlot, PendingBrokerFetchConfirmation,
-        SettledBrokerFetchBatch, TrackedBrokerFetchCalls,
+        BrokerFetchCompletionFailure, PendingBrokerFetchConfirmation, SettledBrokerFetchBatch,
+        TrackedBrokerFetchCalls,
     },
+    broker_calls_helpers::{batch_poll, drain_stale, take_slot_requests},
     broker_calls_response::distribute_terminal,
-    fence::supersedes,
     settlement::{
         FetchBeginSettlementError, FetchConfirmationError, FetchPoll, StaleFetchConfirmationError,
     },
     stale::{FetchControlPending, FetchRecovery, StaleFetchDrains},
-    terminal::{FetchCompletionObservation, FetchTerminal},
+    terminal::{FetchCompletionObservation, FetchTerminal, retain_fetch_terminal},
 };
-
-impl BrokerFetchSlot {
-    fn mark_stale(
-        &mut self,
-        effect: AssignedConsumerEffect,
-    ) -> Option<super::PartitionFetchRequest> {
-        if !supersedes(effect, self.fence) {
-            return None;
-        }
-        self.request
-            .take()
-            .or_else(|| self.terminal.take().map(FetchTerminal::into_request))
-    }
-
-    const fn is_stale(&self) -> bool {
-        self.request.is_none() && self.terminal.is_none()
-    }
-}
 
 impl TrackedBrokerFetchCalls {
     pub(crate) fn observe_control(
@@ -58,8 +40,30 @@ impl TrackedBrokerFetchCalls {
         &mut self,
         now: Moment,
     ) -> Result<FetchPoll, FetchCompletionObservation> {
-        if let Some(failure) = &self.completion_failure {
-            return Err(failure.observation);
+        if let Some(failure) = self.completion_failure.take() {
+            if failure.source == kafka_driver::CompletionError::Closed {
+                let mut slots = failure.slots;
+                for slot in &mut slots {
+                    if let Some(request) = slot.request.take() {
+                        slot.terminal = Some(retain_fetch_terminal(
+                            request,
+                            now,
+                            None,
+                            Err(kafka_driver::RequestError::ConnectionClosed(
+                                kafka_driver::ResponseCloseReason::TransportClosed,
+                            )),
+                        ));
+                    }
+                }
+                self.settled = Some(SettledBrokerFetchBatch {
+                    slots,
+                    route_token: None,
+                });
+            } else {
+                let observation = failure.observation;
+                self.completion_failure = Some(failure);
+                return Err(observation);
+            }
         }
         if let Some(settled) = &self.settled {
             return Ok(batch_poll(settled));
@@ -76,16 +80,15 @@ impl TrackedBrokerFetchCalls {
         let outcome = match result {
             Ok(outcome) => outcome,
             Err(source) => {
-                let requests = take_slot_requests(&mut tracked.slots);
                 let fence = tracked.slots.first().map_or_else(
                     || unreachable!("accepted broker Fetch is nonempty"),
                     |slot| slot.fence,
                 );
                 let observation = FetchCompletionObservation::from_driver(fence, source);
                 self.completion_failure = Some(BrokerFetchCompletionFailure {
-                    requests,
+                    slots: tracked.slots,
                     observation,
-                    _source: source,
+                    source,
                 });
                 return Err(observation);
             }
@@ -94,7 +97,7 @@ impl TrackedBrokerFetchCalls {
         distribute_terminal(&mut tracked.slots, now, selected_version, result);
         self.settled = Some(SettledBrokerFetchBatch {
             slots: tracked.slots,
-            _route_token: route_token,
+            route_token,
         });
         Ok(self.settled.as_ref().map_or(FetchPoll::Idle, batch_poll))
     }
@@ -143,6 +146,20 @@ impl TrackedBrokerFetchCalls {
         Ok(())
     }
 
+    pub(crate) fn confirm_fetch_retry(
+        &mut self,
+        supplied: FetchFence,
+    ) -> Result<Option<kafka_driver::RouteFailureToken>, FetchConfirmationError> {
+        self.validate_pending(supplied)?;
+        let route_token = self
+            .settled
+            .as_mut()
+            .and_then(|settled| settled.route_token.take());
+        self.pending = None;
+        self.remove_settled_slot(supplied);
+        Ok(route_token)
+    }
+
     pub(crate) fn confirm_stale_fetch(
         &mut self,
         supplied: FetchFence,
@@ -174,8 +191,8 @@ impl TrackedBrokerFetchCalls {
             requests.extend(take_slot_requests(&mut settled.slots));
         }
         self.pending = None;
-        let observation = self.completion_failure.take().map(|failure| {
-            requests.extend(failure.requests);
+        let observation = self.completion_failure.take().map(|mut failure| {
+            requests.extend(take_slot_requests(&mut failure.slots));
             failure.observation
         });
         FetchRecovery::new(requests, observation)
@@ -192,38 +209,17 @@ impl TrackedBrokerFetchCalls {
             self.settled = None;
         }
     }
-}
 
-fn drain_stale(
-    slots: &mut [BrokerFetchSlot],
-    effect: AssignedConsumerEffect,
-    drains: &mut StaleFetchDrains,
-) {
-    for slot in slots {
-        if let Some(request) = slot.mark_stale(effect) {
-            drains.push(request);
+    fn validate_pending(&self, supplied: FetchFence) -> Result<(), FetchConfirmationError> {
+        let Some(pending) = &self.pending else {
+            return Err(FetchConfirmationError::NoPendingConfirmation { supplied });
+        };
+        if pending.fence != supplied {
+            return Err(FetchConfirmationError::FenceMismatch {
+                pending: pending.fence,
+                supplied,
+            });
         }
-    }
-}
-
-fn take_slot_requests(slots: &mut [BrokerFetchSlot]) -> Vec<super::PartitionFetchRequest> {
-    slots
-        .iter_mut()
-        .filter_map(|slot| {
-            slot.request
-                .take()
-                .or_else(|| slot.terminal.take().map(FetchTerminal::into_request))
-        })
-        .collect()
-}
-
-fn batch_poll(settled: &SettledBrokerFetchBatch) -> FetchPoll {
-    let Some(slot) = settled.slots.first() else {
-        return FetchPoll::Idle;
-    };
-    if slot.is_stale() {
-        FetchPoll::StaleConfirmationReady { fence: slot.fence }
-    } else {
-        FetchPoll::TerminalReady { fence: slot.fence }
+        Ok(())
     }
 }

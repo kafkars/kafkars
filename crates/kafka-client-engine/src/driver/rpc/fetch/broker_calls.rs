@@ -27,7 +27,7 @@ pub(super) struct TrackedBrokerFetchCall {
 
 pub(super) struct SettledBrokerFetchBatch {
     pub(super) slots: Vec<BrokerFetchSlot>,
-    pub(super) _route_token: Option<RouteFailureToken>,
+    pub(super) route_token: Option<RouteFailureToken>,
 }
 
 pub(super) struct PendingBrokerFetchConfirmation {
@@ -35,9 +35,9 @@ pub(super) struct PendingBrokerFetchConfirmation {
 }
 
 pub(super) struct BrokerFetchCompletionFailure {
-    pub(super) requests: Vec<PartitionFetchRequest>,
+    pub(super) slots: Vec<BrokerFetchSlot>,
     pub(super) observation: FetchCompletionObservation,
-    pub(super) _source: CompletionError,
+    pub(super) source: CompletionError,
 }
 
 /// Result of one capacity-preflighted aggregate broker Fetch admission.
