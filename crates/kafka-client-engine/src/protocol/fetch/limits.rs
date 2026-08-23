@@ -97,6 +97,30 @@ impl FetchBudget {
         })
     }
 
+    pub(super) fn for_record_payload(
+        retained_bytes: usize,
+        limits: FetchDecodeLimits,
+    ) -> Result<Self, FetchDecodeFailure> {
+        check_limit(
+            retained_bytes,
+            limits.max_response_retained_bytes,
+            |actual, limit| FetchDecodeFailure::ResponseRetainedBytes { actual, limit },
+        )?;
+        check_limit(1, limits.max_partitions, |actual, limit| {
+            FetchDecodeFailure::PartitionCount { actual, limit }
+        })?;
+        Ok(Self {
+            limits,
+            partitions: 1,
+            batches: 0,
+            records: 0,
+            headers: 0,
+            aborted_transactions: 0,
+            logical_record_bytes: 0,
+            additional_retained_payload_bytes: 0,
+        })
+    }
+
     pub(super) const fn record_limits(&self) -> RecordDecodeLimits {
         self.limits.record_batch
     }
@@ -114,6 +138,14 @@ impl FetchBudget {
         self.limits
             .max_additional_retained_payload_bytes
             .saturating_sub(self.additional_retained_payload_bytes)
+    }
+
+    pub(super) const fn records(&self) -> usize {
+        self.records
+    }
+
+    pub(super) const fn logical_record_bytes(&self) -> usize {
+        self.logical_record_bytes
     }
 
     pub(super) fn add_batch(

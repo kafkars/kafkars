@@ -12,6 +12,14 @@ pub(crate) struct FetchResponse {
     pub(crate) endpoints: Vec<FetchEndpoint>,
 }
 
+/// One bounded record payload decoded independently of ordinary Fetch metadata.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct FetchRecordPayload {
+    pub(crate) batches: Vec<FetchBatch>,
+    pub(crate) records: usize,
+    pub(crate) logical_bytes: usize,
+}
+
 /// One topic result retaining its name bytes without generated protocol types.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FetchTopic {
