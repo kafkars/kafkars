@@ -112,6 +112,36 @@ fn malformed_success_terminalizes_startup_without_installing_assignment() {
 }
 
 #[test]
+fn initial_empty_assignment_waits_without_opening_fetch_sessions() {
+    let clock = crate::clock::MonotonicClock::new();
+    let mut owner = owner();
+    begin(&mut owner, &clock);
+    owner
+        .settle_success(
+            Moment::from_tick(1),
+            crate::protocol::consumer::share_group::share_group_heartbeat_success_for_test(
+                Some("stable-member"),
+                1,
+                5_000,
+                Vec::new(),
+            ),
+        )
+        .unwrap_or_else(|error| panic!("initializing assignment: {error:?}"));
+    assert_eq!(
+        owner.machine().phase(),
+        ShareGroupHeartbeatPhase::AwaitingAssignment
+    );
+    assert!(owner.activated_assignment().is_none());
+    assert_eq!(owner.startup_failure(), None);
+    assert!(
+        owner
+            .machine()
+            .schedule()
+            .is_some_and(|schedule| schedule.assignment_generation().is_none())
+    );
+}
+
+#[test]
 fn fenced_steady_member_revokes_before_fresh_epoch_zero_join() {
     let clock = crate::clock::MonotonicClock::new();
     let mut owner = owner();

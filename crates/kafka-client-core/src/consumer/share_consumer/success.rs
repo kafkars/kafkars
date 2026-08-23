@@ -40,6 +40,20 @@ impl ShareGroupHeartbeatMachine {
         let (next_attempt, next_sequence) = self.reserve_attempt(Some(member_epoch))?;
 
         let transition = match assignment {
+            Some(partitions) if partitions.is_empty() && self.live_assignment.is_none() => {
+                let schedule =
+                    ShareGroupHeartbeatSchedule::new(next_attempt, cadence_deadline, None);
+                self.commit_cadence(
+                    ShareGroupHeartbeatPhase::AwaitingAssignment,
+                    member_epoch,
+                    next_sequence,
+                    schedule,
+                );
+                ShareGroupHeartbeatTransition::one(ShareGroupHeartbeatEffect::AwaitAssignment {
+                    member_epoch,
+                    schedule,
+                })
+            }
             Some(partitions)
                 if self
                     .live_assignment

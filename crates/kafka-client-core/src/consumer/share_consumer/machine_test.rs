@@ -99,6 +99,22 @@ fn assignmentless_success_retains_membership_until_next_heartbeat() {
 }
 
 #[test]
+fn initial_empty_assignment_waits_for_broker_initialization() {
+    let (mut machine, attempt) = joining();
+    let transition = succeed(&mut machine, attempt, 20, 1, 5, 0, Some(Vec::new()));
+    assert!(matches!(
+        transition.into_effects().next(),
+        Some(ShareGroupHeartbeatEffect::AwaitAssignment { member_epoch, schedule })
+            if member_epoch == epoch(1) && schedule.assignment_generation().is_none()
+    ));
+    assert_eq!(
+        machine.phase(),
+        ShareGroupHeartbeatPhase::AwaitingAssignment
+    );
+    assert!(machine.live_assignment().is_none());
+}
+
+#[test]
 fn changed_assignment_advances_only_the_local_assignment_generation() {
     let (mut machine, attempt) = joining();
     let _ = succeed(
