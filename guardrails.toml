@@ -251,6 +251,97 @@ production = "crates/kafka-client-core/src/consumer/share_consumer/rediscovery.r
 test = "crates/kafka-client-core/src/consumer/share_consumer/retry_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/share_fetch/model.rs"
+test = "crates/kafka-client-core/src/consumer/share_fetch/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/share_fetch/ledger.rs"
+test = "crates/kafka-client-core/src/consumer/share_fetch/ledger_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement.rs"
+test = "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/share_fetch/session.rs"
+test = "crates/kafka-client-core/src/consumer/share_fetch/session_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcquisition"
+path = "crates/kafka-client-core/src/consumer/share_fetch/acquisition.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcquisitionRelease"
+path = "crates/kafka-client-core/src/consumer/share_fetch/acquisition.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcquisitionLedger"
+path = "crates/kafka-client-core/src/consumer/share_fetch/ledger.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchSessionMachine"
+path = "crates/kafka-client-core/src/consumer/share_fetch/session.rs"
+
+[[mutation_owners]]
+owner_type = "ShareAcquisitionLedger"
+field = "entries"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareAcquisitionLedger"
+field = "next_generation"
+allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/ledger.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareAcquisitionLedger"
+field = "retained_records"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareAcquisitionLedger"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionMachine"
+field = "phase"
+allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionMachine"
+field = "fence"
+allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionMachine"
+field = "assignment_generation"
+allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionMachine"
+field = "assignment"
+allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionMachine"
+field = "in_flight"
+allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionMachine"
+field = "ledger"
+allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/share_group/request.rs"
 test = "crates/kafka-client-engine/src/protocol/consumer/share_group/request_test.rs"
 
