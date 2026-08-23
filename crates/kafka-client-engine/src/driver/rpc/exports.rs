@@ -101,6 +101,10 @@ pub(crate) use super::list_partition_reassignments_terminal::{
     ListPartitionReassignmentsDriverFailureKind, ListPartitionReassignmentsRawTerminal,
     ListPartitionReassignmentsTerminalFact, RecoveredListPartitionReassignmentsCall,
 };
+pub(crate) use super::share_fetch::{
+    ShareFetchCall, ShareFetchCompletionErrorKind, ShareFetchDriverSubmitErrorKind,
+    ShareFetchResolution, ShareFetchRoute, ShareFetchTerminalContext,
+};
 pub(crate) use super::submission::ProduceSubmitError;
 pub(crate) use super::topic_view::{
     ProducerTopicView, ProducerTopicViewCall, TopicPartitionCountAdmissionFailure,

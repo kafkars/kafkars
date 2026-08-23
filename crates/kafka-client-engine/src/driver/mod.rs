@@ -55,15 +55,16 @@ pub(crate) use rpc::exports::{
     ProduceRouteRefreshPoll, ProducerIdentityCompletionFailure, ProducerTopicView,
     ProducerTopicViewCall, RecoveredAdminListOffsetsCall, RecoveredAlterPartitionReassignmentsCall,
     RecoveredGroupOffsetAlterCall, RecoveredGroupOffsetDeleteCall, RecoveredGroupOffsetsCall,
-    RecoveredListPartitionReassignmentsCall, StaleFetchConfirmationError,
-    TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
-    TopicPartitionCountCall, TopicPartitionCountFact, TopicPartitionCountFailure,
-    TrackedBrokerFetchCalls, TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls,
-    TrackedDeleteTopicsCalls, TrackedFetchCalls, TrackedForgottenFetchCall,
-    TrackedGroupOffsetCommitCalls, TrackedPositionCalls, TrackedProduceCalls,
-    TrackedProducerIdentityCalls, TransactionInitCall, TransactionInitDriverFailureKind,
-    TransactionInitPoll, TransactionInitTerminal, TransactionInitTerminalFact,
-    classify_fetch_admission, classify_fetch_request_error,
+    RecoveredListPartitionReassignmentsCall, ShareFetchCall, ShareFetchCompletionErrorKind,
+    ShareFetchDriverSubmitErrorKind, ShareFetchResolution, ShareFetchRoute,
+    ShareFetchTerminalContext, StaleFetchConfirmationError, TopicPartitionCountAdmissionFailure,
+    TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
+    TopicPartitionCountFailure, TrackedBrokerFetchCalls, TrackedCreatePartitionsCalls,
+    TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls, TrackedFetchCalls,
+    TrackedForgottenFetchCall, TrackedGroupOffsetCommitCalls, TrackedPositionCalls,
+    TrackedProduceCalls, TrackedProducerIdentityCalls, TransactionInitCall,
+    TransactionInitDriverFailureKind, TransactionInitPoll, TransactionInitTerminal,
+    TransactionInitTerminalFact, classify_fetch_admission, classify_fetch_request_error,
 };
 #[expect(
     unused_imports,
@@ -171,7 +172,6 @@ pub(crate) use rpc::{
     RemoveConsumerGroupMembersTerminalFact,
 };
 pub(crate) use rpc::{classic_group, share_group_heartbeat};
-
 pub(crate) use rpc::{transaction_control, transaction_offsets, transaction_produce};
 pub(crate) use security::{EngineSecurityError, ValidatedSecurity, validate as validate_security};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

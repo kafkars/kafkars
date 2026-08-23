@@ -34,15 +34,7 @@ pub(crate) use call::{
     )
 )]
 pub(crate) use failure::ShareFetchDriverFailureKind;
-#[expect(
-    unused_imports,
-    reason = "hosted ShareFetch route settlement lands in the next checkpoint"
-)]
 pub(crate) use route::ShareFetchRoute;
-#[expect(
-    unused_imports,
-    reason = "hosted ShareFetch admission mapping lands in the next checkpoint"
-)]
 pub(crate) use submission::ShareFetchDriverSubmitErrorKind;
 #[expect(
     unused_imports,

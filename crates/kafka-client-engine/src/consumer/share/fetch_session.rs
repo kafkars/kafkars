@@ -16,6 +16,7 @@ use crate::{
 };
 
 use super::fetch_plan::{ShareBrokerSessionPlan, ShareFetchSessionRequestPlan};
+use super::fetch_session_execution::{ActiveShareFetchCall, ShareFetchSessionTerminal};
 
 /// Exact core attempt paired with its generated request and unchanged deadline.
 #[must_use = "a prepared ShareFetch session attempt must be submitted or settled"]
@@ -49,6 +50,8 @@ pub(super) struct ShareFetchSessionOwner {
     settings: ShareFetchRequestSettings,
     response_limits: ShareFetchResponseLimits,
     prepared: Option<PreparedShareFetchSession>,
+    pub(super) active: Option<ActiveShareFetchCall>,
+    pub(super) terminal: Option<ShareFetchSessionTerminal>,
 }
 
 /// Immutable bounded settings captured before one broker session opens.
@@ -99,6 +102,8 @@ impl ShareFetchSessionOwner {
             settings: config.settings,
             response_limits: config.response_limits,
             prepared: None,
+            active: None,
+            terminal: None,
         };
         owner.prepare_next(capture)?;
         Ok(owner)
@@ -108,7 +113,7 @@ impl ShareFetchSessionOwner {
         &mut self,
         capture: DeadlineCapture,
     ) -> Result<(), ShareFetchSessionOwnerError> {
-        if self.prepared.is_some() {
+        if self.prepared.is_some() || self.active.is_some() || self.terminal.is_some() {
             return Err(ShareFetchSessionOwnerError::Occupied);
         }
         let request = self
@@ -143,8 +148,16 @@ impl ShareFetchSessionOwner {
     ) -> Result<(), ShareFetchSessionOwnerError> {
         let (attempt, request, _submitted_at, _deadline) = prepared.into_parts();
         drop(request);
+        self.settle_attempt_failure(attempt, DeliveryStatus::NotSent)
+    }
+
+    pub(super) fn settle_attempt_failure(
+        &mut self,
+        attempt: ShareFetchAttempt,
+        delivery: DeliveryStatus,
+    ) -> Result<(), ShareFetchSessionOwnerError> {
         self.machine
-            .settle_failure(attempt, DeliveryStatus::NotSent)
+            .settle_failure(attempt, delivery)
             .map_err(ShareFetchSessionOwnerError::CoreApply)
     }
 
@@ -154,6 +167,10 @@ impl ShareFetchSessionOwner {
 
     pub(super) const fn response_limits(&self) -> ShareFetchResponseLimits {
         self.response_limits
+    }
+
+    pub(super) const fn has_active_call(&self) -> bool {
+        self.active.is_some()
     }
 }
 
