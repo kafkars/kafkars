@@ -82,6 +82,10 @@ impl ShareAcknowledgement {
     pub fn range_count(&self) -> usize {
         self.inner.range_count()
     }
+
+    pub(super) fn into_bridge(self) -> BridgeAcknowledgement {
+        self.inner
+    }
 }
 
 impl std::fmt::Debug for ShareAcknowledgement {
