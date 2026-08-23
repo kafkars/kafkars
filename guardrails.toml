@@ -18285,6 +18285,18 @@ path = "crates/kafka-client-engine/src/consumer/share/public_close.rs"
 owner_type = "ShareConsumerEngine"
 path = "crates/kafkars/src/bridge/share_consumer/registration.rs"
 
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/share_consumer/recv_result.rs"
+test = "crates/kafkars/src/bridge/share_consumer/recv_result_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerBatch"
+path = "crates/kafkars/src/bridge/share_consumer/batch.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerRecv"
+path = "crates/kafkars/src/bridge/share_consumer/recv.rs"
+
 [[linear_owners]]
 owner_type = "ShareConsumerClose"
 path = "crates/kafkars/src/bridge/share_consumer/close.rs"
@@ -18296,6 +18308,22 @@ path = "crates/kafkars/src/consumer/share_build_error.rs"
 [[linear_owners]]
 owner_type = "ShareConsumer"
 path = "crates/kafkars/src/consumer/share_handle.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share_batch.rs"
+test = "crates/kafkars/src/consumer/share_batch_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerBatch"
+path = "crates/kafkars/src/consumer/share_batch.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share_recv.rs"
+test = "crates/kafkars/src/consumer/share_recv_test.rs"
+
+[[linear_owners]]
+owner_type = "RecvShareConsumerBatch"
+path = "crates/kafkars/src/consumer/share_recv.rs"
 
 [[linear_owners]]
 owner_type = "CloseShareConsumer"
