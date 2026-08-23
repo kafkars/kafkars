@@ -124,8 +124,8 @@ impl ShareConsumerPort {
 
 #[must_use = "accepted share registration retains any wake failure"]
 pub(crate) struct ShareRegistrationAdmission {
-    group_id: GroupId,
-    wake: Option<ShareConsumerShardWakeError>,
+    pub(super) group_id: GroupId,
+    pub(super) wake: Option<ShareConsumerShardWakeError>,
 }
 
 impl ShareRegistrationAdmission {
@@ -177,7 +177,7 @@ pub(crate) enum ShareRegistrationPortFailureSource {
 }
 
 impl ShareRegistrationPortFailure {
-    fn closed(group: Arc<str>, rack: Option<Arc<str>>, topics: Vec<Arc<str>>) -> Self {
+    pub(super) fn closed(group: Arc<str>, rack: Option<Arc<str>>, topics: Vec<Arc<str>>) -> Self {
         Self {
             source: ShareRegistrationPortFailureSource::Closed,
             group,
@@ -186,7 +186,7 @@ impl ShareRegistrationPortFailure {
         }
     }
 
-    fn lock(
+    pub(super) fn lock(
         kind: ShareConsumerShardLockError,
         group: Arc<str>,
         rack: Option<Arc<str>>,
@@ -200,7 +200,7 @@ impl ShareRegistrationPortFailure {
         }
     }
 
-    fn registry(failure: ShareConsumerRegistrationFailure) -> Self {
+    pub(super) fn registry(failure: ShareConsumerRegistrationFailure) -> Self {
         Self {
             source: ShareRegistrationPortFailureSource::Registry(failure.kind),
             group: failure.group,
