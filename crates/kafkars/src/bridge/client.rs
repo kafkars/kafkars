@@ -1,6 +1,7 @@
 //! Facade-owned engine lifetime and private child-handle construction.
 
 pub(crate) mod metrics;
+mod share_consumer;
 
 use kafka_client_engine::{
     Engine, EngineConfig, EngineProducerLimits, EngineSasl, EngineSecurity, EngineStartErrorKind,
@@ -86,10 +87,8 @@ impl ClientEngine {
 
     #[cfg(test)]
     pub(crate) fn producer_retry(&self) -> (u32, std::time::Duration) {
-        (
-            self.inner.config().producer_retry_max(),
-            self.inner.config().producer_retry_backoff(),
-        )
+        let config = self.inner.config();
+        (config.producer_retry_max(), config.producer_retry_backoff())
     }
 
     /// Returns a producer bridge with the engine-owned default deadline.

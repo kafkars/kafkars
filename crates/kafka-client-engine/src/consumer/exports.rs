@@ -100,8 +100,8 @@ pub use super::share::{
     ShareConsumerAssignmentPartition, ShareConsumerClose, ShareConsumerCloseAdmissionError,
     ShareConsumerCloseAdmissionErrorKind, ShareConsumerCloseError, ShareConsumerCloseErrorKind,
     ShareConsumerHandle, ShareConsumerRegistration, ShareConsumerRegistrationError,
-    ShareConsumerRegistrationErrorKind, ShareConsumerStartCapture, ShareConsumerState,
-    ShareConsumerStateError, ShareConsumerStateErrorKind,
+    ShareConsumerRegistrationErrorKind, ShareConsumerStartCapture, ShareConsumerStartupFailureKind,
+    ShareConsumerState, ShareConsumerStateError, ShareConsumerStateErrorKind,
 };
 pub(crate) use super::share::{
     ShareConsumerPort, ShareConsumerRegistry, ShareConsumerShardLockError, ShareConsumerShardOwner,

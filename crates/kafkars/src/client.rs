@@ -4,6 +4,7 @@ use crate::admin::Admin;
 use crate::bridge::ClientEngine;
 use crate::consumer::{
     AssignedConsumerBuilder, ConsumerBuilder, ConsumerFetchConfig, ConsumerLimits, ReadIsolation,
+    ShareConsumerBuilder,
 };
 use crate::error::{ErrorKind, KafkaError};
 use crate::metrics::Metrics;
@@ -145,6 +146,11 @@ impl Client {
     /// Begins construction of a directly assigned consumer.
     pub fn assigned_consumer(&self) -> AssignedConsumerBuilder {
         AssignedConsumerBuilder::new(self.engine.clone())
+    }
+
+    /// Begins construction of a unique Kafka share-group consumer.
+    pub fn share_consumer(&self, group_id: impl Into<String>) -> ShareConsumerBuilder {
+        ShareConsumerBuilder::new(self.engine.clone(), group_id.into())
     }
 
     /// Returns a cheap thread-safe admin handle.

@@ -1,8 +1,5 @@
 //! Engine interpretation of deterministic share-group membership effects.
-#![allow(
-    dead_code,
-    reason = "the closed membership interpreter precedes its registry checkpoint"
-)]
+#![allow(dead_code, reason = "share membership lands in bounded checkpoints")]
 
 mod catalog;
 #[cfg(test)]
@@ -28,6 +25,7 @@ mod public_registration;
 mod public_registration_error;
 #[cfg(test)]
 mod public_registration_test;
+mod public_startup;
 mod public_state;
 #[cfg(test)]
 mod public_state_test;
@@ -80,6 +78,7 @@ pub use public_registration::{
 pub use public_registration_error::{
     ShareConsumerRegistrationError, ShareConsumerRegistrationErrorKind,
 };
+pub use public_startup::ShareConsumerStartupFailureKind;
 pub use public_state::{
     ShareConsumerAssignmentPartition, ShareConsumerState, ShareConsumerStateError,
     ShareConsumerStateErrorKind,

@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{GroupId, ShareGroupHeartbeatFailure};
+use kafka_client_core::GroupId;
 
 use super::{
     port::ShareConsumerPort, public_registration::ShareConsumerHandle,
@@ -88,15 +88,6 @@ impl core::fmt::Display for ShareConsumerStateError {
 impl std::error::Error for ShareConsumerStateError {}
 
 impl ShareConsumerHandle {
-    /// Returns the retained startup terminal, if membership failed before first success.
-    #[doc(hidden)]
-    pub fn startup_failure(&self) -> Option<ShareGroupHeartbeatFailure> {
-        self.port
-            .try_share_startup_failure(self.group_id)
-            .ok()
-            .flatten()
-    }
-
     /// Copies the current broker-confirmed member epoch and assignment.
     pub fn state(&self) -> Result<Option<ShareConsumerState>, ShareConsumerStateError> {
         self.port
@@ -130,17 +121,6 @@ pub(super) enum ShareConsumerStatePortError {
 }
 
 impl ShareConsumerPort {
-    fn try_share_startup_failure(
-        &self,
-        group_id: GroupId,
-    ) -> Result<Option<ShareGroupHeartbeatFailure>, ShareConsumerStatePortError> {
-        let registry = self
-            .shared
-            .try_registry()
-            .map_err(ShareConsumerStatePortError::Lock)?;
-        registry.startup_failure(group_id)
-    }
-
     fn try_share_state(
         &self,
         group_id: GroupId,
@@ -154,21 +134,6 @@ impl ShareConsumerPort {
 }
 
 impl ShareConsumerRegistry {
-    pub(super) fn startup_failure(
-        &self,
-        group_id: GroupId,
-    ) -> Result<Option<ShareGroupHeartbeatFailure>, ShareConsumerStatePortError> {
-        let entry = self
-            .entry(group_id)
-            .ok_or(ShareConsumerStatePortError::Unknown)?;
-        Ok(entry.fault.or_else(|| {
-            entry
-                .membership
-                .as_ref()
-                .and_then(super::ShareMembershipInterpreter::startup_failure)
-        }))
-    }
-
     pub(super) fn share_state(
         &self,
         group_id: GroupId,

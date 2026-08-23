@@ -79,6 +79,7 @@ pub(crate) mod producer;
 pub(crate) mod producer_result;
 pub(crate) mod remove_raft_voter;
 pub(crate) mod renew_delegation_token;
+pub(crate) mod share_consumer;
 pub(crate) mod transaction;
 pub(crate) mod unregister_broker;
 pub(crate) mod update_features;

@@ -1,4 +1,4 @@
-//! Public share-state projection and startup-terminal scenarios.
+//! Public share-state projection and retained startup-terminal scenarios.
 
 use kafka_client_core::{Moment, ShareGroupHeartbeatFailure};
 
