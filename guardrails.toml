@@ -157,7 +157,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group_registration.rs", lines = 246, reason = "the public engine handle keeps capture-first registration, exact rejected request restoration, its sticky receive wake token, and unique operation entry points together" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request.rs", lines = 326, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request_test.rs", lines = 492, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 98, reason = "the declarative consumer facade names registered group batch control and terminal-observable seek beside direct assignment" },
+  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 99, reason = "the declarative consumer facade names direct, group, and share membership ownership beside registered batch control and terminal-observable seek" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -260,6 +260,22 @@ test = "crates/kafka-client-engine/src/protocol/consumer/share_group/response_te
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/submission.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/catalog.rs"
+test = "crates/kafka-client-engine/src/consumer/share/catalog_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/request.rs"
+test = "crates/kafka-client-engine/src/consumer/share/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/membership.rs"
+test = "crates/kafka-client-engine/src/consumer/share/membership_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/transition/retry.rs"
+test = "crates/kafka-client-engine/src/consumer/share/transition/retry_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_success_settlement/effects.rs"

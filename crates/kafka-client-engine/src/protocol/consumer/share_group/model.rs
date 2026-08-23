@@ -80,6 +80,24 @@ impl ShareGroupHeartbeatSuccess {
     pub(crate) fn assignment(&self) -> Option<&[ShareGroupHeartbeatAssignmentTopic]> {
         self.assignment.as_deref()
     }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        u32,
+        Option<Arc<str>>,
+        i32,
+        u32,
+        Option<Vec<ShareGroupHeartbeatAssignmentTopic>>,
+    ) {
+        (
+            self.throttle_time_ms,
+            self.member_id,
+            self.member_epoch,
+            self.heartbeat_interval_ms,
+            self.assignment,
+        )
+    }
 }
 
 /// Exact nonzero broker rejection with its quota delay.

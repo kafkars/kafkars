@@ -95,4 +95,5 @@ mod position_execution;
 mod position_prepare_error;
 #[cfg(test)]
 mod position_prepare_error_test;
+mod share;
 pub use exports::*;

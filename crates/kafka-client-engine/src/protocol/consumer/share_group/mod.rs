@@ -25,4 +25,8 @@ pub(crate) use request::{
     PreparedShareGroupHeartbeatRequest, ShareGroupHeartbeatRequestFailure,
     share_group_join_request, share_group_leave_request, share_group_steady_request,
 };
+#[cfg(test)]
+pub(crate) use response::ShareGroupHeartbeatResponseFailure;
 pub(crate) use response::normalize_share_group_heartbeat_response;
+#[cfg(test)]
+pub(crate) use response_test::share_group_heartbeat_success_for_test;

@@ -1,4 +1,4 @@
-//! Request-shape evidence for the ShareGroupHeartbeat v1 adapter.
+//! Request-shape evidence for the `ShareGroupHeartbeat` v1 adapter.
 
 use super::{
     ShareGroupHeartbeatRequestFailure, share_group_join_request, share_group_leave_request,
@@ -14,7 +14,10 @@ fn join_retains_stable_member_subscription_and_optional_rack() {
     assert_eq!(request.member_id.as_str(), "member-1");
     assert_eq!(request.member_epoch, 0);
     assert_eq!(
-        request.rack_id.as_ref().map(|rack| rack.as_str()),
+        request
+            .rack_id
+            .as_ref()
+            .map(kafka_wire_core::StrBytes::as_str),
         Some("rack-a")
     );
     assert_eq!(
