@@ -11,8 +11,16 @@ pub enum ShareAcquisitionPhase {
     Staged,
     /// One application batch owns the exact linear acquisition capability.
     Delivered,
+    /// One admitted `ShareAcknowledge` owns the exact acquisition capability.
+    Acknowledging,
     /// The batch was dropped without acknowledgement and only the lock remains.
     Abandoned,
+}
+
+impl ShareAcquisitionPhase {
+    pub(super) const fn is_locally_reclaimable(self) -> bool {
+        matches!(self, Self::Staged | Self::Abandoned)
+    }
 }
 
 /// One linear generation-fenced acquisition delivered to the application.

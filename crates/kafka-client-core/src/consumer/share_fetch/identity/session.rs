@@ -104,6 +104,43 @@ pub struct ShareFetchAttempt {
     deadline: Deadline,
 }
 
+/// Exact identity and original deadline of one nonoverlapping `ShareAcknowledge` call.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ShareAcknowledgeAttempt {
+    fence: ShareFetchSessionFence,
+    acquisition_fence: ShareFetchSessionFence,
+    deadline: Deadline,
+}
+
+impl ShareAcknowledgeAttempt {
+    pub(in crate::consumer::share_fetch) const fn new(
+        fence: ShareFetchSessionFence,
+        acquisition_fence: ShareFetchSessionFence,
+        deadline: Deadline,
+    ) -> Self {
+        Self {
+            fence,
+            acquisition_fence,
+            deadline,
+        }
+    }
+
+    /// Returns the current broker-session fence carried by the request.
+    pub const fn fence(self) -> ShareFetchSessionFence {
+        self.fence
+    }
+
+    /// Returns the preceding broker-session fence that acquired the records.
+    pub const fn acquisition_fence(self) -> ShareFetchSessionFence {
+        self.acquisition_fence
+    }
+
+    /// Returns the unchanged absolute public deadline.
+    pub const fn deadline(self) -> Deadline {
+        self.deadline
+    }
+}
+
 impl ShareFetchAttempt {
     /// Captures one session, assignment, and public or background deadline.
     pub const fn new(

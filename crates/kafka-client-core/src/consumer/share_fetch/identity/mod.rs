@@ -6,4 +6,6 @@ mod session;
 
 pub use broker::ShareFetchBrokerId;
 pub use generation::{ShareAcquisitionGeneration, ShareFetchAssignmentGeneration};
-pub use session::{ShareFetchAttempt, ShareFetchSessionEpoch, ShareFetchSessionFence};
+pub use session::{
+    ShareAcknowledgeAttempt, ShareFetchAttempt, ShareFetchSessionEpoch, ShareFetchSessionFence,
+};

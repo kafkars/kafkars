@@ -90,8 +90,10 @@ pub use super::share_consumer::{
     ShareGroupHeartbeatTransition, ShareGroupMemberEpoch,
 };
 pub use super::share_fetch::{
-    SHARE_FETCH_MAX_PARTITIONS_PER_BROKER, ShareAcknowledgeType, ShareAcknowledgement,
-    ShareAcknowledgementBatch, ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind,
+    SHARE_FETCH_MAX_PARTITIONS_PER_BROKER, ShareAcknowledgeAttempt, ShareAcknowledgeType,
+    ShareAcknowledgement, ShareAcknowledgementAdmission, ShareAcknowledgementApplyError,
+    ShareAcknowledgementApplyErrorKind, ShareAcknowledgementBatch, ShareAcknowledgementBuildError,
+    ShareAcknowledgementBuildErrorKind, ShareAcknowledgementFailureSettlement,
     ShareAcquiredOffsets, ShareAcquiredRange, ShareAcquiredRangeError, ShareAcquisition,
     ShareAcquisitionAdmissionError, ShareAcquisitionAdmissionErrorKind, ShareAcquisitionBatchError,
     ShareAcquisitionGeneration, ShareAcquisitionLedger, ShareAcquisitionPhase,
