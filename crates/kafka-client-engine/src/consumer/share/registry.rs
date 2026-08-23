@@ -3,7 +3,8 @@
 use crate::driver::share_group_heartbeat::ShareCoordinatorInvalidations;
 use kafka_client_core::GroupId;
 
-use super::entry::ShareConsumerEntry;
+use super::{close_state::ShareConsumerCloseTerminal, entry::ShareConsumerEntry};
+use crate::completion::CompletionRegistry;
 
 pub(super) const SHARE_CONSUMER_CAPACITY: usize = 8;
 pub(super) const SHARE_COORDINATOR_INVALIDATION_CAPACITY: usize = SHARE_CONSUMER_CAPACITY;
@@ -17,6 +18,7 @@ pub(crate) struct ShareConsumerRegistry {
     pub(super) retained_name_bytes: usize,
     pub(super) accepting: bool,
     pub(super) invalidations: ShareCoordinatorInvalidations,
+    pub(super) close_completions: CompletionRegistry<ShareConsumerCloseTerminal>,
 }
 
 impl ShareConsumerRegistry {
@@ -36,6 +38,7 @@ impl ShareConsumerRegistry {
             .map_err(|_error| {
                 std::io::Error::other("share coordinator invalidation reservation failed")
             })?,
+            close_completions: CompletionRegistry::start(SHARE_CONSUMER_CAPACITY)?,
         })
     }
 

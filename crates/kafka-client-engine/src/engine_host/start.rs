@@ -1,5 +1,4 @@
 //! Leak-free, rollback-ordered resource handoff into one self-cleaning native host.
-
 mod admin_hosts;
 mod alter_partition_reassignments;
 mod consumer_registries;
@@ -169,6 +168,7 @@ pub(crate) fn start(
         &admin_notifier,
         &assigned_consumer_notifier,
         &group_consumers,
+        &share_consumers,
         &transaction_initialization,
     );
     let (group_consumers, group_consumer) =

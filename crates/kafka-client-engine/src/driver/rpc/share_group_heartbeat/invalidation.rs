@@ -123,7 +123,7 @@ impl ShareCoordinatorInvalidations {
         true
     }
 
-    pub(crate) fn discard_after_driver_shutdown(&mut self) {
+    pub(crate) fn discard_share_after_driver_shutdown(&mut self) {
         self.entries.clear();
     }
 }

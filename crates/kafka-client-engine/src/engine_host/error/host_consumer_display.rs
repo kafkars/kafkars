@@ -18,6 +18,9 @@ pub(super) fn display(error: &EngineHostError, formatter: &mut fmt::Formatter<'_
         EngineHostError::ShareConsumer(error) => {
             write!(formatter, "share-consumer registry failed: {error:?}")
         }
+        EngineHostError::ShareConsumerCompletion(error) => {
+            write!(formatter, "share-consumer completion failed: {error}")
+        }
         EngineHostError::ShareConsumerLockPoisoned => {
             formatter.write_str("share-consumer registry ownership lock is poisoned")
         }

@@ -59,6 +59,27 @@ fn contended_share_shard_cannot_look_quiescent_to_shutdown() {
     stop_driver(&mut driver);
 }
 
+#[test]
+fn shutdown_closes_and_removes_registered_share_member() {
+    let (registry, mut driver) = setup();
+    let clock = Arc::new(crate::clock::MonotonicClock::new());
+    let owner = ShareConsumerShardOwner::new(registry, Arc::clone(&clock), Arc::new(NoopWake));
+    let _registration = owner
+        .admission_port()
+        .try_register(Arc::from("workers"), None, vec![Arc::from("jobs")])
+        .unwrap_or_else(|_error| panic!("register"));
+
+    let first = drive_shard(&owner, &clock, &driver, true, Moment::from_tick(0))
+        .unwrap_or_else(|error| panic!("first close turn: {error}"));
+    assert_eq!(first.unsettled, 1);
+    assert!(first.progressed);
+    let second = drive_shard(&owner, &clock, &driver, true, Moment::from_tick(1))
+        .unwrap_or_else(|error| panic!("second close turn: {error}"));
+    assert_eq!(second.unsettled, 0);
+    assert!(second.progressed);
+    stop_driver(&mut driver);
+}
+
 fn setup() -> (ShareConsumerRegistry, DriverOwner) {
     let registry =
         ShareConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error}"));

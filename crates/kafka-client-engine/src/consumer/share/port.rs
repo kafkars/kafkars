@@ -5,6 +5,8 @@ use std::{sync::Arc, time::Duration};
 use kafka_client_core::GroupId;
 
 use super::{
+    close_state::ShareConsumerCloseCompletion,
+    registry_close::ShareConsumerCloseAdmissionError,
     registry_registration::{
         ShareConsumerRegistrationFailure, ShareConsumerRegistrationFailureKind,
         ShareConsumerStartError,
@@ -80,6 +82,34 @@ impl ShareConsumerPort {
             wake: self.shared.request_turn().err(),
         })
     }
+
+    pub(crate) fn try_begin_close(
+        &self,
+        group_id: GroupId,
+        timeout: Duration,
+    ) -> Result<ShareCloseAdmission, ShareClosePortError> {
+        let capture = self
+            .capture_deadline_after(timeout)
+            .map_err(ShareClosePortError::Clock)?;
+        if self.shared.admission_is_closed() {
+            return Err(ShareClosePortError::Closed);
+        }
+        let mut registry = self
+            .shared
+            .try_registry()
+            .map_err(ShareClosePortError::Lock)?;
+        if self.shared.admission_is_closed() {
+            return Err(ShareClosePortError::Closed);
+        }
+        let completion = registry
+            .begin_explicit_close(group_id, capture)
+            .map_err(ShareClosePortError::Registry)?;
+        drop(registry);
+        Ok(ShareCloseAdmission {
+            completion,
+            wake: self.shared.request_turn().err(),
+        })
+    }
 }
 
 #[must_use = "accepted share registration retains any wake failure"]
@@ -104,6 +134,18 @@ pub(crate) struct ShareStartAdmission {
 }
 
 impl ShareStartAdmission {
+    pub(crate) const fn wake_failed(&self) -> bool {
+        self.wake.is_some()
+    }
+}
+
+#[must_use = "accepted share close retains its exact terminal observer"]
+pub(crate) struct ShareCloseAdmission {
+    pub(crate) completion: ShareConsumerCloseCompletion,
+    wake: Option<ShareConsumerShardWakeError>,
+}
+
+impl ShareCloseAdmission {
     pub(crate) const fn wake_failed(&self) -> bool {
         self.wake.is_some()
     }
@@ -163,4 +205,12 @@ pub(crate) enum ShareStartPortError {
     Closed,
     Lock(ShareConsumerShardLockError),
     Registry(ShareConsumerStartError),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ShareClosePortError {
+    Closed,
+    Clock(ClockError),
+    Lock(ShareConsumerShardLockError),
+    Registry(ShareConsumerCloseAdmissionError),
 }

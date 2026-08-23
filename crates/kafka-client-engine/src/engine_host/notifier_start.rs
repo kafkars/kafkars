@@ -5,6 +5,7 @@ use crate::{
     completion::NotifierJoin,
     consumer::{
         AssignedConsumerCompletionNotifier, AssignedConsumerCompletionPorts, GroupConsumerRegistry,
+        ShareConsumerRegistry,
     },
     producer::ProducerHost,
     transaction::TransactionInitializationShardOwner,
@@ -29,6 +30,7 @@ pub(super) fn install_thread_ids(
     admin: &AdminCompletionNotifier,
     assigned_consumer: &AssignedConsumerCompletionNotifier,
     group_consumers: &GroupConsumerRegistry,
+    share_consumers: &ShareConsumerRegistry,
     transaction_initialization: &TransactionInitializationShardOwner,
 ) {
     for thread_id in [
@@ -36,6 +38,7 @@ pub(super) fn install_thread_ids(
         admin.thread_id(),
         assigned_consumer.thread_id(),
         group_consumers.notifier_thread_id(),
+        share_consumers.close_notifier_thread_id(),
         transaction_initialization.notifier_thread_id(),
     ]
     .into_iter()

@@ -55,6 +55,11 @@ pub(super) fn begin_notification_shutdown(
         .ok_or(EngineHostError::GroupConsumerRecvNotifierUnavailable);
     let (transaction, transaction_fallback) =
         transaction_shutdown::stop(&resources.transaction_initialization);
+    let share_consumer = resources
+        .share_consumers
+        .stop_close_notifier()
+        .map_err(EngineHostError::ShareConsumerCompletion);
+    let share_consumer_fallback = resources.share_consumers.take_close_notifier();
     Ok(collect_notification_joins(
         producer,
         [
@@ -62,6 +67,7 @@ pub(super) fn begin_notification_shutdown(
             (assigned_consumer, assigned_consumer_fallback),
             (group_consumer, group_consumer_fallback),
             (group_consumer_recv, None),
+            (share_consumer, share_consumer_fallback),
             (transaction, transaction_fallback),
         ],
     ))

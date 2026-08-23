@@ -50,7 +50,7 @@ impl ShareConsumerRegistry {
 }
 
 fn heartbeat_is_due(entry: &ShareConsumerEntry, now: Moment) -> bool {
-    if entry.fault.is_some() || entry.heartbeat_call.is_some() {
+    if entry.has_close() || entry.fault.is_some() || entry.heartbeat_call.is_some() {
         return false;
     }
     let Some(membership) = entry.membership.as_ref() else {

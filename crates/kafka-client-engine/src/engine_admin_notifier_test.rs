@@ -13,7 +13,7 @@ use crate::{Engine, EngineConfig, EngineShutdownError, EngineShutdownErrorKind};
 #[test]
 fn startup_owns_one_worker_for_each_completion_domain() {
     let engine = start(Duration::from_millis(80));
-    assert_eq!(engine.completion_notifier_thread_count(), 5);
+    assert_eq!(engine.completion_notifier_thread_count(), 6);
     assert!(engine.shutdown().is_ok());
 }
 

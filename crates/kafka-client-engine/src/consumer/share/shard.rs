@@ -12,6 +12,7 @@ use super::{
     port::ShareConsumerPort, registry::ShareConsumerRegistry, shard_wake::ShareConsumerShardWake,
 };
 use crate::clock::MonotonicClock;
+use crate::completion::{CompletionRegistryError, NotifierJoin};
 
 pub(super) struct ShareConsumerShardState {
     registry_owner_share: Mutex<ShareConsumerRegistry>,
@@ -65,6 +66,28 @@ impl ShareConsumerShardOwner {
 
     pub(crate) fn close_admission(&self) {
         self.shared.close_admission();
+    }
+
+    pub(crate) fn close_notifier_thread_id(&self) -> Option<std::thread::ThreadId> {
+        self.shared
+            .registry_owner_share
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .close_notifier_thread_id()
+    }
+
+    pub(crate) fn stop_close_notifier(&self) -> Result<NotifierJoin, CompletionRegistryError> {
+        self.terminal_registry().stop_close_notifier()
+    }
+
+    pub(crate) fn take_close_notifier(&self) -> Option<NotifierJoin> {
+        self.terminal_registry().take_close_notifier()
+    }
+
+    pub(crate) fn recover_after_driver_shutdown(
+        &self,
+    ) -> Result<(), super::ShareMembershipHostError> {
+        self.terminal_registry().recover_after_driver_shutdown()
     }
 
     pub(crate) fn terminal_registry(&self) -> ShareConsumerRegistryGuard<'_> {
