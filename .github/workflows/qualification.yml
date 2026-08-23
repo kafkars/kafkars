@@ -25,7 +25,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Qualify pull request with Testlab
-        uses: kafkars/testlab@33d1c940c09c8544a9cf7611459d5d185d873cce
+        uses: kafkars/testlab@b1d609d8a43c3ab97a773a711a6e2a59a20c920a
         with:
           kafkars-path: ${{ github.workspace }}
           qualification: pr
@@ -50,7 +50,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Qualify release with Testlab
-        uses: kafkars/testlab@33d1c940c09c8544a9cf7611459d5d185d873cce
+        uses: kafkars/testlab@b1d609d8a43c3ab97a773a711a6e2a59a20c920a
         with:
           kafkars-path: ${{ github.workspace }}
           qualification: release
