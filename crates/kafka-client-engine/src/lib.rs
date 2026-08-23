@@ -45,6 +45,7 @@ mod metrics;
 mod producer;
 mod protocol;
 mod public_api;
+pub mod share;
 mod transaction;
 pub use public_api::*;
 #[cfg(test)]

@@ -222,7 +222,7 @@ fn driver_failures_map_without_granting_unknown_retry_authority() {
     );
 }
 
-fn registry_with_membership() -> (
+pub(super) fn registry_with_membership() -> (
     ShareConsumerRegistry,
     kafka_client_core::GroupId,
     MonotonicClock,
@@ -270,7 +270,7 @@ fn add_membership(
     (group_id, capture)
 }
 
-fn settle_assignment(
+pub(super) fn settle_assignment(
     registry: &mut ShareConsumerRegistry,
     group_id: kafka_client_core::GroupId,
     now: Moment,

@@ -158,6 +158,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request.rs", lines = 326, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request_test.rs", lines = 492, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 99, reason = "the declarative consumer facade names direct, group, and share membership ownership beside registered batch control and terminal-observable seek" },
+  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 94, reason = "the declarative share facade names hosted membership plus the first public Rust registration, state, and close ownership surface" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -308,6 +309,18 @@ test = "crates/kafka-client-engine/src/consumer/share/registry_observation_test.
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/share/registry_close.rs"
 test = "crates/kafka-client-engine/src/consumer/share/registry_close_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/public_registration.rs"
+test = "crates/kafka-client-engine/src/consumer/share/public_registration_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/public_state.rs"
+test = "crates/kafka-client-engine/src/consumer/share/public_state_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/public_close.rs"
+test = "crates/kafka-client-engine/src/consumer/share/public_close_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/share_consumer/drive.rs"
@@ -17573,6 +17586,30 @@ path = "crates/kafka-client-engine/src/consumer/share/close_state.rs"
 [[linear_owners]]
 owner_type = "ShareConsumerRegistrationFailure"
 path = "crates/kafka-client-engine/src/consumer/share/registry_registration.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerRegistration"
+path = "crates/kafka-client-engine/src/consumer/share/public_registration.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerStartCapture"
+path = "crates/kafka-client-engine/src/consumer/share/public_registration.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerHandle"
+path = "crates/kafka-client-engine/src/consumer/share/public_registration.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerRegistrationError"
+path = "crates/kafka-client-engine/src/consumer/share/public_registration_error.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerCloseAdmissionError"
+path = "crates/kafka-client-engine/src/consumer/share/public_close.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerClose"
+path = "crates/kafka-client-engine/src/consumer/share/public_close.rs"
 
 [[linear_owners]]
 owner_type = "ShareConsumerRegistry"

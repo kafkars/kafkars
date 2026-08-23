@@ -96,6 +96,13 @@ pub use super::group_start::{
     GroupConsumerStartAccepted, GroupConsumerStartCapture, GroupConsumerStartError,
     GroupConsumerStartErrorKind, GroupConsumerStartupFailureKind,
 };
+pub use super::share::{
+    ShareConsumerAssignmentPartition, ShareConsumerClose, ShareConsumerCloseAdmissionError,
+    ShareConsumerCloseAdmissionErrorKind, ShareConsumerCloseError, ShareConsumerCloseErrorKind,
+    ShareConsumerHandle, ShareConsumerRegistration, ShareConsumerRegistrationError,
+    ShareConsumerRegistrationErrorKind, ShareConsumerStartCapture, ShareConsumerState,
+    ShareConsumerStateError, ShareConsumerStateErrorKind,
+};
 pub(crate) use super::share::{
     ShareConsumerPort, ShareConsumerRegistry, ShareConsumerShardLockError, ShareConsumerShardOwner,
     ShareConsumerShardWake, ShareConsumerShardWakeError, ShareMembershipHostError,

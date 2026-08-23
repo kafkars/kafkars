@@ -8,6 +8,7 @@ mod catalog;
 #[cfg(test)]
 mod catalog_test;
 mod close_state;
+mod engine;
 mod entry;
 mod entry_calls;
 mod entry_identity;
@@ -20,6 +21,17 @@ mod port;
 #[cfg(test)]
 mod port_test;
 mod prepared;
+mod public_close;
+#[cfg(test)]
+mod public_close_test;
+mod public_registration;
+mod public_registration_error;
+#[cfg(test)]
+mod public_registration_test;
+mod public_state;
+#[cfg(test)]
+mod public_state_test;
+mod registration_admission;
 mod registry;
 mod registry_close;
 mod registry_close_notifier;
@@ -58,6 +70,20 @@ pub(super) use catalog::ShareTopicIdentity;
 pub(super) use membership::ShareMembershipFailureTurn;
 pub(super) use membership::{ShareMembershipError, ShareMembershipInterpreter};
 pub(crate) use port::ShareConsumerPort;
+pub use public_close::{
+    ShareConsumerClose, ShareConsumerCloseAdmissionError, ShareConsumerCloseAdmissionErrorKind,
+    ShareConsumerCloseError, ShareConsumerCloseErrorKind,
+};
+pub use public_registration::{
+    ShareConsumerHandle, ShareConsumerRegistration, ShareConsumerStartCapture,
+};
+pub use public_registration_error::{
+    ShareConsumerRegistrationError, ShareConsumerRegistrationErrorKind,
+};
+pub use public_state::{
+    ShareConsumerAssignmentPartition, ShareConsumerState, ShareConsumerStateError,
+    ShareConsumerStateErrorKind,
+};
 pub(crate) use registry::ShareConsumerRegistry;
 pub(crate) use registry_membership::{ShareMembershipHostError, ShareMembershipTurn};
 #[cfg(test)]
