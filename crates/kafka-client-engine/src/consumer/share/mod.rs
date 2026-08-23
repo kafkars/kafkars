@@ -32,6 +32,7 @@ mod fetch_session_settlement;
 mod fetch_session_settlement_test;
 #[cfg(test)]
 mod fetch_session_test;
+mod fetch_state;
 mod membership;
 #[cfg(test)]
 mod membership_test;
@@ -56,6 +57,9 @@ mod registry_close;
 mod registry_close_notifier;
 #[cfg(test)]
 mod registry_close_test;
+mod registry_fetch_routing;
+#[cfg(test)]
+mod registry_fetch_routing_test;
 mod registry_heartbeat_due;
 mod registry_heartbeat_settlement;
 mod registry_heartbeat_submission;

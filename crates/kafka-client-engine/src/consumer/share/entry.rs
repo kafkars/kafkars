@@ -4,11 +4,14 @@ use std::sync::Arc;
 
 use super::close_state::ShareConsumerCloseState;
 use super::entry_identity::member_spelling;
+use super::fetch_state::ShareFetchEntryState;
 use super::topic_identity_call::ShareTopicIdentityCall;
 use super::{ShareMembershipInterpreter, catalog::ShareTopicIdentity};
 use crate::clock::DeadlineCapture;
 use crate::driver::share_group_heartbeat::ShareGroupHeartbeatCall;
 use kafka_client_core::{GroupId, MemberId, ShareGroupHeartbeatPolicy, TopicId};
+
+mod fetch;
 
 pub(super) const SHARE_TOPIC_CAPACITY: usize = 32;
 pub(super) const SHARE_NAME_BYTE_LIMIT: usize = 249;
@@ -26,6 +29,7 @@ pub(super) struct ShareConsumerEntry {
     pub(super) membership: Option<ShareMembershipInterpreter>,
     pub(super) topic_call: Option<ShareTopicIdentityCall>,
     pub(super) heartbeat_call: Option<ShareGroupHeartbeatCall>,
+    fetch: ShareFetchEntryState,
     pub(super) fault: Option<kafka_client_core::ShareGroupHeartbeatFailure>,
     pub(super) close: Option<ShareConsumerCloseState>,
 }
@@ -82,6 +86,7 @@ impl ShareConsumerEntry {
             membership: None,
             topic_call: None,
             heartbeat_call: None,
+            fetch: ShareFetchEntryState::new(),
             fault: None,
             close: None,
         })
@@ -147,6 +152,7 @@ impl ShareConsumerEntry {
             membership,
             topic_call,
             heartbeat_call,
+            fetch,
             fault,
             close,
             ..
@@ -158,6 +164,7 @@ impl ShareConsumerEntry {
             membership,
             topic_call,
             heartbeat_call,
+            fetch,
             fault,
             close,
         ));

@@ -28,6 +28,7 @@ impl ShareConsumerEntry {
             .saturating_add(usize::from(self.start.is_some()))
             .saturating_add(usize::from(self.topic_call.is_some()))
             .saturating_add(usize::from(self.heartbeat_call.is_some()))
+            .saturating_add(self.fetch().unsettled())
             .saturating_add(self.membership.as_ref().map_or(0, |membership| {
                 usize::from(membership.prepared().is_some()).saturating_add(usize::from(!matches!(
                     membership.machine().phase(),
@@ -50,6 +51,7 @@ impl ShareConsumerEntry {
             self.membership
                 .as_ref()
                 .and_then(super::ShareMembershipInterpreter::next_deadline),
+            self.fetch().next_deadline(),
         ]
         .into_iter()
         .flatten()

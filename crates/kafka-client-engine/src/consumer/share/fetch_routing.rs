@@ -40,9 +40,6 @@ impl ShareFetchRoutingOwner {
         assignment: &LiveGroupAssignment,
         capture: DeadlineCapture,
     ) -> Result<Self, ShareFetchRoutingStartError> {
-        if assignment.partitions().is_empty() {
-            return Err(ShareFetchRoutingStartError::EmptyAssignment);
-        }
         let mut pending = Vec::new();
         pending
             .try_reserve_exact(assignment.partitions().len())
@@ -104,6 +101,18 @@ impl ShareFetchRoutingOwner {
         };
         self.pending.push(active.recover_after_driver_shutdown());
         true
+    }
+
+    pub(super) const fn generation(&self) -> AssignmentGeneration {
+        self.generation
+    }
+
+    pub(super) const fn deadline(&self) -> kafka_client_core::Deadline {
+        self.capture.deadline()
+    }
+
+    pub(super) const fn has_active_call(&self) -> bool {
+        self.active.is_some()
     }
 
     pub(super) fn try_take_routed_assignment(
@@ -174,7 +183,6 @@ pub(super) enum ShareFetchRoutingTurn {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ShareFetchRoutingStartError {
-    EmptyAssignment,
     Allocation,
     Route(ShareFetchPartitionRouteFailureKind),
 }
