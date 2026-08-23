@@ -138,7 +138,7 @@ pub use consumer::{
     NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch, RecvAssignedBatch,
     RecvConsumerBatch, Seek, ShareConsumer, ShareConsumerAssignment,
     ShareConsumerAssignmentPartition, ShareConsumerBuildError, ShareConsumerBuilder,
-    ShareConsumerCloseAdmissionError, StartPosition, TopicPartition,
+    ShareConsumerCloseAdmissionError, ShareConsumerFetchConfig, StartPosition, TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice};
 pub use metrics::{

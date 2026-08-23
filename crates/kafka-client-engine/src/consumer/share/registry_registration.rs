@@ -4,10 +4,10 @@ use std::sync::Arc;
 
 use kafka_client_core::GroupId;
 
-use crate::clock::DeadlineCapture;
+use crate::{EngineShareConsumerFetchConfig, clock::DeadlineCapture};
 
 use super::{
-    entry::{ShareConsumerEntry, ShareConsumerEntryBuildError},
+    entry::{ShareConsumerEntry, ShareConsumerEntryBuildError, ShareRegistrationParts},
     registry::{
         SHARE_CONSUMER_CAPACITY, SHARE_CONSUMER_RETAINED_NAME_BYTES, ShareConsumerRegistry,
     },
@@ -19,6 +19,7 @@ pub(in crate::consumer) struct ShareConsumerRegistrationFailure {
     pub(in crate::consumer) group: Arc<str>,
     pub(in crate::consumer) rack: Option<Arc<str>>,
     pub(in crate::consumer) topics: Vec<Arc<str>>,
+    pub(in crate::consumer) fetch: Box<EngineShareConsumerFetchConfig>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -44,6 +45,7 @@ impl ShareConsumerRegistry {
         group: Arc<str>,
         rack: Option<Arc<str>>,
         topics: Vec<Arc<str>>,
+        fetch: EngineShareConsumerFetchConfig,
     ) -> Result<GroupId, ShareConsumerRegistrationFailure> {
         if !self.accepting {
             return Err(failure(
@@ -51,6 +53,7 @@ impl ShareConsumerRegistry {
                 group,
                 rack,
                 topics,
+                fetch,
             ));
         }
         if self.entries.len() == SHARE_CONSUMER_CAPACITY {
@@ -59,6 +62,7 @@ impl ShareConsumerRegistry {
                 group,
                 rack,
                 topics,
+                fetch,
             ));
         }
         let Some(group_id) = self.next_group_id else {
@@ -67,9 +71,10 @@ impl ShareConsumerRegistry {
                 group,
                 rack,
                 topics,
+                fetch,
             ));
         };
-        let entry = match ShareConsumerEntry::try_new(group_id, group, rack, topics) {
+        let entry = match ShareConsumerEntry::try_new(group_id, group, rack, topics, fetch) {
             Ok(entry) => entry,
             Err(build) => {
                 let kind = match build.kind {
@@ -86,11 +91,18 @@ impl ShareConsumerRegistry {
                     | ShareConsumerEntryBuildError::EmptyTopic
                     | ShareConsumerEntryBuildError::NameTooLong
                     | ShareConsumerEntryBuildError::TopicCapacity
-                    | ShareConsumerEntryBuildError::DuplicateTopic => {
+                    | ShareConsumerEntryBuildError::DuplicateTopic
+                    | ShareConsumerEntryBuildError::FetchConfig => {
                         ShareConsumerRegistrationFailureKind::InvalidInput
                     }
                 };
-                return Err(failure(kind, build.group, build.rack, build.topics));
+                return Err(failure(
+                    kind,
+                    build.group,
+                    build.rack,
+                    build.topics,
+                    *build.fetch,
+                ));
             }
         };
         let retained = entry.retained_name_bytes();
@@ -137,18 +149,20 @@ fn failure(
     group: Arc<str>,
     rack: Option<Arc<str>>,
     topics: Vec<Arc<str>>,
+    fetch: EngineShareConsumerFetchConfig,
 ) -> ShareConsumerRegistrationFailure {
     ShareConsumerRegistrationFailure {
         kind,
         group,
         rack,
         topics,
+        fetch: Box::new(fetch),
     }
 }
 
 fn failure_from_entry(
     kind: ShareConsumerRegistrationFailureKind,
-    (group, rack, topics): (Arc<str>, Option<Arc<str>>, Vec<Arc<str>>),
+    parts: ShareRegistrationParts,
 ) -> ShareConsumerRegistrationFailure {
-    failure(kind, group, rack, topics)
+    failure(kind, parts.group, parts.rack, parts.topics, parts.fetch)
 }

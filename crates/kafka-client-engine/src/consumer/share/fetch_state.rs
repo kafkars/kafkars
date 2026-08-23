@@ -1,5 +1,6 @@
 //! Per-member hosted ownership between membership assignment and broker sessions.
 
+use crate::config::ValidatedShareConsumerFetchConfig;
 use kafka_client_core::{AssignmentGeneration, Deadline};
 
 use super::{
@@ -17,6 +18,7 @@ pub(super) struct ShareFetchRoutingFault {
 /// Hosted pre-session routing and completed broker-plan ownership.
 #[must_use = "share fetch entry state must remain with its registered member"]
 pub(super) struct ShareFetchEntryState {
+    config: ValidatedShareConsumerFetchConfig,
     routing: Option<ShareFetchRoutingOwner>,
     routed: Option<ShareFetchRoutedAssignment>,
     fault: Option<ShareFetchRoutingFault>,
@@ -40,12 +42,17 @@ impl ShareFetchRoutingFault {
 }
 
 impl ShareFetchEntryState {
-    pub(super) const fn new() -> Self {
+    pub(super) const fn new(config: ValidatedShareConsumerFetchConfig) -> Self {
         Self {
+            config,
             routing: None,
             routed: None,
             fault: None,
         }
+    }
+
+    pub(super) const fn config(&self) -> ValidatedShareConsumerFetchConfig {
+        self.config
     }
 
     pub(super) fn unsettled(&self) -> usize {

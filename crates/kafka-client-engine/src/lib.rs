@@ -47,6 +47,7 @@ mod protocol;
 mod public_api;
 pub mod share;
 mod transaction;
+pub(crate) use config::EngineShareConsumerFetchConfig;
 pub use public_api::*;
 #[cfg(test)]
 mod config_test;

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::bridge::ClientEngine;
 
-use super::{ShareConsumer, ShareConsumerBuildError};
+use super::{ShareConsumer, ShareConsumerBuildError, ShareConsumerFetchConfig};
 
 const DEFAULT_MEMBERSHIP_START_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_CLOSE_TIMEOUT: Duration = Duration::from_secs(30);
@@ -16,6 +16,7 @@ pub struct ShareConsumerBuilder {
     group_id: String,
     rack: Option<String>,
     topics: Vec<String>,
+    fetch: ShareConsumerFetchConfig,
     membership_start_timeout: Duration,
     close_timeout: Duration,
 }
@@ -27,6 +28,14 @@ impl ShareConsumerBuilder {
             group_id,
             rack: None,
             topics: Vec::new(),
+            fetch: ShareConsumerFetchConfig::new(
+                Duration::from_millis(500),
+                1,
+                1024 * 1024,
+                500,
+                500,
+                Duration::from_secs(30),
+            ),
             membership_start_timeout: DEFAULT_MEMBERSHIP_START_TIMEOUT,
             close_timeout: DEFAULT_CLOSE_TIMEOUT,
         }
@@ -45,6 +54,13 @@ impl ShareConsumerBuilder {
     /// Sets the optional rack spelling sent by `ShareGroupHeartbeat`.
     pub fn rack(mut self, rack: impl Into<String>) -> Self {
         self.rack = Some(rack.into());
+        self
+    }
+
+    /// Replaces the immutable `ShareFetch` request and attempt policy.
+    #[must_use]
+    pub const fn fetch_config(mut self, fetch: ShareConsumerFetchConfig) -> Self {
+        self.fetch = fetch;
         self
     }
 
@@ -77,6 +93,11 @@ impl ShareConsumerBuilder {
         self.rack.as_deref()
     }
 
+    /// Returns the configured `ShareFetch` request and attempt policy.
+    pub const fn selected_fetch_config(&self) -> ShareConsumerFetchConfig {
+        self.fetch
+    }
+
     /// Returns the first-heartbeat deadline duration.
     pub const fn selected_membership_start_timeout(&self) -> Duration {
         self.membership_start_timeout
@@ -91,10 +112,6 @@ impl ShareConsumerBuilder {
     ///
     /// The membership deadline is captured at this call boundary before name
     /// conversion. A pre-admission rejection returns this exact builder.
-    #[expect(
-        clippy::result_large_err,
-        reason = "pre-admission rejection returns the exact consumed share builder"
-    )]
     pub fn build(self) -> Result<ShareConsumer, ShareConsumerBuildError> {
         let capture = match self
             .engine
@@ -108,6 +125,7 @@ impl ShareConsumerBuilder {
             &self.group_id,
             self.rack.as_deref(),
             &self.topics,
+            self.fetch,
             self.close_timeout,
         ) {
             Ok(engine) => engine,

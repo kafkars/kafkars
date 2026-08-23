@@ -8,11 +8,20 @@ use super::entry::{ShareConsumerEntry, ShareConsumerEntryBuildError};
 
 #[test]
 fn generated_member_is_stable_rfc4122_v4_shape_for_the_entry_lifetime() {
+    let fetch = crate::EngineShareConsumerFetchConfig::new(
+        std::time::Duration::from_millis(250),
+        2,
+        4096,
+        32,
+        8,
+        std::time::Duration::from_secs(9),
+    );
     let entry = ShareConsumerEntry::try_new(
         group_id(),
         Arc::from("share-a"),
         Some(Arc::from("r1")),
         vec![Arc::from("orders")],
+        fetch,
     )
     .unwrap_or_else(|failure| panic!("entry: {:?}", failure.kind));
     let member = entry.member();
@@ -24,6 +33,9 @@ fn generated_member_is_stable_rfc4122_v4_shape_for_the_entry_lifetime() {
     assert_eq!(member.as_bytes()[14], b'4');
     assert!(matches!(member.as_bytes()[19], b'8' | b'9' | b'a' | b'b'));
     assert!(core::ptr::eq(entry.member().as_ref(), member.as_ref()));
+    assert_eq!(entry.fetch_config(), fetch);
+    assert_eq!(entry.fetch().config().max_records(), 32);
+    assert_eq!(entry.fetch().config().batch_size(), 8);
 }
 
 #[test]
@@ -35,6 +47,7 @@ fn invalid_entry_returns_the_exact_unconsumed_names() {
         Arc::clone(&group),
         None,
         vec![Arc::clone(&topic), Arc::clone(&topic)],
+        crate::EngineShareConsumerFetchConfig::default(),
     )
     .err()
     .unwrap_or_else(|| panic!("duplicate topics must reject"));

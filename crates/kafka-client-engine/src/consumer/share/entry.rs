@@ -7,11 +7,14 @@ use super::entry_identity::member_spelling;
 use super::fetch_state::ShareFetchEntryState;
 use super::topic_identity_call::ShareTopicIdentityCall;
 use super::{ShareMembershipInterpreter, catalog::ShareTopicIdentity};
-use crate::clock::DeadlineCapture;
 use crate::driver::share_group_heartbeat::ShareGroupHeartbeatCall;
+use crate::{EngineShareConsumerFetchConfig, clock::DeadlineCapture};
 use kafka_client_core::{GroupId, MemberId, ShareGroupHeartbeatPolicy, TopicId};
 
 mod fetch;
+mod registration;
+
+pub(in crate::consumer::share) use registration::ShareRegistrationParts;
 
 pub(super) const SHARE_TOPIC_CAPACITY: usize = 32;
 pub(super) const SHARE_NAME_BYTE_LIMIT: usize = 249;
@@ -29,6 +32,7 @@ pub(super) struct ShareConsumerEntry {
     pub(super) membership: Option<ShareMembershipInterpreter>,
     pub(super) topic_call: Option<ShareTopicIdentityCall>,
     pub(super) heartbeat_call: Option<ShareGroupHeartbeatCall>,
+    fetch_config: EngineShareConsumerFetchConfig,
     fetch: ShareFetchEntryState,
     pub(super) fault: Option<kafka_client_core::ShareGroupHeartbeatFailure>,
     pub(super) close: Option<ShareConsumerCloseState>,
@@ -40,13 +44,27 @@ impl ShareConsumerEntry {
         group: Arc<str>,
         rack: Option<Arc<str>>,
         topics: Vec<Arc<str>>,
+        fetch_config: EngineShareConsumerFetchConfig,
     ) -> Result<Self, ShareConsumerEntryBuildFailure> {
+        let fetch = match fetch_config.validate() {
+            Ok(fetch) => fetch,
+            Err(_error) => {
+                return Err(ShareConsumerEntryBuildFailure {
+                    kind: ShareConsumerEntryBuildError::FetchConfig,
+                    group,
+                    rack,
+                    topics,
+                    fetch: Box::new(fetch_config),
+                });
+            }
+        };
         if let Err(kind) = validate_names(&group, rack.as_deref(), &topics) {
             return Err(ShareConsumerEntryBuildFailure {
                 kind,
                 group,
                 rack,
                 topics,
+                fetch: Box::new(fetch_config),
             });
         }
         let Some(member_id) = MemberId::try_from_raw(group_id.get()) else {
@@ -55,6 +73,7 @@ impl ShareConsumerEntry {
                 group,
                 rack,
                 topics,
+                fetch: Box::new(fetch_config),
             });
         };
         let Ok(member) = member_spelling() else {
@@ -63,6 +82,7 @@ impl ShareConsumerEntry {
                 group,
                 rack,
                 topics,
+                fetch: Box::new(fetch_config),
             });
         };
         let mut resolved_topics = Vec::new();
@@ -72,6 +92,7 @@ impl ShareConsumerEntry {
                 group,
                 rack,
                 topics,
+                fetch: Box::new(fetch_config),
             });
         }
         Ok(Self {
@@ -86,7 +107,8 @@ impl ShareConsumerEntry {
             membership: None,
             topic_call: None,
             heartbeat_call: None,
-            fetch: ShareFetchEntryState::new(),
+            fetch_config,
+            fetch: ShareFetchEntryState::new(fetch),
             fault: None,
             close: None,
         })
@@ -140,36 +162,6 @@ impl ShareConsumerEntry {
         self.start = Some(capture);
         Ok(())
     }
-
-    pub(super) fn into_registration_parts(self) -> (Arc<str>, Option<Arc<str>>, Vec<Arc<str>>) {
-        let Self {
-            group,
-            rack,
-            topics,
-            member,
-            resolved_topics,
-            start,
-            membership,
-            topic_call,
-            heartbeat_call,
-            fetch,
-            fault,
-            close,
-            ..
-        } = self;
-        drop((
-            member,
-            resolved_topics,
-            start,
-            membership,
-            topic_call,
-            heartbeat_call,
-            fetch,
-            fault,
-            close,
-        ));
-        (group, rack, topics)
-    }
 }
 
 pub(super) struct ShareConsumerEntryBuildFailure {
@@ -177,6 +169,7 @@ pub(super) struct ShareConsumerEntryBuildFailure {
     pub(super) group: Arc<str>,
     pub(super) rack: Option<Arc<str>>,
     pub(super) topics: Vec<Arc<str>>,
+    pub(super) fetch: Box<EngineShareConsumerFetchConfig>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -188,6 +181,7 @@ pub(super) enum ShareConsumerEntryBuildError {
     NameTooLong,
     TopicCapacity,
     DuplicateTopic,
+    FetchConfig,
     IdentityExhausted,
     MemberIdentity,
     Allocation,

@@ -3,11 +3,12 @@
 use kafka_client_engine::{
     ConsumerReadIsolation as EngineReadIsolation, EngineClassicGroupConfig,
     EngineConsumerFetchConfig, EngineConsumerLimits, EngineGroupConsumerOperationConfig,
+    share::EngineShareConsumerFetchConfig,
 };
 
 use crate::{
     ClassicGroupConfig, ConsumerFetchConfig, ConsumerLimits, GroupConsumerOperationConfig,
-    ReadIsolation,
+    ReadIsolation, ShareConsumerFetchConfig,
 };
 
 pub(super) const fn engine_classic_group_config(
@@ -57,6 +58,21 @@ pub(super) const fn engine_consumer_limits(limits: ConsumerLimits) -> EngineCons
         buffered_batches,
         buffered_bytes,
         max_batch_bytes,
+    )
+}
+
+pub(super) const fn engine_share_consumer_fetch(
+    fetch: ShareConsumerFetchConfig,
+) -> EngineShareConsumerFetchConfig {
+    let (max_wait, min_bytes, max_bytes, max_records, batch_size, attempt_timeout) =
+        fetch.into_parts();
+    EngineShareConsumerFetchConfig::new(
+        max_wait,
+        min_bytes,
+        max_bytes,
+        max_records,
+        batch_size,
+        attempt_timeout,
     )
 }
 

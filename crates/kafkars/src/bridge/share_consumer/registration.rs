@@ -11,7 +11,10 @@ use kafka_client_engine::{
     },
 };
 
-use crate::{ErrorKind, KafkaError};
+use crate::{
+    ErrorKind, KafkaError, ShareConsumerFetchConfig,
+    bridge::consumer_configuration::engine_share_consumer_fetch,
+};
 
 /// Private unique bridge retaining one hosted share member.
 pub(crate) struct ShareConsumerEngine {
@@ -26,6 +29,7 @@ impl ShareConsumerEngine {
         group: &str,
         rack: Option<&str>,
         topics: &[String],
+        fetch: ShareConsumerFetchConfig,
         close_timeout: Duration,
     ) -> Result<Self, KafkaError> {
         let mut registration = EngineShareConsumerRegistration::new(
@@ -35,6 +39,7 @@ impl ShareConsumerEngine {
                 .map(|topic| Arc::<str>::from(topic.as_str()))
                 .collect(),
         )
+        .with_fetch_config(engine_share_consumer_fetch(fetch))
         .with_close_timeout(close_timeout);
         if let Some(rack) = rack {
             registration = registration.with_rack(Arc::<str>::from(rack));

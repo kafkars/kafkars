@@ -1,5 +1,6 @@
 //! Curated low-level Rust API for hosted share-member ownership.
 
+pub use crate::config::EngineShareConsumerFetchConfig;
 pub use crate::consumer::{
     ShareConsumerAssignmentPartition, ShareConsumerClose, ShareConsumerCloseAdmissionError,
     ShareConsumerCloseAdmissionErrorKind, ShareConsumerCloseError, ShareConsumerCloseErrorKind,

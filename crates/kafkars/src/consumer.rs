@@ -40,6 +40,7 @@ mod share_build_error;
 mod share_builder;
 mod share_close;
 mod share_close_error;
+mod share_fetch_config;
 mod share_handle;
 
 pub use assigned::AssignedConsumer;
@@ -87,6 +88,7 @@ pub use share_build_error::ShareConsumerBuildError;
 pub use share_builder::ShareConsumerBuilder;
 pub use share_close::CloseShareConsumer;
 pub use share_close_error::ShareConsumerCloseAdmissionError;
+pub use share_fetch_config::ShareConsumerFetchConfig;
 pub use share_handle::ShareConsumer;
 
 #[cfg(test)]
@@ -161,5 +163,7 @@ mod share_assignment_test;
 mod share_builder_test;
 #[cfg(test)]
 mod share_close_test;
+#[cfg(test)]
+mod share_fetch_config_test;
 #[cfg(test)]
 mod share_test;

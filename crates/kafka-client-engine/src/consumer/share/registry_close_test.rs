@@ -106,7 +106,12 @@ fn elapsed_close_retains_exact_deadline_failure() {
 fn control_close_needs_no_completion_and_recovery_settles_explicit_observer() {
     let (mut registry, first, clock) = registered();
     let second = registry
-        .try_register(Arc::from("workers-2"), None, vec![Arc::from("jobs")])
+        .try_register(
+            Arc::from("workers-2"),
+            None,
+            vec![Arc::from("jobs")],
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .unwrap_or_else(|_error| panic!("second register"));
     let observer = registry
         .begin_explicit_close(first, capture(&clock))
@@ -144,7 +149,12 @@ fn registered() -> (
     let mut registry =
         ShareConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error}"));
     let group_id = registry
-        .try_register(Arc::from("workers"), None, vec![Arc::from("jobs")])
+        .try_register(
+            Arc::from("workers"),
+            None,
+            vec![Arc::from("jobs")],
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .unwrap_or_else(|_error| panic!("register"));
     (registry, group_id, clock)
 }

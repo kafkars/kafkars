@@ -22,6 +22,7 @@ fn exact_topic_facts_install_join_under_the_original_capture() {
         Arc::from("workers"),
         None,
         vec![Arc::from("first"), Arc::from("second")],
+        crate::EngineShareConsumerFetchConfig::default(),
     )
     .unwrap_or_else(|_error| panic!("entry"));
     entry.begin(capture).unwrap_or_else(|()| panic!("begin"));
@@ -71,6 +72,7 @@ fn malformed_topic_identity_terminalizes_before_membership() {
         Arc::from("workers"),
         None,
         vec![Arc::from("jobs")],
+        crate::EngineShareConsumerFetchConfig::default(),
     )
     .unwrap_or_else(|_error| panic!("entry"));
     entry.begin(capture).unwrap_or_else(|()| panic!("begin"));

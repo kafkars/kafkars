@@ -12,6 +12,7 @@ mod group_consumer_operations;
 mod producer_limits;
 mod read_isolation;
 mod security;
+mod share_consumer_fetch;
 mod transaction;
 mod validated;
 mod validation;
@@ -29,6 +30,8 @@ pub(crate) use group_consumer_operations::ValidatedGroupConsumerOperationConfig;
 pub use producer_limits::EngineProducerLimits;
 pub use read_isolation::ConsumerReadIsolation;
 pub use security::{EngineSasl, EngineSaslMechanism, EngineSecurity, EngineTls};
+pub use share_consumer_fetch::EngineShareConsumerFetchConfig;
+pub(crate) use share_consumer_fetch::ValidatedShareConsumerFetchConfig;
 pub(crate) use validated::ValidatedEngineConfig;
 pub(crate) use validation::EngineConfigError;
 
@@ -46,6 +49,8 @@ mod producer_limits_test;
 mod read_isolation_test;
 #[cfg(test)]
 mod security_test;
+#[cfg(test)]
+mod share_consumer_fetch_test;
 #[cfg(test)]
 mod transaction_test;
 #[cfg(test)]

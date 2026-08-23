@@ -9,10 +9,20 @@ fn registration_is_bounded_and_assigns_stable_distinct_member_identity() {
     let mut registry =
         ShareConsumerRegistry::start().unwrap_or_else(|error| panic!("share registry: {error}"));
     let first = registry
-        .try_register(Arc::from("share-a"), None, topics())
+        .try_register(
+            Arc::from("share-a"),
+            None,
+            topics(),
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .unwrap_or_else(|error| panic!("first registration: {:?}", error.kind));
     let second = registry
-        .try_register(Arc::from("share-b"), Some(Arc::from("r1")), topics())
+        .try_register(
+            Arc::from("share-b"),
+            Some(Arc::from("r1")),
+            topics(),
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .unwrap_or_else(|error| panic!("second registration: {:?}", error.kind));
     assert_ne!(first, second);
     let first_entry = registry
@@ -52,6 +62,7 @@ fn invalid_registration_returns_every_exact_name_without_mutation() {
             Arc::clone(&group),
             Some(Arc::clone(&rack)),
             vec![Arc::clone(&duplicate), Arc::clone(&duplicate)],
+            crate::EngineShareConsumerFetchConfig::default(),
         )
         .err()
         .unwrap_or_else(|| panic!("duplicate must reject"));
@@ -71,6 +82,33 @@ fn invalid_registration_returns_every_exact_name_without_mutation() {
 }
 
 #[test]
+fn invalid_fetch_policy_returns_the_exact_configuration_without_mutation() {
+    let mut registry =
+        ShareConsumerRegistry::start().unwrap_or_else(|error| panic!("share registry: {error}"));
+    let defaults = crate::EngineShareConsumerFetchConfig::default();
+    let fetch = crate::EngineShareConsumerFetchConfig::new(
+        defaults.max_wait(),
+        defaults.min_bytes(),
+        defaults.max_bytes(),
+        0,
+        defaults.batch_size(),
+        defaults.attempt_timeout(),
+    );
+    let error = registry
+        .try_register(Arc::from("share-a"), None, topics(), fetch)
+        .err()
+        .unwrap_or_else(|| panic!("zero max records must reject"));
+
+    assert_eq!(
+        error.kind,
+        ShareConsumerRegistrationFailureKind::InvalidInput
+    );
+    assert_eq!(*error.fetch, fetch);
+    assert_eq!(registry.registered_count(), 0);
+    assert_eq!(registry.retained_name_bytes(), 0);
+}
+
+#[test]
 fn start_retains_the_original_capture_and_rejects_replacement() {
     let clock = crate::clock::MonotonicClock::new();
     let capture = clock
@@ -79,7 +117,12 @@ fn start_retains_the_original_capture_and_rejects_replacement() {
     let mut registry =
         ShareConsumerRegistry::start().unwrap_or_else(|error| panic!("share registry: {error}"));
     let group_id = registry
-        .try_register(Arc::from("share-a"), None, topics())
+        .try_register(
+            Arc::from("share-a"),
+            None,
+            topics(),
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .unwrap_or_else(|error| panic!("registration: {:?}", error.kind));
     registry
         .try_begin(group_id, capture)
