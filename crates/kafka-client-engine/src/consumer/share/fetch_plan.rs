@@ -3,7 +3,8 @@
 use kafka_client_core::{AssignedTopicPartition, GroupAssignmentPartition, ShareFetchBrokerId};
 
 use crate::protocol::consumer::share_fetch::{
-    ShareFetchRequestFailure, ShareFetchRequestPlan, ShareFetchRequestTopic,
+    PreparedShareFetchRequest, ShareFetchRequestFailure, ShareFetchRequestPlan,
+    ShareFetchRequestSettings, ShareFetchRequestTopic, share_fetch_request,
 };
 
 use super::catalog::ShareMembershipCatalog;
@@ -13,7 +14,13 @@ use super::catalog::ShareMembershipCatalog;
 pub(super) struct ShareBrokerSessionPlan {
     broker_id: ShareFetchBrokerId,
     assignment: Vec<AssignedTopicPartition>,
-    request: ShareFetchRequestPlan,
+    request: ShareFetchSessionRequestPlan,
+}
+
+/// Reusable complete active set for one broker-local incremental session.
+#[must_use = "a share fetch request plan must remain with its broker session"]
+pub(super) struct ShareFetchSessionRequestPlan {
+    topics: Vec<TopicBucket>,
 }
 
 impl ShareBrokerSessionPlan {
@@ -62,9 +69,7 @@ impl ShareBrokerSessionPlan {
                 .map_err(|_error| ShareBrokerSessionPlanError::Allocation)?;
             bucket.1.push(raw_partition);
         }
-        let (active, included) = materialize_initial_topics(topics)?;
-        let request = ShareFetchRequestPlan::try_new(active, included, Vec::new())
-            .map_err(ShareBrokerSessionPlanError::Protocol)?;
+        let request = ShareFetchSessionRequestPlan { topics };
         Ok(Self {
             broker_id,
             assignment,
@@ -77,9 +82,28 @@ impl ShareBrokerSessionPlan {
     ) -> (
         ShareFetchBrokerId,
         Vec<AssignedTopicPartition>,
-        ShareFetchRequestPlan,
+        ShareFetchSessionRequestPlan,
     ) {
         (self.broker_id, self.assignment, self.request)
+    }
+}
+
+impl ShareFetchSessionRequestPlan {
+    pub(super) fn prepare(
+        &self,
+        group_id: &str,
+        member_id: &str,
+        session_epoch: i32,
+        settings: ShareFetchRequestSettings,
+    ) -> Result<PreparedShareFetchRequest, ShareFetchRequestFailure> {
+        let active = materialize_topics(&self.topics)?;
+        let included = if session_epoch == 0 {
+            materialize_topics(&self.topics)?
+        } else {
+            Vec::new()
+        };
+        let plan = ShareFetchRequestPlan::try_new(active, included, Vec::new())?;
+        share_fetch_request(group_id, member_id, session_epoch, settings, plan)
     }
 }
 
@@ -95,32 +119,23 @@ pub(super) enum ShareBrokerSessionPlanError {
 
 type TopicBucket = ([u8; 16], Vec<u32>);
 
-fn materialize_initial_topics(
-    topics: Vec<TopicBucket>,
-) -> Result<(Vec<ShareFetchRequestTopic>, Vec<ShareFetchRequestTopic>), ShareBrokerSessionPlanError>
-{
-    let mut active = Vec::new();
-    let mut included = Vec::new();
-    active
+fn materialize_topics(
+    topics: &[TopicBucket],
+) -> Result<Vec<ShareFetchRequestTopic>, ShareFetchRequestFailure> {
+    let mut materialized = Vec::new();
+    materialized
         .try_reserve_exact(topics.len())
-        .map_err(|_error| ShareBrokerSessionPlanError::Allocation)?;
-    included
-        .try_reserve_exact(topics.len())
-        .map_err(|_error| ShareBrokerSessionPlanError::Allocation)?;
+        .map_err(|_error| ShareFetchRequestFailure::Allocation)?;
     for (topic_id, partitions) in topics {
-        let mut included_partitions = Vec::new();
-        included_partitions
+        let mut request_partitions = Vec::new();
+        request_partitions
             .try_reserve_exact(partitions.len())
-            .map_err(|_error| ShareBrokerSessionPlanError::Allocation)?;
-        included_partitions.extend_from_slice(&partitions);
-        active.push(
-            ShareFetchRequestTopic::try_new(topic_id, partitions)
-                .map_err(ShareBrokerSessionPlanError::Protocol)?,
-        );
-        included.push(
-            ShareFetchRequestTopic::try_new(topic_id, included_partitions)
-                .map_err(ShareBrokerSessionPlanError::Protocol)?,
-        );
+            .map_err(|_error| ShareFetchRequestFailure::Allocation)?;
+        request_partitions.extend_from_slice(partitions);
+        materialized.push(ShareFetchRequestTopic::try_new(
+            *topic_id,
+            request_partitions,
+        )?);
     }
-    Ok((active, included))
+    Ok(materialized)
 }

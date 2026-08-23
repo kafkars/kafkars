@@ -8,7 +8,7 @@ use super::{
     catalog::{ShareMembershipCatalog, ShareTopicIdentity},
     fetch_plan::{ShareBrokerSessionPlan, ShareBrokerSessionPlanError},
 };
-use crate::protocol::consumer::share_fetch::{ShareFetchRequestSettings, share_fetch_request};
+use crate::protocol::consumer::share_fetch::ShareFetchRequestSettings;
 
 #[test]
 fn membership_subset_becomes_one_complete_canonical_initial_plan() {
@@ -19,21 +19,21 @@ fn membership_subset_becomes_one_complete_canonical_initial_plan() {
         &[partition(1, 1), partition(1, 0), partition(2, 2)],
     )
     .unwrap_or_else(|error| panic!("valid broker plan: {error:?}"));
-    let (broker_id, assignment, request) = plan.into_parts();
-    let prepared = share_fetch_request(
-        "workers",
-        "member-a",
-        0,
-        ShareFetchRequestSettings {
-            max_wait_ms: 500,
-            min_bytes: 1,
-            max_bytes: 1_024,
-            max_records: 32,
-            batch_size: 8,
-        },
-        request,
-    )
-    .unwrap_or_else(|error| panic!("initial request: {error:?}"));
+    let (broker_id, assignment, request_plan) = plan.into_parts();
+    let prepared = request_plan
+        .prepare(
+            "workers",
+            "member-a",
+            0,
+            ShareFetchRequestSettings {
+                max_wait_ms: 500,
+                min_bytes: 1,
+                max_bytes: 1_024,
+                max_records: 32,
+                batch_size: 8,
+            },
+        )
+        .unwrap_or_else(|error| panic!("initial request: {error:?}"));
     let (request, correlation) = prepared.into_parts();
 
     assert_eq!(broker_id, broker());
@@ -51,6 +51,25 @@ fn membership_subset_becomes_one_complete_canonical_initial_plan() {
     assert!(request.forgotten_topics_data.is_empty());
     assert!(correlation.contains([1; 16], 0));
     assert!(correlation.contains([2; 16], 2));
+
+    let steady = request_plan
+        .prepare(
+            "workers",
+            "member-a",
+            1,
+            ShareFetchRequestSettings {
+                max_wait_ms: 500,
+                min_bytes: 1,
+                max_bytes: 1_024,
+                max_records: 32,
+                batch_size: 8,
+            },
+        )
+        .unwrap_or_else(|error| panic!("steady request: {error:?}"));
+    let (steady, steady_correlation) = steady.into_parts();
+    assert!(steady.topics.is_empty());
+    assert!(steady.forgotten_topics_data.is_empty());
+    assert!(steady_correlation.contains([1; 16], 0));
 }
 
 #[test]
