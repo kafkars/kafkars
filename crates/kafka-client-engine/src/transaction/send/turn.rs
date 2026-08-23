@@ -9,7 +9,7 @@ use kafka_client_core::{
 
 use crate::{
     completion::CompletionId,
-    driver::{DriverOwner, ProducerTopicViewCall},
+    driver::{DriverOwner, TopicRouteViewCall},
     producer::materialization::TransactionalMaterializationBatch,
     protocol::produce::MaterializedProduce,
     transaction::{
@@ -60,7 +60,7 @@ pub(super) enum TransactionSendSlot {
     Vacant,
     Reserved(TransactionSendRequest, CompletionId),
     AwaitingPartition(PendingTransactionPartitioning),
-    Partitioning(PendingTransactionPartitioning, ProducerTopicViewCall),
+    Partitioning(PendingTransactionPartitioning, TopicRouteViewCall),
     Enrolling(PendingTransactionSend),
     Ready(PendingTransactionSend, TransactionalMaterializationBatch),
     Materialized(PendingTransactionSend, MaterializedProduce),
