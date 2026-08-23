@@ -158,6 +158,23 @@ impl ShareConsumerShardState {
     pub(super) fn clock(&self) -> &Arc<MonotonicClock> {
         &self.membership_deadline_clock
     }
+
+    /// Returns an external delivery without losing it to transient contention.
+    pub(super) fn return_delivery_blocking(
+        &self,
+        delivery: super::fetch_delivery::ShareFetchDelivery,
+    ) {
+        let registry = self
+            .registry_owner_share
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut registry = ShareConsumerRegistryGuard(registry);
+        let returned_to_owner = registry.reclaim_delivery(delivery).is_ok();
+        drop(registry);
+        if returned_to_owner {
+            let _wake_result = self.request_turn();
+        }
+    }
 }
 
 pub(crate) struct ShareConsumerRegistryGuard<'owner>(MutexGuard<'owner, ShareConsumerRegistry>);

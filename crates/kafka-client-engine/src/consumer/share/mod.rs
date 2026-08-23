@@ -57,6 +57,9 @@ mod registry_close;
 mod registry_close_notifier;
 #[cfg(test)]
 mod registry_close_test;
+mod registry_delivery;
+#[cfg(test)]
+pub(in crate::consumer) mod registry_delivery_test;
 mod registry_fetch_routing;
 #[cfg(test)]
 mod registry_fetch_routing_test;
@@ -92,6 +95,7 @@ mod transition;
 pub(super) use catalog::ShareMembershipCatalog;
 #[cfg(test)]
 pub(super) use catalog::ShareTopicIdentity;
+pub(in crate::consumer) use fetch_delivery::{ShareFetchDelivery, ShareFetchDeliveryPartition};
 #[cfg(test)]
 pub(super) use membership::ShareMembershipFailureTurn;
 pub(super) use membership::{ShareMembershipError, ShareMembershipInterpreter};
@@ -112,6 +116,9 @@ pub use public_state::{
     ShareConsumerStateErrorKind,
 };
 pub(crate) use registry::ShareConsumerRegistry;
+pub(in crate::consumer) use registry_delivery::{
+    ShareConsumerDeliveryError, ShareConsumerDeliveryPortError,
+};
 pub(crate) use registry_membership::{ShareMembershipHostError, ShareMembershipTurn};
 #[cfg(test)]
 pub(super) use registry_registration::{

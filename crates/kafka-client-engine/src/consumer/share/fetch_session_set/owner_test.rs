@@ -28,7 +28,7 @@ use super::{
         fetch_session::ShareFetchSessionOwner,
         fetch_session_execution::ShareFetchSessionTerminal,
     },
-    ShareFetchSessionConfig, ShareFetchSessionSet,
+    ShareFetchSessionConfig, ShareFetchSessionSet, ShareFetchSessionSetTurn,
 };
 
 #[test]
@@ -57,18 +57,29 @@ pub(super) fn owner_for(
     topic_uuid: [u8; 16],
     partition_raw: u32,
 ) -> ShareFetchSessionOwner {
+    owner_for_topic(
+        broker_raw,
+        topic_raw,
+        Arc::from(format!("jobs-{topic_raw}")),
+        topic_uuid,
+        partition_raw,
+    )
+}
+
+fn owner_for_topic(
+    broker_raw: i32,
+    topic_raw: u64,
+    topic_name: Arc<str>,
+    topic_uuid: [u8; 16],
+    partition_raw: u32,
+) -> ShareFetchSessionOwner {
     let broker = ShareFetchBrokerId::try_from_raw(broker_raw).unwrap_or_else(|| panic!("broker"));
-    let topic = TopicId::from_raw(topic_raw);
+    let topic_id = TopicId::from_raw(topic_raw);
     let catalog = ShareMembershipCatalog::try_new(
         Arc::from("workers"),
         Arc::from("member-a"),
         None,
-        vec![ShareTopicIdentity::new(
-            topic,
-            Arc::from(format!("jobs-{topic_raw}")),
-            topic_uuid,
-            1,
-        )],
+        vec![ShareTopicIdentity::new(topic_id, topic_name, topic_uuid, 1)],
     )
     .unwrap_or_else(|error| panic!("catalog: {error:?}"));
     let clock = MonotonicClock::new();
@@ -77,7 +88,7 @@ pub(super) fn owner_for(
             &catalog,
             broker,
             &[GroupAssignmentPartition::new(
-                topic,
+                topic_id,
                 PartitionIndex::from_raw(partition_raw),
             )],
         )
@@ -109,6 +120,18 @@ pub(super) fn owner_for(
             .unwrap_or_else(|error| panic!("deadline: {error:?}")),
     )
     .unwrap_or_else(|error| panic!("owner: {error:?}"))
+}
+
+pub(in crate::consumer::share) fn staged_session_set_for_test(offset: i64) -> ShareFetchSessionSet {
+    let mut set = session_set(vec![owner_for_topic(1, 1, Arc::from("events"), [7; 16], 0)]);
+    stage_success(&mut set.sessions[0], [7; 16], offset);
+    let mut driver = driver();
+    assert_eq!(
+        set.turn(&driver, Moment::from_tick(7)),
+        Ok(ShareFetchSessionSetTurn::Progress)
+    );
+    shutdown(&mut driver);
+    set
 }
 
 pub(super) fn stage_success(owner: &mut ShareFetchSessionOwner, topic_uuid: [u8; 16], offset: i64) {
