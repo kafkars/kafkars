@@ -14,6 +14,9 @@ mod entry_test;
 mod membership;
 #[cfg(test)]
 mod membership_test;
+mod port;
+#[cfg(test)]
+mod port_test;
 mod prepared;
 mod registry;
 mod registry_heartbeat_due;
@@ -23,6 +26,9 @@ mod registry_heartbeat_submission;
 mod registry_heartbeat_test;
 mod registry_invalidation;
 mod registry_membership;
+mod registry_observation;
+#[cfg(test)]
+mod registry_observation_test;
 mod registry_registration;
 #[cfg(test)]
 mod registry_test;
@@ -33,6 +39,8 @@ mod request;
 #[cfg(test)]
 mod request_test;
 mod settlement;
+mod shard;
+mod shard_wake;
 mod topic_identity_call;
 mod transition;
 
@@ -42,9 +50,11 @@ pub(super) use catalog::ShareTopicIdentity;
 #[cfg(test)]
 pub(super) use membership::ShareMembershipFailureTurn;
 pub(super) use membership::{ShareMembershipError, ShareMembershipInterpreter};
-#[cfg(test)]
-pub(super) use registry::ShareConsumerRegistry;
+pub(crate) use registry::ShareConsumerRegistry;
+pub(crate) use registry_membership::{ShareMembershipHostError, ShareMembershipTurn};
 #[cfg(test)]
 pub(super) use registry_registration::{
     ShareConsumerRegistrationFailureKind, ShareConsumerStartError,
 };
+pub(crate) use shard::{ShareConsumerShardLockError, ShareConsumerShardOwner};
+pub(crate) use shard_wake::{ShareConsumerShardWake, ShareConsumerShardWakeError};

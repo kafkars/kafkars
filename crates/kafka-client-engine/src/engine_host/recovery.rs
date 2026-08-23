@@ -1,5 +1,4 @@
 //! Bounded terminal recovery after an unexpected host exit.
-
 use kafka_client_core::Moment;
 
 use super::{
@@ -212,6 +211,7 @@ fn close_consumer_admission(
         });
     }
     resources.group_consumers.close_admission();
+    resources.share_consumers.close_admission();
     failure
 }
 

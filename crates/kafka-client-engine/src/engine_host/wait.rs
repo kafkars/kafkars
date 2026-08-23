@@ -6,7 +6,10 @@ use kafka_client_core::{Deadline, Moment};
 
 use crate::producer::host_turn::ProducerTurnOutcome;
 
-use super::{assigned_consumer::AssignedConsumerProgress, group_consumer::GroupConsumerProgress};
+use super::{
+    assigned_consumer::AssignedConsumerProgress, group_consumer::GroupConsumerProgress,
+    share_consumer::ShareConsumerProgress,
+};
 
 // Wake failure cannot revoke ownership; this cap preserves deadline and
 // shutdown liveness after an operating-system failure.
@@ -60,6 +63,24 @@ pub(super) fn group_consumer(
     now: Moment,
     current: Duration,
     progress: &GroupConsumerProgress,
+) -> Duration {
+    if progress.progressed {
+        return Duration::ZERO;
+    }
+    let wait = progress
+        .next_deadline
+        .map_or(current, |value| current.min(deadline(now, value)));
+    if progress.blocked_work {
+        wait.min(BLOCKED_RETRY_DELAY)
+    } else {
+        wait
+    }
+}
+
+pub(super) fn share_consumer(
+    now: Moment,
+    current: Duration,
+    progress: &ShareConsumerProgress,
 ) -> Duration {
     if progress.progressed {
         return Duration::ZERO;

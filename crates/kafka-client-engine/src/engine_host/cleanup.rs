@@ -74,6 +74,7 @@ pub(super) fn prepare_notification_stop(
     verify_tracked_calls(resources)?;
     verify_admin_operations(resources)?;
     verify_assigned_consumer(resources)?;
+    verify_share_consumers(resources)?;
     transaction_shutdown::verify(&resources.transaction_initialization)?;
     let mut data = resources.producer.terminal_data();
     let release = data.verify_release_before_completion();
@@ -84,6 +85,16 @@ pub(super) fn prepare_notification_stop(
         .err()
         .map(EngineHostError::ProducerCleanup);
     combine_cleanup(failure, final_failure).map_or(Ok(()), Err)
+}
+
+fn verify_share_consumers(resources: &EngineHostResources) -> Result<(), EngineHostError> {
+    let registry = resources.share_consumers.terminal_registry();
+    let unsettled = registry.unsettled();
+    if unsettled == 0 {
+        Ok(())
+    } else {
+        Err(EngineHostError::ShareConsumerUnsettled(unsettled))
+    }
 }
 
 fn verify_assigned_consumer(resources: &EngineHostResources) -> Result<(), EngineHostError> {
