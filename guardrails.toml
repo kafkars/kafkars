@@ -158,7 +158,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request.rs", lines = 326, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request_test.rs", lines = 492, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 99, reason = "the declarative consumer facade names direct, group, and share membership ownership beside registered batch control and terminal-observable seek" },
-  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 96, reason = "the declarative share facade also names broker-local ShareFetch planning and its sibling evidence" },
+  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 99, reason = "the declarative share facade also names broker-local ShareFetch planning, prepared session ownership, and sibling evidence" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -426,6 +426,18 @@ test = "crates/kafka-client-engine/src/consumer/share/fetch_plan_test.rs"
 [[linear_owners]]
 owner_type = "ShareBrokerSessionPlan"
 path = "crates/kafka-client-engine/src/consumer/share/fetch_plan.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/fetch_session.rs"
+test = "crates/kafka-client-engine/src/consumer/share/fetch_session_test.rs"
+
+[[linear_owners]]
+owner_type = "PreparedShareFetchSession"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_session.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchSessionOwner"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_session.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/share_group/request.rs"

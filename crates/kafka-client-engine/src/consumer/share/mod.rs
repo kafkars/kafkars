@@ -14,6 +14,9 @@ mod entry_test;
 mod fetch_plan;
 #[cfg(test)]
 mod fetch_plan_test;
+mod fetch_session;
+#[cfg(test)]
+mod fetch_session_test;
 mod membership;
 #[cfg(test)]
 mod membership_test;
