@@ -9,8 +9,8 @@ use crate::{
 
 use super::{
     ShareAcquiredOffsets, ShareAcquiredRange, ShareAcquisitionLedger, ShareAcquisitionPolicy,
-    ShareConnectionGeneration, ShareDeliveryCount, ShareFetchBrokerId, ShareFetchSessionEpoch,
-    ShareFetchSessionFence, ShareRouteGeneration, ShareTopicUuid,
+    ShareDeliveryCount, ShareFetchBrokerId, ShareFetchSessionEpoch, ShareFetchSessionFence,
+    ShareTopicUuid,
 };
 
 pub(super) fn ledger(ranges: usize, records: u64, bytes: u64) -> ShareAcquisitionLedger {
@@ -47,8 +47,6 @@ pub(super) fn range(
 pub(super) fn fence(session: i32) -> ShareFetchSessionFence {
     ShareFetchSessionFence::new(
         some(ShareFetchBrokerId::try_from_raw(1)),
-        some(ShareRouteGeneration::try_from_raw(1)),
-        some(ShareConnectionGeneration::try_from_raw(1)),
         some(GroupId::try_from_raw(1)),
         some(MemberId::try_from_raw(1)),
         some(ShareGroupMemberEpoch::try_from_raw(1)),

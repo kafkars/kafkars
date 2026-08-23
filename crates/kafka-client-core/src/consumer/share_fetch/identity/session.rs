@@ -2,10 +2,7 @@
 
 use crate::{Deadline, GroupId, MemberId, ShareGroupMemberEpoch};
 
-use super::{
-    ShareConnectionGeneration, ShareFetchAssignmentGeneration, ShareFetchBrokerId,
-    ShareRouteGeneration,
-};
+use super::{ShareFetchAssignmentGeneration, ShareFetchBrokerId};
 
 /// Nonnegative `ShareFetch` session epoch, with zero opening a new session.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -39,8 +36,6 @@ impl ShareFetchSessionEpoch {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ShareFetchSessionFence {
     broker_id: ShareFetchBrokerId,
-    route_generation: ShareRouteGeneration,
-    connection_generation: ShareConnectionGeneration,
     group_id: GroupId,
     member_id: MemberId,
     member_epoch: ShareGroupMemberEpoch,
@@ -48,11 +43,9 @@ pub struct ShareFetchSessionFence {
 }
 
 impl ShareFetchSessionFence {
-    /// Joins independently owned routing, connection, membership, and session facts.
+    /// Joins independently owned broker, membership, and session facts.
     pub const fn new(
         broker_id: ShareFetchBrokerId,
-        route_generation: ShareRouteGeneration,
-        connection_generation: ShareConnectionGeneration,
         group_id: GroupId,
         member_id: MemberId,
         member_epoch: ShareGroupMemberEpoch,
@@ -60,8 +53,6 @@ impl ShareFetchSessionFence {
     ) -> Self {
         Self {
             broker_id,
-            route_generation,
-            connection_generation,
             group_id,
             member_id,
             member_epoch,
@@ -72,16 +63,6 @@ impl ShareFetchSessionFence {
     /// Returns the broker owning this session.
     pub const fn broker_id(self) -> ShareFetchBrokerId {
         self.broker_id
-    }
-
-    /// Returns the exact driver route generation.
-    pub const fn route_generation(self) -> ShareRouteGeneration {
-        self.route_generation
-    }
-
-    /// Returns the exact connection generation.
-    pub const fn connection_generation(self) -> ShareConnectionGeneration {
-        self.connection_generation
     }
 
     /// Returns the stable group identity.

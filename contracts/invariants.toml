@@ -1586,7 +1586,7 @@ milestone = "share-group-membership-v1"
 [[invariant]]
 id = "SHR-02"
 title = "Share acquisition is bounded and session-fenced"
-statement = "Each broker-local ShareFetch v1 session is fenced by broker route receipt, connection generation, member identity, share-session epoch, and acquisition generation. Before submission the engine reserves bounded response, decoding, ledger, delivery, terminal, and recovery capacity. Core admits each acquired offset range exactly once with its topic UUID, partition, delivery count, retained-byte ownership, and conservative lock boundary; malformed, duplicate, overlapping, stale, expired, or unbudgeted facts cannot create delivery ownership."
+statement = "Each broker-local ShareFetch v1 session is fenced in core by broker identity, member identity and epoch, share-session epoch, assignment generation, and acquisition generation, while the engine separately retains each driver-issued opaque route receipt beside its exact terminal instead of manufacturing route or socket authority before asynchronous resolution. Before submission the engine reserves bounded response, decoding, ledger, delivery, terminal, and recovery capacity. Core admits each acquired offset range exactly once with its topic UUID, partition, delivery count, retained-byte ownership, and conservative lock boundary; malformed, duplicate, overlapping, stale, expired, or unbudgeted facts cannot create delivery ownership."
 status = "planned"
 milestone = "share-fetch-v1-acquisition"
 

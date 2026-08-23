@@ -11,9 +11,8 @@ mod session_error;
 
 pub use acquisition::{ShareAcquisition, ShareAcquisitionPhase, ShareAcquisitionRelease};
 pub use identity::{
-    ShareAcquisitionGeneration, ShareConnectionGeneration, ShareFetchAssignmentGeneration,
-    ShareFetchAttempt, ShareFetchBrokerId, ShareFetchSessionEpoch, ShareFetchSessionFence,
-    ShareRouteGeneration,
+    ShareAcquisitionGeneration, ShareFetchAssignmentGeneration, ShareFetchAttempt,
+    ShareFetchBrokerId, ShareFetchSessionEpoch, ShareFetchSessionFence,
 };
 pub use ledger::ShareAcquisitionLedger;
 pub use model::{

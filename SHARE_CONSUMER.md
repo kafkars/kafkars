@@ -130,11 +130,12 @@ construction.
 
 ### Broker-local sessions
 
-Each broker route owns one `ShareSessionMachine`: broker identity and route
-receipt, driver connection generation, member identity, share-session epoch,
-the exact included and forgotten partitions, and at most one tracked ShareFetch
-or ShareAcknowledge call per permitted lane. No second topology or coordinator
-cache is introduced.
+Each broker route owns one `ShareSessionMachine`: broker identity, member
+identity, share-session epoch, the exact included and forgotten partitions, and
+at most one tracked ShareFetch or ShareAcknowledge call per permitted lane. The
+engine retains the driver's opaque causal route receipt beside each terminal;
+core does not manufacture route or socket generations before asynchronous
+driver resolution. No second topology or coordinator cache is introduced.
 
 Session loss prevents old-session acquisitions from being replayed into a new
 session. Re-establishment starts from explicit empty session authority and adds
@@ -146,7 +147,7 @@ invalidation reuse the existing driver-owned mechanism.
 The ledger owns every broker-acquired offset exactly once. An entry retains:
 
 - group and stable member identity;
-- broker route receipt and connection generation;
+- broker identity plus the engine-owned opaque route receipt for its terminal;
 - share-session epoch;
 - topic UUID, partition, offset range, and delivery count;
 - one local acquisition generation;
@@ -178,7 +179,7 @@ longer owns.
 | Batch cancellation | Core | Dropping a batch sends nothing and releases only local delivery bytes. |
 | Observer cancellation | Core | Dropping a future abandons observation, not accepted work. |
 | Assignment | Membership | Removal stops future acquisition while existing exact acknowledgements remain independently fenced. |
-| Session | Session machine | Route receipt, connection generation, member identity, session epoch, and acquisition generation fence every call. |
+| Session | Core and engine | Core fences broker, member, member epoch, session epoch, assignment, and acquisition generations; the engine separately owns each opaque driver route receipt. |
 
 Emergency capacity is reserved before acquisition. It is for deterministic
 local settlement and bounded close ownership; it is not permission to send an
