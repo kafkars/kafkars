@@ -1238,24 +1238,24 @@ production = "crates/kafkars/src/bridge/share_consumer/close.rs"
 test = "crates/kafkars/src/bridge/share_consumer/close_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafkars/src/consumer/share_assignment.rs"
-test = "crates/kafkars/src/consumer/share_assignment_test.rs"
+production = "crates/kafkars/src/consumer/share/assignment.rs"
+test = "crates/kafkars/src/consumer/share/assignment_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafkars/src/consumer/share_builder.rs"
-test = "crates/kafkars/src/consumer/share_builder_test.rs"
+production = "crates/kafkars/src/consumer/share/builder.rs"
+test = "crates/kafkars/src/consumer/share/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafkars/src/consumer/share_fetch_config.rs"
-test = "crates/kafkars/src/consumer/share_fetch_config_test.rs"
+production = "crates/kafkars/src/consumer/share/fetch_config.rs"
+test = "crates/kafkars/src/consumer/share/fetch_config_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafkars/src/consumer/share_handle.rs"
-test = "crates/kafkars/src/consumer/share_test.rs"
+production = "crates/kafkars/src/consumer/share/handle.rs"
+test = "crates/kafkars/src/consumer/share/contract_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafkars/src/consumer/share_close.rs"
-test = "crates/kafkars/src/consumer/share_close_test.rs"
+production = "crates/kafkars/src/consumer/share/close.rs"
+test = "crates/kafkars/src/consumer/share/close_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/share_consumer/drive.rs"
@@ -18576,35 +18576,35 @@ path = "crates/kafkars/src/bridge/share_consumer/close.rs"
 
 [[linear_owners]]
 owner_type = "ShareConsumerBuildError"
-path = "crates/kafkars/src/consumer/share_build_error.rs"
+path = "crates/kafkars/src/consumer/share/build_error.rs"
 
 [[linear_owners]]
 owner_type = "ShareConsumer"
-path = "crates/kafkars/src/consumer/share_handle.rs"
+path = "crates/kafkars/src/consumer/share/handle.rs"
 
 [[test_mirrors]]
-production = "crates/kafkars/src/consumer/share_batch.rs"
-test = "crates/kafkars/src/consumer/share_batch_test.rs"
+production = "crates/kafkars/src/consumer/share/batch.rs"
+test = "crates/kafkars/src/consumer/share/batch_test.rs"
 
 [[linear_owners]]
 owner_type = "ShareConsumerBatch"
-path = "crates/kafkars/src/consumer/share_batch.rs"
+path = "crates/kafkars/src/consumer/share/batch.rs"
 
 [[test_mirrors]]
-production = "crates/kafkars/src/consumer/share_recv.rs"
-test = "crates/kafkars/src/consumer/share_recv_test.rs"
+production = "crates/kafkars/src/consumer/share/recv.rs"
+test = "crates/kafkars/src/consumer/share/recv_test.rs"
 
 [[linear_owners]]
 owner_type = "RecvShareConsumerBatch"
-path = "crates/kafkars/src/consumer/share_recv.rs"
+path = "crates/kafkars/src/consumer/share/recv.rs"
 
 [[linear_owners]]
 owner_type = "CloseShareConsumer"
-path = "crates/kafkars/src/consumer/share_close.rs"
+path = "crates/kafkars/src/consumer/share/close.rs"
 
 [[linear_owners]]
 owner_type = "ShareConsumerCloseAdmissionError"
-path = "crates/kafkars/src/consumer/share_close_error.rs"
+path = "crates/kafkars/src/consumer/share/close_error.rs"
 
 [[linear_owners]]
 owner_type = "ShareConsumerRegistry"
@@ -19826,7 +19826,7 @@ allowed_paths = [
   "crates/kafkars/src/bridge/share_consumer/close.rs",
   "crates/kafkars/src/consumer/assigned.rs",
   "crates/kafkars/src/consumer/group_close.rs",
-  "crates/kafkars/src/consumer/share_close.rs",
+  "crates/kafkars/src/consumer/share/close.rs",
 ]
 
 [[capability_rules]]
