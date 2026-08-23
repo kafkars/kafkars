@@ -17,6 +17,9 @@ mod fetch_acquisition_decode_test;
 mod fetch_plan;
 #[cfg(test)]
 mod fetch_plan_test;
+mod fetch_route;
+#[cfg(test)]
+mod fetch_route_test;
 mod fetch_session;
 mod fetch_session_execution;
 #[cfg(test)]

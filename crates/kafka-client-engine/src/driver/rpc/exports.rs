@@ -41,6 +41,8 @@ pub(crate) use super::describe_configs_calls::{
 pub(crate) use super::describe_topics_calls::{
     DescribeTopicsCalls, DescribeTopicsCompletionFailure,
 };
+#[cfg(test)]
+pub(crate) use super::fetch::routed_response_broker_test::RoutedBroker;
 pub(crate) use super::fetch::{
     BrokerFetchCallAdmission, BrokerFetchCloseCall, BrokerFetchRouteCall,
     BrokerFetchRouteFailureKind, BrokerId, FetchBeginSettlementError, FetchCallAdmission,

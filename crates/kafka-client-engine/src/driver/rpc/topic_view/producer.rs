@@ -61,6 +61,13 @@ impl TopicRouteView {
                 .map(|fact| fact.broker_id().get())
         })
     }
+
+    /// Returns the broker-issued UUID retained by this exact topic view.
+    pub(crate) fn kafka_topic_id(&self) -> Option<[u8; 16]> {
+        self.view
+            .topic_id()
+            .map(kafka_driver::KafkaTopicId::to_bytes)
+    }
 }
 
 impl TopicPartitionSource for TopicRouteView {
