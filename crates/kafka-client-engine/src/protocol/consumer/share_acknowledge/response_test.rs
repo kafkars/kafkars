@@ -121,6 +121,7 @@ fn version_v2_field_and_leader_shapes_fail_closed() {
     );
 
     let mut leader = complete_response();
+    leader.responses[0].partitions[0].error_code = 6;
     let mut current_leader = LeaderIdAndEpoch::default();
     current_leader.leader_id = 2;
     current_leader.leader_epoch = 3;
@@ -129,6 +130,18 @@ fn version_v2_field_and_leader_shapes_fail_closed() {
         normalize(leader),
         Err(ShareAcknowledgeResponseFailure::MissingLeaderEndpoint(2))
     );
+}
+
+#[test]
+fn successful_partition_ignores_the_broker_generated_leader_default() {
+    let mut response = complete_response();
+    response.responses[0].partitions[0].current_leader = LeaderIdAndEpoch::default();
+    let ShareAcknowledgeOutcome::Succeeded(success) =
+        normalize(response).unwrap_or_else(|error| panic!("captured broker success: {error:?}"))
+    else {
+        panic!("expected success");
+    };
+    assert_eq!(success.outcomes[0].current_leader, None);
 }
 
 fn normalize(

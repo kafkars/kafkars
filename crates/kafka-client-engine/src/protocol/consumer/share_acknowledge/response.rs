@@ -15,6 +15,8 @@ use super::{
     response_values::{diagnostic, normalize_endpoints, normalize_leader},
 };
 
+const NOT_LEADER_OR_FOLLOWER: i16 = 6;
+
 pub(crate) fn normalize_share_acknowledge_response(
     selected_version: i16,
     response: ShareAcknowledgeResponse,
@@ -159,10 +161,14 @@ fn normalize_partition(
         partition,
         error_code,
         error_message: diagnostic(source.error_message)?,
-        current_leader: normalize_leader(
-            source.current_leader.leader_id,
-            source.current_leader.leader_epoch,
-        )?,
+        current_leader: if source.error_code == NOT_LEADER_OR_FOLLOWER {
+            normalize_leader(
+                source.current_leader.leader_id,
+                source.current_leader.leader_epoch,
+            )?
+        } else {
+            None
+        },
     })
 }
 
