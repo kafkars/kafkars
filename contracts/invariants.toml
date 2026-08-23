@@ -1580,29 +1580,64 @@ evidence = [
 id = "SHR-01"
 title = "Share membership owns one stable broker identity"
 statement = "One share consumer owns one stable consumer-generated member ID, exact broker member epoch, assignment, heartbeat schedule, and nonoverlapping ShareGroupHeartbeat v1 attempt. Core owns join, steady, leave, bounded rediscovery, and original-deadline policy; the engine owns generated protocol adaptation and tracked coordinator calls; the driver remains sole coordinator-route authority. Assignment removal stops new acquisition without destroying exact outstanding acknowledgement ownership, and terminal startup failure remains observable."
-status = "planned"
-milestone = "share-group-membership-v1"
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/share_consumer/machine_test.rs::initial_join_preserves_stable_member_and_public_deadline",
+  "crates/kafka-client-core/src/consumer/share_consumer/machine_test.rs::initial_empty_assignment_waits_for_broker_initialization",
+  "crates/kafka-client-core/src/consumer/share_consumer/retry_test.rs::not_coordinator_reserves_fresh_attempt_and_pairs_invalidation_with_delay",
+  "crates/kafka-client-engine/src/consumer/share/entry_test.rs::generated_member_is_stable_kafka_uuid_spelling_for_the_entry_lifetime",
+  "crates/kafka-client-engine/src/consumer/share/membership_test.rs::assignment_is_installed_heartbeated_and_left_under_exact_fences",
+  "crates/kafka-client-engine/src/consumer/share/registry_heartbeat_test.rs::rediscovery_needs_permission_and_positive_delay_in_either_order",
+  "crates/kafka-client-engine/src/consumer/share/public_state_test.rs::startup_failure_preserves_the_exact_pre_success_terminal",
+]
 
 [[invariant]]
 id = "SHR-02"
 title = "Share acquisition is bounded and session-fenced"
 statement = "Each broker-local ShareFetch v1 session is fenced in core by broker identity, member identity and epoch, share-session epoch, assignment generation, and acquisition generation, while the engine separately retains each driver-issued opaque route receipt beside its exact terminal instead of manufacturing route or socket authority before asynchronous resolution. Before submission the engine reserves bounded response, decoding, ledger, delivery, terminal, and recovery capacity. Core admits each acquired offset range exactly once with its topic UUID, partition, delivery count, retained-byte ownership, and conservative lock boundary; malformed, duplicate, overlapping, stale, expired, or unbudgeted facts cannot create delivery ownership."
-status = "planned"
-milestone = "share-fetch-v1-acquisition"
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/share_fetch/session_test.rs::exact_attempt_advances_session_and_stages_acquisitions",
+  "crates/kafka-client-core/src/consumer/share_fetch/session_test.rs::stale_attempt_cannot_mutate_the_current_owner",
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_test.rs::admission_is_atomic_bounded_and_generation_fenced",
+  "crates/kafka-client-engine/src/consumer/share/fetch_plan_test.rs::membership_subset_becomes_one_complete_canonical_initial_plan",
+  "crates/kafka-client-engine/src/consumer/share/fetch_route_test.rs::current_topic_uuid_and_partition_bind_the_driver_observed_broker",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_test.rs::initial_preparation_keeps_one_session_and_deadline_owner",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acquisition_decode_test.rs::decoded_records_map_to_exact_local_ranges_and_byte_charges",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_settlement/retirement_test.rs::empty_success_cannot_invent_an_application_batch",
+  "crates/kafka-client-engine/src/consumer/share/registry_delivery_test.rs::observation_transfers_once_and_drop_waits_to_abandon_the_exact_batch",
+]
 
 [[invariant]]
 id = "SHR-03"
 title = "Share acknowledgements consume exact linear acquisition"
 statement = "One ShareAcknowledgement consumes one exact ShareConsumerBatch and supplies one public Accept, Release, or Reject decision for every acquired record. Core validates acquisition and session fences, normalizes exact offsets into deterministic wire ranges with internal-only Gap values, and captures one public absolute deadline before admission. Acceptance reserves one terminal before ShareAcknowledge v1 transport; pre-admission rejection returns exact retry ownership when safe, while possibly-sent or broker-rejected settlement never recreates consumed capability or strengthens delivery certainty."
-status = "planned"
-milestone = "share-acknowledge-v1"
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/share_fetch/session_acknowledgement_test.rs::success_advances_session_and_retires_exact_acquisitions",
+  "crates/kafka-client-core/src/consumer/share_fetch/session_acknowledgement_test.rs::definitely_unsent_failure_restores_the_same_retry_capability",
+  "crates/kafka-client-core/src/consumer/share_fetch/session_acknowledgement_test.rs::possibly_sent_failure_consumes_capability_and_loses_session",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_test.rs::exact_delivery_prepares_one_acknowledgement_under_the_original_deadline",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/execution_test.rs::all_success_response_advances_session_and_retires_exact_acquisitions",
+  "crates/kafka-client-engine/src/consumer/share/registry_acknowledgement_test.rs::accepted_success_publishes_exact_partition_outcome_then_reclaims_capacity",
+  "crates/kafka-client-engine/src/consumer/share/registry_acknowledgement_test.rs::definitely_unsent_driver_failure_returns_the_exact_public_retry",
+  "crates/kafka-client-engine/src/consumer/share/registry_acknowledgement_test.rs::dropping_the_observer_does_not_cancel_the_accepted_acknowledgement",
+]
 
 [[invariant]]
 id = "SHR-04"
 title = "Share close preserves broker and local ownership truth"
 statement = "Dropping a ShareConsumerBatch sends no acknowledgement and releases only local delivery bytes; dropping an observer abandons observation without cancelling accepted work. Close stops new membership and fetch admission, drains accepted acknowledgement ownership, sends one explicit leave under the original public deadline, and reports partial or ambiguous outcomes without manufacturing broker release. Leader, connection, session, member, lock-expiry, engine-shutdown, and driver-loss recovery remain generation-fenced and reclaim retained bytes only after their exact owners retire."
-status = "planned"
-milestone = "share-session-recovery-and-close"
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement_test.rs::drop_releases_payload_once_but_retains_lock_until_expiry",
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement_test.rs::application_owned_ranges_survive_lock_expiry_and_session_loss",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_execution_test.rs::post_driver_recovery_conservatively_loses_the_accepted_session",
+  "crates/kafka-client-engine/src/consumer/share/registry_fetch_sessions_test.rs::close_releases_prepared_sessions_before_membership_leave",
+  "crates/kafka-client-engine/src/consumer/share/registry_close_test.rs::stable_member_prepares_epoch_minus_one_leave_before_success",
+  "crates/kafka-client-engine/src/consumer/share/registry_close_test.rs::control_close_needs_no_completion_and_recovery_settles_explicit_observer",
+  "crates/kafka-client-engine/src/consumer/share/public_close_test.rs::only_pre_admission_contention_is_publicly_retryable_by_ownership",
+]
 
 [[invariant]]
 id = "TMR-01"
