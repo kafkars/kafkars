@@ -1588,6 +1588,34 @@ evidence = [
 ]
 
 [[invariant]]
+id = "SHR-01"
+title = "Share membership owns one stable broker identity"
+statement = "One share consumer owns one stable consumer-generated member ID, exact broker member epoch, assignment, heartbeat schedule, and nonoverlapping ShareGroupHeartbeat v1 attempt. Core owns join, steady, leave, bounded rediscovery, and original-deadline policy; the engine owns generated protocol adaptation and tracked coordinator calls; the driver remains sole coordinator-route authority. Assignment removal stops new acquisition without destroying exact outstanding acknowledgement ownership, and terminal startup failure remains observable."
+status = "planned"
+milestone = "share-group-membership-v1"
+
+[[invariant]]
+id = "SHR-02"
+title = "Share acquisition is bounded and session-fenced"
+statement = "Each broker-local ShareFetch v1 session is fenced by broker route receipt, connection generation, member identity, share-session epoch, and acquisition generation. Before submission the engine reserves bounded response, decoding, ledger, delivery, terminal, and recovery capacity. Core admits each acquired offset range exactly once with its topic UUID, partition, delivery count, retained-byte ownership, and conservative lock boundary; malformed, duplicate, overlapping, stale, expired, or unbudgeted facts cannot create delivery ownership."
+status = "planned"
+milestone = "share-fetch-v1-acquisition"
+
+[[invariant]]
+id = "SHR-03"
+title = "Share acknowledgements consume exact linear acquisition"
+statement = "One ShareAcknowledgement consumes one exact ShareConsumerBatch and supplies one public Accept, Release, or Reject decision for every acquired record. Core validates acquisition and session fences, normalizes exact offsets into deterministic wire ranges with internal-only Gap values, and captures one public absolute deadline before admission. Acceptance reserves one terminal before ShareAcknowledge v1 transport; pre-admission rejection returns exact retry ownership when safe, while possibly-sent or broker-rejected settlement never recreates consumed capability or strengthens delivery certainty."
+status = "planned"
+milestone = "share-acknowledge-v1"
+
+[[invariant]]
+id = "SHR-04"
+title = "Share close preserves broker and local ownership truth"
+statement = "Dropping a ShareConsumerBatch sends no acknowledgement and releases only local delivery bytes; dropping an observer abandons observation without cancelling accepted work. Close stops new membership and fetch admission, drains accepted acknowledgement ownership, sends one explicit leave under the original public deadline, and reports partial or ambiguous outcomes without manufacturing broker release. Leader, connection, session, member, lock-expiry, engine-shutdown, and driver-loss recovery remain generation-fenced and reclaim retained bytes only after their exact owners retire."
+status = "planned"
+milestone = "share-session-recovery-and-close"
+
+[[invariant]]
 id = "TMR-01"
 title = "Batch timers are generation-fenced"
 statement = "A newer batch-timer generation replaces older schedules, and stale cancellation or firing cannot affect the live generation."

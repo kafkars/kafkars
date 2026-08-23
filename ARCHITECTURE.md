@@ -123,6 +123,11 @@ facts. Group heartbeats do not substitute for application-processing liveness.
 Classic and consumer-protocol membership retain separate concrete machines.
 The driver owns coordinator routing; the client owns no coordinator cache.
 
+Share-group consumption is a third consumer domain with record-acquisition and
+acknowledgement ownership rather than checkpoint ownership. Its v1-first
+membership, broker-session, acquisition-ledger, deadline, byte, cancellation,
+and close contracts are specified in [SHARE_CONSUMER.md](SHARE_CONSUMER.md).
+
 ### Admin
 
 Each admin API is a concrete deterministic machine and bounded engine owner.
