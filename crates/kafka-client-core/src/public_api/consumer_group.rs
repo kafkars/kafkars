@@ -13,8 +13,8 @@ pub use crate::consumer::{
     ShareAcquiredOffsets, ShareAcquiredRange, ShareAcquiredRangeError, ShareAcquisition,
     ShareAcquisitionAdmissionError, ShareAcquisitionAdmissionErrorKind, ShareAcquisitionGeneration,
     ShareAcquisitionLedger, ShareAcquisitionPhase, ShareAcquisitionPolicy,
-    ShareAcquisitionPolicyError, ShareAcquisitionRelease, ShareConnectionGeneration,
-    ShareDeliveryCount, ShareFetchAssignmentGeneration, ShareFetchAttempt, ShareFetchBrokerId,
+    ShareAcquisitionPolicyError, ShareAcquisitionRelease, ShareDeliveryCount,
+    ShareFetchAssignmentGeneration, ShareFetchAttempt, ShareFetchBrokerId,
     ShareFetchSessionApplyError, ShareFetchSessionEpoch, ShareFetchSessionErrorKind,
     ShareFetchSessionFence, ShareFetchSessionMachine, ShareFetchSessionOpenError,
     ShareFetchSessionPhase, ShareFetchSettlementError, ShareFetchSettlementErrorKind,
@@ -24,5 +24,5 @@ pub use crate::consumer::{
     ShareGroupHeartbeatPolicy, ShareGroupHeartbeatPolicyError, ShareGroupHeartbeatRequestKind,
     ShareGroupHeartbeatRetryCause, ShareGroupHeartbeatRetrySchedule, ShareGroupHeartbeatSchedule,
     ShareGroupHeartbeatSequence, ShareGroupHeartbeatTransition, ShareGroupMemberEpoch,
-    ShareRouteGeneration, ShareTopicUuid,
+    ShareTopicUuid,
 };

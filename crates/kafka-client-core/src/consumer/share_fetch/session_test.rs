@@ -9,9 +9,9 @@ use crate::{
 
 use super::{
     ShareAcquiredOffsets, ShareAcquiredRange, ShareAcquisitionAdmissionErrorKind,
-    ShareAcquisitionPolicy, ShareConnectionGeneration, ShareDeliveryCount, ShareFetchBrokerId,
-    ShareFetchSessionEpoch, ShareFetchSessionFence, ShareFetchSessionMachine,
-    ShareFetchSessionPhase, ShareFetchSettlementErrorKind, ShareRouteGeneration, ShareTopicUuid,
+    ShareAcquisitionPolicy, ShareDeliveryCount, ShareFetchBrokerId, ShareFetchSessionEpoch,
+    ShareFetchSessionFence, ShareFetchSessionMachine, ShareFetchSessionPhase,
+    ShareFetchSettlementErrorKind, ShareTopicUuid,
 };
 
 #[test]
@@ -178,8 +178,6 @@ fn range(uuid: u8, topic: u64, first: i64, last: i64, bytes: u64, lock: u64) -> 
 fn fence() -> ShareFetchSessionFence {
     ShareFetchSessionFence::new(
         some(ShareFetchBrokerId::try_from_raw(1)),
-        some(ShareRouteGeneration::try_from_raw(1)),
-        some(ShareConnectionGeneration::try_from_raw(1)),
         some(GroupId::try_from_raw(1)),
         some(MemberId::try_from_raw(1)),
         some(ShareGroupMemberEpoch::try_from_raw(1)),
