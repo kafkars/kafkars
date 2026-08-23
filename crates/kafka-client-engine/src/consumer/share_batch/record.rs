@@ -1,6 +1,6 @@
 //! Borrowed flattened views over normalized share-consumer records.
 
-use kafka_client_core::ShareAcquisition;
+use kafka_client_core::{ShareAcquisition, ShareDisposition, ShareRecordDecision};
 
 use crate::{
     consumer::share::{ShareFetchDelivery, ShareFetchDeliveryPartition},
@@ -107,6 +107,15 @@ impl ShareConsumerRecord<'_> {
     /// Returns Kafka's positive delivery count for this acquired range.
     pub const fn delivery_count(&self) -> i16 {
         self.acquisition.range().delivery_count().get()
+    }
+
+    /// Correlates one public disposition to this exact acquired record.
+    pub const fn decision(&self, disposition: ShareDisposition) -> ShareRecordDecision {
+        ShareRecordDecision::new(
+            self.acquisition.generation(),
+            self.record.offset,
+            disposition,
+        )
     }
 
     pub(super) fn belongs_to(&self, delivery: &ShareFetchDelivery) -> bool {

@@ -97,7 +97,7 @@ impl ShareFetchDelivery {
         &self.acquisitions
     }
 
-    pub(super) fn into_parts(
+    pub(in crate::consumer) fn into_parts(
         self,
     ) -> (
         ShareFetchSessionFence,
@@ -107,7 +107,7 @@ impl ShareFetchDelivery {
         (self.fence, self.partitions, self.acquisitions)
     }
 
-    fn restore(
+    pub(in crate::consumer) fn restore(
         fence: ShareFetchSessionFence,
         partitions: Vec<ShareFetchDeliveryPartition>,
         acquisitions: Vec<ShareAcquisition>,
