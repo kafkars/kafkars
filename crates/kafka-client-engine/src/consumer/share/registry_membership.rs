@@ -6,6 +6,7 @@ use crate::{clock::MonotonicClock, driver::DriverOwner};
 
 use super::{
     ShareMembershipError, registry::ShareConsumerRegistry, registry_close::ShareConsumerCloseTurn,
+    registry_fetch_routing::ShareFetchRoutingHostTurn,
     registry_heartbeat_due::ShareHeartbeatDueTurn,
     registry_heartbeat_settlement::ShareHeartbeatSettlementTurn,
     registry_heartbeat_submission::ShareHeartbeatSubmissionTurn,
@@ -69,15 +70,28 @@ impl ShareConsumerRegistry {
         if self.prepare_one_heartbeat_due(now, clock)? == ShareHeartbeatDueTurn::Progress {
             return Ok(ShareMembershipTurn::Progress);
         }
-        Ok(match self.submit_one_heartbeat(now, clock, driver)? {
-            ShareHeartbeatSubmissionTurn::Progress => ShareMembershipTurn::Progress,
-            ShareHeartbeatSubmissionTurn::Blocked => ShareMembershipTurn::Blocked,
-            ShareHeartbeatSubmissionTurn::Idle
-                if heartbeat_blocked || topic_blocked || invalidation_blocked || close_blocked =>
+        let heartbeat_submission_blocked = match self.submit_one_heartbeat(now, clock, driver)? {
+            ShareHeartbeatSubmissionTurn::Progress => return Ok(ShareMembershipTurn::Progress),
+            ShareHeartbeatSubmissionTurn::Blocked => true,
+            ShareHeartbeatSubmissionTurn::Idle => false,
+        };
+        let fetch_blocked = match self.turn_one_fetch_routing(now, clock, driver)? {
+            ShareFetchRoutingHostTurn::Progress => return Ok(ShareMembershipTurn::Progress),
+            ShareFetchRoutingHostTurn::Blocked => true,
+            ShareFetchRoutingHostTurn::Idle => false,
+        };
+        Ok(
+            if heartbeat_blocked
+                || topic_blocked
+                || invalidation_blocked
+                || close_blocked
+                || heartbeat_submission_blocked
+                || fetch_blocked
             {
                 ShareMembershipTurn::Blocked
-            }
-            ShareHeartbeatSubmissionTurn::Idle => ShareMembershipTurn::Idle,
-        })
+            } else {
+                ShareMembershipTurn::Idle
+            },
+        )
     }
 }

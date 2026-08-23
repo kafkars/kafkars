@@ -16,6 +16,11 @@ impl ShareConsumerRegistry {
         while let Some(mut entry) = self.entries.pop() {
             drop(entry.topic_call.take());
             drop(entry.heartbeat_call.take());
+            if let Some(routing) = entry.fetch_mut().routing_mut() {
+                let _recovered = routing.recover_after_driver_shutdown();
+            }
+            drop(entry.fetch_mut().take_routing());
+            drop(entry.fetch_mut().take_routed());
             if let Some(membership) = &mut entry.membership
                 && membership.machine().phase() != ShareGroupHeartbeatPhase::Closed
             {

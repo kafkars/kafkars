@@ -158,7 +158,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request.rs", lines = 326, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request_test.rs", lines = 492, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 99, reason = "the declarative consumer facade names direct, group, and share membership ownership beside registered batch control and terminal-observable seek" },
-  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 114, reason = "the declarative share facade also names assignment-wide and driver-authoritative ShareFetch routing, broker-local planning, decoded acquisition ownership, prepared sessions, tracked execution and settlement, and sibling evidence" },
+  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 118, reason = "the declarative share facade also names hosted assignment-wide and driver-authoritative ShareFetch routing, broker-local planning, decoded acquisition ownership, prepared sessions, tracked execution and settlement, and sibling evidence" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -479,6 +479,29 @@ allowed_paths = ["crates/kafka-client-engine/src/consumer/share/fetch_routing.rs
 owner_type = "ShareFetchRoutingOwner"
 field = "fault"
 allowed_paths = ["crates/kafka-client-engine/src/consumer/share/fetch_routing.rs"]
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/registry_fetch_routing.rs"
+test = "crates/kafka-client-engine/src/consumer/share/registry_fetch_routing_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchEntryState"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_state.rs"
+
+[[mutation_owners]]
+owner_type = "ShareFetchEntryState"
+field = "routing"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/share/fetch_state.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareFetchEntryState"
+field = "routed"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/share/fetch_state.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareFetchEntryState"
+field = "fault"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/share/fetch_state.rs"]
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/share/fetch_acquisition_decode.rs"
@@ -17951,6 +17974,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/registry_heartbeat_settlement.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_heartbeat_submission.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_invalidation.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_fetch_routing.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_membership.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_close.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
@@ -18044,6 +18068,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/entry.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_heartbeat_due.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_heartbeat_submission.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_fetch_routing.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
 ]
 
