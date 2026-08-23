@@ -96,6 +96,38 @@ fn contended_registration_returns_exact_names_and_defers_one_host_lock() {
     );
 }
 
+#[test]
+fn control_close_captures_once_before_host_progress_and_closes_admission() {
+    let (owner, port, wake) = setup(false);
+    let admission = port
+        .try_register(Arc::from("workers"), None, vec![Arc::from("jobs")])
+        .unwrap_or_else(|_failure| panic!("registration"));
+    let before = port
+        .capture_deadline_after(Duration::from_secs(30))
+        .unwrap_or_else(|error| panic!("before: {error:?}"));
+    port.request_control_close(Duration::from_secs(30))
+        .unwrap_or_else(|error| panic!("control close: {error:?}"));
+    let after = port
+        .capture_deadline_after(Duration::from_secs(30))
+        .unwrap_or_else(|error| panic!("after: {error:?}"));
+
+    let registry = owner.lock_registry_for_test();
+    let close = registry
+        .entry(admission.group_id())
+        .and_then(super::entry::ShareConsumerEntry::close)
+        .unwrap_or_else(|| panic!("captured close"));
+    assert!(close.deadline() >= before.deadline());
+    assert!(close.deadline() <= after.deadline());
+    assert_eq!(wake.requests.load(Ordering::Relaxed), 2);
+    drop(registry);
+
+    let rejected = port
+        .try_register(Arc::from("later"), None, vec![Arc::from("later-topic")])
+        .err()
+        .unwrap_or_else(|| panic!("closed admission must reject"));
+    assert_eq!(rejected.source, ShareRegistrationPortFailureSource::Closed);
+}
+
 fn setup(
     fail: bool,
 ) -> (

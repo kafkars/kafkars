@@ -64,10 +64,12 @@ fn shutdown_closes_and_removes_registered_share_member() {
     let (registry, mut driver) = setup();
     let clock = Arc::new(crate::clock::MonotonicClock::new());
     let owner = ShareConsumerShardOwner::new(registry, Arc::clone(&clock), Arc::new(NoopWake));
-    let _registration = owner
-        .admission_port()
+    let port = owner.admission_port();
+    let _registration = port
         .try_register(Arc::from("workers"), None, vec![Arc::from("jobs")])
         .unwrap_or_else(|_error| panic!("register"));
+    port.request_control_close(Duration::from_secs(30))
+        .unwrap_or_else(|error| panic!("control close: {error:?}"));
 
     let first = drive_shard(&owner, &clock, &driver, true, Moment::from_tick(0))
         .unwrap_or_else(|error| panic!("first close turn: {error}"));

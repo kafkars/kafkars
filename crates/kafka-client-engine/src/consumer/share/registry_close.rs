@@ -30,6 +30,10 @@ pub(crate) enum ShareConsumerCloseAdmissionError {
 }
 
 impl ShareConsumerRegistry {
+    pub(crate) fn has_unclosed_entries(&self) -> bool {
+        self.entries.iter().any(|entry| !entry.has_close())
+    }
+
     pub(crate) fn begin_explicit_close(
         &mut self,
         group_id: GroupId,

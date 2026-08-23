@@ -97,7 +97,7 @@ pub use super::group_start::{
     GroupConsumerStartErrorKind, GroupConsumerStartupFailureKind,
 };
 pub(crate) use super::share::{
-    ShareConsumerRegistry, ShareConsumerShardLockError, ShareConsumerShardOwner,
+    ShareConsumerPort, ShareConsumerRegistry, ShareConsumerShardLockError, ShareConsumerShardOwner,
     ShareConsumerShardWake, ShareConsumerShardWakeError, ShareMembershipHostError,
     ShareMembershipTurn,
 };
