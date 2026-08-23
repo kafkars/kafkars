@@ -242,6 +242,14 @@ production = "crates/kafka-client-core/src/consumer/consumer_group/rediscovery.r
 test = "crates/kafka-client-core/src/consumer/consumer_group/rediscovery_retry_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/share_consumer/machine.rs"
+test = "crates/kafka-client-core/src/consumer/share_consumer/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/share_consumer/rediscovery.rs"
+test = "crates/kafka-client-core/src/consumer/share_consumer/retry_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_success_settlement/effects.rs"
 test = "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_success_settlement/awaiting_assignment_test.rs"
 

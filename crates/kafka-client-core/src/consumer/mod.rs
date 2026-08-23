@@ -1,4 +1,4 @@
-//! Deterministic direct-assignment consumer ownership and fetch-position policy.
+//! Deterministic direct, group, and share-consumer ownership policy.
 
 mod assignment_retirement;
 mod assignment_retirement_transition;
@@ -27,8 +27,8 @@ mod position_state;
 mod read_isolation;
 mod resolved_assignment;
 mod resolved_assignment_install;
+mod share_consumer;
 mod transition;
-
 pub use exports::*;
 #[cfg(test)]
 mod assignment_retirement_input_test;
