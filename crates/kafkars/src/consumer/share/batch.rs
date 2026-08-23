@@ -2,7 +2,10 @@
 
 use crate::bridge::share_consumer::ShareConsumerBatch as BridgeBatch;
 
-use super::{ShareConsumerRecord, ShareConsumerRecords};
+use super::{
+    ShareAcknowledgement, ShareAcknowledgementBuildError, ShareConsumerRecord,
+    ShareConsumerRecords, ShareRecordDecision,
+};
 
 /// One response-wide share delivery and its exact broker acquisitions.
 ///
@@ -47,6 +50,30 @@ impl ShareConsumerBatch {
     /// Iterates normalized application records without copying their bytes.
     pub fn iter(&self) -> ShareConsumerRecords<'_> {
         self.records()
+    }
+
+    /// Consumes this batch into one `Accept` decision for every record.
+    pub fn accept_all(self) -> Result<ShareAcknowledgement, ShareAcknowledgementBuildError> {
+        self.inner
+            .accept_all()
+            .map(ShareAcknowledgement::from_bridge)
+            .map_err(ShareAcknowledgementBuildError::from_bridge)
+    }
+
+    /// Consumes this batch and exact record decisions into one acknowledgement.
+    pub fn into_acknowledgement(
+        self,
+        decisions: Vec<ShareRecordDecision>,
+    ) -> Result<ShareAcknowledgement, ShareAcknowledgementBuildError> {
+        self.inner
+            .into_acknowledgement(
+                decisions
+                    .into_iter()
+                    .map(ShareRecordDecision::into_bridge)
+                    .collect(),
+            )
+            .map(ShareAcknowledgement::from_bridge)
+            .map_err(ShareAcknowledgementBuildError::from_bridge)
     }
 }
 

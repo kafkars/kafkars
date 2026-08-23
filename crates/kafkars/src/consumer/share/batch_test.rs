@@ -1,6 +1,9 @@
 //! Public linear share-batch and borrowed record-view contract.
 
-use super::{ShareConsumerBatch, ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords};
+use super::{
+    ShareAcknowledgement, ShareAcknowledgementBuildError, ShareConsumerBatch, ShareConsumerHeader,
+    ShareConsumerRecord, ShareConsumerRecords, ShareDisposition, ShareRecordDecision,
+};
 
 macro_rules! assert_not_impl {
     ($type:ty: $trait:path) => {
@@ -26,6 +29,9 @@ fn share_batch_is_send_linear_and_exposes_borrowed_record_facts() {
         let _: usize = batch.acquisition_count();
         let _: ShareConsumerRecords<'_> = batch.records();
     }
+    fn acknowledgement_contract(batch: ShareConsumerBatch) {
+        let _: Result<ShareAcknowledgement, ShareAcknowledgementBuildError> = batch.accept_all();
+    }
     fn record_contract(record: &ShareConsumerRecord<'_>) {
         let _: &str = record.topic();
         let _: u32 = record.partition();
@@ -35,11 +41,23 @@ fn share_batch_is_send_linear_and_exposes_borrowed_record_facts() {
         let _: Option<&[u8]> = record.key();
         let _: Option<&[u8]> = record.value();
         let _: Vec<ShareConsumerHeader<'_>> = record.headers().collect();
+        let decision = record.decision(ShareDisposition::Release);
+        let _: i64 = decision.offset();
+        let _: ShareDisposition = decision.disposition();
     }
 
     require_send::<ShareConsumerBatch>();
     assert_not_impl!(ShareConsumerBatch: Clone);
     assert_not_impl!(ShareConsumerBatch: Copy);
     let _ = batch_contract as fn(&ShareConsumerBatch);
+    let _ = acknowledgement_contract as fn(ShareConsumerBatch);
+    let _: fn(
+        ShareConsumerBatch,
+        Vec<ShareRecordDecision>,
+    ) -> Result<ShareAcknowledgement, ShareAcknowledgementBuildError> =
+        ShareConsumerBatch::into_acknowledgement;
     let _ = record_contract as fn(&ShareConsumerRecord<'_>);
+    require_send::<ShareAcknowledgement>();
+    assert_not_impl!(ShareAcknowledgement: Clone);
+    assert_not_impl!(ShareAcknowledgement: Copy);
 }
