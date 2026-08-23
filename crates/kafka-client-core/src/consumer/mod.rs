@@ -1,5 +1,4 @@
 //! Deterministic direct, group, and share-consumer ownership policy.
-
 mod assignment_retirement;
 mod assignment_retirement_transition;
 mod batch_control;
@@ -28,6 +27,7 @@ mod read_isolation;
 mod resolved_assignment;
 mod resolved_assignment_install;
 mod share_consumer;
+mod share_fetch;
 mod transition;
 pub use exports::*;
 #[cfg(test)]

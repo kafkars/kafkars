@@ -89,3 +89,15 @@ pub use super::share_consumer::{
     ShareGroupHeartbeatRetrySchedule, ShareGroupHeartbeatSchedule, ShareGroupHeartbeatSequence,
     ShareGroupHeartbeatTransition, ShareGroupMemberEpoch,
 };
+pub use super::share_fetch::{
+    SHARE_FETCH_MAX_PARTITIONS_PER_BROKER, ShareAcquiredOffsets, ShareAcquiredRange,
+    ShareAcquiredRangeError, ShareAcquisition, ShareAcquisitionAdmissionError,
+    ShareAcquisitionAdmissionErrorKind, ShareAcquisitionGeneration, ShareAcquisitionLedger,
+    ShareAcquisitionPhase, ShareAcquisitionPolicy, ShareAcquisitionPolicyError,
+    ShareAcquisitionRelease, ShareConnectionGeneration, ShareDeliveryCount,
+    ShareFetchAssignmentGeneration, ShareFetchAttempt, ShareFetchBrokerId,
+    ShareFetchSessionApplyError, ShareFetchSessionEpoch, ShareFetchSessionErrorKind,
+    ShareFetchSessionFence, ShareFetchSessionMachine, ShareFetchSessionOpenError,
+    ShareFetchSessionPhase, ShareFetchSettlementError, ShareFetchSettlementErrorKind,
+    ShareRouteGeneration, ShareTopicUuid,
+};
