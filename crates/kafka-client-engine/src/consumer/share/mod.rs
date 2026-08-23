@@ -57,6 +57,7 @@ pub(super) use catalog::ShareTopicIdentity;
 #[cfg(test)]
 pub(super) use membership::ShareMembershipFailureTurn;
 pub(super) use membership::{ShareMembershipError, ShareMembershipInterpreter};
+pub(crate) use port::ShareConsumerPort;
 pub(crate) use registry::ShareConsumerRegistry;
 pub(crate) use registry_membership::{ShareMembershipHostError, ShareMembershipTurn};
 #[cfg(test)]

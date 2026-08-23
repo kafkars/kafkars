@@ -39,7 +39,7 @@ use crate::{
         update_features::UpdateFeaturesAdmissionPort,
     },
     clock::MonotonicClock,
-    consumer::{AssignedConsumerPort, GroupConsumerPort},
+    consumer::{AssignedConsumerPort, GroupConsumerPort, ShareConsumerPort},
     producer::ingress::ProducerAdmissionPort,
     transaction::TransactionInitializationAdmissionPort,
 };
@@ -104,6 +104,7 @@ pub(crate) struct StartedEngineHost {
     pub(crate) remove_consumer_group_members_admission: RemoveConsumerGroupMembersAdmissionPort,
     pub(crate) assigned_consumer: AssignedConsumerPort,
     pub(crate) group_consumer: GroupConsumerPort,
+    pub(crate) share_consumer: ShareConsumerPort,
     pub(crate) transaction_initialization: TransactionInitializationAdmissionPort,
     pub(crate) clock: Arc<MonotonicClock>,
     pub(crate) control: Arc<EngineHostControl>,

@@ -58,7 +58,7 @@ pub(super) fn drive_shard(
             return Err(EngineHostError::ShareConsumerLockPoisoned);
         }
     };
-    if shutdown {
+    if shutdown && registry.has_unclosed_entries() {
         let capture = clock
             .capture_deadline_after(SHARE_CONTROL_CLOSE_TIMEOUT)
             .map_err(EngineHostError::Clock)?;

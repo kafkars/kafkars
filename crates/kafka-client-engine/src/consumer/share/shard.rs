@@ -133,6 +133,14 @@ impl ShareConsumerShardState {
         result
     }
 
+    pub(super) fn control_registry(&self) -> ShareConsumerRegistryGuard<'_> {
+        let registry = self
+            .registry_owner_share
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        ShareConsumerRegistryGuard(registry)
+    }
+
     fn try_registry_raw(
         &self,
     ) -> Result<ShareConsumerRegistryGuard<'_>, ShareConsumerShardLockError> {

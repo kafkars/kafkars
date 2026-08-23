@@ -110,6 +110,16 @@ impl ShareConsumerPort {
             wake: self.shared.request_turn().err(),
         })
     }
+
+    pub(crate) fn request_control_close(&self, timeout: Duration) -> Result<(), ClockError> {
+        let capture = self.capture_deadline_after(timeout)?;
+        self.shared.close_admission();
+        let mut registry = self.shared.control_registry();
+        registry.request_control_close(capture);
+        drop(registry);
+        let _wake = self.shared.request_turn();
+        Ok(())
+    }
 }
 
 #[must_use = "accepted share registration retains any wake failure"]

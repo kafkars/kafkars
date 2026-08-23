@@ -6,8 +6,6 @@ mod list_offsets;
 mod list_partition_reassignments;
 mod share_group_offsets;
 
-use std::sync::Arc;
-
 use super::{
     EngineHostControl, EngineHostResources, EngineLifecycle, EngineStartError,
     alter_consumer_group_offsets_start, assigned_consumer_start, describe_configs_start,
@@ -41,11 +39,11 @@ use crate::{
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
-    consumer::{GroupConsumerShardOwner, ShareConsumerShardOwner},
+    consumer::{GroupConsumerShardOwner, ShareConsumerShardOwner as ShareShardOwner},
     driver::DriverOwner,
     producer::ingress::ProducerShardOwner,
 };
-use admin_hosts::StartedAdminHosts;
+use std::sync::Arc;
 
 #[allow(clippy::too_many_lines)]
 pub(crate) fn start(
@@ -95,7 +93,7 @@ pub(crate) fn start(
             return cancel_start(sender, handle, EngineStartError::admin_notifier(&error));
         }
     };
-    let StartedAdminHosts {
+    let admin_hosts::StartedAdminHosts {
         abort_partition_transaction,
         add_raft_voter,
         remove_raft_voter,
@@ -174,7 +172,8 @@ pub(crate) fn start(
     let (group_consumers, group_consumer) =
         GroupConsumerShardOwner::new(group_consumers, Arc::clone(&clock), Arc::clone(&wake));
     let share_consumers =
-        ShareConsumerShardOwner::new(share_consumers, Arc::clone(&clock), Arc::clone(&wake));
+        ShareShardOwner::new(share_consumers, Arc::clone(&clock), Arc::clone(&wake));
+    let share_consumer = share_consumers.admission_port();
     let producer = ProducerShardOwner::new(producer, Arc::clone(&wake));
     let admission = producer.admission_port();
     let abort_partition_transaction = AbortPartitionTransactionShardOwner::new(
@@ -497,6 +496,7 @@ pub(crate) fn start(
         remove_consumer_group_members_admission,
         assigned_consumer,
         group_consumer,
+        share_consumer,
         transaction_initialization: transaction_initialization_admission,
         clock,
         control,

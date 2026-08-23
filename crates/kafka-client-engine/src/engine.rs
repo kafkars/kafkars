@@ -1,6 +1,7 @@
 //! Shared public owner of one reactor-native execution host.
 
 mod admin;
+mod shutdown_admission;
 
 use std::sync::Arc;
 
@@ -88,6 +89,7 @@ pub(crate) struct EngineInner {
     assigned_consumer: crate::consumer::AssignedConsumerClaimSlot,
     assigned_consumer_admission: crate::consumer::AssignedConsumerAdmissionCloser,
     pub(crate) group_consumer: crate::consumer::GroupConsumerPort,
+    pub(crate) share_consumer: crate::consumer::ShareConsumerPort,
     pub(crate) transaction_initialization:
         crate::transaction::TransactionInitializationAdmissionPort,
     clock: Arc<crate::clock::MonotonicClock>,
@@ -161,6 +163,7 @@ impl Engine {
             remove_consumer_group_members_admission,
             assigned_consumer,
             group_consumer,
+            share_consumer,
             transaction_initialization,
             clock,
             control,
@@ -229,6 +232,7 @@ impl Engine {
                 assigned_consumer,
                 assigned_consumer_admission,
                 group_consumer,
+                share_consumer,
                 transaction_initialization,
                 clock,
                 control,
@@ -311,14 +315,6 @@ impl EngineInner {
     fn shutdown(&self) -> Result<(), EngineShutdownError> {
         self.close_admission();
         self.lifecycle.request_and_wait(&self.control)
-    }
-
-    fn close_admission(&self) {
-        let _close_result = self.admission.close_admission();
-        self.close_admin_admission();
-        let _close_result = self.assigned_consumer_admission.close();
-        self.group_consumer.close_admission();
-        self.transaction_initialization.close_admission();
     }
 }
 
