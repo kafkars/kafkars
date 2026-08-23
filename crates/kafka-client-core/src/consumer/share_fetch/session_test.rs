@@ -3,8 +3,8 @@
 use core::fmt::Debug;
 
 use crate::{
-    AssignedTopicPartition, ByteCount, Deadline, GroupId, MemberId, Moment, PartitionIndex,
-    ShareGroupMemberEpoch, TopicId,
+    AssignedTopicPartition, ByteCount, Deadline, DeliveryStatus, GroupId, MemberId, Moment,
+    PartitionIndex, ShareGroupMemberEpoch, TopicId,
 };
 
 use super::{
@@ -114,6 +114,35 @@ fn stale_attempt_cannot_mutate_the_current_owner() {
     assert_eq!(machine.in_flight(), Some(live));
     assert_eq!(machine.phase(), ShareFetchSessionPhase::InFlight);
     assert!(machine.ledger().is_empty());
+}
+
+#[test]
+fn definitely_unsent_failure_reopens_the_same_session_without_advancing_epoch() {
+    let mut machine = machine(vec![partition(1, 0)]);
+    let attempt = okay(machine.prepare_fetch(Deadline::from_tick(30), Moment::from_tick(10)));
+    okay(machine.settle_failure(attempt, DeliveryStatus::NotSent));
+
+    assert_eq!(machine.phase(), ShareFetchSessionPhase::Ready);
+    assert_eq!(machine.in_flight(), None);
+    assert_eq!(machine.fence(), attempt.fence());
+    let replacement = okay(machine.prepare_fetch(Deadline::from_tick(40), Moment::from_tick(11)));
+    assert_eq!(replacement.fence(), attempt.fence());
+}
+
+#[test]
+fn possibly_sent_failure_loses_the_session_and_stale_facts_cannot_reopen_it() {
+    let mut machine = machine(vec![partition(1, 0)]);
+    let attempt = okay(machine.prepare_fetch(Deadline::from_tick(30), Moment::from_tick(10)));
+    okay(machine.settle_failure(attempt, DeliveryStatus::PossiblySent));
+
+    assert_eq!(machine.phase(), ShareFetchSessionPhase::Lost);
+    assert_eq!(machine.in_flight(), None);
+    let error = rejected(machine.settle_failure(attempt, DeliveryStatus::NotSent));
+    assert_eq!(
+        error.kind(),
+        super::ShareFetchSessionErrorKind::InvalidState
+    );
+    assert_eq!(machine.phase(), ShareFetchSessionPhase::Lost);
 }
 
 fn machine(assignment: Vec<AssignedTopicPartition>) -> ShareFetchSessionMachine {
