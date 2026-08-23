@@ -51,16 +51,6 @@ impl ShareAcquisition {
     pub const fn range(&self) -> ShareAcquiredRange {
         self.range
     }
-
-    pub(super) const fn into_parts(
-        self,
-    ) -> (
-        ShareAcquisitionGeneration,
-        ShareFetchSessionFence,
-        ShareAcquiredRange,
-    ) {
-        (self.generation, self.fence, self.range)
-    }
 }
 
 /// Ledger-owned correlation facts for one live broker lock.

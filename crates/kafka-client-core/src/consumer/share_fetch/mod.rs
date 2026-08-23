@@ -3,6 +3,7 @@
 mod acquisition;
 mod identity;
 mod ledger;
+mod ledger_delivery;
 mod ledger_retirement;
 mod model;
 mod policy;
@@ -15,6 +16,7 @@ pub use identity::{
     ShareFetchBrokerId, ShareFetchSessionEpoch, ShareFetchSessionFence,
 };
 pub use ledger::ShareAcquisitionLedger;
+pub use ledger_delivery::ShareAcquisitionBatchError;
 pub use model::{
     ShareAcquiredOffsets, ShareAcquiredRange, ShareAcquiredRangeError, ShareDeliveryCount,
     ShareTopicUuid,
@@ -31,6 +33,8 @@ pub use session_error::{
     ShareFetchSettlementError, ShareFetchSettlementErrorKind,
 };
 
+#[cfg(test)]
+mod ledger_delivery_test;
 #[cfg(test)]
 mod ledger_retirement_test;
 #[cfg(test)]

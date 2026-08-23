@@ -3,46 +3,20 @@
 use crate::{ByteCount, Moment};
 
 use super::{
-    ShareAcquisition, ShareAcquisitionAdmissionErrorKind as ErrorKind, ShareAcquisitionLedger,
-    ShareAcquisitionPhase, ShareAcquisitionRelease, ShareFetchSessionFence,
+    ShareAcquisitionAdmissionErrorKind as ErrorKind, ShareAcquisitionLedger, ShareAcquisitionPhase,
+    ShareAcquisitionRelease, ShareFetchSessionFence,
 };
 
 impl ShareAcquisitionLedger {
-    /// Consumes one exact delivered capability without sending broker acknowledgement.
-    pub fn abandon(
-        &mut self,
-        acquisition: ShareAcquisition,
-    ) -> Result<ShareAcquisitionRelease, ErrorKind> {
-        let (generation, fence, range) = acquisition.into_parts();
-        let entry = self
-            .entries
-            .iter_mut()
-            .find(|entry| entry.generation == generation)
-            .ok_or(ErrorKind::InvalidOwnership)?;
-        if entry.fence != fence
-            || entry.range != range
-            || entry.phase != ShareAcquisitionPhase::Delivered
-        {
-            return Err(ErrorKind::InvalidOwnership);
-        }
-        let retained_bytes = entry.range.retained_bytes();
-        self.retained_bytes = self
-            .retained_bytes
-            .checked_sub(retained_bytes)
-            .ok_or(ErrorKind::AccountingInvariant)?;
-        entry.phase = ShareAcquisitionPhase::Abandoned;
-        Ok(ShareAcquisitionRelease::new(generation, retained_bytes))
-    }
-
     /// Retires at most one expired range and returns its remaining local byte charge.
     pub fn expire_one(
         &mut self,
         now: Moment,
     ) -> Result<Option<ShareAcquisitionRelease>, ErrorKind> {
-        let index = self
-            .entries
-            .iter()
-            .position(|entry| entry.range.lock_deadline().is_elapsed_at(now));
+        let index = self.entries.iter().position(|entry| {
+            entry.phase != ShareAcquisitionPhase::Delivered
+                && entry.range.lock_deadline().is_elapsed_at(now)
+        });
         self.retire_index(index)
     }
 
@@ -51,7 +25,9 @@ impl ShareAcquisitionLedger {
         &mut self,
         fence: ShareFetchSessionFence,
     ) -> Result<Option<ShareAcquisitionRelease>, ErrorKind> {
-        let index = self.entries.iter().position(|entry| entry.fence == fence);
+        let index = self.entries.iter().position(|entry| {
+            entry.fence == fence && entry.phase != ShareAcquisitionPhase::Delivered
+        });
         self.retire_index(index)
     }
 

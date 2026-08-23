@@ -4,7 +4,7 @@ use crate::{ByteCount, Moment};
 
 use super::{
     ShareAcquisitionAdmissionErrorKind,
-    test_support::{fence, ledger, okay, range, rejected, some},
+    test_support::{fence, ledger, okay, range, rejected},
 };
 
 #[test]
@@ -13,8 +13,13 @@ fn admission_is_atomic_bounded_and_generation_fenced() {
     let ranges = vec![range(1, 1, 0, 1, 2, 10, 50), range(1, 1, 2, 3, 2, 10, 50)];
     let admitted = okay(ledger.try_admit(fence(1), Moment::from_tick(10), ranges));
     assert_eq!(admitted, 2);
-    let first = some(ledger.claim_next(Moment::from_tick(10)));
-    let second = some(ledger.claim_next(Moment::from_tick(10)));
+    let delivery = okay(ledger.claim_batch(fence(1), 2, Moment::from_tick(10)));
+    let first = delivery
+        .first()
+        .unwrap_or_else(|| panic!("first acquisition"));
+    let second = delivery
+        .get(1)
+        .unwrap_or_else(|| panic!("second acquisition"));
     assert_eq!(first.generation().get(), 1);
     assert_eq!(second.generation().get(), 2);
     assert_eq!(ledger.retained_records(), 4);
