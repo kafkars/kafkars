@@ -168,7 +168,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs", lines = 297, reason = "AddOffsetsToTxn retains one explicit call, causal coordinator refresh, terminal delivery, and abort-required ownership state machine" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs", lines = 256, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc/unregister_broker_terminal.rs", lines = 242, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/driver/rpc.rs", lines = 668, reason = "the declarative driver RPC facade explicitly names the bounded group-commit coordinator-retry owner beside every concrete source-preview tracked lane without a glob capability bypass" },
+  { path = "crates/kafka-client-engine/src/driver/rpc.rs", lines = 669, reason = "the declarative driver RPC facade explicitly names the bounded group-commit coordinator-retry owner and ShareGroupHeartbeat beside every concrete source-preview tracked lane without a glob capability bypass" },
   { path = "crates/kafka-client-engine/src/engine.rs", lines = 342, reason = "the engine composition root retains common configuration and admission ports while Admin capture methods live in a focused child seam" },
   { path = "crates/kafka-client-engine/src/engine_host/admin/recovery.rs", lines = 251, reason = "the Admin recovery dispatcher exhaustively returns each concrete tracked owner to its exact bounded host after driver shutdown" },
   { path = "crates/kafka-client-engine/src/engine_host/admin/schedule.rs", lines = 451, reason = "the fair Admin scheduler drives every bounded source-preview operation once per fresh-time host cycle" },
@@ -192,7 +192,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request.rs", lines = 298, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members.rs", lines = 270, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members_test.rs", lines = 302, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/protocol/consumer/mod.rs", lines = 94, reason = "the declarative consumer protocol facade names classic-group, Fetch, position, and offset-commit protocol ownership including static membership" },
+  { path = "crates/kafka-client-engine/src/protocol/consumer/mod.rs", lines = 88, reason = "the declarative consumer protocol facade names classic-group, Fetch, share-heartbeat, position, and offset-commit protocol ownership including static membership" },
   { path = "crates/kafka-client-engine/src/public_api.rs", lines = 486, reason = "the engine crate facade explicitly reexports the complete typed Rust source-preview engine and operational metrics surface" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 265, reason = "the transaction-initialization settlement seam preserves its prior public failure taxonomy while the shared API 22 terminal now distinguishes compatibility for producer-fencing callers" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host.rs", lines = 245, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -211,7 +211,7 @@ baseline = [
 ]
 allow = [
   { path = "crates/kafka-client-core/src/admin/exports.rs", reason = "the explicit deterministic Admin export table names the complete source-preview policy vocabulary; splitting it is a facade-only follow-up after the preview surface settles", owner = "client-architecture", issue = "rust-beta-core-admin-exports-split" },
-  { path = "crates/kafka-client-engine/src/driver/rpc.rs", reason = "the explicit driver RPC facade names every concrete source-preview tracked lane; splitting the declaration table is a separate driver-wide shape change", owner = "client-architecture", issue = "rust-beta-driver-rpc-facade-split" },
+  { path = "crates/kafka-client-engine/src/driver/rpc.rs", reason = "the explicit driver RPC facade names every concrete source-preview tracked lane, including ShareGroupHeartbeat; splitting the declaration table is a separate driver-wide shape change", owner = "client-architecture", issue = "rust-beta-driver-rpc-facade-split" },
   { path = "crates/kafka-client-engine/src/admin/public_api.rs", reason = "the declarative Admin export surface remains explicit across the complete source-preview vocabulary; splitting the shared reexport table is a separate facade-only change", owner = "client-architecture", issue = "rust-beta-admin-public-api-split" },
   { path = "crates/kafka-client-engine/src/engine_host/start.rs", reason = "the composition root explicitly constructs every bounded source-preview owner and transfers exact ports; a further startup split is separate from operation implementation", owner = "client-architecture", issue = "rust-beta-engine-start-split" },
 ]
@@ -248,6 +248,18 @@ test = "crates/kafka-client-core/src/consumer/share_consumer/machine_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/share_consumer/rediscovery.rs"
 test = "crates/kafka-client-core/src/consumer/share_consumer/retry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/share_group/request.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/share_group/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/share_group/response.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/share_group/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/submission_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_success_settlement/effects.rs"
