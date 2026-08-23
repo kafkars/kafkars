@@ -2,7 +2,12 @@
 
 pub use crate::config::EngineShareConsumerFetchConfig;
 pub use crate::consumer::{
-    ShareAcknowledgement, ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind,
+    ShareAcknowledgeBrokerError, ShareAcknowledgeDeliveryStatus, ShareAcknowledgeFailure,
+    ShareAcknowledgeFailureKind, ShareAcknowledgeOutcome, ShareAcknowledgePartitionOutcome,
+    ShareAcknowledgeResponse, ShareAcknowledgement, ShareAcknowledgementAccepted,
+    ShareAcknowledgementAdmissionError, ShareAcknowledgementAdmissionErrorKind,
+    ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind,
+    ShareAcknowledgementObserver, ShareAcknowledgementObserverError,
     ShareConsumerAssignmentPartition, ShareConsumerBatch, ShareConsumerClose,
     ShareConsumerCloseAdmissionError, ShareConsumerCloseAdmissionErrorKind,
     ShareConsumerCloseError, ShareConsumerCloseErrorKind, ShareConsumerHandle, ShareConsumerHeader,

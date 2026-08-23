@@ -157,8 +157,8 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group_registration.rs", lines = 246, reason = "the public engine handle keeps capture-first registration, exact rejected request restoration, its sticky receive wake token, and unique operation entry points together" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request.rs", lines = 326, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request_test.rs", lines = 492, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 101, reason = "the declarative consumer facade names direct, group, and share membership ownership beside their linear batch and named receive boundaries" },
-  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 132, reason = "the declarative share facade names hosted ShareFetch routing, broker-local sessions, delivery reclamation, and bounded receive-notification ownership" },
+  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 102, reason = "the declarative consumer facade adds the public ShareAcknowledge admission and observation boundary beside share batches" },
+  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 149, reason = "the declarative share facade names acknowledgement completion, capture-first admission, hosted publication, and their sibling evidence beside ShareFetch ownership" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -651,6 +651,14 @@ production = "crates/kafka-client-engine/src/consumer/share/fetch_session.rs"
 test = "crates/kafka-client-engine/src/consumer/share/fetch_session_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/registry_acknowledgement.rs"
+test = "crates/kafka-client-engine/src/consumer/share/registry_acknowledgement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share_acknowledge/admission.rs"
+test = "crates/kafka-client-engine/src/consumer/share_acknowledge/admission_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement.rs"
 test = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_test.rs"
 
@@ -683,6 +691,50 @@ owner_type = "ShareAcknowledgementOwnershipFault"
 path = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/types.rs"
 
 [[linear_owners]]
+owner_type = "ShareAcknowledgementAdmissionParts"
+path = "crates/kafka-client-engine/src/consumer/share_batch/acknowledgement.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementRecovery"
+path = "crates/kafka-client-engine/src/consumer/share_batch/acknowledgement.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementCompletionOwner"
+path = "crates/kafka-client-engine/src/consumer/share_acknowledge/completion.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementAdmissionFailure"
+path = "crates/kafka-client-engine/src/consumer/share/registry_acknowledgement.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementPortAdmission"
+path = "crates/kafka-client-engine/src/consumer/share/share_acknowledgement_port.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementPortFailure"
+path = "crates/kafka-client-engine/src/consumer/share/share_acknowledgement_port.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementAdmissionError"
+path = "crates/kafka-client-engine/src/consumer/share_acknowledge/admission.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementAccepted"
+path = "crates/kafka-client-engine/src/consumer/share_acknowledge/admission.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementObserver"
+path = "crates/kafka-client-engine/src/consumer/share_acknowledge/observer.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgeFailure"
+path = "crates/kafka-client-engine/src/consumer/share_acknowledge/outcome.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgeOutcome"
+path = "crates/kafka-client-engine/src/consumer/share_acknowledge/outcome.rs"
+
+[[linear_owners]]
 owner_type = "PreparedShareFetchSession"
 path = "crates/kafka-client-engine/src/consumer/share/fetch_session.rs"
 
@@ -694,6 +746,9 @@ path = "crates/kafka-client-engine/src/consumer/share/fetch_session.rs"
 owner_type = "ShareFetchSessionOwner"
 field = "prepared_acknowledgement"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_session.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_execution.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_readiness.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/recovery.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/submission.rs",
@@ -703,6 +758,10 @@ allowed_paths = [
 owner_type = "ShareFetchSessionOwner"
 field = "active_acknowledgement"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_execution.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_readiness.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/recovery.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/settlement.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/submission.rs",
@@ -712,6 +771,11 @@ allowed_paths = [
 owner_type = "ShareFetchSessionOwner"
 field = "acknowledgement_terminal"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/submission.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_execution.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_readiness.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/settlement.rs",
 ]
 
@@ -719,6 +783,9 @@ allowed_paths = [
 owner_type = "ShareFetchSessionOwner"
 field = "acknowledgement_outcome"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_session.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_execution.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_readiness.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/recovery.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/settlement.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/submission.rs",
@@ -728,7 +795,20 @@ allowed_paths = [
 owner_type = "ShareFetchSessionOwner"
 field = "acknowledgement_faults"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_session.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_execution.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_readiness.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionOwner"
+field = "acknowledgement_completion"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_session.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_execution.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_readiness.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_completion.rs",
 ]
 
 [[linear_owners]]
@@ -18555,6 +18635,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/registry_membership.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_close.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_acknowledgement.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
 ]
 
@@ -18593,6 +18674,16 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/registry_close.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_close_notifier.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerRegistry"
+field = "acknowledgement_completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/registry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_acknowledgement.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_close_notifier.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_observation.rs",
 ]
 
 [[mutation_owners]]

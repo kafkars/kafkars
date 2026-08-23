@@ -2,7 +2,10 @@
 
 use kafka_client_core::{DeliveryStatus, ShareAcknowledgementApplyErrorKind};
 
-use crate::driver::{DriverOwner, ShareAcknowledgeCall, ShareAcknowledgeDriverSubmitErrorKind};
+use crate::driver::{
+    DriverOwner,
+    share_acknowledge::{ShareAcknowledgeCall, ShareAcknowledgeDriverSubmitErrorKind},
+};
 
 use super::{
     super::{

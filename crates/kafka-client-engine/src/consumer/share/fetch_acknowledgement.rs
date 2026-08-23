@@ -7,7 +7,7 @@ use kafka_client_core::{
 
 use crate::{
     clock::DeadlineCapture,
-    driver::{ShareAcknowledgeResolution, ShareAcknowledgeRoute},
+    driver::share_acknowledge::{ShareAcknowledgeResolution, ShareAcknowledgeRoute},
     protocol::consumer::share_acknowledge::{
         PreparedShareAcknowledgeRequest, ShareAcknowledgeRequestFailure, share_acknowledge_request,
     },
@@ -41,7 +41,7 @@ pub(super) struct ShareAcknowledgementPreparationFailure {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum ShareAcknowledgementPreparationFailureKind {
+pub(in crate::consumer) enum ShareAcknowledgementPreparationFailureKind {
     Core(ShareAcknowledgementApplyErrorKind),
     Protocol(ShareAcknowledgeRequestFailure),
     Rollback(ShareAcknowledgementApplyErrorKind),

@@ -114,7 +114,7 @@ impl ShareConsumerStartCapture {
 pub struct ShareConsumerHandle {
     pub(in crate::consumer) group_id: GroupId,
     pub(in crate::consumer) port: ShareConsumerPort,
-    pub(super) lifetime: Arc<dyn Send + Sync>,
+    pub(in crate::consumer) lifetime: Arc<dyn Send + Sync>,
     pub(super) close_timeout: Duration,
     pub(super) startup_wake_failed: bool,
     pub(super) _not_sync: PhantomData<Cell<()>>,

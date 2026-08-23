@@ -158,6 +158,7 @@ impl ShareFetchSessionOwner {
             || self.active_acknowledgement.is_some()
             || self.acknowledgement_terminal.is_some()
             || self.acknowledgement_outcome.is_some()
+            || self.acknowledgement_completion.is_some()
             || !self.acknowledgement_faults.is_empty()
             || !self.machine.ledger().is_empty()
         {

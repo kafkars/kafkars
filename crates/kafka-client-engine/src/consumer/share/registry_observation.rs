@@ -6,12 +6,19 @@ use super::{entry::ShareConsumerEntry, registry::ShareConsumerRegistry};
 
 impl ShareConsumerRegistry {
     pub(crate) fn unsettled(&self) -> usize {
-        self.invalidations.retained_count().saturating_add(
-            self.entries
-                .iter()
-                .map(ShareConsumerEntry::unsettled)
-                .sum::<usize>(),
-        )
+        self.invalidations
+            .retained_count()
+            .saturating_add(self.acknowledgement_completions.unsettled_len())
+            .saturating_add(
+                self.acknowledgement_completions
+                    .published_or_reclaiming_len(),
+            )
+            .saturating_add(
+                self.entries
+                    .iter()
+                    .map(ShareConsumerEntry::unsettled)
+                    .sum::<usize>(),
+            )
     }
 
     pub(crate) fn next_deadline(&self) -> Option<Deadline> {

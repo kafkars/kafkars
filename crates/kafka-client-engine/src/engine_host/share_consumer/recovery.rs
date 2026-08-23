@@ -15,6 +15,9 @@ pub(in crate::engine_host) fn recover(
     if let Some(notifier) = resources.share_consumers.take_close_notifier() {
         notifiers.push(notifier);
     }
+    if let Some(notifier) = resources.share_consumers.take_acknowledgement_notifier() {
+        notifiers.push(notifier);
+    }
     match resources.share_consumers.stop_recv_notifier() {
         Some(notifier) => notifiers.push(notifier),
         None => {

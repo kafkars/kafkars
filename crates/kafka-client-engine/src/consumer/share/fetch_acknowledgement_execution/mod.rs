@@ -9,7 +9,9 @@ mod types;
 mod execution_test;
 
 pub(in crate::consumer::share) use types::{
-    ActiveShareAcknowledgementCall, ShareAcknowledgementExecutionFailureKind,
-    ShareAcknowledgementExecutionOutcome, ShareAcknowledgementExecutionPoll,
+    ActiveShareAcknowledgementCall, ShareAcknowledgementExecutionPoll,
     ShareAcknowledgementOwnershipFault, ShareAcknowledgementSubmissionTurn,
+};
+pub(in crate::consumer) use types::{
+    ShareAcknowledgementExecutionFailureKind, ShareAcknowledgementExecutionOutcome,
 };

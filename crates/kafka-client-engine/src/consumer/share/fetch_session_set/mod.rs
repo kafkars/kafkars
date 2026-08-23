@@ -7,6 +7,9 @@ mod execution;
 mod owner;
 mod recovery;
 
+pub(in crate::consumer::share) use acknowledgement::{
+    ShareSessionAcknowledgementAdmissionFailure, ShareSessionAcknowledgementAdmissionFailureKind,
+};
 pub(in crate::consumer::share) use config::ShareFetchSessionConfig;
 pub(super) use owner::{
     ShareFetchSessionIdentity, ShareFetchSessionSet, ShareFetchSessionSetOpenError,

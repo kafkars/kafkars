@@ -13,6 +13,22 @@ impl ShareConsumerRegistry {
     pub(crate) fn recover_after_driver_shutdown(&mut self) -> Result<(), ShareMembershipHostError> {
         self.close_admission();
         self.invalidations.discard_share_after_driver_shutdown();
+        for entry in &mut self.entries {
+            if let Some(sessions) = entry.fetch_mut().sessions_mut() {
+                sessions
+                    .recover_after_driver_shutdown()
+                    .map_err(|_error| ShareMembershipHostError::EffectShape)?;
+            }
+        }
+        loop {
+            match self.turn_one_acknowledgement_completion()? {
+                super::registry_acknowledgement::ShareAcknowledgementCompletionTurn::Progress => {}
+                super::registry_acknowledgement::ShareAcknowledgementCompletionTurn::Idle => break,
+                super::registry_acknowledgement::ShareAcknowledgementCompletionTurn::Blocked => {
+                    return Err(ShareMembershipHostError::EffectShape);
+                }
+            }
+        }
         while let Some(mut entry) = self.entries.pop() {
             drop(entry.topic_call.take());
             drop(entry.heartbeat_call.take());
@@ -23,7 +39,7 @@ impl ShareConsumerRegistry {
             drop(entry.fetch_mut().take_routed());
             if let Some(sessions) = entry.fetch_mut().take_sessions() {
                 sessions
-                    .recover_after_driver_shutdown()
+                    .release_after_driver_shutdown()
                     .map_err(|_error| ShareMembershipHostError::EffectShape)?;
             }
             if let Some(membership) = &mut entry.membership

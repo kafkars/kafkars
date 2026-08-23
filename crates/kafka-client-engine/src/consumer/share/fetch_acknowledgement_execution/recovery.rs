@@ -5,7 +5,7 @@ use kafka_client_core::{
     ShareAcknowledgementApplyErrorKind, ShareAcknowledgementFailureSettlement,
 };
 
-use crate::driver::ShareAcknowledgeCompletionErrorKind;
+use crate::driver::share_acknowledge::ShareAcknowledgeCompletionErrorKind;
 
 use super::{
     super::fetch_session::ShareFetchSessionOwner, ShareAcknowledgementExecutionFailureKind,
@@ -26,6 +26,25 @@ impl ShareFetchSessionOwner {
                 ShareAcknowledgeCompletionErrorKind::Closed,
             ),
             delivery: DeliveryStatus::PossiblySent,
+            retry: None,
+        });
+        Ok(true)
+    }
+
+    pub(in crate::consumer::share) fn recover_prepared_acknowledgement_after_driver_shutdown(
+        &mut self,
+    ) -> Result<bool, ShareAcknowledgementExecutionFailureKind> {
+        let Some(prepared) = self.prepared_acknowledgement.take() else {
+            return Ok(false);
+        };
+        let acknowledgement = self.restore_not_sent(prepared.attempt, prepared.acknowledgement)?;
+        drop(prepared.request);
+        self.abandon_retry_acknowledgement(acknowledgement)?;
+        self.acknowledgement_outcome = Some(ShareAcknowledgementExecutionOutcome::Failed {
+            kind: ShareAcknowledgementExecutionFailureKind::Completion(
+                ShareAcknowledgeCompletionErrorKind::Closed,
+            ),
+            delivery: DeliveryStatus::NotSent,
             retry: None,
         });
         Ok(true)
