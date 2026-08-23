@@ -87,7 +87,6 @@ pub(super) fn consumer_recovers_fetch_across_leader_movement() -> Result<(), Tes
         let current = leader(&fixture).ok()?;
         (current != original_leader).then_some(current)
     })?;
-    stopped.restore()?;
     if replacement == original_leader {
         return Err(io::Error::other("consumer partition leader did not move").into());
     }
@@ -105,6 +104,13 @@ pub(super) fn consumer_recovers_fetch_across_leader_movement() -> Result<(), Tes
         "consumer post-movement seed",
     )??;
     require_direct_value(&mut consumer, b"after-move")?;
+    if leader(&fixture)? != replacement {
+        return Err(io::Error::other(
+            "replacement broker did not remain leader through post-movement fetch",
+        )
+        .into());
+    }
+    stopped.restore()?;
     consume::close_assigned(&mut consumer, "consumer movement close")?;
     nightly_support::close_producer(&producer, "consumer movement producer close")?;
     wait_within(
