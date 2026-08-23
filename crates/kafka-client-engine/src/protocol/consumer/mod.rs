@@ -12,6 +12,7 @@ mod list_offsets_model;
 mod list_offsets_request;
 mod list_offsets_response;
 mod list_offsets_time;
+pub(crate) mod share_acknowledge;
 pub(crate) mod share_fetch;
 pub(crate) mod share_group;
 

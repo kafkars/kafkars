@@ -193,7 +193,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request.rs", lines = 298, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members.rs", lines = 270, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members_test.rs", lines = 302, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/protocol/consumer/mod.rs", lines = 88, reason = "the declarative consumer protocol facade names classic-group, Fetch, share-heartbeat, position, and offset-commit protocol ownership including static membership" },
+  { path = "crates/kafka-client-engine/src/protocol/consumer/mod.rs", lines = 89, reason = "the declarative consumer protocol facade names classic-group, Fetch, share-heartbeat, ShareAcknowledge, position, and offset-commit protocol ownership including static membership" },
   { path = "crates/kafka-client-engine/src/public_api.rs", lines = 486, reason = "the engine crate facade explicitly reexports the complete typed Rust source-preview engine and operational metrics surface" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 265, reason = "the transaction-initialization settlement seam preserves its prior public failure taxonomy while the shared API 22 terminal now distinguishes compatibility for producer-fencing callers" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host.rs", lines = 245, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -419,6 +419,22 @@ path = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/request.rs"
 [[linear_owners]]
 owner_type = "ShareFetchCorrelation"
 path = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/model.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/request.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/response.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/response_test.rs"
+
+[[linear_owners]]
+owner_type = "PreparedShareAcknowledgeRequest"
+path = "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/request.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgeCorrelation"
+path = "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/model.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"
@@ -5352,6 +5368,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/describe_replica_log_dirs_call.rs",
   "crates/kafka-client-engine/src/protocol/admin/alter_share_group_offsets/request.rs",
   "crates/kafka-client-engine/src/protocol/admin/list_share_group_offsets/request.rs",
+  "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/request.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/broker_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs",
