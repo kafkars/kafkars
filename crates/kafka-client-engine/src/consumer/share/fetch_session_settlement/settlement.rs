@@ -98,6 +98,12 @@ impl ShareFetchSessionOwner {
                     self.commit_lock_timeout_ms(timeout_ms);
                 }
                 self.commit_throttle_until(throttle_until);
+                if acquisitions == 0 {
+                    terminal.route.accept();
+                    drop(decoded.endpoints);
+                    drop(decoded.partitions);
+                    return Ok(ShareFetchSettlementTurn::Empty);
+                }
                 self.staged = Some(StagedShareFetchDelivery {
                     fence: attempt.fence(),
                     route: terminal.route,
@@ -152,6 +158,7 @@ fn throttle_deadline(
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(in crate::consumer::share) enum ShareFetchSettlementTurn {
+    Empty,
     Acquired(usize),
 }
 
