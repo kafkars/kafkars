@@ -1,4 +1,4 @@
-//! ShareFetch record-to-acquisition correlation and fail-closed evidence.
+//! `ShareFetch` record-to-acquisition correlation and fail-closed evidence.
 
 use std::sync::Arc;
 
