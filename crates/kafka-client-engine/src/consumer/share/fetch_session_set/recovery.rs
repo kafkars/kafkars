@@ -7,7 +7,7 @@ use super::{
 
 impl ShareFetchSessionSet {
     pub(in crate::consumer::share) fn recover_after_driver_shutdown(
-        mut self,
+        &mut self,
     ) -> Result<(), ShareFetchExecutionError> {
         for session in &mut self.sessions {
             let _recovered_acknowledgement =
@@ -18,11 +18,21 @@ impl ShareFetchSessionSet {
                     .retain_settled_acknowledgement(outcome)
                     .map_err(|_outcome| ShareFetchExecutionError::Occupied)?;
             }
-            let _abandoned_outcome = session.abandon_acknowledgement_outcome()?;
-            let _abandoned_prepared = session.abandon_prepared_acknowledgement()?;
+            let _recovered_prepared =
+                session.recover_prepared_acknowledgement_after_driver_shutdown()?;
             let _recovered = session.recover_call_after_driver_shutdown()?;
             let _discarded = session.discard_terminal()?;
+            while session
+                .retire_one_reclaimable()
+                .map_err(ShareFetchExecutionError::Acquisition)?
+            {}
         }
+        Ok(())
+    }
+
+    pub(in crate::consumer::share) fn release_after_driver_shutdown(
+        self,
+    ) -> Result<(), ShareFetchExecutionError> {
         release_unsubmitted(self.sessions)
     }
 }

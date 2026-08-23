@@ -7,7 +7,10 @@ use kafka_client_core::{DeliveryStatus, ShareFetchSessionPhase};
 use crate::{
     EngineConfig,
     clock::MonotonicClock,
-    driver::{DriverOwner, ShareAcknowledgeResolution, ShareAcknowledgeRoute},
+    driver::{
+        DriverOwner,
+        share_acknowledge::{ShareAcknowledgeResolution, ShareAcknowledgeRoute},
+    },
     protocol::consumer::share_acknowledge::{
         ShareAcknowledgePartitionOutcome, ShareAcknowledgeSuccess,
     },

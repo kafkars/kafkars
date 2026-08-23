@@ -12,6 +12,7 @@ mod entry_identity;
 #[cfg(test)]
 mod entry_test;
 mod fetch_acknowledgement;
+mod fetch_acknowledgement_completion;
 mod fetch_acknowledgement_execution;
 #[cfg(test)]
 mod fetch_acknowledgement_test;
@@ -33,6 +34,7 @@ mod fetch_session_deadline;
 mod fetch_session_execution;
 #[cfg(test)]
 mod fetch_session_execution_test;
+mod fetch_session_readiness;
 mod fetch_session_set;
 mod fetch_session_settlement;
 #[cfg(test)]
@@ -58,6 +60,9 @@ mod public_state;
 mod public_state_test;
 mod registration_admission;
 mod registry;
+mod registry_acknowledgement;
+#[cfg(test)]
+mod registry_acknowledgement_test;
 mod registry_close;
 mod registry_close_notifier;
 #[cfg(test)]
@@ -98,12 +103,16 @@ mod shard;
 mod shard_delivery;
 mod shard_guard;
 mod shard_wake;
+mod share_acknowledgement_port;
 mod topic_identity_call;
 mod transition;
 
 pub(super) use catalog::ShareMembershipCatalog;
 #[cfg(test)]
 pub(super) use catalog::ShareTopicIdentity;
+pub(in crate::consumer) use fetch_acknowledgement_execution::{
+    ShareAcknowledgementExecutionFailureKind, ShareAcknowledgementExecutionOutcome,
+};
 pub(in crate::consumer) use fetch_delivery::{ShareFetchDelivery, ShareFetchDeliveryPartition};
 #[cfg(test)]
 pub(super) use membership::ShareMembershipFailureTurn;
@@ -135,3 +144,6 @@ pub(super) use registry_registration::{
 };
 pub(crate) use shard::{ShareConsumerShardLockError, ShareConsumerShardOwner};
 pub(crate) use shard_wake::{ShareConsumerShardWake, ShareConsumerShardWakeError};
+pub(in crate::consumer) use share_acknowledgement_port::{
+    ShareAcknowledgementPortAdmission, ShareAcknowledgementPortFailureSource,
+};

@@ -22,7 +22,6 @@ pub(crate) use delivery::{request_failure_delivery, request_failure_kind};
 pub(crate) use endpoint::EndpointError;
 pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
-pub(crate) use rpc::exports::ConsumerGroupHeartbeatRoute;
 pub(crate) use rpc::exports::{
     AdminListOffsetsCall, AdminListOffsetsDriverFailureKind, AdminListOffsetsTerminal,
     AdminListOffsetsTerminalFact, AlterPartitionReassignmentsCall,
@@ -32,7 +31,7 @@ pub(crate) use rpc::exports::{
     ClassicGroupLeaveCompletionError, ClassicGroupLeaveDriverFailureKind,
     ClassicGroupLeaveResolution, ClassicGroupLeaveRoute, ClassicGroupPositionResetCall,
     ClassicGroupPositionResetCompletionError, ClassicGroupPositionResetOutcome,
-    ClassicGroupPositionResetRoute, CreatePartitionsCompletionFailure,
+    ClassicGroupPositionResetRoute, ConsumerGroupHeartbeatRoute, CreatePartitionsCompletionFailure,
     CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DescribeClusterCalls,
     DescribeClusterCompletionFailure, DescribeConfigsCalls, DescribeConfigsCompletionFailure,
     DescribeTopicsCalls, DescribeTopicsCompletionFailure, FetchBeginSettlementError,
@@ -82,10 +81,7 @@ pub(crate) use rpc::exports::{
 };
 #[cfg(test)]
 pub(crate) use rpc::exports::{GroupPositionOffsetFetchTestPartition, RoutedBroker};
-pub(crate) use rpc::share_acknowledge::{
-    ShareAcknowledgeCall, ShareAcknowledgeCompletionErrorKind, ShareAcknowledgeDriverFailureKind,
-    ShareAcknowledgeDriverSubmitErrorKind, ShareAcknowledgeResolution, ShareAcknowledgeRoute,
-};
+pub(crate) use rpc::share_acknowledge;
 pub(crate) use rpc::{
     AbortPartitionTransactionCall, AbortPartitionTransactionDriverFailureKind,
     AbortPartitionTransactionRawTerminal, AbortPartitionTransactionTerminalFact, AddRaftVoterCall,

@@ -96,6 +96,16 @@ impl ShareConsumerShardOwner {
         self.terminal_registry().take_close_notifier()
     }
 
+    pub(crate) fn stop_acknowledgement_notifier(
+        &self,
+    ) -> Result<NotifierJoin, CompletionRegistryError> {
+        self.terminal_registry().stop_acknowledgement_notifier()
+    }
+
+    pub(crate) fn take_acknowledgement_notifier(&self) -> Option<NotifierJoin> {
+        self.terminal_registry().take_acknowledgement_notifier()
+    }
+
     pub(crate) fn recover_after_driver_shutdown(
         &self,
     ) -> Result<(), super::ShareMembershipHostError> {

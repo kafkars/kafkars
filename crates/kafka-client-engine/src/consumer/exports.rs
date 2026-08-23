@@ -108,6 +108,13 @@ pub(crate) use super::share::{
     ShareConsumerShardWake, ShareConsumerShardWakeError, ShareMembershipHostError,
     ShareMembershipTurn,
 };
+pub use super::share_acknowledge::{
+    ShareAcknowledgeBrokerError, ShareAcknowledgeDeliveryStatus, ShareAcknowledgeFailure,
+    ShareAcknowledgeFailureKind, ShareAcknowledgeOutcome, ShareAcknowledgePartitionOutcome,
+    ShareAcknowledgeResponse, ShareAcknowledgementAccepted, ShareAcknowledgementAdmissionError,
+    ShareAcknowledgementAdmissionErrorKind, ShareAcknowledgementObserver,
+    ShareAcknowledgementObserverError,
+};
 pub use super::share_batch::{
     ShareAcknowledgement, ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind,
     ShareConsumerBatch, ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords,

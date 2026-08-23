@@ -110,14 +110,18 @@ pub(in crate::consumer) fn finish(mut owner: ShareConsumerShardOwner, group_id: 
         .fetch_mut()
         .sessions_mut()
         .unwrap_or_else(|| panic!("sessions"));
-    assert_eq!(
-        sessions.abandon_turn(),
-        Ok(ShareFetchSessionSetTurn::Progress)
-    );
-    assert_eq!(
-        sessions.abandon_turn(),
-        Ok(ShareFetchSessionSetTurn::Released)
-    );
+    let mut released = false;
+    for _ in 0..16 {
+        match sessions.abandon_turn() {
+            Ok(ShareFetchSessionSetTurn::Progress) => {}
+            Ok(ShareFetchSessionSetTurn::Released) => {
+                released = true;
+                break;
+            }
+            other => panic!("unexpected session release turn: {other:?}"),
+        }
+    }
+    assert!(released, "bounded session release did not complete");
     let sessions = registry
         .entry_mut(group_id)
         .unwrap_or_else(|| panic!("entry"))

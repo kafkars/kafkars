@@ -18,10 +18,21 @@ impl ShareConsumerRegistry {
     pub(crate) fn take_close_notifier(&mut self) -> Option<NotifierJoin> {
         self.close_completions.take_notifier()
     }
+
+    pub(crate) fn stop_acknowledgement_notifier(
+        &mut self,
+    ) -> Result<NotifierJoin, CompletionRegistryError> {
+        self.acknowledgement_completions.stop_notifier()
+    }
+
+    pub(crate) fn take_acknowledgement_notifier(&mut self) -> Option<NotifierJoin> {
+        self.acknowledgement_completions.take_notifier()
+    }
 }
 
 impl Drop for ShareConsumerRegistry {
     fn drop(&mut self) {
         drop(self.take_close_notifier());
+        drop(self.take_acknowledgement_notifier());
     }
 }

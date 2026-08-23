@@ -3,7 +3,7 @@
 use kafka_client_core::{
     Deadline, DeliveryStatus, Moment, ShareAcquiredRange, ShareFetchAttempt,
     ShareFetchSessionApplyError, ShareFetchSessionFence, ShareFetchSessionMachine,
-    ShareFetchSessionOpenError, ShareFetchSessionPhase, ShareFetchSettlementError,
+    ShareFetchSessionOpenError, ShareFetchSettlementError,
 };
 use std::sync::Arc;
 
@@ -25,6 +25,7 @@ use super::fetch_plan::{ShareBrokerSessionPlan, ShareFetchSessionRequestPlan};
 use super::fetch_session_execution::{ActiveShareFetchCall, ShareFetchSessionTerminal};
 use super::fetch_session_set::ShareFetchSessionConfig;
 use super::fetch_session_settlement::StagedShareFetchDelivery;
+use crate::consumer::share_acknowledge::ShareAcknowledgementCompletionOwner;
 
 /// Exact core attempt paired with its generated request and unchanged deadline.
 #[must_use = "a prepared ShareFetch session attempt must be submitted or settled"]
@@ -54,6 +55,7 @@ pub(super) struct ShareFetchSessionOwner {
     pub(super) active_acknowledgement: Option<ActiveShareAcknowledgementCall>,
     pub(super) acknowledgement_terminal: Option<ShareAcknowledgementTerminal>,
     pub(super) acknowledgement_outcome: Option<ShareAcknowledgementExecutionOutcome>,
+    pub(super) acknowledgement_completion: Option<ShareAcknowledgementCompletionOwner>,
     pub(super) acknowledgement_faults: Vec<ShareAcknowledgementOwnershipFault>,
 }
 
@@ -88,6 +90,7 @@ impl ShareFetchSessionOwner {
             active_acknowledgement: None,
             acknowledgement_terminal: None,
             acknowledgement_outcome: None,
+            acknowledgement_completion: None,
             acknowledgement_faults: Vec::new(),
         };
         owner.prepare_next_at(capture, capture.now())?;
@@ -114,6 +117,7 @@ impl ShareFetchSessionOwner {
             || self.active_acknowledgement.is_some()
             || self.acknowledgement_terminal.is_some()
             || self.acknowledgement_outcome.is_some()
+            || self.acknowledgement_completion.is_some()
             || !self.acknowledgement_faults.is_empty()
         {
             return Err(ShareFetchSessionOwnerError::Occupied);
@@ -208,23 +212,6 @@ impl ShareFetchSessionOwner {
 
     pub(super) const fn request_plan(&self) -> &ShareFetchSessionRequestPlan {
         &self.request_plan
-    }
-
-    pub(super) fn ready_for_preparation(&self, now: Moment) -> bool {
-        self.prepared.is_none()
-            && self.active.is_none()
-            && self.terminal.is_none()
-            && self.staged.is_none()
-            && self.prepared_acknowledgement.is_none()
-            && self.active_acknowledgement.is_none()
-            && self.acknowledgement_terminal.is_none()
-            && self.acknowledgement_outcome.is_none()
-            && self.acknowledgement_faults.is_empty()
-            && self.machine.ledger().is_empty()
-            && self.machine.phase() == ShareFetchSessionPhase::Ready
-            && self
-                .throttle_until
-                .is_none_or(|deadline| deadline.is_elapsed_at(now))
     }
 }
 

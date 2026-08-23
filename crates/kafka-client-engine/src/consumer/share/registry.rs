@@ -6,8 +6,10 @@ use kafka_client_core::GroupId;
 
 use super::{close_state::ShareConsumerCloseTerminal, entry::ShareConsumerEntry};
 use crate::completion::CompletionRegistry;
+use crate::consumer::ShareAcknowledgeOutcome;
 
 pub(super) const SHARE_CONSUMER_CAPACITY: usize = 8;
+pub(super) const SHARE_ACKNOWLEDGEMENT_CAPACITY: usize = SHARE_CONSUMER_CAPACITY * 4;
 pub(super) const SHARE_COORDINATOR_INVALIDATION_CAPACITY: usize = SHARE_CONSUMER_CAPACITY;
 pub(super) const SHARE_CONSUMER_RETAINED_NAME_BYTES: usize = SHARE_CONSUMER_CAPACITY
     * (3 + super::entry::SHARE_TOPIC_CAPACITY)
@@ -20,6 +22,7 @@ pub(crate) struct ShareConsumerRegistry {
     pub(super) accepting: bool,
     pub(super) invalidations: ShareCoordinatorInvalidations,
     pub(super) close_completions: CompletionRegistry<ShareConsumerCloseTerminal>,
+    pub(super) acknowledgement_completions: CompletionRegistry<ShareAcknowledgeOutcome>,
     pub(super) recv_notifications: Option<ShareConsumerRecvNotificationResources>,
 }
 
@@ -35,10 +38,23 @@ impl ShareConsumerRegistry {
                     std::io::Error::other("share coordinator invalidation reservation failed")
                 })?;
         let mut close_completions = CompletionRegistry::start(SHARE_CONSUMER_CAPACITY)?;
+        let mut acknowledgement_completions =
+            match CompletionRegistry::start(SHARE_ACKNOWLEDGEMENT_CAPACITY) {
+                Ok(completions) => completions,
+                Err(error) => {
+                    if let Some(join) = close_completions.take_notifier() {
+                        let _result = join.join();
+                    }
+                    return Err(error);
+                }
+            };
         let recv_notifications = match ShareConsumerRecvNotificationResources::start() {
             Ok(resources) => resources,
             Err(error) => {
                 if let Some(join) = close_completions.take_notifier() {
+                    let _result = join.join();
+                }
+                if let Some(join) = acknowledgement_completions.take_notifier() {
                     let _result = join.join();
                 }
                 return Err(error);
@@ -51,6 +67,7 @@ impl ShareConsumerRegistry {
             accepting: true,
             invalidations,
             close_completions,
+            acknowledgement_completions,
             recv_notifications: Some(recv_notifications),
         })
     }

@@ -4,7 +4,7 @@ use kafka_client_core::{
     DeliveryStatus, ShareAcknowledgementApplyErrorKind, ShareAcknowledgementFailureSettlement,
 };
 
-use crate::driver::ShareAcknowledgeResolution;
+use crate::driver::share_acknowledge::ShareAcknowledgeResolution;
 
 use super::{
     super::{

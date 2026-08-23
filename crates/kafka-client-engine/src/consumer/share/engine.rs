@@ -38,7 +38,7 @@ impl crate::Engine {
 }
 
 impl ShareConsumerPort {
-    pub(super) fn shares_registry_with(&self, other: &Self) -> bool {
+    pub(in crate::consumer) fn shares_registry_with(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.shared, &other.shared)
     }
 }

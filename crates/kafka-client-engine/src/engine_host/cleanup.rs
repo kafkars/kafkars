@@ -60,6 +60,11 @@ pub(super) fn begin_notification_shutdown(
         .stop_close_notifier()
         .map_err(EngineHostError::ShareConsumerCompletion);
     let share_consumer_fallback = resources.share_consumers.take_close_notifier();
+    let share_acknowledgement = resources
+        .share_consumers
+        .stop_acknowledgement_notifier()
+        .map_err(EngineHostError::ShareConsumerCompletion);
+    let share_acknowledgement_fallback = resources.share_consumers.take_acknowledgement_notifier();
     let share_consumer_recv = resources
         .share_consumers
         .stop_recv_notifier()
@@ -72,6 +77,7 @@ pub(super) fn begin_notification_shutdown(
             (group_consumer, group_consumer_fallback),
             (group_consumer_recv, None),
             (share_consumer, share_consumer_fallback),
+            (share_acknowledgement, share_acknowledgement_fallback),
             (share_consumer_recv, None),
             (transaction, transaction_fallback),
         ],

@@ -11,6 +11,9 @@ mod acknowledgement_test;
 mod batch_test;
 
 pub use acknowledgement::{ShareAcknowledgement, ShareAcknowledgementBuildError};
+pub(in crate::consumer) use acknowledgement::{
+    ShareAcknowledgementAdmissionParts, ShareAcknowledgementRecovery,
+};
 pub use batch::ShareConsumerBatch;
 pub use error::{ShareConsumerTryTakeBatchError, ShareConsumerTryTakeBatchErrorKind};
 pub use kafka_client_core::{

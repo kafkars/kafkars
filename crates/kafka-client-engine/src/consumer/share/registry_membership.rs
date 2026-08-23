@@ -5,8 +5,9 @@ use kafka_client_core::Moment;
 use crate::{clock::MonotonicClock, driver::DriverOwner};
 
 use super::{
-    ShareMembershipError, registry::ShareConsumerRegistry, registry_close::ShareConsumerCloseTurn,
-    registry_fetch_routing::ShareFetchRoutingHostTurn,
+    ShareMembershipError, registry::ShareConsumerRegistry,
+    registry_acknowledgement::ShareAcknowledgementCompletionTurn,
+    registry_close::ShareConsumerCloseTurn, registry_fetch_routing::ShareFetchRoutingHostTurn,
     registry_fetch_sessions::ShareFetchSessionsHostTurn,
     registry_heartbeat_due::ShareHeartbeatDueTurn,
     registry_heartbeat_settlement::ShareHeartbeatSettlementTurn,
@@ -41,6 +42,15 @@ impl ShareConsumerRegistry {
         clock: &MonotonicClock,
         driver: &DriverOwner,
     ) -> Result<ShareMembershipTurn, ShareMembershipHostError> {
+        match self.turn_one_acknowledgement_completion()? {
+            ShareAcknowledgementCompletionTurn::Progress => {
+                return Ok(ShareMembershipTurn::Progress);
+            }
+            ShareAcknowledgementCompletionTurn::Blocked => {
+                return Ok(ShareMembershipTurn::Blocked);
+            }
+            ShareAcknowledgementCompletionTurn::Idle => {}
+        }
         if self
             .reclaim_one_close_completion()
             .map_err(|_error| ShareMembershipHostError::EffectShape)?

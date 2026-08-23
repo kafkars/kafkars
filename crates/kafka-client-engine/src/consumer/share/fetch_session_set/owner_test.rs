@@ -51,6 +51,14 @@ pub(super) fn session_set(sessions: Vec<ShareFetchSessionOwner>) -> ShareFetchSe
     }
 }
 
+pub(in crate::consumer::share) fn first_session_mut_for_test(
+    set: &mut ShareFetchSessionSet,
+) -> &mut ShareFetchSessionOwner {
+    set.sessions
+        .first_mut()
+        .unwrap_or_else(|| panic!("first share session"))
+}
+
 pub(super) fn owner_for(
     broker_raw: i32,
     topic_raw: u64,

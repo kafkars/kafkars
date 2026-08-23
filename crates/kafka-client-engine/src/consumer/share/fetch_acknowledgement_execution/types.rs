@@ -5,7 +5,7 @@ use kafka_client_core::{
     ShareAcknowledgementApplyErrorKind, ShareAcknowledgementBatch, ShareAcquisitionBatchError,
 };
 
-use crate::driver::{
+use crate::driver::share_acknowledge::{
     ShareAcknowledgeCall, ShareAcknowledgeCompletionErrorKind, ShareAcknowledgeDriverFailureKind,
     ShareAcknowledgeDriverSubmitErrorKind, ShareAcknowledgeResolution,
 };
@@ -20,7 +20,7 @@ pub(in crate::consumer::share) struct ActiveShareAcknowledgementCall {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub(in crate::consumer::share) enum ShareAcknowledgementExecutionOutcome {
+pub(in crate::consumer) enum ShareAcknowledgementExecutionOutcome {
     Responded(ShareAcknowledgeResolution),
     Failed {
         kind: ShareAcknowledgementExecutionFailureKind,
@@ -30,7 +30,7 @@ pub(in crate::consumer::share) enum ShareAcknowledgementExecutionOutcome {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::consumer::share) enum ShareAcknowledgementExecutionFailureKind {
+pub(in crate::consumer) enum ShareAcknowledgementExecutionFailureKind {
     Submit(ShareAcknowledgeDriverSubmitErrorKind),
     Driver(ShareAcknowledgeDriverFailureKind),
     Completion(ShareAcknowledgeCompletionErrorKind),
