@@ -342,6 +342,30 @@ field = "ledger"
 allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/request.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/request_plan.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/request_plan_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/response.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/response_partition.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/response_partition_test.rs"
+
+[[linear_owners]]
+owner_type = "PreparedShareFetchRequest"
+path = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/request.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchCorrelation"
+path = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/model.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/share_group/request.rs"
 test = "crates/kafka-client-engine/src/protocol/consumer/share_group/request_test.rs"
 
