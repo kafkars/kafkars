@@ -290,6 +290,10 @@ production = "crates/kafka-client-engine/src/consumer/share/registry_registratio
 test = "crates/kafka-client-engine/src/consumer/share/registry_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs"
+test = "crates/kafka-client-engine/src/consumer/share/registry_topic_identity_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/share/transition/retry.rs"
 test = "crates/kafka-client-engine/src/consumer/share/transition/retry_test.rs"
 
@@ -17532,6 +17536,7 @@ field = "entries"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/registry.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_registration.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
 ]
 
 [[mutation_owners]]
@@ -17562,7 +17567,44 @@ owner_type = "ShareConsumerEntry"
 field = "start"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/entry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
 ]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerEntry"
+field = "resolved_topics"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/entry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerEntry"
+field = "membership"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/entry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerEntry"
+field = "topic_call"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/entry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerEntry"
+field = "fault"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/entry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
+]
+
+[[linear_owners]]
+owner_type = "ShareTopicIdentityCall"
+path = "crates/kafka-client-engine/src/consumer/share/topic_identity_call.rs"
 
 [[linear_owners]]
 owner_type = "PendingShareCoordinatorInvalidation"

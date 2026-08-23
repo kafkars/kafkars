@@ -18,10 +18,14 @@ mod registry;
 mod registry_registration;
 #[cfg(test)]
 mod registry_test;
+mod registry_topic_identity;
+#[cfg(test)]
+mod registry_topic_identity_test;
 mod request;
 #[cfg(test)]
 mod request_test;
 mod settlement;
+mod topic_identity_call;
 mod transition;
 
 pub(super) use catalog::ShareMembershipCatalog;
