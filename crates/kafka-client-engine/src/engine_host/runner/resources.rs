@@ -105,6 +105,7 @@ pub(crate) struct EngineHostResources {
     pub(in super::super) remove_consumer_group_members: RemoveConsumerGroupMembersShardOwner,
     pub(in super::super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(in super::super) group_consumers: crate::consumer::GroupConsumerShardOwner,
+    pub(in super::super) share_consumers: crate::consumer::ShareConsumerShardOwner,
     pub(in super::super) transaction_initialization: TransactionInitializationShardOwner,
     pub(in super::super) clock: Arc<MonotonicClock>,
     pub(in super::super) control: Arc<EngineHostControl>,

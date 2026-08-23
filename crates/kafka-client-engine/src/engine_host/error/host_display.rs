@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use super::host::EngineHostError;
+use super::{host::EngineHostError, host_consumer_display};
 
 impl fmt::Display for EngineHostError {
     #[allow(clippy::too_many_lines)]
@@ -58,15 +58,12 @@ impl fmt::Display for EngineHostError {
                     "assigned-consumer completion notifier failed: {error}"
                 )
             }
-            Self::GroupConsumer(error) => {
-                write!(formatter, "group-consumer registry failed: {error}")
-            }
-            Self::GroupConsumerLockPoisoned => {
-                formatter.write_str("group-consumer registry ownership lock is poisoned")
-            }
-            Self::GroupConsumerRecvNotifierUnavailable => {
-                formatter.write_str("group-consumer receive notifier is unavailable")
-            }
+            error @ (Self::GroupConsumer(_)
+            | Self::GroupConsumerLockPoisoned
+            | Self::GroupConsumerRecvNotifierUnavailable
+            | Self::ShareConsumer(_)
+            | Self::ShareConsumerLockPoisoned
+            | Self::ShareConsumerUnsettled(_)) => host_consumer_display::display(error, formatter),
             Self::TransactionInitialization(error) => {
                 write!(formatter, "transaction initialization failed: {error}")
             }

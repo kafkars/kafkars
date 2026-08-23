@@ -32,7 +32,7 @@ use crate::{
     completion::{CompletionRegistryError, NotifierJoinError},
     consumer::{
         AssignedConsumerFaultKind, AssignedConsumerOwnerError, AssignedConsumerRecoveryReport,
-        GroupConsumerHostError,
+        GroupConsumerHostError, ShareMembershipHostError,
     },
     driver::{
         CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
@@ -71,6 +71,9 @@ pub(crate) enum EngineHostError {
     GroupConsumer(GroupConsumerHostError),
     GroupConsumerLockPoisoned,
     GroupConsumerRecvNotifierUnavailable,
+    ShareConsumer(ShareMembershipHostError),
+    ShareConsumerLockPoisoned,
+    ShareConsumerUnsettled(usize),
     TransactionInitialization(TransactionInitializationHostError),
     TransactionInitializationLockPoisoned,
     CreateTopics(CreateTopicsHostError),

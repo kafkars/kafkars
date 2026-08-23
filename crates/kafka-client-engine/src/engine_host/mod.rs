@@ -1,5 +1,4 @@
 //! Reactor-native engine host startup, fair execution, and terminal joining.
-
 mod admin;
 #[cfg(test)]
 mod admin_test;
@@ -54,6 +53,7 @@ mod recovery;
 #[cfg(test)]
 mod recovery_test;
 mod runner;
+mod share_consumer;
 mod start;
 mod start_handoff;
 #[cfg(test)]

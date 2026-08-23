@@ -8,6 +8,7 @@ use crate::{
 };
 
 mod host;
+mod host_consumer_display;
 mod host_display;
 #[cfg(test)]
 mod host_display_test;
@@ -88,6 +89,13 @@ impl EngineStartError {
         Self::new(
             EngineStartErrorKind::Consumer,
             format!("failed to start group-consumer registry: {error}"),
+        )
+    }
+
+    pub(super) fn share_consumer(error: &std::io::Error) -> Self {
+        Self::new(
+            EngineStartErrorKind::Consumer,
+            format!("failed to start share-consumer registry: {error}"),
         )
     }
 

@@ -2,6 +2,7 @@
 
 mod admin_hosts;
 mod alter_partition_reassignments;
+mod consumer_registries;
 mod list_offsets;
 mod list_partition_reassignments;
 mod share_group_offsets;
@@ -41,7 +42,7 @@ use crate::{
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
-    consumer::{GroupConsumerRegistry, GroupConsumerShardOwner},
+    consumer::{GroupConsumerShardOwner, ShareConsumerShardOwner},
     driver::DriverOwner,
     producer::ingress::ProducerShardOwner,
 };
@@ -62,6 +63,10 @@ pub(crate) fn start(
     let clock = Arc::new(MonotonicClock::new());
     let wake = Arc::new(driver.reactor_wake());
     let control = Arc::new(EngineHostControl::new(wake.as_ref().clone()));
+    let (mut group_consumers, share_consumers) = match consumer_registries::start() {
+        Ok(registries) => registries,
+        Err(error) => return cancel_start(sender, handle, error),
+    };
     let (mut assigned_consumer_notifier, assigned_publishers) =
         match notifier_start::start_assigned_consumer_notifier() {
             Ok(started) => started,
@@ -146,14 +151,6 @@ pub(crate) fn start(
         elect_leaders,
         remove_consumer_group_members,
     } = admin_hosts::start(admin_ports);
-    let mut group_consumers = match GroupConsumerRegistry::start() {
-        Ok(registry) => registry,
-        Err(error) => {
-            notifier_start::join_acquired(admin_notifier.take_join());
-            notifier_start::join_acquired(assigned_consumer_notifier.take_join());
-            return cancel_start(sender, handle, EngineStartError::group_consumer(&error));
-        }
-    };
     let (transaction_initialization, transaction_initialization_admission, producer) =
         match transaction_start::start(
             validated.host_limits,
@@ -176,6 +173,8 @@ pub(crate) fn start(
     );
     let (group_consumers, group_consumer) =
         GroupConsumerShardOwner::new(group_consumers, Arc::clone(&clock), Arc::clone(&wake));
+    let share_consumers =
+        ShareConsumerShardOwner::new(share_consumers, Arc::clone(&clock), Arc::clone(&wake));
     let producer = ProducerShardOwner::new(producer, Arc::clone(&wake));
     let admission = producer.admission_port();
     let abort_partition_transaction = AbortPartitionTransactionShardOwner::new(
@@ -407,6 +406,7 @@ pub(crate) fn start(
         remove_consumer_group_members,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
+        share_consumers,
         transaction_initialization,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),

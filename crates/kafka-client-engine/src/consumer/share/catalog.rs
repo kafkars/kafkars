@@ -51,7 +51,7 @@ pub(in crate::consumer) struct ShareMembershipCatalog {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::consumer) enum ShareMembershipCatalogError {
+pub(crate) enum ShareMembershipCatalogError {
     EmptyGroup,
     EmptyMember,
     EmptySubscription,

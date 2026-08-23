@@ -11,7 +11,7 @@ pub(super) const SHARE_CONSUMER_RETAINED_NAME_BYTES: usize = SHARE_CONSUMER_CAPA
     * (3 + super::entry::SHARE_TOPIC_CAPACITY)
     * super::entry::SHARE_NAME_BYTE_LIMIT;
 
-pub(in crate::consumer) struct ShareConsumerRegistry {
+pub(crate) struct ShareConsumerRegistry {
     pub(super) entries: Vec<ShareConsumerEntry>,
     pub(super) next_group_id: Option<GroupId>,
     pub(super) retained_name_bytes: usize,
@@ -20,7 +20,7 @@ pub(in crate::consumer) struct ShareConsumerRegistry {
 }
 
 impl ShareConsumerRegistry {
-    pub(in crate::consumer) fn start() -> std::io::Result<Self> {
+    pub(crate) fn start() -> std::io::Result<Self> {
         let mut entries = Vec::new();
         entries
             .try_reserve_exact(SHARE_CONSUMER_CAPACITY)

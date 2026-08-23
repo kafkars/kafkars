@@ -20,7 +20,7 @@ pub(in crate::consumer) enum ShareMembershipRetryGate {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::consumer) enum ShareMembershipError {
+pub(crate) enum ShareMembershipError {
     Catalog(ShareMembershipCatalogError),
     Core(ShareGroupHeartbeatErrorKind),
     DeadlineMapping,

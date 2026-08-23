@@ -96,6 +96,11 @@ pub use super::group_start::{
     GroupConsumerStartAccepted, GroupConsumerStartCapture, GroupConsumerStartError,
     GroupConsumerStartErrorKind, GroupConsumerStartupFailureKind,
 };
+pub(crate) use super::share::{
+    ShareConsumerRegistry, ShareConsumerShardLockError, ShareConsumerShardOwner,
+    ShareConsumerShardWake, ShareConsumerShardWakeError, ShareMembershipHostError,
+    ShareMembershipTurn,
+};
 
 pub(crate) use super::{
     assigned_host::{

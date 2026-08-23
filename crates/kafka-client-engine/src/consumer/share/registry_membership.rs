@@ -13,14 +13,14 @@ use super::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::consumer) enum ShareMembershipTurn {
+pub(crate) enum ShareMembershipTurn {
     Idle,
     Progress,
     Blocked,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::consumer) enum ShareMembershipHostError {
+pub(crate) enum ShareMembershipHostError {
     Membership(ShareMembershipError),
     EffectShape,
     Invalidation,
@@ -33,7 +33,7 @@ impl From<ShareMembershipError> for ShareMembershipHostError {
 }
 
 impl ShareConsumerRegistry {
-    pub(in crate::consumer) fn turn_membership(
+    pub(crate) fn turn_membership(
         &mut self,
         now: Moment,
         clock: &MonotonicClock,

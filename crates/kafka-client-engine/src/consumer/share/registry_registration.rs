@@ -22,7 +22,7 @@ pub(in crate::consumer) struct ShareConsumerRegistrationFailure {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::consumer) enum ShareConsumerRegistrationFailureKind {
+pub(crate) enum ShareConsumerRegistrationFailureKind {
     Closed,
     Capacity,
     RetainedBytes,
@@ -32,7 +32,7 @@ pub(in crate::consumer) enum ShareConsumerRegistrationFailureKind {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::consumer) enum ShareConsumerStartError {
+pub(crate) enum ShareConsumerStartError {
     Closed,
     UnknownConsumer,
     AlreadyStarted,

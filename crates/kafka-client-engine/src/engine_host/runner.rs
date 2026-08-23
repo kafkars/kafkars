@@ -6,7 +6,7 @@ use crate::driver::DriverTurn;
 
 use super::{
     EngineHostError, admin, assigned_consumer, cleanup, group_consumer,
-    notifier_shutdown::NotifierShutdownOwner, produce_turn, transaction, wait,
+    notifier_shutdown::NotifierShutdownOwner, produce_turn, share_consumer, transaction, wait,
 };
 
 pub(crate) use resources::EngineHostResources;
@@ -37,6 +37,8 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         let assigned = assigned_consumer::drive(resources, assigned_now)?;
         let group_now = resources.clock.now().map_err(EngineHostError::Clock)?;
         let group = group_consumer::drive(resources, group_now)?;
+        let share_now = resources.clock.now().map_err(EngineHostError::Clock)?;
+        let share = share_consumer::drive(resources, share_now)?;
         let transaction_now = resources.clock.now().map_err(EngineHostError::Clock)?;
         let transaction = transaction::drive(resources, transaction_now)?;
         #[cfg(test)]
@@ -49,6 +51,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
             && assigned.unsettled == 0
             && assigned.close_completed
             && group.unsettled == 0
+            && share.unsettled == 0
             && transaction.unsettled == 0
         {
             break;
@@ -67,6 +70,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         });
         let wait = wait::assigned_consumer(wait_now, wait, &assigned);
         let wait = wait::group_consumer(wait_now, wait, &group);
+        let wait = wait::share_consumer(wait_now, wait, &share);
         let wait = transaction.next_deadline.map_or(wait, |deadline| {
             wait.min(wait::deadline(wait_now, deadline))
         });
