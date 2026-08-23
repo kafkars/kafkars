@@ -650,6 +650,38 @@ path = "crates/kafka-client-engine/src/consumer/share/fetch_plan.rs"
 production = "crates/kafka-client-engine/src/consumer/share/fetch_session.rs"
 test = "crates/kafka-client-engine/src/consumer/share/fetch_session_test.rs"
 
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement.rs"
+test = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/settlement.rs"
+test = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/execution_test.rs"
+
+[[linear_owners]]
+owner_type = "PreparedShareAcknowledgement"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementTerminal"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementPreparationFailure"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement.rs"
+
+[[linear_owners]]
+owner_type = "ActiveShareAcknowledgementCall"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/types.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementExecutionOutcome"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/types.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementOwnershipFault"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/types.rs"
+
 [[linear_owners]]
 owner_type = "PreparedShareFetchSession"
 path = "crates/kafka-client-engine/src/consumer/share/fetch_session.rs"
@@ -657,6 +689,47 @@ path = "crates/kafka-client-engine/src/consumer/share/fetch_session.rs"
 [[linear_owners]]
 owner_type = "ShareFetchSessionOwner"
 path = "crates/kafka-client-engine/src/consumer/share/fetch_session.rs"
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionOwner"
+field = "prepared_acknowledgement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/recovery.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/submission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionOwner"
+field = "active_acknowledgement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/recovery.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/settlement.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/submission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionOwner"
+field = "acknowledgement_terminal"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/settlement.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionOwner"
+field = "acknowledgement_outcome"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/recovery.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/settlement.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/submission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionOwner"
+field = "acknowledgement_faults"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_acknowledgement_execution/recovery.rs",
+]
 
 [[linear_owners]]
 owner_type = "ShareFetchSessionSet"
@@ -671,9 +744,11 @@ allowed_paths = ["crates/kafka-client-engine/src/consumer/share/fetch_session_se
 owner_type = "ShareFetchSessionSet"
 field = "sessions"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_set/acknowledgement.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_session_set/delivery.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_session_set/execution.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_session_set/owner.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_set/recovery.rs",
 ]
 
 [[linear_owners]]

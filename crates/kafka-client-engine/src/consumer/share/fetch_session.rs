@@ -16,6 +16,11 @@ use crate::{
     protocol::fetch::FetchDecodeLimits,
 };
 
+use super::fetch_acknowledgement::{PreparedShareAcknowledgement, ShareAcknowledgementTerminal};
+use super::fetch_acknowledgement_execution::{
+    ActiveShareAcknowledgementCall, ShareAcknowledgementExecutionOutcome,
+    ShareAcknowledgementOwnershipFault,
+};
 use super::fetch_plan::{ShareBrokerSessionPlan, ShareFetchSessionRequestPlan};
 use super::fetch_session_execution::{ActiveShareFetchCall, ShareFetchSessionTerminal};
 use super::fetch_session_set::ShareFetchSessionConfig;
@@ -34,17 +39,22 @@ pub(super) struct PreparedShareFetchSession {
 pub(super) struct ShareFetchSessionOwner {
     pub(super) machine: ShareFetchSessionMachine,
     request_plan: ShareFetchSessionRequestPlan,
-    group: Arc<str>,
-    member: Arc<str>,
+    pub(super) group: Arc<str>,
+    pub(super) member: Arc<str>,
     settings: ShareFetchRequestSettings,
     response_limits: ShareFetchResponseLimits,
     decode_limits: FetchDecodeLimits,
     lock_timeout_ms: Option<u32>,
-    throttle_until: Option<Deadline>,
-    prepared: Option<PreparedShareFetchSession>,
+    pub(super) throttle_until: Option<Deadline>,
+    pub(super) prepared: Option<PreparedShareFetchSession>,
     pub(super) active: Option<ActiveShareFetchCall>,
     pub(super) terminal: Option<ShareFetchSessionTerminal>,
     pub(super) staged: Option<StagedShareFetchDelivery>,
+    pub(super) prepared_acknowledgement: Option<PreparedShareAcknowledgement>,
+    pub(super) active_acknowledgement: Option<ActiveShareAcknowledgementCall>,
+    pub(super) acknowledgement_terminal: Option<ShareAcknowledgementTerminal>,
+    pub(super) acknowledgement_outcome: Option<ShareAcknowledgementExecutionOutcome>,
+    pub(super) acknowledgement_faults: Vec<ShareAcknowledgementOwnershipFault>,
 }
 
 impl ShareFetchSessionOwner {
@@ -74,6 +84,11 @@ impl ShareFetchSessionOwner {
             active: None,
             terminal: None,
             staged: None,
+            prepared_acknowledgement: None,
+            active_acknowledgement: None,
+            acknowledgement_terminal: None,
+            acknowledgement_outcome: None,
+            acknowledgement_faults: Vec::new(),
         };
         owner.prepare_next_at(capture, capture.now())?;
         Ok(owner)
@@ -95,6 +110,11 @@ impl ShareFetchSessionOwner {
             || self.active.is_some()
             || self.terminal.is_some()
             || self.staged.is_some()
+            || self.prepared_acknowledgement.is_some()
+            || self.active_acknowledgement.is_some()
+            || self.acknowledgement_terminal.is_some()
+            || self.acknowledgement_outcome.is_some()
+            || !self.acknowledgement_faults.is_empty()
         {
             return Err(ShareFetchSessionOwnerError::Occupied);
         }
@@ -186,28 +206,8 @@ impl ShareFetchSessionOwner {
         self.throttle_until = Some(value);
     }
 
-    pub(super) const fn throttle_until(&self) -> Option<Deadline> {
-        self.throttle_until
-    }
-
     pub(super) const fn request_plan(&self) -> &ShareFetchSessionRequestPlan {
         &self.request_plan
-    }
-
-    pub(super) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
-        let execution = self
-            .prepared
-            .as_ref()
-            .map(PreparedShareFetchSession::deadline)
-            .or_else(|| self.active.as_ref().map(ActiveShareFetchCall::deadline));
-        let ledger = self.machine.ledger().next_reclaimable_deadline();
-        let throttle = self
-            .machine
-            .ledger()
-            .is_empty()
-            .then_some(self.throttle_until)
-            .flatten();
-        [execution, ledger, throttle].into_iter().flatten().min()
     }
 
     pub(super) fn ready_for_preparation(&self, now: Moment) -> bool {
@@ -215,6 +215,11 @@ impl ShareFetchSessionOwner {
             && self.active.is_none()
             && self.terminal.is_none()
             && self.staged.is_none()
+            && self.prepared_acknowledgement.is_none()
+            && self.active_acknowledgement.is_none()
+            && self.acknowledgement_terminal.is_none()
+            && self.acknowledgement_outcome.is_none()
+            && self.acknowledgement_faults.is_empty()
             && self.machine.ledger().is_empty()
             && self.machine.phase() == ShareFetchSessionPhase::Ready
             && self

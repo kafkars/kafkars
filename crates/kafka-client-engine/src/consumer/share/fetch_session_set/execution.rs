@@ -5,6 +5,7 @@ use kafka_client_core::Moment;
 use crate::driver::DriverOwner;
 
 use super::{
+    super::fetch_acknowledgement_execution::ShareAcknowledgementExecutionPoll,
     super::fetch_session_execution::{
         ShareFetchExecutionError, ShareFetchExecutionPoll, ShareFetchSubmissionTurn,
     },
@@ -17,6 +18,11 @@ impl ShareFetchSessionSet {
         driver: &DriverOwner,
         now: Moment,
     ) -> Result<ShareFetchSessionSetTurn, ShareFetchExecutionError> {
+        let (acknowledgement_turn, acknowledgement_active) =
+            self.turn_acknowledgement(driver, now)?;
+        if let Some(turn) = acknowledgement_turn {
+            return Ok(turn);
+        }
         for session in &mut self.sessions {
             if session.terminal.is_some() {
                 session
@@ -76,7 +82,7 @@ impl ShareFetchSessionSet {
                 || !session.machine().ledger().is_empty()
                 || session.throttle_until().is_some()
         });
-        Ok(if active || retained {
+        Ok(if active || acknowledgement_active || retained {
             ShareFetchSessionSetTurn::Blocked
         } else {
             ShareFetchSessionSetTurn::Idle
@@ -86,6 +92,47 @@ impl ShareFetchSessionSet {
     pub(in crate::consumer::share) fn abandon_turn(
         &mut self,
     ) -> Result<ShareFetchSessionSetTurn, ShareFetchExecutionError> {
+        for session in &mut self.sessions {
+            if session.acknowledgement_terminal.is_some() {
+                let outcome = session
+                    .settle_acknowledgement_terminal()
+                    .map_err(ShareFetchExecutionError::Acknowledgement)?;
+                session
+                    .retain_settled_acknowledgement(outcome)
+                    .map_err(|_outcome| ShareFetchExecutionError::Occupied)?;
+                return Ok(ShareFetchSessionSetTurn::Progress);
+            }
+            if session
+                .abandon_acknowledgement_outcome()
+                .map_err(ShareFetchExecutionError::Acknowledgement)?
+            {
+                return Ok(ShareFetchSessionSetTurn::Progress);
+            }
+        }
+        for session in &mut self.sessions {
+            if session.active_acknowledgement.is_none() {
+                continue;
+            }
+            match session
+                .poll_acknowledgement()
+                .map_err(ShareFetchExecutionError::Acknowledgement)?
+            {
+                ShareAcknowledgementExecutionPoll::Pending => {
+                    return Ok(ShareFetchSessionSetTurn::Blocked);
+                }
+                ShareAcknowledgementExecutionPoll::Terminal => {
+                    return Ok(ShareFetchSessionSetTurn::Progress);
+                }
+            }
+        }
+        for session in &mut self.sessions {
+            if session
+                .abandon_prepared_acknowledgement()
+                .map_err(ShareFetchExecutionError::Acknowledgement)?
+            {
+                return Ok(ShareFetchSessionSetTurn::Progress);
+            }
+        }
         for session in &mut self.sessions {
             if session.discard_terminal()? {
                 return Ok(ShareFetchSessionSetTurn::Progress);
@@ -126,16 +173,6 @@ impl ShareFetchSessionSet {
     pub(in crate::consumer::share) fn release_unsubmitted(
         self,
     ) -> Result<(), ShareFetchExecutionError> {
-        release_unsubmitted(self.sessions)
-    }
-
-    pub(in crate::consumer::share) fn recover_after_driver_shutdown(
-        mut self,
-    ) -> Result<(), ShareFetchExecutionError> {
-        for session in &mut self.sessions {
-            let _recovered = session.recover_call_after_driver_shutdown()?;
-            let _discarded = session.discard_terminal()?;
-        }
         release_unsubmitted(self.sessions)
     }
 }

@@ -76,7 +76,10 @@ fn initial_missing_lock_timeout_loses_possibly_sent_session() {
     assert!(!owner.has_staged_delivery());
 }
 
-pub(super) fn stage(owner: &mut ShareFetchSessionOwner, success: ShareFetchSuccess) {
+pub(in crate::consumer::share) fn stage(
+    owner: &mut ShareFetchSessionOwner,
+    success: ShareFetchSuccess,
+) {
     let (attempt, request, _capture) = owner
         .take_prepared()
         .unwrap_or_else(|| panic!("prepared attempt"))
@@ -93,7 +96,9 @@ pub(super) fn stage(owner: &mut ShareFetchSessionOwner, success: ShareFetchSucce
     });
 }
 
-pub(super) fn success(acquisition_lock_timeout_ms: Option<u32>) -> ShareFetchSuccess {
+pub(in crate::consumer::share) fn success(
+    acquisition_lock_timeout_ms: Option<u32>,
+) -> ShareFetchSuccess {
     ShareFetchSuccess {
         throttle_time_ms: 7,
         acquisition_lock_timeout_ms,
@@ -116,7 +121,7 @@ pub(super) fn success(acquisition_lock_timeout_ms: Option<u32>) -> ShareFetchSuc
     }
 }
 
-pub(super) fn owner() -> ShareFetchSessionOwner {
+pub(in crate::consumer::share) fn owner() -> ShareFetchSessionOwner {
     let clock = crate::clock::MonotonicClock::new();
     ShareFetchSessionOwner::try_open(
         ShareBrokerSessionPlan::try_initial(

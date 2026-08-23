@@ -11,6 +11,10 @@ mod entry_calls;
 mod entry_identity;
 #[cfg(test)]
 mod entry_test;
+mod fetch_acknowledgement;
+mod fetch_acknowledgement_execution;
+#[cfg(test)]
+mod fetch_acknowledgement_test;
 mod fetch_acquisition_decode;
 #[cfg(test)]
 mod fetch_acquisition_decode_test;
@@ -25,6 +29,7 @@ mod fetch_routing;
 #[cfg(test)]
 mod fetch_routing_test;
 mod fetch_session;
+mod fetch_session_deadline;
 mod fetch_session_execution;
 #[cfg(test)]
 mod fetch_session_execution_test;

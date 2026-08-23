@@ -21,7 +21,16 @@ impl ShareAcknowledgeRoute {
         self.broker_id
     }
 
+    #[cfg(test)]
+    pub(crate) const fn without_token_for_test(broker_id: ShareFetchBrokerId) -> Self {
+        Self::new(broker_id, None)
+    }
+
     pub(crate) fn accept(self) {
-        drop(self);
+        let Self {
+            broker_id: _broker_id,
+            token,
+        } = self;
+        drop(token);
     }
 }

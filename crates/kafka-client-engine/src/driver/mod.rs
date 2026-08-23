@@ -82,6 +82,10 @@ pub(crate) use rpc::exports::{
 };
 #[cfg(test)]
 pub(crate) use rpc::exports::{GroupPositionOffsetFetchTestPartition, RoutedBroker};
+pub(crate) use rpc::share_acknowledge::{
+    ShareAcknowledgeCall, ShareAcknowledgeCompletionErrorKind, ShareAcknowledgeDriverFailureKind,
+    ShareAcknowledgeDriverSubmitErrorKind, ShareAcknowledgeResolution, ShareAcknowledgeRoute,
+};
 pub(crate) use rpc::{
     AbortPartitionTransactionCall, AbortPartitionTransactionDriverFailureKind,
     AbortPartitionTransactionRawTerminal, AbortPartitionTransactionTerminalFact, AddRaftVoterCall,

@@ -1,8 +1,4 @@
 //! Exact-broker tracked-call boundary for `ShareAcknowledge` v1.
-#![allow(
-    dead_code,
-    reason = "the tracked-call checkpoint precedes hosted acknowledgement ownership"
-)]
 
 mod call;
 #[cfg(test)]
@@ -18,10 +14,6 @@ mod terminal;
 #[cfg(test)]
 mod terminal_test;
 
-#[expect(
-    unused_imports,
-    reason = "hosted ShareAcknowledge execution lands in the next checkpoint"
-)]
 pub(crate) use {
     call::{ShareAcknowledgeCall, ShareAcknowledgeCompletionErrorKind},
     failure::ShareAcknowledgeDriverFailureKind,
