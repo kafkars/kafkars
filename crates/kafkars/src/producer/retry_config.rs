@@ -8,9 +8,11 @@ use std::time::Duration;
 /// definitely-unsent retryable failures, exact idempotent broker-retriable
 /// responses, plus idempotent possibly-sent transient transport or routing
 /// failures only after route refresh. Explicitly classified transaction
-/// responses may also consume this policy. Every replacement remains bounded by
-/// the original operation deadline, and delivery certainty may only stay the
-/// same or weaken.
+/// responses may also consume this policy. Exact transaction-initialization
+/// coordinator-loading responses own a separate 100-millisecond backoff under
+/// the original initialization deadline and do not consume this policy. Every
+/// replacement remains bounded by the original operation deadline, and
+/// delivery certainty may only stay the same or weaken.
 /// Nontransactional producer-identity acquisition owns a separate exact
 /// coordinator-load backoff bounded by the earliest public delivery deadline;
 /// it does not consume this replacement budget.

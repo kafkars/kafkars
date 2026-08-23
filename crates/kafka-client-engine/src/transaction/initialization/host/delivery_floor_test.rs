@@ -84,17 +84,17 @@ fn concurrent_transactions_retries_same_coordinator_once_then_exhausts() {
         .try_host()
         .unwrap_or_else(|error| panic!("host lock: {error:?}"));
     assert_eq!(host.operations[0].retries_started, 1);
-    assert_eq!(
-        host.operations[0].retry_not_before,
-        Some(kafka_client_core::Deadline::from_tick(deadline.tick() - 1))
-    );
+    let retry_at = host.operations[0]
+        .retry_not_before
+        .unwrap_or_else(|| panic!("concurrent transaction retained a retry schedule"));
+    assert!(retry_at < deadline);
     assert_eq!(host.operations[0].deadline.core(), deadline);
     host.apply(0, TransactionInitializationInput::DriverAccepted)
         .unwrap_or_else(|error| panic!("replacement acceptance: {error:?}"));
     host.settle_or_retry_terminal(
         0,
         TransactionInitTerminal::response_for_test(51),
-        Moment::from_tick(deadline.tick() - 1),
+        Moment::from_tick(retry_at.tick()),
     )
     .unwrap_or_else(|error| panic!("exhausted concurrent transaction retry: {error:?}"));
     drop(host);
@@ -105,6 +105,44 @@ fn concurrent_transactions_retries_same_coordinator_once_then_exhausts() {
             code: 51,
             fenced: false,
         },
+    );
+}
+
+#[test]
+fn repeated_coordinator_loading_does_not_spend_the_configured_retry_count() {
+    let fixture = Fixture::new();
+    let (accepted, _deadline) =
+        fixture.schedule_response_retry(ResponseRetry::RefreshedCoordinatorLoad);
+    let mut host = fixture
+        .shard
+        .try_host()
+        .unwrap_or_else(|error| panic!("host lock: {error:?}"));
+    let first_due = host.operations[0]
+        .retry_not_before
+        .unwrap_or_else(|| panic!("coordinator loading retained a retry schedule"));
+    assert_eq!(host.operations[0].retries_started, 0);
+    host.apply(0, TransactionInitializationInput::DriverAccepted)
+        .unwrap_or_else(|error| panic!("replacement acceptance: {error:?}"));
+    host.settle_or_retry_terminal(
+        0,
+        TransactionInitTerminal::refreshed_response_for_test(16),
+        Moment::from_tick(first_due.tick()),
+    )
+    .unwrap_or_else(|error| panic!("repeat coordinator-loading retry: {error:?}"));
+    assert_eq!(host.operations[0].retries_started, 0);
+    assert_eq!(
+        host.operations[0].retry_not_before,
+        Some(kafka_client_core::Deadline::from_tick(
+            first_due.tick() + 100_000_000
+        ))
+    );
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("shutdown recovery: {error:?}"));
+    drop(host);
+
+    assert_failure(
+        accepted,
+        TransactionInitializationFailureKind::DriverRejected,
     );
 }
 
@@ -123,6 +161,13 @@ impl ResponseRetry {
                 TransactionInitTerminal::refreshed_response_for_test(14)
             }
             Self::ConcurrentTransactions => TransactionInitTerminal::response_for_test(51),
+        }
+    }
+
+    const fn backoff_ticks(self) -> u64 {
+        match self {
+            Self::RefreshedCoordinatorLoad => 100_000_000,
+            Self::ConcurrentTransactions => 1,
         }
     }
 }
@@ -180,11 +225,17 @@ impl Fixture {
         assert!(deadline.tick() >= 2);
         host.apply(0, TransactionInitializationInput::DriverAccepted)
             .unwrap_or_else(|error| panic!("initial driver acceptance: {error:?}"));
-        host.settle_or_retry_terminal(0, retry.terminal(), Moment::from_tick(deadline.tick() - 2))
+        let observed_at = deadline
+            .tick()
+            .checked_sub(1_000_000_000)
+            .unwrap_or_else(|| panic!("fixture deadline must cover retry backoff"));
+        host.settle_or_retry_terminal(0, retry.terminal(), Moment::from_tick(observed_at))
             .unwrap_or_else(|error| panic!("schedule response retry: {error:?}"));
         assert_eq!(
             host.next_deadline(),
-            Some(kafka_client_core::Deadline::from_tick(deadline.tick() - 1))
+            Some(kafka_client_core::Deadline::from_tick(
+                observed_at + retry.backoff_ticks()
+            ))
         );
         drop(host);
         (accepted, deadline)

@@ -88,6 +88,19 @@ impl TransactionInitTerminal {
         }
     }
 
+    pub(crate) fn is_coordinator_load_retry(&self) -> bool {
+        matches!(
+            self.fact(),
+            TransactionInitTerminalFact::Response { response, .. }
+                if self.coordinator_refresh_completed && matches!(response.error_code, 14..=16)
+        )
+    }
+
+    pub(crate) fn retry_delivery_and_budget(&self) -> Option<(DeliveryStatus, bool)> {
+        self.retry_delivery()
+            .map(|delivery| (delivery, self.is_coordinator_load_retry()))
+    }
+
     #[cfg(test)]
     pub(crate) fn response_for_test(error_code: i16) -> Self {
         let mut response = InitProducerIdResponse::default();

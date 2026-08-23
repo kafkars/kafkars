@@ -2,7 +2,9 @@
 
 use kafka_client_core::{Deadline, Moment, ProducerRetryPolicy};
 
-use super::retry::{TransactionInitializationRetrySchedule, plan_retry};
+use super::retry::{
+    TransactionInitializationRetrySchedule, plan_coordinator_load_retry, plan_retry,
+};
 
 #[test]
 fn schedule_retains_the_original_deadline_and_counts_one_replacement() {
@@ -61,6 +63,22 @@ fn unrepresentable_backoff_does_not_create_a_retry() {
             Moment::from_tick(1),
             Deadline::from_tick(u64::MAX),
         ),
+        None
+    );
+}
+
+#[test]
+fn coordinator_loading_retries_under_the_original_deadline_without_spending_policy() {
+    let deadline = Deadline::from_tick(1_000_000_000);
+    assert_eq!(
+        plan_coordinator_load_retry(7, Moment::from_tick(100), deadline),
+        Some(TransactionInitializationRetrySchedule {
+            not_before: Deadline::from_tick(100_000_100),
+            retries_started: 7,
+        })
+    );
+    assert_eq!(
+        plan_coordinator_load_retry(7, Moment::from_tick(900_000_000), deadline),
         None
     );
 }

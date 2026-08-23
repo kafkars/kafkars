@@ -8,6 +8,8 @@ use kafka_client_core::{
 use super::TransactionInitializationHost;
 use crate::transaction::initialization::TransactionInitializationHostError;
 
+const COORDINATOR_LOAD_BACKOFF_TICKS: u64 = 100_000_000;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct TransactionInitializationRetrySchedule {
     pub(super) not_before: Deadline,
@@ -33,23 +35,46 @@ pub(super) fn plan_retry(
     })
 }
 
+pub(super) fn plan_coordinator_load_retry(
+    retries_started: u32,
+    now: Moment,
+    deadline: Deadline,
+) -> Option<TransactionInitializationRetrySchedule> {
+    if deadline.is_elapsed_at(now) {
+        return None;
+    }
+    let not_before = now.checked_deadline_after(COORDINATOR_LOAD_BACKOFF_TICKS)?;
+    if not_before >= deadline {
+        return None;
+    }
+    Some(TransactionInitializationRetrySchedule {
+        not_before,
+        retries_started,
+    })
+}
+
 impl TransactionInitializationHost {
     pub(super) fn schedule_retry(
         &mut self,
         index: usize,
         now: Moment,
-        delivery: Option<DeliveryStatus>,
+        retry: Option<(DeliveryStatus, bool)>,
     ) -> Result<bool, TransactionInitializationHostError> {
-        let Some(delivery) = delivery else {
+        let Some((delivery, coordinator_load)) = retry else {
             return Ok(false);
         };
         let operation = &self.operations[index];
-        let Some(schedule) = plan_retry(
-            self.execution_limits.send_retry_policy(),
-            operation.retries_started,
-            now,
-            operation.deadline.core(),
-        ) else {
+        let schedule = if coordinator_load {
+            plan_coordinator_load_retry(operation.retries_started, now, operation.deadline.core())
+        } else {
+            plan_retry(
+                self.execution_limits.send_retry_policy(),
+                operation.retries_started,
+                now,
+                operation.deadline.core(),
+            )
+        };
+        let Some(schedule) = schedule else {
             return Ok(false);
         };
         let owner_id = operation.owner_id;

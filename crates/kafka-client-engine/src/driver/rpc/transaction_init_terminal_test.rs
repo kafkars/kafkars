@@ -124,11 +124,13 @@ fn retry_authority_requires_exact_evidence_and_completed_refresh_barrier() {
     for error_code in [14, 15, 16] {
         let mut terminal = response_terminal(error_code);
         assert_eq!(terminal.retry_delivery(), None);
+        assert!(!terminal.is_coordinator_load_retry());
         terminal.mark_coordinator_refresh_completed();
         assert_eq!(
             terminal.retry_delivery(),
             Some(kafka_client_core::DeliveryStatus::PossiblySent)
         );
+        assert!(terminal.is_coordinator_load_retry());
         terminal.discard();
     }
 
@@ -146,6 +148,7 @@ fn retry_authority_requires_exact_evidence_and_completed_refresh_barrier() {
             terminal.retry_delivery(),
             Some(kafka_client_core::DeliveryStatus::NotSent)
         );
+        assert!(!terminal.is_coordinator_load_retry());
         terminal.discard();
     }
 
@@ -166,6 +169,7 @@ fn exact_concurrent_transactions_authorizes_same_coordinator_retry_without_refre
         terminal.retry_delivery(),
         Some(kafka_client_core::DeliveryStatus::PossiblySent)
     );
+    assert!(!terminal.is_coordinator_load_retry());
     terminal.discard();
 
     for code in [-51, 50, 52] {

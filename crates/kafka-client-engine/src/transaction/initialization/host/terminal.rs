@@ -63,7 +63,7 @@ impl TransactionInitializationHost {
         terminal: crate::driver::TransactionInitTerminal,
         now: Moment,
     ) -> Result<(), TransactionInitializationHostError> {
-        if self.schedule_retry(index, now, terminal.retry_delivery())? {
+        if self.schedule_retry(index, now, terminal.retry_delivery_and_budget())? {
             terminal.discard();
             return Ok(());
         }
