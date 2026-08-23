@@ -141,7 +141,12 @@ fn registry_with_routable_membership() -> (
         .capture_deadline_after(Duration::from_secs(30))
         .unwrap_or_else(|error| panic!("capture: {error:?}"));
     let group_id = registry
-        .try_register(Arc::from("workers"), None, vec![Arc::from("events")])
+        .try_register(
+            Arc::from("workers"),
+            None,
+            vec![Arc::from("events")],
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .unwrap_or_else(|_error| panic!("register"));
     registry
         .try_begin(group_id, capture)

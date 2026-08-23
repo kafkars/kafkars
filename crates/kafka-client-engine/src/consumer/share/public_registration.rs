@@ -11,7 +11,7 @@ use super::{
         registration_error_kind,
     },
 };
-use crate::clock::DeadlineCapture;
+use crate::{EngineShareConsumerFetchConfig, clock::DeadlineCapture};
 
 /// Inert names and close policy for one share-member registration.
 #[derive(Debug)]
@@ -19,6 +19,7 @@ pub struct ShareConsumerRegistration {
     pub(super) group: Arc<str>,
     pub(super) rack: Option<Arc<str>>,
     pub(super) topics: Vec<Arc<str>>,
+    pub(super) fetch: EngineShareConsumerFetchConfig,
     pub(super) close_timeout: Duration,
 }
 
@@ -29,6 +30,7 @@ impl ShareConsumerRegistration {
             group,
             rack: None,
             topics,
+            fetch: EngineShareConsumerFetchConfig::default(),
             close_timeout: Duration::from_secs(30),
         }
     }
@@ -36,6 +38,12 @@ impl ShareConsumerRegistration {
     /// Sets the optional rack spelling sent by `ShareGroupHeartbeat`.
     pub fn with_rack(mut self, rack: Arc<str>) -> Self {
         self.rack = Some(rack);
+        self
+    }
+
+    /// Sets immutable `ShareFetch` request and attempt policy.
+    pub const fn with_fetch_config(mut self, fetch: EngineShareConsumerFetchConfig) -> Self {
+        self.fetch = fetch;
         self
     }
 
@@ -58,6 +66,11 @@ impl ShareConsumerRegistration {
     /// Returns the caller-ordered topic subscription.
     pub fn topics(&self) -> &[Arc<str>] {
         &self.topics
+    }
+
+    /// Returns immutable `ShareFetch` request and attempt policy.
+    pub const fn fetch_config(&self) -> EngineShareConsumerFetchConfig {
+        self.fetch
     }
 
     /// Returns the explicit close duration.
@@ -118,6 +131,7 @@ impl ShareConsumerHandle {
             group,
             rack,
             topics,
+            fetch,
             close_timeout,
         } = registration;
         let ShareConsumerStartCapture {
@@ -130,17 +144,19 @@ impl ShareConsumerHandle {
                 group,
                 rack,
                 topics,
+                fetch,
                 close_timeout,
             ));
         }
         let accepted = port
-            .try_register_started(group, rack, topics, capture)
+            .try_register_started(group, rack, topics, fetch, capture)
             .map_err(|failure| {
                 registration_error(
                     registration_error_kind(failure.source),
                     failure.group,
                     failure.rack,
                     failure.topics,
+                    *failure.fetch,
                     close_timeout,
                 )
             })?;

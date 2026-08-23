@@ -2,6 +2,8 @@
 
 use std::{sync::Arc, time::Duration};
 
+use crate::EngineShareConsumerFetchConfig;
+
 use super::{
     port::{
         ShareRegistrationPortFailureSource,
@@ -32,7 +34,7 @@ pub enum ShareConsumerRegistrationErrorKind {
 #[must_use = "registration rejection retains the exact request"]
 pub struct ShareConsumerRegistrationError {
     kind: ShareConsumerRegistrationErrorKind,
-    registration: ShareConsumerRegistration,
+    registration: Box<ShareConsumerRegistration>,
 }
 
 impl ShareConsumerRegistrationError {
@@ -43,7 +45,7 @@ impl ShareConsumerRegistrationError {
 
     /// Recovers the exact registration whose ownership did not transfer.
     pub fn into_registration(self) -> ShareConsumerRegistration {
-        self.registration
+        *self.registration
     }
 }
 
@@ -60,16 +62,18 @@ pub(super) fn registration_error(
     group: Arc<str>,
     rack: Option<Arc<str>>,
     topics: Vec<Arc<str>>,
+    fetch: EngineShareConsumerFetchConfig,
     close_timeout: Duration,
 ) -> ShareConsumerRegistrationError {
     ShareConsumerRegistrationError {
         kind,
-        registration: ShareConsumerRegistration {
+        registration: Box::new(ShareConsumerRegistration {
             group,
             rack,
             topics,
+            fetch,
             close_timeout,
-        },
+        }),
     }
 }
 

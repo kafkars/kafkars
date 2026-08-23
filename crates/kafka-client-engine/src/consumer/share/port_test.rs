@@ -42,6 +42,7 @@ fn registration_and_start_retain_post_commit_wake_failures() {
             Arc::from("workers"),
             Some(Arc::from("rack-a")),
             vec![Arc::from("jobs")],
+            crate::EngineShareConsumerFetchConfig::default(),
         )
         .unwrap_or_else(|_failure| panic!("registration"));
     assert!(accepted.wake_failed());
@@ -67,7 +68,12 @@ fn contended_registration_returns_exact_names_and_defers_one_host_lock() {
     let lock = owner.lock_registry_for_test();
 
     let failure = port
-        .try_register(Arc::clone(&group), Some(Arc::clone(&rack)), topics)
+        .try_register(
+            Arc::clone(&group),
+            Some(Arc::clone(&rack)),
+            topics,
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .err()
         .unwrap_or_else(|| panic!("contention must reject"));
     assert_eq!(
@@ -100,7 +106,12 @@ fn contended_registration_returns_exact_names_and_defers_one_host_lock() {
 fn control_close_captures_once_before_host_progress_and_closes_admission() {
     let (owner, port, wake) = setup(false);
     let admission = port
-        .try_register(Arc::from("workers"), None, vec![Arc::from("jobs")])
+        .try_register(
+            Arc::from("workers"),
+            None,
+            vec![Arc::from("jobs")],
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .unwrap_or_else(|_failure| panic!("registration"));
     let before = port
         .capture_deadline_after(Duration::from_secs(30))
@@ -122,7 +133,12 @@ fn control_close_captures_once_before_host_progress_and_closes_admission() {
     drop(registry);
 
     let rejected = port
-        .try_register(Arc::from("later"), None, vec![Arc::from("later-topic")])
+        .try_register(
+            Arc::from("later"),
+            None,
+            vec![Arc::from("later-topic")],
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .err()
         .unwrap_or_else(|| panic!("closed admission must reject"));
     assert_eq!(rejected.source, ShareRegistrationPortFailureSource::Closed);

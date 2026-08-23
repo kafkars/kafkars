@@ -9,13 +9,16 @@ use super::ShareConsumerBuilder;
 /// Failure to reserve one bounded share-member registration.
 #[derive(Debug)]
 pub struct ShareConsumerBuildError {
-    builder: ShareConsumerBuilder,
+    builder: Box<ShareConsumerBuilder>,
     error: KafkaError,
 }
 
 impl ShareConsumerBuildError {
-    pub(crate) const fn new(builder: ShareConsumerBuilder, error: KafkaError) -> Self {
-        Self { builder, error }
+    pub(crate) fn new(builder: ShareConsumerBuilder, error: KafkaError) -> Self {
+        Self {
+            builder: Box::new(builder),
+            error,
+        }
     }
 
     /// Borrows the exact builder whose registration was rejected.
@@ -30,7 +33,7 @@ impl ShareConsumerBuildError {
 
     /// Returns the exact builder and its registration error.
     pub fn into_parts(self) -> (ShareConsumerBuilder, KafkaError) {
-        (self.builder, self.error)
+        (*self.builder, self.error)
     }
 }
 

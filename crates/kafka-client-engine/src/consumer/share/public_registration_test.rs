@@ -51,6 +51,14 @@ fn invalid_registration_returns_exact_names_and_close_policy() {
     let group = Arc::<str>::from("workers");
     let topic = Arc::<str>::from("jobs");
     let close = Duration::from_secs(17);
+    let fetch = crate::EngineShareConsumerFetchConfig::new(
+        Duration::from_millis(250),
+        2,
+        4096,
+        32,
+        8,
+        Duration::from_secs(9),
+    );
     let error = ShareConsumerHandle::try_register_started(
         port,
         Arc::new(()),
@@ -59,6 +67,7 @@ fn invalid_registration_returns_exact_names_and_close_policy() {
             Arc::clone(&group),
             vec![Arc::clone(&topic), Arc::clone(&topic)],
         )
+        .with_fetch_config(fetch)
         .with_close_timeout(close),
     )
     .err()
@@ -72,6 +81,7 @@ fn invalid_registration_returns_exact_names_and_close_policy() {
     assert!(Arc::ptr_eq(&returned.group, &group));
     assert!(Arc::ptr_eq(&returned.topics[0], &topic));
     assert!(Arc::ptr_eq(&returned.topics[1], &topic));
+    assert_eq!(returned.fetch_config(), fetch);
     assert_eq!(returned.close_timeout(), close);
 }
 

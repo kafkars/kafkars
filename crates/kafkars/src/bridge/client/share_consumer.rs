@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use kafka_client_engine::share::ShareConsumerStartCapture;
 
-use crate::{KafkaError, bridge::share_consumer::ShareConsumerEngine};
+use crate::{KafkaError, ShareConsumerFetchConfig, bridge::share_consumer::ShareConsumerEngine};
 
 use super::ClientEngine;
 
@@ -24,8 +24,17 @@ impl ClientEngine {
         group: &str,
         rack: Option<&str>,
         topics: &[String],
+        fetch: ShareConsumerFetchConfig,
         close_timeout: Duration,
     ) -> Result<ShareConsumerEngine, KafkaError> {
-        ShareConsumerEngine::register(&self.inner, capture, group, rack, topics, close_timeout)
+        ShareConsumerEngine::register(
+            &self.inner,
+            capture,
+            group,
+            rack,
+            topics,
+            fetch,
+            close_timeout,
+        )
     }
 }

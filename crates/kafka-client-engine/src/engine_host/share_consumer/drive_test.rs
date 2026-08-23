@@ -66,7 +66,12 @@ fn shutdown_closes_and_removes_registered_share_member() {
     let owner = ShareConsumerShardOwner::new(registry, Arc::clone(&clock), Arc::new(NoopWake));
     let port = owner.admission_port();
     let _registration = port
-        .try_register(Arc::from("workers"), None, vec![Arc::from("jobs")])
+        .try_register(
+            Arc::from("workers"),
+            None,
+            vec![Arc::from("jobs")],
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .unwrap_or_else(|_error| panic!("register"));
     port.request_control_close(Duration::from_secs(30))
         .unwrap_or_else(|error| panic!("control close: {error:?}"));

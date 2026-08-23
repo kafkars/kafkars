@@ -29,36 +29,6 @@ impl ShareConsumerPort {
         self.shared.clock().capture_deadline_after(timeout)
     }
 
-    pub(crate) fn try_register(
-        &self,
-        group: Arc<str>,
-        rack: Option<Arc<str>>,
-        topics: Vec<Arc<str>>,
-    ) -> Result<ShareRegistrationAdmission, ShareRegistrationPortFailure> {
-        if self.shared.admission_is_closed() {
-            return Err(ShareRegistrationPortFailure::closed(group, rack, topics));
-        }
-        let mut registry = match self.shared.try_registry() {
-            Ok(registry) => registry,
-            Err(kind) => {
-                return Err(ShareRegistrationPortFailure::lock(
-                    kind, group, rack, topics,
-                ));
-            }
-        };
-        if self.shared.admission_is_closed() {
-            return Err(ShareRegistrationPortFailure::closed(group, rack, topics));
-        }
-        let group_id = registry
-            .try_register(group, rack, topics)
-            .map_err(ShareRegistrationPortFailure::registry)?;
-        drop(registry);
-        Ok(ShareRegistrationAdmission {
-            group_id,
-            wake: self.shared.request_turn().err(),
-        })
-    }
-
     pub(crate) fn try_begin(
         &self,
         group_id: GroupId,
@@ -167,6 +137,7 @@ pub(crate) struct ShareRegistrationPortFailure {
     pub(crate) group: Arc<str>,
     pub(crate) rack: Option<Arc<str>>,
     pub(crate) topics: Vec<Arc<str>>,
+    pub(crate) fetch: Box<crate::EngineShareConsumerFetchConfig>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -177,12 +148,18 @@ pub(crate) enum ShareRegistrationPortFailureSource {
 }
 
 impl ShareRegistrationPortFailure {
-    pub(super) fn closed(group: Arc<str>, rack: Option<Arc<str>>, topics: Vec<Arc<str>>) -> Self {
+    pub(super) fn closed(
+        group: Arc<str>,
+        rack: Option<Arc<str>>,
+        topics: Vec<Arc<str>>,
+        fetch: crate::EngineShareConsumerFetchConfig,
+    ) -> Self {
         Self {
             source: ShareRegistrationPortFailureSource::Closed,
             group,
             rack,
             topics,
+            fetch: Box::new(fetch),
         }
     }
 
@@ -191,12 +168,14 @@ impl ShareRegistrationPortFailure {
         group: Arc<str>,
         rack: Option<Arc<str>>,
         topics: Vec<Arc<str>>,
+        fetch: crate::EngineShareConsumerFetchConfig,
     ) -> Self {
         Self {
             source: ShareRegistrationPortFailureSource::Lock(kind),
             group,
             rack,
             topics,
+            fetch: Box::new(fetch),
         }
     }
 
@@ -206,6 +185,7 @@ impl ShareRegistrationPortFailure {
             group: failure.group,
             rack: failure.rack,
             topics: failure.topics,
+            fetch: failure.fetch,
         }
     }
 }

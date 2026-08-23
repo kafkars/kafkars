@@ -12,7 +12,12 @@ fn registration_and_start_are_visible_to_shutdown_and_wait_selection() {
     assert_eq!(registry.unsettled(), 0);
     assert_eq!(registry.next_deadline(), None);
     let group_id = registry
-        .try_register(Arc::from("workers"), None, vec![Arc::from("jobs")])
+        .try_register(
+            Arc::from("workers"),
+            None,
+            vec![Arc::from("jobs")],
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
         .unwrap_or_else(|_error| panic!("registration"));
     assert_eq!(registry.unsettled(), 1);
 

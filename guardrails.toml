@@ -608,6 +608,10 @@ production = "crates/kafka-client-engine/src/consumer/share/public_registration.
 test = "crates/kafka-client-engine/src/consumer/share/public_registration_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/config/share_consumer_fetch.rs"
+test = "crates/kafka-client-engine/src/config/share_consumer_fetch_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/share/public_state.rs"
 test = "crates/kafka-client-engine/src/consumer/share/public_state_test.rs"
 
@@ -634,6 +638,10 @@ test = "crates/kafkars/src/consumer/share_assignment_test.rs"
 [[test_mirrors]]
 production = "crates/kafkars/src/consumer/share_builder.rs"
 test = "crates/kafkars/src/consumer/share_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share_fetch_config.rs"
+test = "crates/kafkars/src/consumer/share_fetch_config_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafkars/src/consumer/share_handle.rs"

@@ -1,22 +1,20 @@
 //! Hosted share cadence, retry-gate, and failure-classification scenarios.
 
-use std::{sync::Arc, time::Duration};
-
-use kafka_client_core::{
-    Moment, ShareGroupHeartbeatFailure, ShareGroupHeartbeatPhase, ShareGroupHeartbeatRequestKind,
-};
-
-use crate::{
-    clock::MonotonicClock,
-    driver::{ConsumerGroupHeartbeatDriverFailureKind, TopicPartitionCountFact},
-    protocol::consumer::share_group::share_group_heartbeat_success_for_test,
-};
-
 use super::{
     membership::ShareMembershipFailureTurn, registry::ShareConsumerRegistry,
     registry_heartbeat_due::ShareHeartbeatDueTurn, registry_heartbeat_settlement::driver_failure,
     registry_topic_identity::complete_topic_identity,
 };
+use crate::{
+    EngineShareConsumerFetchConfig as FetchConfig,
+    clock::MonotonicClock,
+    driver::{ConsumerGroupHeartbeatDriverFailureKind, TopicPartitionCountFact},
+    protocol::consumer::share_group::share_group_heartbeat_success_for_test,
+};
+use kafka_client_core::{
+    Moment, ShareGroupHeartbeatFailure, ShareGroupHeartbeatPhase, ShareGroupHeartbeatRequestKind,
+};
+use std::{sync::Arc, time::Duration};
 
 #[test]
 fn accepted_assignment_arms_and_prepares_one_steady_heartbeat() {
@@ -244,7 +242,12 @@ fn add_membership(
         .capture_deadline_after(Duration::from_secs(30))
         .unwrap_or_else(|error| panic!("capture: {error:?}"));
     let group_id = registry
-        .try_register(Arc::from(group), None, vec![Arc::from("jobs")])
+        .try_register(
+            Arc::from(group),
+            None,
+            vec![Arc::from("jobs")],
+            FetchConfig::default(),
+        )
         .unwrap_or_else(|_error| panic!("register"));
     registry
         .try_begin(group_id, capture)
