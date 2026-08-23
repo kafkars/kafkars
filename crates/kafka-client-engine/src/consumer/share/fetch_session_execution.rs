@@ -6,8 +6,30 @@ use crate::driver::{
     DriverOwner, ShareFetchCall, ShareFetchCompletionErrorKind, ShareFetchDriverSubmitErrorKind,
     ShareFetchResolution, ShareFetchRoute, ShareFetchTerminalContext,
 };
+use crate::{clock::DeadlineCapture, protocol::consumer::share_fetch::PreparedShareFetchRequest};
 
-use super::fetch_session::{ShareFetchSessionOwner, ShareFetchSessionOwnerError};
+use super::{
+    fetch_session::{
+        PreparedShareFetchSession, ShareFetchSessionOwner, ShareFetchSessionOwnerError,
+    },
+    fetch_session_settlement::ShareFetchTerminalSettlementErrorKind,
+};
+
+impl PreparedShareFetchSession {
+    pub(super) fn into_parts(
+        self,
+    ) -> (
+        ShareFetchAttempt,
+        PreparedShareFetchRequest,
+        DeadlineCapture,
+    ) {
+        (self.attempt, self.request, self.capture)
+    }
+
+    pub(super) const fn deadline(&self) -> kafka_client_core::Deadline {
+        self.capture.deadline()
+    }
+}
 
 #[must_use = "an active ShareFetch call must settle or recover after driver shutdown"]
 pub(super) struct ActiveShareFetchCall {
@@ -129,7 +151,11 @@ impl ShareFetchSessionOwner {
     }
 
     pub(super) fn release_unsubmitted(mut self) -> Result<(), ShareFetchExecutionError> {
-        if self.active.is_some() || self.terminal.is_some() || self.staged.is_some() {
+        if self.active.is_some()
+            || self.terminal.is_some()
+            || self.staged.is_some()
+            || !self.machine.ledger().is_empty()
+        {
             return Err(ShareFetchExecutionError::Occupied);
         }
         if let Some(prepared) = self.take_prepared() {
@@ -176,5 +202,7 @@ pub(super) enum ShareFetchExecutionError {
     BrokerMismatch,
     Submit(ShareFetchDriverSubmitErrorKind),
     Completion(ShareFetchCompletionErrorKind),
+    Settlement(ShareFetchTerminalSettlementErrorKind),
+    Acquisition(kafka_client_core::ShareAcquisitionAdmissionErrorKind),
     Session(ShareFetchSessionOwnerError),
 }

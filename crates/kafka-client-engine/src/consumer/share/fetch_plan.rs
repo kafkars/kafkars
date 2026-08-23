@@ -1,5 +1,7 @@
 //! Exact membership-to-broker `ShareFetch` assignment and initial-session planning.
 
+use std::sync::Arc;
+
 use kafka_client_core::{
     AssignedTopicPartition, GroupAssignmentPartition, SHARE_FETCH_MAX_PARTITIONS_PER_BROKER,
     ShareFetchBrokerId, TopicId,
@@ -71,6 +73,7 @@ impl ShareBrokerSessionPlan {
                     .map_err(|_error| ShareBrokerSessionPlanError::Allocation)?;
                 topics.push(TopicBucket {
                     local_topic_id: identity.local_topic_id(),
+                    name: Arc::clone(identity.name()),
                     kafka_topic_id: identity.kafka_topic_id(),
                     partitions: Vec::new(),
                 });
@@ -120,6 +123,13 @@ impl ShareFetchSessionRequestPlan {
             })
     }
 
+    pub(super) fn resolve_topic_name(&self, kafka_topic_id: [u8; 16]) -> Option<&Arc<str>> {
+        self.topics
+            .iter()
+            .find(|topic| topic.kafka_topic_id == kafka_topic_id)
+            .map(|topic| &topic.name)
+    }
+
     pub(super) fn prepare(
         &self,
         group_id: &str,
@@ -151,6 +161,7 @@ pub(super) enum ShareBrokerSessionPlanError {
 
 struct TopicBucket {
     local_topic_id: TopicId,
+    name: Arc<str>,
     kafka_topic_id: [u8; 16],
     partitions: Vec<u32>,
 }

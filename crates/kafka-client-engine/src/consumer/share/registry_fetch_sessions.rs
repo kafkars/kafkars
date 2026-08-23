@@ -54,6 +54,9 @@ impl ShareConsumerRegistry {
                 Ok(ShareFetchSessionSetTurn::Progress) => Ok(ShareFetchSessionsHostTurn::Progress),
                 Ok(ShareFetchSessionSetTurn::Blocked) => Ok(ShareFetchSessionsHostTurn::Blocked),
                 Ok(ShareFetchSessionSetTurn::Idle) => Ok(ShareFetchSessionsHostTurn::Idle),
+                Ok(ShareFetchSessionSetTurn::NeedsPreparation(index)) => {
+                    prepare_next_session(entry, generation, index, clock)
+                }
                 Ok(ShareFetchSessionSetTurn::Released) => {
                     Err(ShareMembershipHostError::EffectShape)
                 }
@@ -155,6 +158,40 @@ fn retain_open_fault(
     Ok(ShareFetchSessionsHostTurn::Progress)
 }
 
+fn prepare_next_session(
+    entry: &mut ShareConsumerEntry,
+    generation: Option<AssignmentGeneration>,
+    index: usize,
+    clock: &MonotonicClock,
+) -> Result<ShareFetchSessionsHostTurn, ShareMembershipHostError> {
+    let generation = generation.ok_or(ShareMembershipHostError::EffectShape)?;
+    let capture = match clock.capture_deadline_after(entry.fetch().config().attempt_timeout()) {
+        Ok(capture) => capture,
+        Err(_error) => {
+            return retain_open_fault(
+                entry,
+                generation,
+                ShareFetchSessionFaultKind::DeadlineMapping,
+            );
+        }
+    };
+    let result = entry
+        .fetch_mut()
+        .sessions_mut()
+        .ok_or(ShareMembershipHostError::EffectShape)?
+        .prepare_session(index, capture);
+    match result {
+        Ok(()) => Ok(ShareFetchSessionsHostTurn::Progress),
+        Err(error) => retain_open_fault(
+            entry,
+            generation,
+            ShareFetchSessionFaultKind::Execution(
+                super::fetch_session_execution::ShareFetchExecutionError::Session(error),
+            ),
+        ),
+    }
+}
+
 fn abandon_sessions(
     entry: &mut ShareConsumerEntry,
     clear_fault: bool,
@@ -168,6 +205,9 @@ fn abandon_sessions(
     match turn {
         ShareFetchSessionSetTurn::Progress => Ok(ShareFetchSessionsHostTurn::Progress),
         ShareFetchSessionSetTurn::Blocked => Ok(ShareFetchSessionsHostTurn::Blocked),
+        ShareFetchSessionSetTurn::Idle | ShareFetchSessionSetTurn::NeedsPreparation(_) => {
+            Err(ShareMembershipHostError::EffectShape)
+        }
         ShareFetchSessionSetTurn::Released => {
             let sessions = entry
                 .fetch_mut()
@@ -181,7 +221,6 @@ fn abandon_sessions(
             }
             Ok(ShareFetchSessionsHostTurn::Progress)
         }
-        ShareFetchSessionSetTurn::Idle => Err(ShareMembershipHostError::EffectShape),
     }
 }
 

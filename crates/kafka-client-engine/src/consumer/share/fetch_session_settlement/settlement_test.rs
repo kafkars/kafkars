@@ -19,11 +19,12 @@ use crate::{
     },
 };
 
-use super::{
+use super::super::{
     catalog::{ShareMembershipCatalog, ShareTopicIdentity},
     fetch_plan::ShareBrokerSessionPlan,
-    fetch_session::{ShareFetchSessionConfig, ShareFetchSessionOwner},
+    fetch_session::ShareFetchSessionOwner,
     fetch_session_execution::ShareFetchSessionTerminal,
+    fetch_session_set::ShareFetchSessionConfig,
     fetch_session_settlement::{ShareFetchSettlementTurn, ShareFetchTerminalSettlementError},
 };
 
@@ -40,14 +41,27 @@ fn successful_terminal_advances_session_and_stages_exact_delivery() {
     assert_eq!(owner.machine().ledger().len(), 1);
     assert_eq!(owner.machine().ledger().retained_records(), 1,);
     assert_eq!(owner.lock_timeout_ms(), Some(30_000));
-    let staged = owner
-        .take_staged_delivery()
+    assert_eq!(
+        owner.throttle_until(),
+        Some(kafka_client_core::Deadline::from_tick(7_000_007))
+    );
+    let delivery = owner
+        .take_delivery(Moment::from_tick(8))
+        .unwrap_or_else(|error| panic!("take delivery: {error:?}"))
         .unwrap_or_else(|| panic!("staged delivery"));
-    assert_eq!(staged.acquisitions, 1);
-    assert_eq!(staged.throttle_time_ms, 7);
-    assert_eq!(staged.partitions[0].partition.partition().get(), 0);
-    assert!(staged.endpoints.is_empty());
-    staged.route.accept();
+    assert_eq!(delivery.group_id().get(), 1);
+    assert_eq!(delivery.fence().session_epoch().get(), 0);
+    assert_eq!(delivery.acquisitions().len(), 1);
+    assert_eq!(delivery.partitions().len(), 1);
+    assert_eq!(delivery.partitions()[0].topic(), "jobs");
+    assert_eq!(delivery.partitions()[0].topic_uuid().bytes(), [7; 16]);
+    assert_eq!(delivery.partitions()[0].partition().partition().get(), 0);
+    assert_eq!(delivery.partitions()[0].batches().len(), 1);
+    owner
+        .reclaim_delivery(delivery)
+        .unwrap_or_else(|error| panic!("reclaim delivery: {:?}", error.kind()));
+    assert_eq!(owner.machine().ledger().retained_bytes(), ByteCount::new(0));
+    assert_eq!(owner.machine().ledger().retained_records(), 1);
 }
 
 #[test]
@@ -59,14 +73,15 @@ fn initial_missing_lock_timeout_loses_possibly_sent_session() {
         Err(ShareFetchTerminalSettlementError::MissingLockTimeout)
     );
     assert_eq!(owner.machine().phase(), ShareFetchSessionPhase::Lost);
-    assert!(owner.take_staged_delivery().is_none());
+    assert!(!owner.has_staged_delivery());
 }
 
-fn stage(owner: &mut ShareFetchSessionOwner, success: ShareFetchSuccess) {
-    let attempt = owner
-        .machine()
-        .in_flight()
-        .unwrap_or_else(|| panic!("attempt"));
+pub(super) fn stage(owner: &mut ShareFetchSessionOwner, success: ShareFetchSuccess) {
+    let (attempt, request, _capture) = owner
+        .take_prepared()
+        .unwrap_or_else(|| panic!("prepared attempt"))
+        .into_parts();
+    drop(request);
     owner.terminal = Some(ShareFetchSessionTerminal {
         attempt,
         resolution: ShareFetchResolution::Succeeded(success),
@@ -78,7 +93,7 @@ fn stage(owner: &mut ShareFetchSessionOwner, success: ShareFetchSuccess) {
     });
 }
 
-fn success(acquisition_lock_timeout_ms: Option<u32>) -> ShareFetchSuccess {
+pub(super) fn success(acquisition_lock_timeout_ms: Option<u32>) -> ShareFetchSuccess {
     ShareFetchSuccess {
         throttle_time_ms: 7,
         acquisition_lock_timeout_ms,
@@ -101,7 +116,7 @@ fn success(acquisition_lock_timeout_ms: Option<u32>) -> ShareFetchSuccess {
     }
 }
 
-fn owner() -> ShareFetchSessionOwner {
+pub(super) fn owner() -> ShareFetchSessionOwner {
     let clock = crate::clock::MonotonicClock::new();
     ShareFetchSessionOwner::try_open(
         ShareBrokerSessionPlan::try_initial(

@@ -1,9 +1,9 @@
 //! Broker-local core session and exact prepared `ShareFetch` ownership.
 
 use kafka_client_core::{
-    DeliveryStatus, Moment, ShareAcquiredRange, ShareAcquisitionPolicy, ShareFetchAttempt,
+    Deadline, DeliveryStatus, Moment, ShareAcquiredRange, ShareFetchAttempt,
     ShareFetchSessionApplyError, ShareFetchSessionFence, ShareFetchSessionMachine,
-    ShareFetchSessionOpenError, ShareFetchSettlementError,
+    ShareFetchSessionOpenError, ShareFetchSessionPhase, ShareFetchSettlementError,
 };
 use std::sync::Arc;
 
@@ -18,36 +18,21 @@ use crate::{
 
 use super::fetch_plan::{ShareBrokerSessionPlan, ShareFetchSessionRequestPlan};
 use super::fetch_session_execution::{ActiveShareFetchCall, ShareFetchSessionTerminal};
+use super::fetch_session_set::ShareFetchSessionConfig;
 use super::fetch_session_settlement::StagedShareFetchDelivery;
 
 /// Exact core attempt paired with its generated request and unchanged deadline.
 #[must_use = "a prepared ShareFetch session attempt must be submitted or settled"]
 pub(super) struct PreparedShareFetchSession {
-    attempt: ShareFetchAttempt,
-    request: PreparedShareFetchRequest,
-    capture: DeadlineCapture,
-}
-
-impl PreparedShareFetchSession {
-    pub(super) fn into_parts(
-        self,
-    ) -> (
-        ShareFetchAttempt,
-        PreparedShareFetchRequest,
-        DeadlineCapture,
-    ) {
-        (self.attempt, self.request, self.capture)
-    }
-
-    pub(super) const fn deadline(&self) -> kafka_client_core::Deadline {
-        self.capture.deadline()
-    }
+    pub(super) attempt: ShareFetchAttempt,
+    pub(super) request: PreparedShareFetchRequest,
+    pub(super) capture: DeadlineCapture,
 }
 
 /// Closed preparation owner for one broker-local share session.
 #[must_use = "a share fetch session must remain hosted until it is closed or lost"]
 pub(super) struct ShareFetchSessionOwner {
-    machine: ShareFetchSessionMachine,
+    pub(super) machine: ShareFetchSessionMachine,
     request_plan: ShareFetchSessionRequestPlan,
     group: Arc<str>,
     member: Arc<str>,
@@ -55,40 +40,11 @@ pub(super) struct ShareFetchSessionOwner {
     response_limits: ShareFetchResponseLimits,
     decode_limits: FetchDecodeLimits,
     lock_timeout_ms: Option<u32>,
+    throttle_until: Option<Deadline>,
     prepared: Option<PreparedShareFetchSession>,
     pub(super) active: Option<ActiveShareFetchCall>,
     pub(super) terminal: Option<ShareFetchSessionTerminal>,
     pub(super) staged: Option<StagedShareFetchDelivery>,
-}
-
-/// Immutable bounded settings captured before one broker session opens.
-pub(super) struct ShareFetchSessionConfig {
-    group: Arc<str>,
-    member: Arc<str>,
-    policy: ShareAcquisitionPolicy,
-    settings: ShareFetchRequestSettings,
-    response_limits: ShareFetchResponseLimits,
-    decode_limits: FetchDecodeLimits,
-}
-
-impl ShareFetchSessionConfig {
-    pub(super) const fn new(
-        group: Arc<str>,
-        member: Arc<str>,
-        policy: ShareAcquisitionPolicy,
-        settings: ShareFetchRequestSettings,
-        response_limits: ShareFetchResponseLimits,
-        decode_limits: FetchDecodeLimits,
-    ) -> Self {
-        Self {
-            group,
-            member,
-            policy,
-            settings,
-            response_limits,
-            decode_limits,
-        }
-    }
 }
 
 impl ShareFetchSessionOwner {
@@ -113,6 +69,7 @@ impl ShareFetchSessionOwner {
             response_limits: config.response_limits,
             decode_limits: config.decode_limits,
             lock_timeout_ms: None,
+            throttle_until: None,
             prepared: None,
             active: None,
             terminal: None,
@@ -141,6 +98,12 @@ impl ShareFetchSessionOwner {
         {
             return Err(ShareFetchSessionOwnerError::Occupied);
         }
+        if self
+            .throttle_until
+            .is_some_and(|deadline| !deadline.is_elapsed_at(now))
+        {
+            return Err(ShareFetchSessionOwnerError::Throttled);
+        }
         let request = self
             .request_plan
             .prepare(
@@ -154,6 +117,7 @@ impl ShareFetchSessionOwner {
             .machine
             .prepare_fetch(capture.deadline(), now)
             .map_err(ShareFetchSessionOwnerError::CoreApply)?;
+        self.throttle_until = None;
         self.prepared = Some(PreparedShareFetchSession {
             attempt,
             request,
@@ -218,15 +182,44 @@ impl ShareFetchSessionOwner {
         self.lock_timeout_ms = Some(value);
     }
 
+    pub(super) fn commit_throttle_until(&mut self, value: Deadline) {
+        self.throttle_until = Some(value);
+    }
+
+    pub(super) const fn throttle_until(&self) -> Option<Deadline> {
+        self.throttle_until
+    }
+
     pub(super) const fn request_plan(&self) -> &ShareFetchSessionRequestPlan {
         &self.request_plan
     }
 
     pub(super) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
-        self.prepared
+        let execution = self
+            .prepared
             .as_ref()
             .map(PreparedShareFetchSession::deadline)
-            .or_else(|| self.active.as_ref().map(ActiveShareFetchCall::deadline))
+            .or_else(|| self.active.as_ref().map(ActiveShareFetchCall::deadline));
+        let ledger = self.machine.ledger().next_reclaimable_deadline();
+        let throttle = self
+            .machine
+            .ledger()
+            .is_empty()
+            .then_some(self.throttle_until)
+            .flatten();
+        [execution, ledger, throttle].into_iter().flatten().min()
+    }
+
+    pub(super) fn ready_for_preparation(&self, now: Moment) -> bool {
+        self.prepared.is_none()
+            && self.active.is_none()
+            && self.terminal.is_none()
+            && self.staged.is_none()
+            && self.machine.ledger().is_empty()
+            && self.machine.phase() == ShareFetchSessionPhase::Ready
+            && self
+                .throttle_until
+                .is_none_or(|deadline| deadline.is_elapsed_at(now))
     }
 }
 
@@ -234,6 +227,7 @@ impl ShareFetchSessionOwner {
 pub(super) enum ShareFetchSessionOwnerError {
     BrokerMismatch,
     Occupied,
+    Throttled,
     Protocol(ShareFetchRequestFailure),
     CoreOpen(ShareFetchSessionOpenError),
     CoreApply(ShareFetchSessionApplyError),

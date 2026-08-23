@@ -7,31 +7,26 @@ use kafka_client_core::{
     ShareFetchSessionFence, ShareGroupMemberEpoch,
 };
 
-use crate::{
-    clock::DeadlineCapture, config::ValidatedShareConsumerFetchConfig, driver::DriverOwner,
-};
+use crate::{clock::DeadlineCapture, config::ValidatedShareConsumerFetchConfig};
 
-use super::{
+use super::super::{
     fetch_routing::ShareFetchRoutedAssignment,
     fetch_session::{ShareFetchSessionOwner, ShareFetchSessionOwnerError},
-    fetch_session_execution::{
-        ShareFetchExecutionError, ShareFetchExecutionPoll, ShareFetchSubmissionTurn,
-    },
+    fetch_session_execution::ShareFetchExecutionError,
 };
 
-mod config;
-
-use config::compile_session_config;
+use super::config::compile_session_config;
 
 /// Complete broker-session set for one membership assignment generation.
 #[must_use = "share fetch sessions must remain hosted until released"]
-pub(super) struct ShareFetchSessionSet {
-    generation: AssignmentGeneration,
-    sessions: Vec<ShareFetchSessionOwner>,
+pub(in crate::consumer::share) struct ShareFetchSessionSet {
+    pub(super) generation: AssignmentGeneration,
+    pub(super) sessions: Vec<ShareFetchSessionOwner>,
+    pub(super) delivery_cursor: usize,
 }
 
 /// Stable membership identity shared by one assignment's broker sessions.
-pub(super) struct ShareFetchSessionIdentity {
+pub(in crate::consumer::share) struct ShareFetchSessionIdentity {
     group_id: GroupId,
     member_id: MemberId,
     member_epoch: ShareGroupMemberEpoch,
@@ -40,7 +35,7 @@ pub(super) struct ShareFetchSessionIdentity {
 }
 
 impl ShareFetchSessionIdentity {
-    pub(super) const fn new(
+    pub(in crate::consumer::share) const fn new(
         group_id: GroupId,
         member_id: MemberId,
         member_epoch: ShareGroupMemberEpoch,
@@ -58,7 +53,7 @@ impl ShareFetchSessionIdentity {
 }
 
 impl ShareFetchSessionSet {
-    pub(super) fn try_open(
+    pub(in crate::consumer::share) fn try_open(
         routed: ShareFetchRoutedAssignment,
         identity: &ShareFetchSessionIdentity,
         config: ValidatedShareConsumerFetchConfig,
@@ -102,109 +97,37 @@ impl ShareFetchSessionSet {
         Ok(Self {
             generation,
             sessions,
+            delivery_cursor: 0,
         })
     }
 
-    pub(super) const fn generation(&self) -> AssignmentGeneration {
+    pub(in crate::consumer::share) const fn generation(&self) -> AssignmentGeneration {
         self.generation
     }
 
-    pub(super) fn len(&self) -> usize {
+    pub(in crate::consumer::share) fn len(&self) -> usize {
         self.sessions.len()
     }
 
-    pub(super) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
+    pub(in crate::consumer::share) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
         self.sessions
             .iter()
             .filter_map(ShareFetchSessionOwner::next_deadline)
             .min()
     }
-
-    pub(super) fn turn(
-        &mut self,
-        driver: &DriverOwner,
-        now: kafka_client_core::Moment,
-    ) -> Result<ShareFetchSessionSetTurn, ShareFetchExecutionError> {
-        let mut active = false;
-        for session in &mut self.sessions {
-            if !session.has_active_call() {
-                continue;
-            }
-            active = true;
-            match session.poll_execution()? {
-                ShareFetchExecutionPoll::Pending => {}
-                ShareFetchExecutionPoll::Terminal => {
-                    return Ok(ShareFetchSessionSetTurn::Progress);
-                }
-            }
-        }
-        if let Some(session) = self
-            .sessions
-            .iter_mut()
-            .find(|session| session.has_prepared())
-        {
-            return match session.submit_prepared(driver, now)? {
-                ShareFetchSubmissionTurn::Submitted => Ok(ShareFetchSessionSetTurn::Progress),
-                ShareFetchSubmissionTurn::Backpressured => Ok(ShareFetchSessionSetTurn::Blocked),
-            };
-        }
-        Ok(if active {
-            ShareFetchSessionSetTurn::Blocked
-        } else {
-            ShareFetchSessionSetTurn::Idle
-        })
-    }
-
-    pub(super) fn abandon_turn(
-        &mut self,
-    ) -> Result<ShareFetchSessionSetTurn, ShareFetchExecutionError> {
-        for session in &mut self.sessions {
-            if session.discard_terminal()? {
-                return Ok(ShareFetchSessionSetTurn::Progress);
-            }
-        }
-        let mut active = false;
-        for session in &mut self.sessions {
-            if !session.has_active_call() {
-                continue;
-            }
-            active = true;
-            match session.poll_execution() {
-                Ok(ShareFetchExecutionPoll::Pending) => {}
-                Ok(ShareFetchExecutionPoll::Terminal) | Err(_) => {
-                    return Ok(ShareFetchSessionSetTurn::Progress);
-                }
-            }
-        }
-        if active {
-            return Ok(ShareFetchSessionSetTurn::Blocked);
-        }
-        Ok(ShareFetchSessionSetTurn::Released)
-    }
-
-    pub(super) fn release_unsubmitted(self) -> Result<(), ShareFetchExecutionError> {
-        release_unsubmitted(self.sessions)
-    }
-
-    pub(super) fn recover_after_driver_shutdown(mut self) -> Result<(), ShareFetchExecutionError> {
-        for session in &mut self.sessions {
-            let _recovered = session.recover_call_after_driver_shutdown()?;
-            let _discarded = session.discard_terminal()?;
-        }
-        release_unsubmitted(self.sessions)
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum ShareFetchSessionSetTurn {
+pub(in crate::consumer::share) enum ShareFetchSessionSetTurn {
     Idle,
     Progress,
     Blocked,
+    NeedsPreparation(usize),
     Released,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum ShareFetchSessionSetOpenError {
+pub(in crate::consumer::share) enum ShareFetchSessionSetOpenError {
     Empty,
     Allocation,
     Policy(ShareAcquisitionPolicyError),
@@ -212,7 +135,7 @@ pub(super) enum ShareFetchSessionSetOpenError {
     Rollback(ShareFetchExecutionError),
 }
 
-fn release_unsubmitted(
+pub(super) fn release_unsubmitted(
     sessions: Vec<ShareFetchSessionOwner>,
 ) -> Result<(), ShareFetchExecutionError> {
     for session in sessions {

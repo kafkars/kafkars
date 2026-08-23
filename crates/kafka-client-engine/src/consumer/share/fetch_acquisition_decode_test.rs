@@ -38,7 +38,7 @@ fn decoded_records_map_to_exact_local_ranges_and_byte_charges() {
     assert!(decoded.ranges[0].retained_bytes().get() > 10);
     assert_eq!(decoded.ranges[1].retained_bytes().get(), 6);
     assert_eq!(decoded.ranges[1].delivery_count().get(), 2);
-    assert_eq!(decoded.partitions[0].batches.len(), 2);
+    assert_eq!(decoded.partitions[0].batches().len(), 2);
     assert_eq!(decoded.throttle_time_ms, 7);
     assert_eq!(decoded.acquisition_lock_timeout_ms, Some(30_000));
     assert!(decoded.endpoints.is_empty());
