@@ -57,6 +57,38 @@ pub(super) fn produce(producer: &Producer, topic: &str, value: &[u8]) -> Result<
     .offset())
 }
 
+pub(super) fn await_assignment(consumer: &ShareConsumer, topic: &str) -> Result<(), TestError> {
+    let deadline = Instant::now() + OPERATION_TIMEOUT;
+    loop {
+        if Instant::now() >= deadline {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "share assignment did not materialize",
+            )
+            .into());
+        }
+        match consumer.assignment() {
+            Ok(Some(assignment))
+                if assignment.partitions().len() == 1
+                    && assignment.partitions()[0].topic() == topic
+                    && assignment.partitions()[0].partition() == 0 =>
+            {
+                return Ok(());
+            }
+            Ok(Some(assignment)) => {
+                return Err(io::Error::other(format!(
+                    "share member received unexpected assignment: {assignment:?}"
+                ))
+                .into());
+            }
+            Ok(None) => {}
+            Err(error) if error.retry_advice() == RetryAdvice::RetrySafe => {}
+            Err(error) => return Err(error.into()),
+        }
+        thread::sleep(std::time::Duration::from_millis(1));
+    }
+}
+
 pub(super) fn receive_exact(
     consumer: &mut ShareConsumer,
     topic: &str,

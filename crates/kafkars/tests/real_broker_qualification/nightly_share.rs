@@ -20,12 +20,14 @@ fn acknowledgement_lifecycle() -> Result<(), TestError> {
     let producer = fixture.client.producer().build()?;
     let group = unique_name("kafkars-share-ack");
     let mut first = share::build(&fixture.client, &group, &fixture.topic)?;
+    share::await_assignment(&first, &fixture.topic)?;
 
     let first_offset = share::produce(&producer, &fixture.topic, b"member-one")?;
     let observed = share::receive_exact(&mut first, &fixture.topic, first_offset, b"member-one")?;
     share::accept_exact(&mut first, observed)?;
 
     let mut second = share::build(&fixture.client, &group, &fixture.topic)?;
+    share::await_assignment(&second, &fixture.topic)?;
     share::close(first, "first share member close")?;
     let second_offset = share::produce(&producer, &fixture.topic, b"member-two")?;
     let observed = share::receive_exact(&mut second, &fixture.topic, second_offset, b"member-two")?;
