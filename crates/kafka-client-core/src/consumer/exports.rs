@@ -80,3 +80,12 @@ pub use super::resolved_assignment::{
     ReconcileResolvedAssignment, ReconcileResolvedAssignmentError,
     ReconcileResolvedAssignmentErrorKind, ResolvedAssignedPartition, ResolvedAssignmentTarget,
 };
+pub use super::share_consumer::{
+    SHARE_GROUP_HEARTBEAT_MAX_PARTITIONS, ShareGroupHeartbeatApplyError,
+    ShareGroupHeartbeatAttempt, ShareGroupHeartbeatEffect, ShareGroupHeartbeatErrorKind,
+    ShareGroupHeartbeatFailure, ShareGroupHeartbeatFatal, ShareGroupHeartbeatInput,
+    ShareGroupHeartbeatMachine, ShareGroupHeartbeatPhase, ShareGroupHeartbeatPolicy,
+    ShareGroupHeartbeatPolicyError, ShareGroupHeartbeatRequestKind, ShareGroupHeartbeatRetryCause,
+    ShareGroupHeartbeatRetrySchedule, ShareGroupHeartbeatSchedule, ShareGroupHeartbeatSequence,
+    ShareGroupHeartbeatTransition, ShareGroupMemberEpoch,
+};
