@@ -7,18 +7,13 @@ mod consumer_group;
     expect(dead_code, reason = "awaiting classic-group commit executor")
 )]
 mod group_offset_commit;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "awaiting classic-group position bootstrap executor"
-    )
-)]
+#[cfg_attr(not(test), expect(dead_code, reason = "classic position bootstrap"))]
 mod group_offset_fetch;
 mod list_offsets_model;
 mod list_offsets_request;
 mod list_offsets_response;
 mod list_offsets_time;
+pub(crate) mod share_group;
 
 pub(crate) use super::request_timeout::remaining_timeout_ms;
 #[expect(unused_imports, reason = "awaiting classic-group membership executor")]
@@ -85,7 +80,6 @@ pub(crate) use list_offsets_request::list_offsets_request;
 pub(crate) use list_offsets_response::ListOffsetsResponseFailure;
 pub(crate) use list_offsets_response::normalize_list_offsets_response;
 pub(crate) use list_offsets_time::throttle_ticks;
-
 #[cfg(test)]
 mod list_offsets_request_test;
 #[cfg(test)]

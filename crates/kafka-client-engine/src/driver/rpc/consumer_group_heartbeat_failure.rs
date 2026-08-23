@@ -16,7 +16,7 @@ pub(crate) enum ConsumerGroupHeartbeatDriverFailureKind {
     ResponseTooLarge,
 }
 
-pub(super) fn classify_consumer_group_heartbeat_request_error(
+pub(crate) fn classify_consumer_group_heartbeat_request_error(
     error: &RequestError,
 ) -> ConsumerGroupHeartbeatDriverFailureKind {
     #[allow(
