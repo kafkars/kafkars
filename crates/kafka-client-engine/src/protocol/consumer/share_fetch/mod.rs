@@ -19,22 +19,18 @@ pub(crate) use model::{
     ShareFetchOutcome, ShareFetchPartition, ShareFetchPartitionRejection, ShareFetchResponseLimits,
     ShareFetchSuccess, ShareFetchTopic,
 };
-#[expect(
-    unused_imports,
-    reason = "the tracked ShareFetch driver call lands in the next checkpoint"
-)]
-pub(crate) use request::{
-    PreparedShareFetchRequest, ShareFetchRequestSettings, share_fetch_close_request,
-    share_fetch_request,
-};
-pub(crate) use request_plan::{ShareFetchRequestPlan, ShareFetchRequestTopic};
+pub(crate) use request::PreparedShareFetchRequest;
 #[cfg_attr(
     not(test),
     expect(
         unused_imports,
-        reason = "the tracked ShareFetch driver settlement lands in the next checkpoint"
+        reason = "hosted ShareFetch request preparation lands in the next checkpoint"
     )
 )]
+pub(crate) use request::{
+    ShareFetchRequestSettings, share_fetch_close_request, share_fetch_request,
+};
+pub(crate) use request_plan::{ShareFetchRequestPlan, ShareFetchRequestTopic};
 pub(crate) use response::normalize_share_fetch_response;
 
 #[cfg(test)]

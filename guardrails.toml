@@ -366,6 +366,60 @@ owner_type = "ShareFetchCorrelation"
 path = "crates/kafka-client-engine/src/protocol/consumer/share_fetch/model.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_fetch/call_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_fetch/failure.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_fetch/failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_fetch/submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_fetch/submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_fetch/terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_fetch/terminal_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchCallEvidence"
+path = "crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchDriverSubmitFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchCall"
+path = "crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchCompletionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchRecoveredCall"
+path = "crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchRawTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/share_fetch/terminal.rs"
+
+[[linear_owners]]
+owner_type = "ShareFetchRoute"
+path = "crates/kafka-client-engine/src/driver/rpc/share_fetch/route.rs"
+
+[[mutation_owners]]
+owner_type = "ShareFetchCall"
+field = "evidence"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareFetchCall"
+field = "call"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"]
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/share_group/request.rs"
 test = "crates/kafka-client-engine/src/protocol/consumer/share_group/request_test.rs"
 

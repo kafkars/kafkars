@@ -48,7 +48,7 @@ impl ShareFetchCorrelation {
         Self { topics }
     }
 
-    pub(super) fn contains(&self, topic_id: [u8; 16], partition: u32) -> bool {
+    pub(crate) fn contains(&self, topic_id: [u8; 16], partition: u32) -> bool {
         self.topics
             .iter()
             .find(|candidate| candidate.topic_id == topic_id)
