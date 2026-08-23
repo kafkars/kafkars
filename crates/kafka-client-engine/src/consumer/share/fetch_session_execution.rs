@@ -24,34 +24,45 @@ pub(super) struct ShareFetchSessionTerminal {
 }
 
 impl ShareFetchSessionOwner {
+    pub(super) const fn has_active_call(&self) -> bool {
+        self.active.is_some()
+    }
+
     pub(super) fn submit_prepared(
         &mut self,
         driver: &DriverOwner,
-    ) -> Result<(), ShareFetchExecutionError> {
+        now: kafka_client_core::Moment,
+    ) -> Result<ShareFetchSubmissionTurn, ShareFetchExecutionError> {
         if self.active.is_some() || self.terminal.is_some() {
             return Err(ShareFetchExecutionError::Occupied);
         }
         let prepared = self
             .take_prepared()
             .ok_or(ShareFetchExecutionError::NotPrepared)?;
-        let (attempt, request, submitted_at, deadline) = prepared.into_parts();
+        let (attempt, request, capture) = prepared.into_parts();
         match ShareFetchCall::submit(
             driver,
             attempt.fence().broker_id(),
             request,
-            submitted_at,
-            deadline,
+            capture.now(),
+            capture.operation_deadline(),
         ) {
             Ok(call) => {
                 self.active = Some(ActiveShareFetchCall { attempt, call });
-                Ok(())
+                Ok(ShareFetchSubmissionTurn::Submitted)
             }
             Err(failure) => {
                 let kind = failure.kind();
                 drop(failure.into_evidence());
                 self.settle_attempt_failure(attempt, DeliveryStatus::NotSent)
                     .map_err(ShareFetchExecutionError::Session)?;
-                Err(ShareFetchExecutionError::Submit(kind))
+                if kind == ShareFetchDriverSubmitErrorKind::Full {
+                    self.prepare_next_at(capture, now)
+                        .map_err(ShareFetchExecutionError::Session)?;
+                    Ok(ShareFetchSubmissionTurn::Backpressured)
+                } else {
+                    Err(ShareFetchExecutionError::Submit(kind))
+                }
             }
         }
     }
@@ -116,6 +127,39 @@ impl ShareFetchSessionOwner {
             .map_err(ShareFetchExecutionError::Session)?;
         Ok(true)
     }
+
+    pub(super) fn release_unsubmitted(mut self) -> Result<(), ShareFetchExecutionError> {
+        if self.active.is_some() || self.terminal.is_some() || self.staged.is_some() {
+            return Err(ShareFetchExecutionError::Occupied);
+        }
+        if let Some(prepared) = self.take_prepared() {
+            self.settle_unsubmitted(prepared)
+                .map_err(ShareFetchExecutionError::Session)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn discard_terminal(&mut self) -> Result<bool, ShareFetchExecutionError> {
+        let Some(terminal) = self.take_terminal() else {
+            return Ok(false);
+        };
+        terminal.route.accept();
+        self.settle_attempt_failure(terminal.attempt, DeliveryStatus::PossiblySent)
+            .map_err(ShareFetchExecutionError::Session)?;
+        Ok(true)
+    }
+}
+
+impl ActiveShareFetchCall {
+    pub(super) const fn deadline(&self) -> kafka_client_core::Deadline {
+        self.attempt.deadline()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ShareFetchSubmissionTurn {
+    Submitted,
+    Backpressured,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

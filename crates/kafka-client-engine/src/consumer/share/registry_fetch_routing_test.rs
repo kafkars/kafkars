@@ -21,32 +21,14 @@ fn hosted_assignment_becomes_one_retained_broker_plan() {
     let (mut registry, group_id, clock, capture) = registry_with_routable_membership();
     settle_partition_three(&mut registry, group_id, capture.now());
     let (mut broker, mut driver) = routed_driver();
-
-    assert_eq!(
-        registry
-            .turn_one_fetch_routing(capture.now(), &clock, &driver)
-            .unwrap_or_else(|error| panic!("start routing: {error:?}")),
-        ShareFetchRoutingHostTurn::Progress
+    route_assignment(
+        &mut registry,
+        group_id,
+        &clock,
+        capture,
+        &mut broker,
+        &mut driver,
     );
-    assert_eq!(
-        registry
-            .turn_one_fetch_routing(capture.now(), &clock, &driver)
-            .unwrap_or_else(|error| panic!("submit routing: {error:?}")),
-        ShareFetchRoutingHostTurn::Progress
-    );
-    broker.install_topic(&mut driver);
-    for _turn in 0..32 {
-        let _turn = registry
-            .turn_one_fetch_routing(capture.now(), &clock, &driver)
-            .unwrap_or_else(|error| panic!("drive routing: {error:?}"));
-        if registry
-            .entry(group_id)
-            .is_some_and(|entry| entry.fetch().routed().is_some())
-        {
-            break;
-        }
-        drive(&mut driver);
-    }
     let entry = registry.entry(group_id).unwrap_or_else(|| panic!("entry"));
     let routed = entry.fetch().routed().unwrap_or_else(|| {
         panic!(
@@ -103,7 +85,7 @@ fn close_abandons_routing_before_any_driver_call_is_admitted() {
         .unwrap_or_else(|error| panic!("recover: {error:?}"));
 }
 
-fn settle_partition_three(
+pub(super) fn settle_partition_three(
     registry: &mut super::registry::ShareConsumerRegistry,
     group_id: kafka_client_core::GroupId,
     now: Moment,
@@ -128,7 +110,7 @@ fn settle_partition_three(
         .unwrap_or_else(|error| panic!("assignment: {error:?}"));
 }
 
-fn registry_with_routable_membership() -> (
+pub(super) fn registry_with_routable_membership() -> (
     ShareConsumerRegistry,
     kafka_client_core::GroupId,
     MonotonicClock,
@@ -172,13 +154,48 @@ fn registry_with_routable_membership() -> (
     (registry, group_id, clock, capture)
 }
 
-fn routed_driver() -> (RoutedBroker, DriverOwner) {
+pub(super) fn routed_driver() -> (RoutedBroker, DriverOwner) {
     let mut broker = RoutedBroker::new();
     let mut driver = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
         .unwrap_or_else(|error| panic!("driver: {error}"));
     RoutedBroker::await_seed(&mut driver);
     broker.install_cluster(&mut driver);
     (broker, driver)
+}
+
+pub(super) fn route_assignment(
+    registry: &mut ShareConsumerRegistry,
+    group_id: kafka_client_core::GroupId,
+    clock: &MonotonicClock,
+    capture: crate::clock::DeadlineCapture,
+    broker: &mut RoutedBroker,
+    driver: &mut DriverOwner,
+) {
+    assert_eq!(
+        registry
+            .turn_one_fetch_routing(capture.now(), clock, driver)
+            .unwrap_or_else(|error| panic!("start routing: {error:?}")),
+        ShareFetchRoutingHostTurn::Progress
+    );
+    assert_eq!(
+        registry
+            .turn_one_fetch_routing(capture.now(), clock, driver)
+            .unwrap_or_else(|error| panic!("submit routing: {error:?}")),
+        ShareFetchRoutingHostTurn::Progress
+    );
+    broker.install_topic(driver);
+    for _turn in 0..32 {
+        let _turn = registry
+            .turn_one_fetch_routing(capture.now(), clock, driver)
+            .unwrap_or_else(|error| panic!("drive routing: {error:?}"));
+        if registry
+            .entry(group_id)
+            .is_some_and(|entry| entry.fetch().routed().is_some())
+        {
+            break;
+        }
+        drive(driver);
+    }
 }
 
 fn drive(driver: &mut DriverOwner) {

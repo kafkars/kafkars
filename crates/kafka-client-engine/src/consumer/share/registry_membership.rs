@@ -7,6 +7,7 @@ use crate::{clock::MonotonicClock, driver::DriverOwner};
 use super::{
     ShareMembershipError, registry::ShareConsumerRegistry, registry_close::ShareConsumerCloseTurn,
     registry_fetch_routing::ShareFetchRoutingHostTurn,
+    registry_fetch_sessions::ShareFetchSessionsHostTurn,
     registry_heartbeat_due::ShareHeartbeatDueTurn,
     registry_heartbeat_settlement::ShareHeartbeatSettlementTurn,
     registry_heartbeat_submission::ShareHeartbeatSubmissionTurn,
@@ -80,6 +81,11 @@ impl ShareConsumerRegistry {
             ShareFetchRoutingHostTurn::Blocked => true,
             ShareFetchRoutingHostTurn::Idle => false,
         };
+        let fetch_sessions_blocked = match self.turn_one_fetch_sessions(now, clock, driver)? {
+            ShareFetchSessionsHostTurn::Progress => return Ok(ShareMembershipTurn::Progress),
+            ShareFetchSessionsHostTurn::Blocked => true,
+            ShareFetchSessionsHostTurn::Idle => false,
+        };
         Ok(
             if heartbeat_blocked
                 || topic_blocked
@@ -87,6 +93,7 @@ impl ShareConsumerRegistry {
                 || close_blocked
                 || heartbeat_submission_blocked
                 || fetch_blocked
+                || fetch_sessions_blocked
             {
                 ShareMembershipTurn::Blocked
             } else {

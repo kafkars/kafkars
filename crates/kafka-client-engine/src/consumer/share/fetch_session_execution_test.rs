@@ -28,7 +28,7 @@ fn accepted_call_preserves_the_driver_terminal_before_session_policy() {
         .unwrap_or_else(|error| panic!("driver: {error}"));
     let mut owner = owner();
     owner
-        .submit_prepared(&driver)
+        .submit_prepared(&driver, kafka_client_core::Moment::from_tick(0))
         .unwrap_or_else(|error| panic!("submit: {error:?}"));
     assert!(owner.has_active_call());
     driver
@@ -58,7 +58,7 @@ fn post_driver_recovery_conservatively_loses_the_accepted_session() {
         .unwrap_or_else(|error| panic!("driver: {error}"));
     let mut owner = owner();
     owner
-        .submit_prepared(&driver)
+        .submit_prepared(&driver, kafka_client_core::Moment::from_tick(0))
         .unwrap_or_else(|error| panic!("submit: {error:?}"));
     drop(driver);
     assert_eq!(owner.recover_call_after_driver_shutdown(), Ok(true));

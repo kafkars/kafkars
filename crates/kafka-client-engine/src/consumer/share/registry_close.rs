@@ -91,7 +91,7 @@ impl ShareConsumerRegistry {
             .blocks_submission(self.entries[index].group_id())
             || self.entries[index].heartbeat_call.is_some()
             || self.entries[index].topic_call.is_some()
-            || self.entries[index].fetch().routing().is_some()
+            || self.entries[index].fetch().blocks_close()
         {
             return Ok(ShareConsumerCloseTurn::Blocked);
         }

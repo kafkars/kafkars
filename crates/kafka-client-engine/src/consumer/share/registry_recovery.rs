@@ -21,6 +21,11 @@ impl ShareConsumerRegistry {
             }
             drop(entry.fetch_mut().take_routing());
             drop(entry.fetch_mut().take_routed());
+            if let Some(sessions) = entry.fetch_mut().take_sessions() {
+                sessions
+                    .recover_after_driver_shutdown()
+                    .map_err(|_error| ShareMembershipHostError::EffectShape)?;
+            }
             if let Some(membership) = &mut entry.membership
                 && membership.machine().phase() != ShareGroupHeartbeatPhase::Closed
             {

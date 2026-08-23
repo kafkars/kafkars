@@ -123,32 +123,26 @@ pub(crate) struct ValidatedShareConsumerFetchConfig {
 }
 
 impl ValidatedShareConsumerFetchConfig {
-    #[cfg(test)]
     pub(crate) const fn max_wait_ms(self) -> u32 {
         self.max_wait_ms
     }
 
-    #[cfg(test)]
     pub(crate) const fn min_bytes(self) -> u32 {
         self.min_bytes
     }
 
-    #[cfg(test)]
     pub(crate) const fn max_bytes(self) -> u32 {
         self.max_bytes
     }
 
-    #[cfg(test)]
     pub(crate) const fn max_records(self) -> u32 {
         self.max_records
     }
 
-    #[cfg(test)]
     pub(crate) const fn batch_size(self) -> u32 {
         self.batch_size
     }
 
-    #[cfg(test)]
     pub(crate) const fn attempt_timeout(self) -> Duration {
         self.attempt_timeout
     }

@@ -35,10 +35,9 @@ fn initial_preparation_keeps_one_session_and_deadline_owner() {
     let prepared = owner
         .take_prepared()
         .unwrap_or_else(|| panic!("initial request"));
-    let (attempt, request, submitted_at, deadline) = prepared.into_parts();
+    let (attempt, request, capture) = prepared.into_parts();
     assert_eq!(attempt.deadline(), initial.deadline());
-    assert_eq!(submitted_at, initial.now());
-    assert_eq!(deadline, initial.operation_deadline());
+    assert_eq!(capture, initial);
     let (request, correlation) = request.into_parts();
     assert_eq!(request.share_session_epoch, 0);
     assert_eq!(request.topics.len(), 1);
@@ -85,10 +84,9 @@ fn broker_mismatch_and_overlapping_preparation_fail_before_second_owner() {
     let replacement = owner
         .take_prepared()
         .unwrap_or_else(|| panic!("replacement owner"));
-    let (attempt, request, submitted_at, deadline) = replacement.into_parts();
+    let (attempt, request, capture) = replacement.into_parts();
     assert_eq!(attempt.deadline(), replacement_capture.deadline());
-    assert_eq!(submitted_at, replacement_capture.now());
-    assert_eq!(deadline, replacement_capture.operation_deadline());
+    assert_eq!(capture, replacement_capture);
     assert_eq!(request.into_parts().0.share_session_epoch, 0);
 }
 

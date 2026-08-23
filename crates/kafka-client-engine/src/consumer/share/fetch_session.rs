@@ -1,15 +1,14 @@
 //! Broker-local core session and exact prepared `ShareFetch` ownership.
 
-use std::sync::Arc;
-
 use kafka_client_core::{
     DeliveryStatus, Moment, ShareAcquiredRange, ShareAcquisitionPolicy, ShareFetchAttempt,
     ShareFetchSessionApplyError, ShareFetchSessionFence, ShareFetchSessionMachine,
     ShareFetchSessionOpenError, ShareFetchSettlementError,
 };
+use std::sync::Arc;
 
 use crate::{
-    clock::{DeadlineCapture, OperationDeadline},
+    clock::DeadlineCapture,
     protocol::consumer::share_fetch::{
         PreparedShareFetchRequest, ShareFetchRequestFailure, ShareFetchRequestSettings,
         ShareFetchResponseLimits,
@@ -26,8 +25,7 @@ use super::fetch_session_settlement::StagedShareFetchDelivery;
 pub(super) struct PreparedShareFetchSession {
     attempt: ShareFetchAttempt,
     request: PreparedShareFetchRequest,
-    submitted_at: kafka_client_core::Moment,
-    deadline: OperationDeadline,
+    capture: DeadlineCapture,
 }
 
 impl PreparedShareFetchSession {
@@ -36,10 +34,13 @@ impl PreparedShareFetchSession {
     ) -> (
         ShareFetchAttempt,
         PreparedShareFetchRequest,
-        kafka_client_core::Moment,
-        OperationDeadline,
+        DeadlineCapture,
     ) {
-        (self.attempt, self.request, self.submitted_at, self.deadline)
+        (self.attempt, self.request, self.capture)
+    }
+
+    pub(super) const fn deadline(&self) -> kafka_client_core::Deadline {
+        self.capture.deadline()
     }
 }
 
@@ -117,13 +118,21 @@ impl ShareFetchSessionOwner {
             terminal: None,
             staged: None,
         };
-        owner.prepare_next(capture)?;
+        owner.prepare_next_at(capture, capture.now())?;
         Ok(owner)
     }
 
     pub(super) fn prepare_next(
         &mut self,
         capture: DeadlineCapture,
+    ) -> Result<(), ShareFetchSessionOwnerError> {
+        self.prepare_next_at(capture, capture.now())
+    }
+
+    pub(super) fn prepare_next_at(
+        &mut self,
+        capture: DeadlineCapture,
+        now: Moment,
     ) -> Result<(), ShareFetchSessionOwnerError> {
         if self.prepared.is_some()
             || self.active.is_some()
@@ -143,13 +152,12 @@ impl ShareFetchSessionOwner {
             .map_err(ShareFetchSessionOwnerError::Protocol)?;
         let attempt = self
             .machine
-            .prepare_fetch(capture.deadline(), capture.now())
+            .prepare_fetch(capture.deadline(), now)
             .map_err(ShareFetchSessionOwnerError::CoreApply)?;
         self.prepared = Some(PreparedShareFetchSession {
             attempt,
             request,
-            submitted_at: capture.now(),
-            deadline: capture.operation_deadline(),
+            capture,
         });
         Ok(())
     }
@@ -158,11 +166,15 @@ impl ShareFetchSessionOwner {
         self.prepared.take()
     }
 
+    pub(super) const fn has_prepared(&self) -> bool {
+        self.prepared.is_some()
+    }
+
     pub(super) fn settle_unsubmitted(
         &mut self,
         prepared: PreparedShareFetchSession,
     ) -> Result<(), ShareFetchSessionOwnerError> {
-        let (attempt, request, _submitted_at, _deadline) = prepared.into_parts();
+        let (attempt, request, _capture) = prepared.into_parts();
         drop(request);
         self.settle_attempt_failure(attempt, DeliveryStatus::NotSent)
     }
@@ -210,8 +222,11 @@ impl ShareFetchSessionOwner {
         &self.request_plan
     }
 
-    pub(super) const fn has_active_call(&self) -> bool {
-        self.active.is_some()
+    pub(super) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
+        self.prepared
+            .as_ref()
+            .map(PreparedShareFetchSession::deadline)
+            .or_else(|| self.active.as_ref().map(ActiveShareFetchCall::deadline))
     }
 }
 
