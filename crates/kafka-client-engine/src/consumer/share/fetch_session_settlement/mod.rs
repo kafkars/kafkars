@@ -11,4 +11,4 @@ pub(super) use settlement::{ShareFetchSettlementTurn, ShareFetchTerminalSettleme
 #[cfg(test)]
 mod retirement_test;
 #[cfg(test)]
-mod settlement_test;
+pub(super) mod settlement_test;

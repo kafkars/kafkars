@@ -154,6 +154,11 @@ impl ShareFetchSessionOwner {
         if self.active.is_some()
             || self.terminal.is_some()
             || self.staged.is_some()
+            || self.prepared_acknowledgement.is_some()
+            || self.active_acknowledgement.is_some()
+            || self.acknowledgement_terminal.is_some()
+            || self.acknowledgement_outcome.is_some()
+            || !self.acknowledgement_faults.is_empty()
             || !self.machine.ledger().is_empty()
         {
             return Err(ShareFetchExecutionError::Occupied);
@@ -204,5 +209,18 @@ pub(super) enum ShareFetchExecutionError {
     Completion(ShareFetchCompletionErrorKind),
     Settlement(ShareFetchTerminalSettlementErrorKind),
     Acquisition(kafka_client_core::ShareAcquisitionAdmissionErrorKind),
+    Acknowledgement(
+        super::fetch_acknowledgement_execution::ShareAcknowledgementExecutionFailureKind,
+    ),
     Session(ShareFetchSessionOwnerError),
+}
+
+impl From<super::fetch_acknowledgement_execution::ShareAcknowledgementExecutionFailureKind>
+    for ShareFetchExecutionError
+{
+    fn from(
+        error: super::fetch_acknowledgement_execution::ShareAcknowledgementExecutionFailureKind,
+    ) -> Self {
+        Self::Acknowledgement(error)
+    }
 }

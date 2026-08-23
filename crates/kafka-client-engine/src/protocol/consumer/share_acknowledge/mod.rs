@@ -12,7 +12,7 @@ pub(crate) use model::{
     ShareAcknowledgeCorrelation, ShareAcknowledgeEndpoint, ShareAcknowledgeOutcome,
     ShareAcknowledgePartitionOutcome, ShareAcknowledgeSuccess,
 };
-pub(crate) use request::PreparedShareAcknowledgeRequest;
+pub(crate) use request::{PreparedShareAcknowledgeRequest, share_acknowledge_request};
 pub(crate) use response::normalize_share_acknowledge_response;
 #[cfg(test)]
 mod request_test;

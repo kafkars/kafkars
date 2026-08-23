@@ -97,7 +97,7 @@ impl ShareFetchDelivery {
         &self.acquisitions
     }
 
-    fn into_parts(
+    pub(super) fn into_parts(
         self,
     ) -> (
         ShareFetchSessionFence,
