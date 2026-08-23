@@ -2,7 +2,12 @@
 
 use std::sync::Arc;
 
-use super::ShareConsumerRecords;
+use kafka_client_core::{
+    ShareAcknowledgement as CoreShareAcknowledgement, ShareAcknowledgementBuildErrorKind,
+    ShareDisposition, ShareRecordDecision,
+};
+
+use super::{ShareAcknowledgement, ShareAcknowledgementBuildError, ShareConsumerRecords};
 use crate::consumer::share::{ShareConsumerPort, ShareFetchDelivery};
 
 /// One response-wide share delivery and its exact broker-lock capabilities.
@@ -14,7 +19,7 @@ use crate::consumer::share::{ShareConsumerPort, ShareFetchDelivery};
 pub struct ShareConsumerBatch {
     delivery: Option<ShareFetchDelivery>,
     return_to: ShareConsumerPort,
-    _lifetime: Arc<dyn Send + Sync>,
+    lifetime: Arc<dyn Send + Sync>,
 }
 
 impl ShareConsumerBatch {
@@ -26,7 +31,7 @@ impl ShareConsumerBatch {
         Self {
             delivery: Some(delivery),
             return_to,
-            _lifetime: lifetime,
+            lifetime,
         }
     }
 
@@ -48,6 +53,49 @@ impl ShareConsumerBatch {
     /// Returns the number of exact broker-acquired offset ranges.
     pub fn acquisition_count(&self) -> usize {
         self.delivery().acquisitions().len()
+    }
+
+    /// Consumes this batch into one `Accept` decision for every application record.
+    pub fn accept_all(self) -> Result<ShareAcknowledgement, ShareAcknowledgementBuildError> {
+        let mut decisions = Vec::new();
+        if decisions.try_reserve_exact(self.record_count()).is_err() {
+            return Err(ShareAcknowledgementBuildError::new(
+                ShareAcknowledgementBuildErrorKind::AllocationFailed,
+                self,
+                decisions,
+            ));
+        }
+        decisions.extend(
+            self.records()
+                .map(|record| record.decision(ShareDisposition::Accept)),
+        );
+        self.into_acknowledgement(decisions)
+    }
+
+    /// Consumes this batch and exact record decisions into normalized wire ranges.
+    pub fn into_acknowledgement(
+        mut self,
+        decisions: Vec<ShareRecordDecision>,
+    ) -> Result<ShareAcknowledgement, ShareAcknowledgementBuildError> {
+        let delivery = self
+            .delivery
+            .take()
+            .unwrap_or_else(|| unreachable!("share batch owns one delivery"));
+        let (fence, partitions, acquisitions) = delivery.into_parts();
+        match CoreShareAcknowledgement::try_new(acquisitions, decisions) {
+            Ok(acknowledgement) => Ok(ShareAcknowledgement::new(
+                acknowledgement,
+                partitions,
+                self.return_to.clone(),
+                Arc::clone(&self.lifetime),
+            )),
+            Err(error) => {
+                let kind = error.kind();
+                let (acquisitions, decisions) = error.into_parts();
+                self.delivery = Some(ShareFetchDelivery::restore(fence, partitions, acquisitions));
+                Err(ShareAcknowledgementBuildError::new(kind, self, decisions))
+            }
+        }
     }
 
     pub(super) fn delivery(&self) -> &ShareFetchDelivery {

@@ -815,9 +815,21 @@ path = "crates/kafka-client-engine/src/consumer/share/registry_delivery.rs"
 production = "crates/kafka-client-engine/src/consumer/share_batch/batch.rs"
 test = "crates/kafka-client-engine/src/consumer/share_batch/batch_test.rs"
 
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share_batch/acknowledgement.rs"
+test = "crates/kafka-client-engine/src/consumer/share_batch/acknowledgement_test.rs"
+
 [[linear_owners]]
 owner_type = "ShareConsumerBatch"
 path = "crates/kafka-client-engine/src/consumer/share_batch/batch.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgement"
+path = "crates/kafka-client-engine/src/consumer/share_batch/acknowledgement.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementBuildError"
+path = "crates/kafka-client-engine/src/consumer/share_batch/acknowledgement.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/share_recv/operation.rs"

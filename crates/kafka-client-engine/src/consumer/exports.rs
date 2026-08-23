@@ -109,8 +109,10 @@ pub(crate) use super::share::{
     ShareMembershipTurn,
 };
 pub use super::share_batch::{
+    ShareAcknowledgement, ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind,
     ShareConsumerBatch, ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords,
-    ShareConsumerTryTakeBatchError, ShareConsumerTryTakeBatchErrorKind,
+    ShareConsumerTryTakeBatchError, ShareConsumerTryTakeBatchErrorKind, ShareDisposition,
+    ShareRecordDecision,
 };
 pub use super::share_recv::{
     ShareConsumerRecv, ShareConsumerRecvError, ShareConsumerRecvErrorKind,
