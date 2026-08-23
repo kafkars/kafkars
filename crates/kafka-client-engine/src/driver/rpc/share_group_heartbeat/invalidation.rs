@@ -113,6 +113,16 @@ impl ShareCoordinatorInvalidations {
         self.entries.len()
     }
 
+    pub(crate) fn discard_queued(&mut self, group_id: GroupId) -> bool {
+        let Some(index) = self.entries.iter().position(|entry| {
+            matches!(entry, ShareCoordinatorInvalidationState::Queued(pending) if pending.group_id() == group_id)
+        }) else {
+            return false;
+        };
+        drop(self.entries.remove(index));
+        true
+    }
+
     pub(crate) fn discard_after_driver_shutdown(&mut self) {
         self.entries.clear();
     }

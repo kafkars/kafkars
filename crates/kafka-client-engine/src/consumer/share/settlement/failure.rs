@@ -31,6 +31,10 @@ impl ShareMembershipInterpreter {
                     failure,
                 })
                 .map_err(map_core)?;
+            if transition_is_terminal(&transition) {
+                self.finish_terminal_transition(transition)?;
+                return Ok(ShareMembershipFailureTurn::Terminal);
+            }
             return self.install_retry(transition, ShareGroupHeartbeatRetryCause::CoordinatorLoad);
         }
         if matches!(
@@ -46,6 +50,10 @@ impl ShareMembershipInterpreter {
                     failure,
                 })
                 .map_err(map_core)?;
+            if transition_is_terminal(&transition) {
+                self.finish_terminal_transition(transition)?;
+                return Ok(ShareMembershipFailureTurn::Terminal);
+            }
             return self.install_rediscovery(transition, prepared);
         }
         if prepared.kind == ShareGroupHeartbeatRequestKind::Steady
@@ -59,11 +67,25 @@ impl ShareMembershipInterpreter {
                     failure,
                 })
                 .map_err(map_core)?;
+            if transition_is_terminal(&transition) {
+                self.finish_terminal_transition(transition)?;
+                return Ok(ShareMembershipFailureTurn::Terminal);
+            }
             self.install_rejoin(transition, clock, prepared)?;
             return Ok(ShareMembershipFailureTurn::Rejoin);
         }
         self.apply_terminal(prepared, failure)?;
         Ok(ShareMembershipFailureTurn::Terminal)
+    }
+
+    fn finish_terminal_transition(
+        &mut self,
+        transition: kafka_client_core::ShareGroupHeartbeatTransition,
+    ) -> Result<(), ShareMembershipError> {
+        self.consume_terminal(transition)?;
+        self.prepared = None;
+        self.retry_gate = ShareMembershipRetryGate::Open;
+        Ok(())
     }
 
     pub(in crate::consumer::share) fn fail_rediscovery(
@@ -125,4 +147,13 @@ impl ShareMembershipInterpreter {
         self.retry_gate = ShareMembershipRetryGate::Open;
         Ok(())
     }
+}
+
+fn transition_is_terminal(transition: &kafka_client_core::ShareGroupHeartbeatTransition) -> bool {
+    transition.effects().any(|effect| {
+        matches!(
+            effect,
+            kafka_client_core::ShareGroupHeartbeatEffect::Fatal { .. }
+        )
+    })
 }
