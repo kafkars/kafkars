@@ -427,6 +427,7 @@ mod renew_delegation_token_submission_test;
 mod renew_delegation_token_terminal;
 #[cfg(test)]
 mod renew_delegation_token_terminal_test;
+pub(crate) mod share_acknowledge;
 pub(crate) mod share_fetch;
 pub(crate) mod share_group_heartbeat;
 mod submission;

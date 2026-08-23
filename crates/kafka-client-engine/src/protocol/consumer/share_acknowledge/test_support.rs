@@ -10,7 +10,15 @@ use kafka_client_core::{
     ShareGroupMemberEpoch, ShareRecordDecision, ShareTopicUuid, TopicId,
 };
 
-pub(super) fn prepared_acknowledgement() -> (ShareAcknowledgeAttempt, ShareAcknowledgement) {
+use super::{PreparedShareAcknowledgeRequest, request::share_acknowledge_request};
+
+pub(crate) fn prepared_request() -> PreparedShareAcknowledgeRequest {
+    let (attempt, acknowledgement) = prepared_acknowledgement();
+    share_acknowledge_request("workers", "member-a", attempt, &acknowledgement)
+        .unwrap_or_else(|error| panic!("valid acknowledgement request: {error:?}"))
+}
+
+pub(crate) fn prepared_acknowledgement() -> (ShareAcknowledgeAttempt, ShareAcknowledgement) {
     let assignment = vec![partition(1, 0), partition(1, 1), partition(2, 0)];
     let policy = okay(ShareAcquisitionPolicy::try_new(3, 5, ByteCount::new(24)));
     let mut machine = okay(ShareFetchSessionMachine::try_open(
@@ -88,7 +96,7 @@ fn some<T>(value: Option<T>) -> T {
     value.unwrap_or_else(|| panic!("expected validated fixture value"))
 }
 
-pub(super) fn id(value: u8) -> [u8; 16] {
+pub(crate) fn id(value: u8) -> [u8; 16] {
     let mut id = [0; 16];
     id[0] = value;
     id

@@ -169,7 +169,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs", lines = 297, reason = "AddOffsetsToTxn retains one explicit call, causal coordinator refresh, terminal delivery, and abort-required ownership state machine" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs", lines = 256, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc/unregister_broker_terminal.rs", lines = 242, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/driver/rpc.rs", lines = 668, reason = "the declarative driver RPC facade names every concrete source-preview tracked lane, including ShareGroupHeartbeat, without a glob capability bypass" },
+  { path = "crates/kafka-client-engine/src/driver/rpc.rs", lines = 669, reason = "the declarative driver RPC facade names every concrete source-preview tracked lane, including ShareGroupHeartbeat and ShareAcknowledge, without a glob capability bypass" },
   { path = "crates/kafka-client-engine/src/engine.rs", lines = 338, reason = "the engine composition root retains common configuration and admission ports while Admin and shutdown admission live in focused child seams" },
   { path = "crates/kafka-client-engine/src/engine_host/admin/recovery.rs", lines = 251, reason = "the Admin recovery dispatcher exhaustively returns each concrete tracked owner to its exact bounded host after driver shutdown" },
   { path = "crates/kafka-client-engine/src/engine_host/admin/schedule.rs", lines = 451, reason = "the fair Admin scheduler drives every bounded source-preview operation once per fresh-time host cycle" },
@@ -435,6 +435,60 @@ path = "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/reque
 [[linear_owners]]
 owner_type = "ShareAcknowledgeCorrelation"
 path = "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/model.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/call.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/call_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/failure.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/terminal_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgeCallEvidence"
+path = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/call.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgeDriverSubmitFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/call.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgeCall"
+path = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/call.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgeCompletionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/call.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgeRecoveredCall"
+path = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/call.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgeRawTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/terminal.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgeRoute"
+path = "crates/kafka-client-engine/src/driver/rpc/share_acknowledge/route.rs"
+
+[[mutation_owners]]
+owner_type = "ShareAcknowledgeCall"
+field = "evidence"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/share_acknowledge/call.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareAcknowledgeCall"
+field = "call"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/share_acknowledge/call.rs"]
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"
