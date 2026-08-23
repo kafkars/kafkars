@@ -282,6 +282,14 @@ production = "crates/kafka-client-engine/src/consumer/share/membership.rs"
 test = "crates/kafka-client-engine/src/consumer/share/membership_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/entry.rs"
+test = "crates/kafka-client-engine/src/consumer/share/entry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/registry_registration.rs"
+test = "crates/kafka-client-engine/src/consumer/share/registry_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/share/transition/retry.rs"
 test = "crates/kafka-client-engine/src/consumer/share/transition/retry_test.rs"
 
@@ -17502,6 +17510,60 @@ path = "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_inva
 
 # Share-coordinator rediscovery owns the transferred route capability in one
 # bounded lane before the hosted registry is permitted to replace a heartbeat.
+[[linear_owners]]
+owner_type = "ShareConsumerEntry"
+path = "crates/kafka-client-engine/src/consumer/share/entry.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerEntryBuildFailure"
+path = "crates/kafka-client-engine/src/consumer/share/entry.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerRegistrationFailure"
+path = "crates/kafka-client-engine/src/consumer/share/registry_registration.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerRegistry"
+path = "crates/kafka-client-engine/src/consumer/share/registry.rs"
+
+[[mutation_owners]]
+owner_type = "ShareConsumerRegistry"
+field = "entries"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/registry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_registration.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerRegistry"
+field = "next_group_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/registry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_registration.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerRegistry"
+field = "retained_name_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/registry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_registration.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerRegistry"
+field = "accepting"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/registry.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerEntry"
+field = "start"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/entry.rs",
+]
+
 [[linear_owners]]
 owner_type = "PendingShareCoordinatorInvalidation"
 path = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation.rs"
