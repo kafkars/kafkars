@@ -1,5 +1,6 @@
 //! Deterministic KIP-932 `ShareFetch` session and acquisition ownership.
 
+mod acknowledgement;
 mod acquisition;
 mod identity;
 mod ledger;
@@ -10,6 +11,11 @@ mod policy;
 mod session;
 mod session_error;
 
+pub use acknowledgement::{
+    ShareAcknowledgeType, ShareAcknowledgement, ShareAcknowledgementBatch,
+    ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind, ShareDisposition,
+    ShareRecordDecision,
+};
 pub use acquisition::{ShareAcquisition, ShareAcquisitionPhase, ShareAcquisitionRelease};
 pub use identity::{
     ShareAcquisitionGeneration, ShareFetchAssignmentGeneration, ShareFetchAttempt,
