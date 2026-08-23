@@ -1,7 +1,8 @@
 //! Exact membership-to-broker `ShareFetch` assignment and initial-session planning.
 
 use kafka_client_core::{
-    AssignedTopicPartition, GroupAssignmentPartition, ShareFetchBrokerId, TopicId,
+    AssignedTopicPartition, GroupAssignmentPartition, SHARE_FETCH_MAX_PARTITIONS_PER_BROKER,
+    ShareFetchBrokerId, TopicId,
 };
 
 use crate::protocol::consumer::share_fetch::{
@@ -33,6 +34,9 @@ impl ShareBrokerSessionPlan {
     ) -> Result<Self, ShareBrokerSessionPlanError> {
         if partitions.is_empty() {
             return Err(ShareBrokerSessionPlanError::EmptyAssignment);
+        }
+        if partitions.len() > SHARE_FETCH_MAX_PARTITIONS_PER_BROKER {
+            return Err(ShareBrokerSessionPlanError::PartitionCapacity);
         }
         let mut assignment = Vec::new();
         assignment
@@ -133,6 +137,7 @@ impl ShareFetchSessionRequestPlan {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ShareBrokerSessionPlanError {
     EmptyAssignment,
+    PartitionCapacity,
     UnknownTopic,
     PartitionOutOfRange,
     DuplicatePartition,

@@ -157,6 +157,10 @@ impl RoutedShareFetchPartition {
         self.broker_id
     }
 
+    pub(super) const fn partition(&self) -> GroupAssignmentPartition {
+        self.request.partition
+    }
+
     pub(super) fn into_request(self) -> ShareFetchPartitionRouteRequest {
         self.request
     }

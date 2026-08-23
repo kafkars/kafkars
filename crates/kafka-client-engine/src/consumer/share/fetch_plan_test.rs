@@ -3,7 +3,8 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    AssignedTopicPartition, GroupAssignmentPartition, PartitionIndex, ShareFetchBrokerId, TopicId,
+    AssignedTopicPartition, GroupAssignmentPartition, PartitionIndex,
+    SHARE_FETCH_MAX_PARTITIONS_PER_BROKER, ShareFetchBrokerId, TopicId,
 };
 
 use super::{
@@ -101,6 +102,38 @@ fn unknown_duplicate_and_out_of_range_partitions_fail_before_session_open() {
     assert_eq!(
         ShareBrokerSessionPlan::try_initial(&catalog, broker(), &[partition(1, 2)]).err(),
         Some(ShareBrokerSessionPlanError::PartitionOutOfRange)
+    );
+}
+
+#[test]
+fn one_broker_plan_rejects_more_partitions_than_the_core_session_can_own() {
+    let catalog = ShareMembershipCatalog::try_new(
+        Arc::from("workers"),
+        Arc::from("member-a"),
+        None,
+        vec![ShareTopicIdentity::new(
+            TopicId::from_raw(1),
+            Arc::from("a"),
+            [1; 16],
+            u32::try_from(SHARE_FETCH_MAX_PARTITIONS_PER_BROKER + 1)
+                .unwrap_or_else(|error| panic!("partition count: {error}")),
+        )],
+    )
+    .unwrap_or_else(|error| panic!("catalog: {error:?}"));
+    let partitions = (0..=SHARE_FETCH_MAX_PARTITIONS_PER_BROKER)
+        .map(|partition| {
+            GroupAssignmentPartition::new(
+                TopicId::from_raw(1),
+                PartitionIndex::from_raw(
+                    u32::try_from(partition).unwrap_or_else(|error| panic!("partition: {error}")),
+                ),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        ShareBrokerSessionPlan::try_initial(&catalog, broker(), &partitions).err(),
+        Some(ShareBrokerSessionPlanError::PartitionCapacity)
     );
 }
 
