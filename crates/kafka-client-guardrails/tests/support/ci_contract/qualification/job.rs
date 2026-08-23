@@ -7,7 +7,7 @@ use super::super::shared::{
 };
 
 const CHECKOUT: &str = "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803";
-const TESTLAB: &str = "kafkars/testlab@1069e2131c41a473e6451826647c813696667f0e";
+const TESTLAB: &str = "kafkars/testlab@33d1c940c09c8544a9cf7611459d5d185d873cce";
 const UPLOAD: &str = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a";
 
 #[derive(Clone, Copy)]
