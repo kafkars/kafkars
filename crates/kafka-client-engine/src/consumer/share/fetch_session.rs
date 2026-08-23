@@ -3,8 +3,9 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    DeliveryStatus, ShareAcquisitionPolicy, ShareFetchAttempt, ShareFetchSessionApplyError,
-    ShareFetchSessionFence, ShareFetchSessionMachine, ShareFetchSessionOpenError,
+    DeliveryStatus, Moment, ShareAcquiredRange, ShareAcquisitionPolicy, ShareFetchAttempt,
+    ShareFetchSessionApplyError, ShareFetchSessionFence, ShareFetchSessionMachine,
+    ShareFetchSessionOpenError, ShareFetchSettlementError,
 };
 
 use crate::{
@@ -13,10 +14,12 @@ use crate::{
         PreparedShareFetchRequest, ShareFetchRequestFailure, ShareFetchRequestSettings,
         ShareFetchResponseLimits,
     },
+    protocol::fetch::FetchDecodeLimits,
 };
 
 use super::fetch_plan::{ShareBrokerSessionPlan, ShareFetchSessionRequestPlan};
 use super::fetch_session_execution::{ActiveShareFetchCall, ShareFetchSessionTerminal};
+use super::fetch_session_settlement::StagedShareFetchDelivery;
 
 /// Exact core attempt paired with its generated request and unchanged deadline.
 #[must_use = "a prepared ShareFetch session attempt must be submitted or settled"]
@@ -49,9 +52,12 @@ pub(super) struct ShareFetchSessionOwner {
     member: Arc<str>,
     settings: ShareFetchRequestSettings,
     response_limits: ShareFetchResponseLimits,
+    decode_limits: FetchDecodeLimits,
+    lock_timeout_ms: Option<u32>,
     prepared: Option<PreparedShareFetchSession>,
     pub(super) active: Option<ActiveShareFetchCall>,
     pub(super) terminal: Option<ShareFetchSessionTerminal>,
+    pub(super) staged: Option<StagedShareFetchDelivery>,
 }
 
 /// Immutable bounded settings captured before one broker session opens.
@@ -61,6 +67,7 @@ pub(super) struct ShareFetchSessionConfig {
     policy: ShareAcquisitionPolicy,
     settings: ShareFetchRequestSettings,
     response_limits: ShareFetchResponseLimits,
+    decode_limits: FetchDecodeLimits,
 }
 
 impl ShareFetchSessionConfig {
@@ -70,6 +77,7 @@ impl ShareFetchSessionConfig {
         policy: ShareAcquisitionPolicy,
         settings: ShareFetchRequestSettings,
         response_limits: ShareFetchResponseLimits,
+        decode_limits: FetchDecodeLimits,
     ) -> Self {
         Self {
             group,
@@ -77,6 +85,7 @@ impl ShareFetchSessionConfig {
             policy,
             settings,
             response_limits,
+            decode_limits,
         }
     }
 }
@@ -101,9 +110,12 @@ impl ShareFetchSessionOwner {
             member: config.member,
             settings: config.settings,
             response_limits: config.response_limits,
+            decode_limits: config.decode_limits,
+            lock_timeout_ms: None,
             prepared: None,
             active: None,
             terminal: None,
+            staged: None,
         };
         owner.prepare_next(capture)?;
         Ok(owner)
@@ -113,7 +125,11 @@ impl ShareFetchSessionOwner {
         &mut self,
         capture: DeadlineCapture,
     ) -> Result<(), ShareFetchSessionOwnerError> {
-        if self.prepared.is_some() || self.active.is_some() || self.terminal.is_some() {
+        if self.prepared.is_some()
+            || self.active.is_some()
+            || self.terminal.is_some()
+            || self.staged.is_some()
+        {
             return Err(ShareFetchSessionOwnerError::Occupied);
         }
         let request = self
@@ -161,12 +177,37 @@ impl ShareFetchSessionOwner {
             .map_err(ShareFetchSessionOwnerError::CoreApply)
     }
 
+    pub(super) fn settle_acquired(
+        &mut self,
+        attempt: ShareFetchAttempt,
+        now: Moment,
+        ranges: Vec<ShareAcquiredRange>,
+    ) -> Result<usize, ShareFetchSettlementError> {
+        self.machine.settle_acquired(attempt, now, ranges)
+    }
+
     pub(super) const fn machine(&self) -> &ShareFetchSessionMachine {
         &self.machine
     }
 
     pub(super) const fn response_limits(&self) -> ShareFetchResponseLimits {
         self.response_limits
+    }
+
+    pub(super) const fn decode_limits(&self) -> FetchDecodeLimits {
+        self.decode_limits
+    }
+
+    pub(super) const fn lock_timeout_ms(&self) -> Option<u32> {
+        self.lock_timeout_ms
+    }
+
+    pub(super) fn commit_lock_timeout_ms(&mut self, value: u32) {
+        self.lock_timeout_ms = Some(value);
+    }
+
+    pub(super) const fn request_plan(&self) -> &ShareFetchSessionRequestPlan {
+        &self.request_plan
     }
 
     pub(super) const fn has_active_call(&self) -> bool {

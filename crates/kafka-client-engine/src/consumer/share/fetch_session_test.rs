@@ -11,6 +11,7 @@ use kafka_client_core::{
 use crate::{
     clock::MonotonicClock,
     protocol::consumer::share_fetch::{ShareFetchRequestSettings, ShareFetchResponseLimits},
+    protocol::fetch::FetchDecodeLimits,
 };
 
 use super::{
@@ -140,6 +141,7 @@ fn config() -> ShareFetchSessionConfig {
         policy(),
         settings(),
         ShareFetchResponseLimits::new(32, 1_024),
+        FetchDecodeLimits::default(),
     )
 }
 

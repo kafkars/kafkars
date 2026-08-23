@@ -13,6 +13,7 @@ use crate::{
     clock::MonotonicClock,
     driver::{DriverOwner, ShareFetchResolution},
     protocol::consumer::share_fetch::{ShareFetchRequestSettings, ShareFetchResponseLimits},
+    protocol::fetch::FetchDecodeLimits,
 };
 
 use super::{
@@ -97,6 +98,7 @@ fn owner() -> ShareFetchSessionOwner {
                 batch_size: 8,
             },
             ShareFetchResponseLimits::new(32, 1_024),
+            FetchDecodeLimits::default(),
         ),
         clock
             .capture_deadline_after(Duration::from_secs(30))
