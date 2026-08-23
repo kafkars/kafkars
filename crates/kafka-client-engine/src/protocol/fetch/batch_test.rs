@@ -58,6 +58,7 @@ fn standalone_payload_decode_retains_exact_record_and_logical_byte_counts() {
         .unwrap_or_else(|error| panic!("standalone payload: {error:?}"));
     assert_eq!(payload.records, 2);
     assert_eq!(payload.logical_bytes, 14);
+    assert!(payload.retained_bytes >= payload.logical_bytes);
     assert_eq!(payload.batches[0].records[1].offset, 11);
 }
 

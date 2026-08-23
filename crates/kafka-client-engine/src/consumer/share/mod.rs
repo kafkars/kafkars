@@ -11,6 +11,9 @@ mod entry_calls;
 mod entry_identity;
 #[cfg(test)]
 mod entry_test;
+mod fetch_acquisition_decode;
+#[cfg(test)]
+mod fetch_acquisition_decode_test;
 mod fetch_plan;
 #[cfg(test)]
 mod fetch_plan_test;
