@@ -38,7 +38,13 @@ fn translate_metadata(metadata: EngineMetadata) -> GroupMetadata {
 }
 
 pub(super) fn translate_group_consumer_state_error(error: GroupConsumerStateError) -> KafkaError {
-    let (kind, message) = match error.kind() {
+    translate_group_consumer_state_error_kind(error.kind())
+}
+
+pub(super) fn translate_group_consumer_state_error_kind(
+    kind: GroupConsumerStateErrorKind,
+) -> KafkaError {
+    let (kind, message) = match kind {
         GroupConsumerStateErrorKind::Contended => (
             ErrorKind::Backpressure,
             "group state observation is contended",
@@ -54,5 +60,9 @@ pub(super) fn translate_group_consumer_state_error(error: GroupConsumerStateErro
             (ErrorKind::Internal, "group state ownership is inconsistent")
         }
     };
-    KafkaError::new(kind, message)
+    let error = KafkaError::new(kind, message);
+    match error.kind() {
+        ErrorKind::Backpressure => error.with_safe_retry(),
+        _ => error,
+    }
 }

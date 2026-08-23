@@ -41,6 +41,8 @@ mod group_consumer_commit_test;
 #[cfg(test)]
 mod group_consumer_control_test;
 #[cfg(test)]
+mod group_consumer_event_test;
+#[cfg(test)]
 mod group_consumer_rebalance_event_test;
 #[cfg(test)]
 mod group_consumer_recv_result_test;
