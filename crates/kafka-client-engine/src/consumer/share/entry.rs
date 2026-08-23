@@ -5,9 +5,9 @@ use std::sync::Arc;
 use kafka_client_core::{GroupId, MemberId, ShareGroupHeartbeatPolicy, TopicId};
 use ring::rand::{SecureRandom, SystemRandom};
 
-use crate::clock::DeadlineCapture;
-
+use super::topic_identity_call::ShareTopicIdentityCall;
 use super::{ShareMembershipInterpreter, catalog::ShareTopicIdentity};
+use crate::clock::DeadlineCapture;
 
 pub(super) const SHARE_TOPIC_CAPACITY: usize = 32;
 pub(super) const SHARE_NAME_BYTE_LIMIT: usize = 249;
@@ -23,6 +23,8 @@ pub(super) struct ShareConsumerEntry {
     pub(super) resolved_topics: Vec<ShareTopicIdentity>,
     pub(super) start: Option<DeadlineCapture>,
     pub(super) membership: Option<ShareMembershipInterpreter>,
+    pub(super) topic_call: Option<ShareTopicIdentityCall>,
+    pub(super) fault: Option<kafka_client_core::ShareGroupHeartbeatFailure>,
 }
 
 impl ShareConsumerEntry {
@@ -75,6 +77,8 @@ impl ShareConsumerEntry {
             resolved_topics,
             start: None,
             membership: None,
+            topic_call: None,
+            fault: None,
         })
     }
 
@@ -120,7 +124,7 @@ impl ShareConsumerEntry {
     }
 
     pub(super) fn begin(&mut self, capture: DeadlineCapture) -> Result<(), ()> {
-        if self.start.is_some() || self.membership.is_some() {
+        if self.start.is_some() || self.membership.is_some() || self.fault.is_some() {
             return Err(());
         }
         self.start = Some(capture);
@@ -136,9 +140,18 @@ impl ShareConsumerEntry {
             resolved_topics,
             start,
             membership,
+            topic_call,
+            fault,
             ..
         } = self;
-        drop((member, resolved_topics, start, membership));
+        drop((
+            member,
+            resolved_topics,
+            start,
+            membership,
+            topic_call,
+            fault,
+        ));
         (group, rack, topics)
     }
 }
