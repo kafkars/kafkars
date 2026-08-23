@@ -1,6 +1,8 @@
 //! Exact membership-to-broker `ShareFetch` assignment and initial-session planning.
 
-use kafka_client_core::{AssignedTopicPartition, GroupAssignmentPartition, ShareFetchBrokerId};
+use kafka_client_core::{
+    AssignedTopicPartition, GroupAssignmentPartition, ShareFetchBrokerId, TopicId,
+};
 
 use crate::protocol::consumer::share_fetch::{
     PreparedShareFetchRequest, ShareFetchRequestFailure, ShareFetchRequestPlan,
@@ -36,7 +38,7 @@ impl ShareBrokerSessionPlan {
         assignment
             .try_reserve_exact(partitions.len())
             .map_err(|_error| ShareBrokerSessionPlanError::Allocation)?;
-        let mut topics: Vec<([u8; 16], Vec<u32>)> = Vec::new();
+        let mut topics: Vec<TopicBucket> = Vec::new();
         for partition in partitions.iter().copied() {
             let identity = catalog
                 .topic_identity(partition.topic_id())
@@ -52,22 +54,26 @@ impl ShareBrokerSessionPlan {
             assignment.push(assigned);
             let bucket_index = if let Some(index) = topics
                 .iter()
-                .position(|(topic_id, _partitions)| *topic_id == identity.kafka_topic_id())
+                .position(|topic| topic.kafka_topic_id == identity.kafka_topic_id())
             {
                 index
             } else {
                 topics
                     .try_reserve(1)
                     .map_err(|_error| ShareBrokerSessionPlanError::Allocation)?;
-                topics.push((identity.kafka_topic_id(), Vec::new()));
+                topics.push(TopicBucket {
+                    local_topic_id: identity.local_topic_id(),
+                    kafka_topic_id: identity.kafka_topic_id(),
+                    partitions: Vec::new(),
+                });
                 topics.len() - 1
             };
             let bucket = &mut topics[bucket_index];
             bucket
-                .1
+                .partitions
                 .try_reserve(1)
                 .map_err(|_error| ShareBrokerSessionPlanError::Allocation)?;
-            bucket.1.push(raw_partition);
+            bucket.partitions.push(raw_partition);
         }
         let request = ShareFetchSessionRequestPlan { topics };
         Ok(Self {
@@ -89,6 +95,23 @@ impl ShareBrokerSessionPlan {
 }
 
 impl ShareFetchSessionRequestPlan {
+    pub(super) fn resolve_partition(
+        &self,
+        kafka_topic_id: [u8; 16],
+        partition: u32,
+    ) -> Option<AssignedTopicPartition> {
+        self.topics
+            .iter()
+            .find(|topic| topic.kafka_topic_id == kafka_topic_id)
+            .filter(|topic| topic.partitions.contains(&partition))
+            .map(|topic| {
+                AssignedTopicPartition::new(
+                    topic.local_topic_id,
+                    kafka_client_core::PartitionIndex::from_raw(partition),
+                )
+            })
+    }
+
     pub(super) fn prepare(
         &self,
         group_id: &str,
@@ -117,7 +140,11 @@ pub(super) enum ShareBrokerSessionPlanError {
     Protocol(ShareFetchRequestFailure),
 }
 
-type TopicBucket = ([u8; 16], Vec<u32>);
+struct TopicBucket {
+    local_topic_id: TopicId,
+    kafka_topic_id: [u8; 16],
+    partitions: Vec<u32>,
+}
 
 fn materialize_topics(
     topics: &[TopicBucket],
@@ -126,14 +153,14 @@ fn materialize_topics(
     materialized
         .try_reserve_exact(topics.len())
         .map_err(|_error| ShareFetchRequestFailure::Allocation)?;
-    for (topic_id, partitions) in topics {
+    for topic in topics {
         let mut request_partitions = Vec::new();
         request_partitions
-            .try_reserve_exact(partitions.len())
+            .try_reserve_exact(topic.partitions.len())
             .map_err(|_error| ShareFetchRequestFailure::Allocation)?;
-        request_partitions.extend_from_slice(partitions);
+        request_partitions.extend_from_slice(&topic.partitions);
         materialized.push(ShareFetchRequestTopic::try_new(
-            *topic_id,
+            topic.kafka_topic_id,
             request_partitions,
         )?);
     }
