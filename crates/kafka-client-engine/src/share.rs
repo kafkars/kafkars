@@ -4,6 +4,6 @@ pub use crate::consumer::{
     ShareConsumerAssignmentPartition, ShareConsumerClose, ShareConsumerCloseAdmissionError,
     ShareConsumerCloseAdmissionErrorKind, ShareConsumerCloseError, ShareConsumerCloseErrorKind,
     ShareConsumerHandle, ShareConsumerRegistration, ShareConsumerRegistrationError,
-    ShareConsumerRegistrationErrorKind, ShareConsumerStartCapture, ShareConsumerState,
-    ShareConsumerStateError, ShareConsumerStateErrorKind,
+    ShareConsumerRegistrationErrorKind, ShareConsumerStartCapture, ShareConsumerStartupFailureKind,
+    ShareConsumerState, ShareConsumerStateError, ShareConsumerStateErrorKind,
 };

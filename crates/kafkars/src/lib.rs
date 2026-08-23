@@ -1,9 +1,7 @@
 //! Experimental, runtime-neutral Rust client for Apache Kafka.
 //!
-//! The facade exposes bounded producer, consumer, transaction, security, and
-//! administrative operations over the deterministic client engine. Version
-//! 0.0.1 is a source preview for API evaluation, not a production-readiness or
-//! broker-compatibility claim.
+//! The facade exposes bounded operations over the deterministic client engine.
+//! Version 0.0.1 is an API preview, not a broker-compatibility claim.
 //!
 //! Apache Kafka and the Kafka logo are trademarks of The Apache Software
 //! Foundation. kafkars has no affiliation with and is not
@@ -130,7 +128,7 @@ pub use consumer::{
     AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
     AssignedConsumerPositionResolutionFailureKind, Checkpoint, CheckpointBuilder,
     CheckpointMarkError, CheckpointMarkErrorKind, ClassicGroupAssignor, ClassicGroupConfig,
-    CloseAssignedConsumer, CloseConsumer, CommitConsumerCheckpoint, Consumer,
+    CloseAssignedConsumer, CloseConsumer, CloseShareConsumer, CommitConsumerCheckpoint, Consumer,
     ConsumerAcknowledgeError, ConsumerAssignment, ConsumerAssignmentPartition, ConsumerBatch,
     ConsumerBuildError, ConsumerBuilder, ConsumerCloseAdmissionError, ConsumerCommitAdmissionError,
     ConsumerCommitError, ConsumerControl, ConsumerEvent, ConsumerFetchConfig,
@@ -138,7 +136,9 @@ pub use consumer::{
     ConsumerRevocation, GroupConsumerHeader, GroupConsumerOperationConfig, GroupConsumerRecord,
     GroupConsumerRecords, GroupMembershipEpoch, GroupMetadata, NextAssignedEvent,
     NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch, RecvAssignedBatch,
-    RecvConsumerBatch, Seek, StartPosition, TopicPartition,
+    RecvConsumerBatch, Seek, ShareConsumer, ShareConsumerAssignment,
+    ShareConsumerAssignmentPartition, ShareConsumerBuildError, ShareConsumerBuilder,
+    ShareConsumerCloseAdmissionError, StartPosition, TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice};
 pub use metrics::{

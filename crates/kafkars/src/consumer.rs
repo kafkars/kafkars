@@ -35,6 +35,12 @@ mod offset_reset;
 mod read_isolation;
 mod record;
 mod record_batch;
+mod share_assignment;
+mod share_build_error;
+mod share_builder;
+mod share_close;
+mod share_close_error;
+mod share_handle;
 
 pub use assigned::AssignedConsumer;
 pub use assigned_build_error::AssignedConsumerBuildError;
@@ -76,6 +82,12 @@ pub use offset_reset::OffsetReset;
 pub use read_isolation::ReadIsolation;
 pub use record::{ConsumerHeader, ConsumerRecord, ConsumerRecords};
 pub use record_batch::RecordBatch;
+pub use share_assignment::{ShareConsumerAssignment, ShareConsumerAssignmentPartition};
+pub use share_build_error::ShareConsumerBuildError;
+pub use share_builder::ShareConsumerBuilder;
+pub use share_close::CloseShareConsumer;
+pub use share_close_error::ShareConsumerCloseAdmissionError;
+pub use share_handle::ShareConsumer;
 
 #[cfg(test)]
 mod assigned_build_error_test;
@@ -143,3 +155,11 @@ mod read_isolation_test;
 mod record_batch_test;
 #[cfg(test)]
 mod record_test;
+#[cfg(test)]
+mod share_assignment_test;
+#[cfg(test)]
+mod share_builder_test;
+#[cfg(test)]
+mod share_close_test;
+#[cfg(test)]
+mod share_test;

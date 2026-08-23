@@ -64,9 +64,9 @@ baseline = [
   { path = "crates/kafkars/src/admin/mod.rs", lines = 156, reason = "the declarative Admin facade explicitly names the complete Rust source-preview module and sibling-test surface" },
   { path = "crates/kafkars/src/admin/public_api.rs", lines = 255, reason = "the curated generated-free Admin reexport table keeps the complete Rust source-preview vocabulary explicit without globbing protocol or engine internals" },
   { path = "crates/kafkars/src/bridge/admin.rs", lines = 404, reason = "the private Admin bridge retains common capture-first submissions after grouped and DescribeCluster handoffs moved into focused child seams" },
-  { path = "crates/kafkars/src/bridge/client.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafkars/src/bridge/client.rs", lines = 242, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafkars/src/bridge/describe_streams_group/result.rs", lines = 327, reason = "the API 89 bridge result translator exhaustively maps the complete generated-free topology, member, task, exact broker rejection, and delivery vocabulary into the curated public surface" },
-  { path = "crates/kafkars/src/bridge/mod.rs", lines = 137, reason = "the declarative bridge facade explicitly names every private Rust source-preview adapter including generic configuration resources" },
+  { path = "crates/kafkars/src/bridge/mod.rs", lines = 138, reason = "the declarative bridge facade explicitly names every private Rust source-preview adapter including share-consumer ownership" },
   { path = "crates/kafkars/src/bridge/producer/handle.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafkars/src/consumer/group_test.rs", lines = 303, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafkars/src/lib.rs", lines = 174, reason = "the crate facade explicitly reexports the complete curated Rust source-preview surface, preview limitation, and required trademark notice" },
@@ -158,7 +158,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request.rs", lines = 326, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request_test.rs", lines = 492, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 99, reason = "the declarative consumer facade names direct, group, and share membership ownership beside registered batch control and terminal-observable seek" },
-  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 94, reason = "the declarative share facade names hosted membership plus the first public Rust registration, state, and close ownership surface" },
+  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 93, reason = "the declarative share facade names hosted membership plus the first public Rust registration, startup, state, and close ownership surface" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -321,6 +321,34 @@ test = "crates/kafka-client-engine/src/consumer/share/public_state_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/share/public_close.rs"
 test = "crates/kafka-client-engine/src/consumer/share/public_close_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/share_consumer/registration.rs"
+test = "crates/kafkars/src/bridge/share_consumer/registration_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/share_consumer/state.rs"
+test = "crates/kafkars/src/bridge/share_consumer/state_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/share_consumer/close.rs"
+test = "crates/kafkars/src/bridge/share_consumer/close_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share_assignment.rs"
+test = "crates/kafkars/src/consumer/share_assignment_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share_builder.rs"
+test = "crates/kafkars/src/consumer/share_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share_handle.rs"
+test = "crates/kafkars/src/consumer/share_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share_close.rs"
+test = "crates/kafkars/src/consumer/share_close_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/share_consumer/drive.rs"
@@ -17612,6 +17640,30 @@ owner_type = "ShareConsumerClose"
 path = "crates/kafka-client-engine/src/consumer/share/public_close.rs"
 
 [[linear_owners]]
+owner_type = "ShareConsumerEngine"
+path = "crates/kafkars/src/bridge/share_consumer/registration.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerClose"
+path = "crates/kafkars/src/bridge/share_consumer/close.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerBuildError"
+path = "crates/kafkars/src/consumer/share_build_error.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumer"
+path = "crates/kafkars/src/consumer/share_handle.rs"
+
+[[linear_owners]]
+owner_type = "CloseShareConsumer"
+path = "crates/kafkars/src/consumer/share_close.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerCloseAdmissionError"
+path = "crates/kafkars/src/consumer/share_close_error.rs"
+
+[[linear_owners]]
 owner_type = "ShareConsumerRegistry"
 path = "crates/kafka-client-engine/src/consumer/share/registry.rs"
 
@@ -18814,8 +18866,10 @@ allowed_paths = [
   "crates/kafkars/src/bridge/consumer/handle.rs",
   "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_admission.rs",
   "crates/kafkars/src/bridge/producer/handle.rs",
+  "crates/kafkars/src/bridge/share_consumer/close.rs",
   "crates/kafkars/src/consumer/assigned.rs",
   "crates/kafkars/src/consumer/group_close.rs",
+  "crates/kafkars/src/consumer/share_close.rs",
 ]
 
 [[capability_rules]]
