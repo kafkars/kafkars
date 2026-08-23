@@ -26,6 +26,7 @@ evidence and separate release authorization.
 | Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
 | Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
 | KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Multi-member redistribution, explicit member close, client shutdown, and committed-offset resume scenario defined; no archived passing qualification cell |
+| Share-group consumer | Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Kafka 4.1-4.3 acknowledgement lifecycle profile defined; no archived passing qualification cell |
 | Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | PR and nightly scenarios defined; no archived passing qualification cell |
 | Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
@@ -48,9 +49,9 @@ passing evidence yet:
 <!-- qualification-evidence:begin -->
 | Kafka | Pull-request profile | Scheduled profile | Current evidence status |
 | --- | --- | --- | --- |
-| 4.3.1 | Full plaintext plus three security-smoke cells | Full over eight matrix security modes | Not yet qualified |
-| 4.2.1 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
-| 4.1.2 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
+| 4.3.1 | Full plaintext, share plaintext, plus three security-smoke cells | Full over eight matrix security modes plus share plaintext | Not yet qualified |
+| 4.2.1 | Compatibility smoke plus share, plaintext | Full plus share, plaintext | Not yet qualified |
+| 4.1.2 | Compatibility smoke plus share, plaintext | Full plus share, plaintext | Not yet qualified |
 | 4.0.2 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
 | 3.9.2 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
 | 3.8.1 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
@@ -64,8 +65,8 @@ qualification evidence rather than maintained as a prose promise. Until that
 evidence exists, compatibility reports should include the exact broker
 distribution and version.
 
-`.github/workflows/qualification.yml` runs ten explicit pull-request cells and
-fourteen explicit scheduled cells. It has no release profile. The pull-request
+`.github/workflows/qualification.yml` runs thirteen explicit pull-request cells and
+seventeen explicit scheduled cells. It has no release profile. The pull-request
 gate downloads the cell artifacts and archives an evidence-generated aggregate
 containing `compatibility.json`, `COMPATIBILITY.md`, and `SUPPORT.md`.
 Incomplete sets, mixed crate graphs, mutable image references, failed runners,

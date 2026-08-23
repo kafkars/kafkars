@@ -114,11 +114,21 @@
         "bounded_admission_deadlines_shutdown",
         "retained_byte_recovery"
       ]
+    },
+    "share": {
+      "cluster_size": 3,
+      "securities": ["plaintext"],
+      "scenarios": [
+        "share_group_acknowledgement_lifecycle"
+      ]
     }
   },
   "evidence_sets": {
     "pr": [
       { "profile": "full", "kafka_version": "4.3.1", "security": "plaintext", "gating": true },
+      { "profile": "share", "kafka_version": "4.3.1", "security": "plaintext", "gating": true },
+      { "profile": "share", "kafka_version": "4.2.1", "security": "plaintext", "gating": true },
+      { "profile": "share", "kafka_version": "4.1.2", "security": "plaintext", "gating": true },
       { "profile": "compatibility-smoke", "kafka_version": "4.2.1", "security": "plaintext", "gating": true },
       { "profile": "compatibility-smoke", "kafka_version": "4.1.2", "security": "plaintext", "gating": true },
       { "profile": "compatibility-smoke", "kafka_version": "4.0.2", "security": "plaintext", "gating": true },
@@ -131,6 +141,9 @@
     ],
     "nightly": [
       { "profile": "full", "kafka_version": "4.3.1", "security": "plaintext", "gating": true },
+      { "profile": "share", "kafka_version": "4.3.1", "security": "plaintext", "gating": true },
+      { "profile": "share", "kafka_version": "4.2.1", "security": "plaintext", "gating": true },
+      { "profile": "share", "kafka_version": "4.1.2", "security": "plaintext", "gating": true },
       { "profile": "full", "kafka_version": "4.3.1", "security": "tls_custom", "gating": true },
       { "profile": "full", "kafka_version": "4.3.1", "security": "sasl_plaintext_plain", "gating": true },
       { "profile": "full", "kafka_version": "4.3.1", "security": "sasl_plaintext_scram_sha_256", "gating": true },

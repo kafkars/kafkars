@@ -5,9 +5,11 @@ permitted cell, its cluster size, security mode, required scenarios, and
 whether a result gates its evidence set. A runner may not omit a scenario or
 substitute a workflow-only cell and still qualify.
 
-The `pr` evidence set has ten required gating cells:
+The `pr` evidence set has thirteen required gating cells:
 
 - Kafka 4.3.1 runs the full three-broker plaintext profile.
+- Kafka 4.3.1, 4.2.1, and 4.1.2 each run the share-group acknowledgement
+  lifecycle over a dedicated share-enabled three-broker cluster.
 - Kafka 4.2.1, 4.1.2, and 4.0.2 run plaintext compatibility smoke.
 - Kafka 3.9.2, 3.8.1, and 3.7.2 run the three-broker classic profile, which is
   the full profile without KIP-848.
@@ -15,12 +17,12 @@ The `pr` evidence set has ten required gating cells:
   `sasl_tls_custom_scram_sha_512` security smoke. These cells require their
   applicable hostname or wrong-secret rejection scenarios.
 
-The `nightly` evidence set has fourteen explicit cells. Kafka 4.3.1 runs full
+The `nightly` evidence set has seventeen explicit cells. Kafka 4.3.1 runs full
 qualification over plaintext, custom-root TLS, three SASL_PLAINTEXT
 mechanisms, and three custom-root SASL_TLS mechanisms. Kafka 4.2.1, 4.1.2, and
-4.0.2 run full plaintext qualification. The three Kafka 3.x classic cells are
-required evidence but scheduled advisory results; every PR cell remains
-gating.
+4.0.2 run full plaintext qualification. Kafka 4.3.1, 4.2.1, and 4.1.2 also run
+the dedicated share profile. The three Kafka 3.x classic cells are required
+evidence but scheduled advisory results; every PR cell remains gating.
 
 The matrix deliberately has no positive system-root TLS cell. The ephemeral
 brokers use a self-signed qualification CA, so platform-root TLS remains
@@ -35,6 +37,7 @@ empty output directory outside the checkout:
 
 ```console
 scripts/run-qualification pr full 4.3.1 plaintext /tmp/kafkars-pr-full
+scripts/run-qualification pr share 4.1.2 plaintext /tmp/kafkars-pr-share
 scripts/run-qualification pr security-smoke 4.3.1 tls_custom /tmp/kafkars-pr-tls
 scripts/run-qualification nightly full 4.3.1 sasl_tls_custom_scram_sha_512 /tmp/kafkars-nightly-sasl-tls
 scripts/run-qualification nightly classic 3.9.2 plaintext /tmp/kafkars-nightly-classic
@@ -45,6 +48,12 @@ target directory, worktree changes, and noncanonical tracked-path index flags.
 It resolves the Kafka tag to a repository digest before launch and binds all
 published broker ports to `127.0.0.1`. TLS certificates and stores are
 generated per run; SASL uses public qualification-only credentials.
+
+The share profile adds no published ports beyond the base cluster. It enables
+the broker share protocol, records the exact `share.version`, and uses a
+two-second broker acquisition-lock default inside the broker-supported range.
+Kafka 4.1 is explicitly upgraded to `share.version=1`; no Kafka 4.0 share cell
+exists.
 
 Each scenario appends one tab-separated event containing its stable ID,
 terminal status, and elapsed milliseconds. The runner also records its own
@@ -77,6 +86,6 @@ image digests for one Kafka version, and can require the exact complete `pr` or
 remain beside those summaries in the archived cell artifacts.
 
 The workflow runs the renderer unit suite with bytecode output disabled as a
-prerequisite policy lane. The pull-request gate also downloads all ten cell
+prerequisite policy lane. The pull-request gate also downloads all thirteen cell
 artifacts and performs a complete-set, qualified merge before archiving one
 aggregate review artifact.

@@ -44,6 +44,9 @@ jobs:
       matrix:
         include:
           - { kafka_version: 4.3.1, profile: full, security: plaintext }
+          - { kafka_version: 4.3.1, profile: share, security: plaintext }
+          - { kafka_version: 4.2.1, profile: share, security: plaintext }
+          - { kafka_version: 4.1.2, profile: share, security: plaintext }
           - { kafka_version: 4.2.1, profile: compatibility-smoke, security: plaintext }
           - { kafka_version: 4.1.2, profile: compatibility-smoke, security: plaintext }
           - { kafka_version: 4.0.2, profile: compatibility-smoke, security: plaintext }
@@ -141,6 +144,9 @@ jobs:
       matrix:
         include:
           - { kafka_version: 4.3.1, profile: full, security: plaintext, gating: true }
+          - { kafka_version: 4.3.1, profile: share, security: plaintext, gating: true }
+          - { kafka_version: 4.2.1, profile: share, security: plaintext, gating: true }
+          - { kafka_version: 4.1.2, profile: share, security: plaintext, gating: true }
           - { kafka_version: 4.3.1, profile: full, security: tls_custom, gating: true }
           - { kafka_version: 4.3.1, profile: full, security: sasl_plaintext_plain, gating: true }
           - { kafka_version: 4.3.1, profile: full, security: sasl_plaintext_scram_sha_256, gating: true }

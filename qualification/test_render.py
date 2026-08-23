@@ -330,7 +330,7 @@ class RendererTests(unittest.TestCase):
         evidence = RENDER.evidence_document(cells)
         RENDER.require_complete_set(self.matrix, evidence, "nightly")
         self.assertTrue(evidence["qualified"])
-        self.assertEqual(len(evidence["cells"]), 14)
+        self.assertEqual(len(evidence["cells"]), 17)
         self.assertEqual(
             sum(not cell["qualified"] for cell in evidence["cells"]), 3
         )
@@ -377,14 +377,14 @@ class RendererTests(unittest.TestCase):
         )
         self.assertEqual(
             set(self.matrix["profiles"]),
-            {"compatibility-smoke", "full", "security-smoke", "classic"},
+            {"compatibility-smoke", "full", "security-smoke", "classic", "share"},
         )
         self.assertEqual(set(self.matrix["evidence_sets"]), {"pr", "nightly"})
-        self.assertEqual(len(self.matrix["evidence_sets"]["pr"]), 10)
+        self.assertEqual(len(self.matrix["evidence_sets"]["pr"]), 13)
         self.assertTrue(
             all(cell["gating"] for cell in self.matrix["evidence_sets"]["pr"])
         )
-        self.assertEqual(len(self.matrix["evidence_sets"]["nightly"]), 14)
+        self.assertEqual(len(self.matrix["evidence_sets"]["nightly"]), 17)
         self.assertEqual(
             self.matrix["profiles"]["full"]["securities"],
             [
@@ -429,6 +429,20 @@ class RendererTests(unittest.TestCase):
         )
         self.assertEqual(len(self.matrix["profiles"]["full"]["scenarios"]), 14)
         self.assertEqual(len(self.matrix["profiles"]["classic"]["scenarios"]), 13)
+        self.assertEqual(
+            self.matrix["profiles"]["share"]["scenarios"],
+            ["share_group_acknowledgement_lifecycle"],
+        )
+        expected_share = ["4.3.1", "4.2.1", "4.1.2"]
+        for evidence_set in ("pr", "nightly"):
+            self.assertEqual(
+                [
+                    cell["kafka_version"]
+                    for cell in self.matrix["evidence_sets"][evidence_set]
+                    if cell["profile"] == "share"
+                ],
+                expected_share,
+            )
         self.assertEqual(
             self.matrix["profiles"]["classic"]["scenarios"],
             [
@@ -538,6 +552,28 @@ class RendererTests(unittest.TestCase):
         tls = (ROOT / "qualification/tls.cnf").read_text(encoding="utf-8")
         self.assertIn("DNS.1 = localhost", tls)
         self.assertNotRegex(tls, r"(?m)^IP\.\d+\s*=")
+
+    def test_share_profile_enables_one_bounded_v1_cluster(self) -> None:
+        overlay = (ROOT / "qualification/compose/share.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertEqual(
+            overlay.count(
+                "KAFKA_GROUP_COORDINATOR_REBALANCE_PROTOCOLS: "
+                "classic,consumer,share"
+            ),
+            1,
+        )
+        self.assertIn("KAFKA_GROUP_SHARE_MIN_RECORD_LOCK_DURATION_MS: 1000", overlay)
+        self.assertIn("KAFKA_GROUP_SHARE_RECORD_LOCK_DURATION_MS: 2000", overlay)
+        self.assertNotIn("ports:", overlay)
+
+        runner = (ROOT / "scripts/run-qualification").read_text(encoding="utf-8")
+        self.assertIn("security-smoke | full | classic | share", runner)
+        self.assertIn("test_name=share_matrix", runner)
+        self.assertIn('compose/share.yml")', runner)
+        self.assertIn("--feature share.version=1", runner)
+        self.assertIn('required_evidence+=(share-feature.txt)', runner)
 
     def test_combined_sasl_tls_uses_one_complete_secret_mount(self) -> None:
         runner = (ROOT / "scripts/run-qualification").read_text(encoding="utf-8")

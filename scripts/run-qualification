@@ -44,7 +44,7 @@ case "$profile" in
     compose_files+=("$repo_root/qualification/compose/pr-smoke.yml")
     bootstrap="localhost:${KAFKA_HOST_PORT:-9092}"
     ;;
-  security-smoke | full | classic)
+  security-smoke | full | classic | share)
     readiness_service=kafka-1
     readiness_bootstrap=kafka-1:19092
     expected_broker_ids=1,2,3
@@ -54,6 +54,10 @@ case "$profile" in
       security-smoke) test_name=pull_request_smoke ;;
       full) test_name=nightly_matrix ;;
       classic) test_name=classic_matrix ;;
+      share)
+        test_name=share_matrix
+        compose_files+=("$repo_root/qualification/compose/share.yml")
+        ;;
     esac
     ;;
   *)
@@ -309,6 +313,17 @@ if [[ "$ready" -ne 1 ]]; then
   exit 1
 fi
 
+if [[ "$profile" == share ]]; then
+  if [[ "$kafka_version" == 4.1.2 ]]; then
+    "${compose[@]}" exec -T kafka-1 /opt/kafka/bin/kafka-features.sh \
+      --bootstrap-server kafka-1:19092 --upgrade --feature share.version=1 \
+      >"$output/share-feature.txt" 2>&1
+  fi
+  "${compose[@]}" exec -T kafka-1 /opt/kafka/bin/kafka-features.sh \
+    --bootstrap-server kafka-1:19092 --describe \
+    >>"$output/share-feature.txt" 2>&1
+fi
+
 if [[ "$uses_sasl" -eq 1 && "$sasl_mechanism" != plain ]]; then
   case "$sasl_mechanism" in
     scram_sha_256) scram_mechanism=SCRAM-SHA-256 ;;
@@ -441,6 +456,9 @@ if [[ "$uses_sasl" -eq 1 ]]; then
 fi
 if [[ "$uses_sasl" -eq 1 && "$sasl_mechanism" != plain ]]; then
   required_evidence+=(scram-setup.txt)
+fi
+if [[ "$profile" == share ]]; then
+  required_evidence+=(share-feature.txt)
 fi
 for evidence_file in "${required_evidence[@]}"; do
   if [[ ! -s "$output/$evidence_file" ]]; then
