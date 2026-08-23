@@ -40,6 +40,10 @@ impl ShareTopicIdentity {
     pub(super) const fn kafka_topic_id(&self) -> [u8; 16] {
         self.kafka_topic_id
     }
+
+    pub(super) const fn partition_count(&self) -> u32 {
+        self.partition_count
+    }
 }
 
 /// Prevalidated spellings and topic identities for one share member.
@@ -112,6 +116,12 @@ impl ShareMembershipCatalog {
             .iter()
             .find(|topic| topic.local_topic_id == topic_id)
             .map(ShareTopicIdentity::name)
+    }
+
+    pub(super) fn topic_identity(&self, topic_id: TopicId) -> Option<&ShareTopicIdentity> {
+        self.topics
+            .iter()
+            .find(|topic| topic.local_topic_id == topic_id)
     }
 
     pub(super) fn translate_assignment(
