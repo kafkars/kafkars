@@ -7,8 +7,10 @@
 mod catalog;
 #[cfg(test)]
 mod catalog_test;
+mod close_state;
 mod entry;
 mod entry_calls;
+mod entry_identity;
 #[cfg(test)]
 mod entry_test;
 mod membership;
@@ -19,6 +21,10 @@ mod port;
 mod port_test;
 mod prepared;
 mod registry;
+mod registry_close;
+mod registry_close_notifier;
+#[cfg(test)]
+mod registry_close_test;
 mod registry_heartbeat_due;
 mod registry_heartbeat_settlement;
 mod registry_heartbeat_submission;
@@ -29,6 +35,7 @@ mod registry_membership;
 mod registry_observation;
 #[cfg(test)]
 mod registry_observation_test;
+mod registry_recovery;
 mod registry_registration;
 #[cfg(test)]
 mod registry_test;

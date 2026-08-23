@@ -1,10 +1,9 @@
 //! Bounded terminal recovery after an unexpected host exit.
-use kafka_client_core::Moment;
-
 use super::{
     EngineHostError, EngineHostExit, EngineHostResources, admin, cleanup::shutdown_driver,
     group_consumer_shutdown, notifier_shutdown::NotifierShutdownOwner, transaction_shutdown,
 };
+use kafka_client_core::Moment;
 
 impl EngineHostResources {
     fn discard_driver_after_shutdown(&mut self) {
@@ -163,7 +162,7 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(cleanup);
     }
     let recovery = producer.recover_notifier();
-    let mut notifiers = Vec::with_capacity(6);
+    let mut notifiers = Vec::with_capacity(7);
     if let Some(notifier) = recovery.notifier {
         notifiers.push(notifier);
     }
@@ -184,6 +183,7 @@ pub(crate) fn recover(
     if let Some(notifier) = group_consumer_recv_notifier {
         notifiers.push(notifier);
     }
+    failure = super::share_consumer::recover(resources, failure, &mut notifiers);
     if let Some(notifier) = transaction_notifier {
         notifiers.push(notifier);
     }

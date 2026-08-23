@@ -1,6 +1,7 @@
 //! One bounded private share-consumer registry turn on the embedded host.
 
 use kafka_client_core::{Deadline, Moment};
+use std::time::Duration;
 
 use crate::{
     consumer::{
@@ -11,6 +12,8 @@ use crate::{
 };
 
 use super::super::{EngineHostError, EngineHostResources};
+
+const SHARE_CONTROL_CLOSE_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub(in crate::engine_host) struct ShareConsumerProgress {
     pub(in crate::engine_host) unsettled: usize,
@@ -55,6 +58,12 @@ pub(super) fn drive_shard(
             return Err(EngineHostError::ShareConsumerLockPoisoned);
         }
     };
+    if shutdown {
+        let capture = clock
+            .capture_deadline_after(SHARE_CONTROL_CLOSE_TIMEOUT)
+            .map_err(EngineHostError::Clock)?;
+        registry.request_control_close(capture);
+    }
     drive_registry(&mut registry, clock, driver, stage_now)
 }
 

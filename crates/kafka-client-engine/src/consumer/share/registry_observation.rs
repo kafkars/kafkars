@@ -45,6 +45,8 @@ impl ShareConsumerEntry {
             .map(crate::clock::DeadlineCapture::deadline);
         [
             start,
+            self.close()
+                .map(super::close_state::ShareConsumerCloseState::deadline),
             self.membership
                 .as_ref()
                 .and_then(super::ShareMembershipInterpreter::next_deadline),

@@ -72,6 +72,7 @@ pub(crate) enum EngineHostError {
     GroupConsumerLockPoisoned,
     GroupConsumerRecvNotifierUnavailable,
     ShareConsumer(ShareMembershipHostError),
+    ShareConsumerCompletion(CompletionRegistryError),
     ShareConsumerLockPoisoned,
     ShareConsumerUnsettled(usize),
     TransactionInitialization(TransactionInitializationHostError),

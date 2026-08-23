@@ -91,7 +91,8 @@ pub(in crate::consumer) enum ShareTopicIdentityError {
 }
 
 fn topic_identity_is_ready(entry: &ShareConsumerEntry) -> bool {
-    entry.start.is_some()
+    !entry.has_close()
+        && entry.start.is_some()
         && entry.membership.is_none()
         && entry.fault.is_none()
         && entry.topic_call.is_none()

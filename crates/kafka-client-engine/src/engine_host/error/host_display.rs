@@ -1,8 +1,7 @@
 //! Human-readable diagnostics retain the concrete failed engine-host owner.
 
-use std::fmt;
-
 use super::{host::EngineHostError, host_consumer_display};
+use std::fmt;
 
 impl fmt::Display for EngineHostError {
     #[allow(clippy::too_many_lines)]
@@ -62,6 +61,7 @@ impl fmt::Display for EngineHostError {
             | Self::GroupConsumerLockPoisoned
             | Self::GroupConsumerRecvNotifierUnavailable
             | Self::ShareConsumer(_)
+            | Self::ShareConsumerCompletion(_)
             | Self::ShareConsumerLockPoisoned
             | Self::ShareConsumerUnsettled(_)) => host_consumer_display::display(error, formatter),
             Self::TransactionInitialization(error) => {

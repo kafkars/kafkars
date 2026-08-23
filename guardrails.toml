@@ -306,6 +306,10 @@ production = "crates/kafka-client-engine/src/consumer/share/registry_observation
 test = "crates/kafka-client-engine/src/consumer/share/registry_observation_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/registry_close.rs"
+test = "crates/kafka-client-engine/src/consumer/share/registry_close_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/share_consumer/drive.rs"
 test = "crates/kafka-client-engine/src/engine_host/share_consumer/drive_test.rs"
 
@@ -17563,6 +17567,10 @@ owner_type = "ShareConsumerEntryBuildFailure"
 path = "crates/kafka-client-engine/src/consumer/share/entry.rs"
 
 [[linear_owners]]
+owner_type = "ShareConsumerCloseState"
+path = "crates/kafka-client-engine/src/consumer/share/close_state.rs"
+
+[[linear_owners]]
 owner_type = "ShareConsumerRegistrationFailure"
 path = "crates/kafka-client-engine/src/consumer/share/registry_registration.rs"
 
@@ -17581,6 +17589,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/registry_heartbeat_submission.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_invalidation.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_membership.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
 ]
 
@@ -17597,6 +17607,8 @@ owner_type = "ShareConsumerRegistry"
 field = "retained_name_bytes"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/registry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_registration.rs",
 ]
 
@@ -17605,6 +17617,18 @@ owner_type = "ShareConsumerRegistry"
 field = "accepting"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/registry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerRegistry"
+field = "close_completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/registry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_close_notifier.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
 ]
 
 [[mutation_owners]]
@@ -17612,6 +17636,7 @@ owner_type = "ShareConsumerEntry"
 field = "start"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/entry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_close.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_observation.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
 ]
@@ -17629,6 +17654,8 @@ owner_type = "ShareConsumerEntry"
 field = "membership"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/entry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_observation.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_heartbeat_due.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_heartbeat_settlement.rs",
@@ -17642,6 +17669,7 @@ owner_type = "ShareConsumerEntry"
 field = "topic_call"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/entry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_observation.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_topic_identity.rs",
 ]
@@ -17661,6 +17689,7 @@ owner_type = "ShareConsumerEntry"
 field = "heartbeat_call"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/entry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
   "crates/kafka-client-engine/src/consumer/share/entry_calls.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_observation.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_heartbeat_due.rs",
@@ -17673,8 +17702,18 @@ owner_type = "ShareConsumerRegistry"
 field = "invalidations"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/registry.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/share/registry_recovery.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_invalidation.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_observation.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ShareConsumerEntry"
+field = "close"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/share/entry.rs",
+  "crates/kafka-client-engine/src/consumer/share/close_state.rs",
 ]
 
 [[linear_owners]]

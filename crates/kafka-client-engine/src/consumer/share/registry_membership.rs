@@ -5,7 +5,7 @@ use kafka_client_core::Moment;
 use crate::{clock::MonotonicClock, driver::DriverOwner};
 
 use super::{
-    ShareMembershipError, registry::ShareConsumerRegistry,
+    ShareMembershipError, registry::ShareConsumerRegistry, registry_close::ShareConsumerCloseTurn,
     registry_heartbeat_due::ShareHeartbeatDueTurn,
     registry_heartbeat_settlement::ShareHeartbeatSettlementTurn,
     registry_heartbeat_submission::ShareHeartbeatSubmissionTurn,
@@ -39,6 +39,12 @@ impl ShareConsumerRegistry {
         clock: &MonotonicClock,
         driver: &DriverOwner,
     ) -> Result<ShareMembershipTurn, ShareMembershipHostError> {
+        if self
+            .reclaim_one_close_completion()
+            .map_err(|_error| ShareMembershipHostError::EffectShape)?
+        {
+            return Ok(ShareMembershipTurn::Progress);
+        }
         let heartbeat_blocked = match self.settle_one_heartbeat(now, clock)? {
             ShareHeartbeatSettlementTurn::Progress => return Ok(ShareMembershipTurn::Progress),
             ShareHeartbeatSettlementTurn::Blocked => true,
@@ -55,6 +61,11 @@ impl ShareConsumerRegistry {
             ShareInvalidationTurn::Blocked => true,
             ShareInvalidationTurn::Idle => false,
         };
+        let close_blocked = match self.turn_one_close(now)? {
+            ShareConsumerCloseTurn::Progress => return Ok(ShareMembershipTurn::Progress),
+            ShareConsumerCloseTurn::Blocked => true,
+            ShareConsumerCloseTurn::Idle => false,
+        };
         if self.prepare_one_heartbeat_due(now, clock)? == ShareHeartbeatDueTurn::Progress {
             return Ok(ShareMembershipTurn::Progress);
         }
@@ -62,7 +73,7 @@ impl ShareConsumerRegistry {
             ShareHeartbeatSubmissionTurn::Progress => ShareMembershipTurn::Progress,
             ShareHeartbeatSubmissionTurn::Blocked => ShareMembershipTurn::Blocked,
             ShareHeartbeatSubmissionTurn::Idle
-                if heartbeat_blocked || topic_blocked || invalidation_blocked =>
+                if heartbeat_blocked || topic_blocked || invalidation_blocked || close_blocked =>
             {
                 ShareMembershipTurn::Blocked
             }
