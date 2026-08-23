@@ -572,7 +572,8 @@ class RendererTests(unittest.TestCase):
         self.assertIn("security-smoke | full | classic | share", runner)
         self.assertIn("test_name=share_matrix", runner)
         self.assertIn('compose/share.yml")', runner)
-        self.assertIn("--feature share.version=1", runner)
+        self.assertIn("upgrade --feature share.version=1", runner)
+        self.assertIn("--bootstrap-server kafka-1:19092 describe", runner)
         self.assertIn('required_evidence+=(share-feature.txt)', runner)
 
     def test_combined_sasl_tls_uses_one_complete_secret_mount(self) -> None:
