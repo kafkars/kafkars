@@ -4,8 +4,6 @@ use kafka_client_core::Moment;
 
 use crate::protocol::consumer::share_fetch::ShareFetchSuccess;
 
-use crate::consumer::share::fetch_delivery::ShareFetchDeliveryTransferError;
-
 use super::{
     ShareFetchSettlementTurn,
     settlement_test::{owner, stage},
@@ -27,17 +25,18 @@ fn empty_success_cannot_invent_an_application_batch() {
     );
     assert_eq!(
         owner.settle_terminal(Moment::from_tick(7)),
-        Ok(ShareFetchSettlementTurn::Acquired(0))
+        Ok(ShareFetchSettlementTurn::Empty)
     );
-    assert_eq!(
-        owner.take_delivery(Moment::from_tick(8)).err(),
-        Some(ShareFetchDeliveryTransferError::Empty)
-    );
-    assert!(owner.has_staged_delivery());
     assert!(
         owner
-            .discard_staged_delivery()
-            .unwrap_or_else(|error| panic!("discard empty delivery: {error:?}"))
+            .take_delivery(Moment::from_tick(8))
+            .unwrap_or_else(|error| panic!("empty delivery observation: {error:?}"))
+            .is_none()
     );
     assert!(!owner.has_staged_delivery());
+    assert_eq!(
+        owner.machine().phase(),
+        kafka_client_core::ShareFetchSessionPhase::Ready
+    );
+    assert_eq!(owner.machine().fence().session_epoch().get(), 1);
 }
