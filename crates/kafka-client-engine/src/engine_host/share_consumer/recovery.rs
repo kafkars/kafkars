@@ -5,7 +5,7 @@ use crate::completion::NotifierJoin;
 use super::super::{EngineHostError, EngineHostResources};
 
 pub(in crate::engine_host) fn recover(
-    resources: &EngineHostResources,
+    resources: &mut EngineHostResources,
     mut failure: EngineHostError,
     notifiers: &mut Vec<NotifierJoin>,
 ) -> EngineHostError {
@@ -14,6 +14,12 @@ pub(in crate::engine_host) fn recover(
     }
     if let Some(notifier) = resources.share_consumers.take_close_notifier() {
         notifiers.push(notifier);
+    }
+    match resources.share_consumers.stop_recv_notifier() {
+        Some(notifier) => notifiers.push(notifier),
+        None => {
+            failure = failure.with_cleanup(EngineHostError::ShareConsumerRecvNotifierUnavailable);
+        }
     }
     failure
 }

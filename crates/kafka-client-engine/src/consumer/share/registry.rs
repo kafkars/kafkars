@@ -1,5 +1,6 @@
 //! Sole bounded registry owner for hosted share-member lifetimes.
 
+use crate::consumer::share_recv::ShareConsumerRecvNotificationResources;
 use crate::driver::share_group_heartbeat::ShareCoordinatorInvalidations;
 use kafka_client_core::GroupId;
 
@@ -19,6 +20,7 @@ pub(crate) struct ShareConsumerRegistry {
     pub(super) accepting: bool,
     pub(super) invalidations: ShareCoordinatorInvalidations,
     pub(super) close_completions: CompletionRegistry<ShareConsumerCloseTerminal>,
+    pub(super) recv_notifications: Option<ShareConsumerRecvNotificationResources>,
 }
 
 impl ShareConsumerRegistry {
@@ -27,18 +29,29 @@ impl ShareConsumerRegistry {
         entries
             .try_reserve_exact(SHARE_CONSUMER_CAPACITY)
             .map_err(|_error| std::io::Error::other("share consumer reservation failed"))?;
+        let invalidations =
+            ShareCoordinatorInvalidations::try_new(SHARE_COORDINATOR_INVALIDATION_CAPACITY)
+                .map_err(|_error| {
+                    std::io::Error::other("share coordinator invalidation reservation failed")
+                })?;
+        let mut close_completions = CompletionRegistry::start(SHARE_CONSUMER_CAPACITY)?;
+        let recv_notifications = match ShareConsumerRecvNotificationResources::start() {
+            Ok(resources) => resources,
+            Err(error) => {
+                if let Some(join) = close_completions.take_notifier() {
+                    let _result = join.join();
+                }
+                return Err(error);
+            }
+        };
         Ok(Self {
             entries,
             next_group_id: GroupId::try_from_raw(1),
             retained_name_bytes: 0,
             accepting: true,
-            invalidations: ShareCoordinatorInvalidations::try_new(
-                SHARE_COORDINATOR_INVALIDATION_CAPACITY,
-            )
-            .map_err(|_error| {
-                std::io::Error::other("share coordinator invalidation reservation failed")
-            })?,
-            close_completions: CompletionRegistry::start(SHARE_CONSUMER_CAPACITY)?,
+            invalidations,
+            close_completions,
+            recv_notifications: Some(recv_notifications),
         })
     }
 

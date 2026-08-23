@@ -67,13 +67,14 @@ fn membership_without_broker_sessions_reports_pending_without_transfer() {
 
 pub(in crate::consumer) fn staged_handle() -> (ShareConsumerShardOwner, ShareConsumerHandle, GroupId)
 {
-    let (mut registry, group_id, clock, _capture) = registry_with_routable_membership();
-    let displaced = registry
-        .entry_mut(group_id)
-        .unwrap_or_else(|| panic!("entry"))
-        .fetch_mut()
-        .install_sessions(staged_session_set_for_test(41));
-    assert!(displaced.is_none());
+    let (owner, handle, group_id) = pending_handle();
+    install_staged(&owner, group_id, 41);
+    (owner, handle, group_id)
+}
+
+pub(in crate::consumer) fn pending_handle()
+-> (ShareConsumerShardOwner, ShareConsumerHandle, GroupId) {
+    let (registry, group_id, clock, _capture) = registry_with_routable_membership();
     let owner = ShareConsumerShardOwner::new(registry, Arc::new(clock), Arc::new(NoopWake));
     let port = owner.admission_port();
     let handle = ShareConsumerHandle {
@@ -87,7 +88,21 @@ pub(in crate::consumer) fn staged_handle() -> (ShareConsumerShardOwner, ShareCon
     (owner, handle, group_id)
 }
 
-pub(in crate::consumer) fn finish(owner: ShareConsumerShardOwner, group_id: GroupId) {
+pub(in crate::consumer) fn install_staged(
+    owner: &ShareConsumerShardOwner,
+    group_id: GroupId,
+    offset: i64,
+) {
+    let mut registry = owner.lock_registry_for_test();
+    let displaced = registry
+        .entry_mut(group_id)
+        .unwrap_or_else(|| panic!("entry"))
+        .fetch_mut()
+        .install_sessions(staged_session_set_for_test(offset));
+    assert!(displaced.is_none());
+}
+
+pub(in crate::consumer) fn finish(mut owner: ShareConsumerShardOwner, group_id: GroupId) {
     let mut registry = owner.lock_registry_for_test();
     let sessions = registry
         .entry_mut(group_id)
@@ -113,5 +128,10 @@ pub(in crate::consumer) fn finish(owner: ShareConsumerShardOwner, group_id: Grou
         .release_unsubmitted()
         .unwrap_or_else(|error| panic!("release: {error:?}"));
     drop(registry);
+    owner
+        .stop_recv_notifier()
+        .unwrap_or_else(|| panic!("receive notifier"))
+        .join_off_notifier()
+        .unwrap_or_else(|error| panic!("join receive notifier: {error}"));
     drop(owner);
 }

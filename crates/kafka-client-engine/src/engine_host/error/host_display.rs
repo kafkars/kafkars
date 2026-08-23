@@ -51,18 +51,14 @@ impl fmt::Display for EngineHostError {
                     "assigned-consumer recovery observed {recovery:?}"
                 )
             }
-            Self::AssignedConsumerCompletion(error) => {
-                write!(
-                    formatter,
-                    "assigned-consumer completion notifier failed: {error}"
-                )
-            }
-            error @ (Self::GroupConsumer(_)
+            error @ (Self::AssignedConsumerCompletion(_)
+            | Self::GroupConsumer(_)
             | Self::GroupConsumerLockPoisoned
             | Self::GroupConsumerRecvNotifierUnavailable
             | Self::ShareConsumer(_)
             | Self::ShareConsumerCompletion(_)
             | Self::ShareConsumerLockPoisoned
+            | Self::ShareConsumerRecvNotifierUnavailable
             | Self::ShareConsumerUnsettled(_)) => host_consumer_display::display(error, formatter),
             Self::TransactionInitialization(error) => {
                 write!(formatter, "transaction initialization failed: {error}")

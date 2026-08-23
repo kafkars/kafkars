@@ -112,6 +112,9 @@ pub use super::share_batch::{
     ShareConsumerBatch, ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords,
     ShareConsumerTryTakeBatchError, ShareConsumerTryTakeBatchErrorKind,
 };
+pub use super::share_recv::{
+    ShareConsumerRecv, ShareConsumerRecvError, ShareConsumerRecvErrorKind,
+};
 
 pub(crate) use super::{
     assigned_host::{

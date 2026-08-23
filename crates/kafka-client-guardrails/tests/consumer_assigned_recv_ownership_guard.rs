@@ -172,6 +172,7 @@ fn checked_in_recv_ownership_and_notification_factory_are_exact() {
         [
             "crates/kafka-client-engine/src/consumer/assigned_host/completion.rs",
             "crates/kafka-client-engine/src/consumer/group_recv/completion.rs",
+            "crates/kafka-client-engine/src/consumer/share_recv/completion.rs",
         ]
     );
 }
