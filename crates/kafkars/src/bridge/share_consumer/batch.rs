@@ -5,6 +5,11 @@ use kafka_client_engine::share::{
     ShareConsumerRecord as EngineRecord, ShareConsumerRecords as EngineRecords,
 };
 
+use super::{
+    ShareAcknowledgement, ShareAcknowledgementBuildError, ShareDisposition, ShareRecordDecision,
+    acknowledgement::{engine_decisions, engine_disposition},
+};
+
 /// Private linear bridge retaining one exact share delivery capability.
 pub(crate) struct ShareConsumerBatch {
     inner: EngineBatch,
@@ -31,6 +36,23 @@ impl ShareConsumerBatch {
         ShareConsumerRecords {
             inner: self.inner.records(),
         }
+    }
+
+    pub(crate) fn accept_all(self) -> Result<ShareAcknowledgement, ShareAcknowledgementBuildError> {
+        self.inner
+            .accept_all()
+            .map(ShareAcknowledgement::from_engine)
+            .map_err(ShareAcknowledgementBuildError::from_engine)
+    }
+
+    pub(crate) fn into_acknowledgement(
+        self,
+        decisions: Vec<ShareRecordDecision>,
+    ) -> Result<ShareAcknowledgement, ShareAcknowledgementBuildError> {
+        self.inner
+            .into_acknowledgement(engine_decisions(decisions))
+            .map(ShareAcknowledgement::from_engine)
+            .map_err(ShareAcknowledgementBuildError::from_engine)
     }
 }
 
@@ -80,6 +102,10 @@ impl ShareConsumerRecord<'_> {
 
     pub(crate) const fn delivery_count(&self) -> i16 {
         self.inner.delivery_count()
+    }
+
+    pub(crate) const fn decision(&self, disposition: ShareDisposition) -> ShareRecordDecision {
+        ShareRecordDecision::from_engine(self.inner.decision(engine_disposition(disposition)))
     }
 
     pub(crate) const fn timestamp_millis(&self) -> Option<i64> {

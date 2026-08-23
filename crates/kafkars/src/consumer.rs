@@ -78,10 +78,12 @@ pub use read_isolation::ReadIsolation;
 pub use record::{ConsumerHeader, ConsumerRecord, ConsumerRecords};
 pub use record_batch::RecordBatch;
 pub use share::{
-    CloseShareConsumer, RecvShareConsumerBatch, ShareConsumer, ShareConsumerAssignment,
-    ShareConsumerAssignmentPartition, ShareConsumerBatch, ShareConsumerBuildError,
-    ShareConsumerBuilder, ShareConsumerCloseAdmissionError, ShareConsumerFetchConfig,
-    ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords,
+    CloseShareConsumer, RecvShareConsumerBatch, ShareAcknowledgement,
+    ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind, ShareConsumer,
+    ShareConsumerAssignment, ShareConsumerAssignmentPartition, ShareConsumerBatch,
+    ShareConsumerBuildError, ShareConsumerBuilder, ShareConsumerCloseAdmissionError,
+    ShareConsumerFetchConfig, ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords,
+    ShareDisposition, ShareRecordDecision,
 };
 
 #[cfg(test)]

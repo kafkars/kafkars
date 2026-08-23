@@ -1,7 +1,6 @@
 //! Experimental, runtime-neutral Rust client for Apache Kafka.
 //! The facade exposes bounded operations over the deterministic client engine.
 //! Version 0.0.1 is an API preview, not a broker-compatibility claim.
-//!
 //! Apache Kafka and the Kafka logo are trademarks of The Apache Software
 //! Foundation. kafkars has no affiliation with and is not
 //! endorsed by The Apache Software Foundation.
@@ -18,7 +17,6 @@ mod record;
 mod security;
 mod shutdown;
 mod transaction;
-
 pub use admin::{
     AbortPartitionTransaction, AbortTransactionBuilder, AbortTransactionSpec, AccessControlEntry,
     AclBinding, AclBindingFilter, AclOperation, AclPatternType, AclPermissionType, AclResourceType,
@@ -135,10 +133,12 @@ pub use consumer::{
     ConsumerRevocation, GroupConsumerHeader, GroupConsumerOperationConfig, GroupConsumerRecord,
     GroupConsumerRecords, GroupMembershipEpoch, GroupMetadata, NextAssignedEvent,
     NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch, RecvAssignedBatch,
-    RecvConsumerBatch, RecvShareConsumerBatch, Seek, ShareConsumer, ShareConsumerAssignment,
-    ShareConsumerAssignmentPartition, ShareConsumerBatch, ShareConsumerBuildError,
-    ShareConsumerBuilder, ShareConsumerCloseAdmissionError, ShareConsumerFetchConfig,
-    ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords, StartPosition, TopicPartition,
+    RecvConsumerBatch, RecvShareConsumerBatch, Seek, ShareAcknowledgement,
+    ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind, ShareConsumer,
+    ShareConsumerAssignment, ShareConsumerAssignmentPartition, ShareConsumerBatch,
+    ShareConsumerBuildError, ShareConsumerBuilder, ShareConsumerCloseAdmissionError,
+    ShareConsumerFetchConfig, ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords,
+    ShareDisposition, ShareRecordDecision, StartPosition, TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice};
 pub use metrics::{

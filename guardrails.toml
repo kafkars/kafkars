@@ -18576,6 +18576,18 @@ test = "crates/kafkars/src/bridge/share_consumer/recv_result_test.rs"
 owner_type = "ShareConsumerBatch"
 path = "crates/kafkars/src/bridge/share_consumer/batch.rs"
 
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/share_consumer/acknowledgement.rs"
+test = "crates/kafkars/src/bridge/share_consumer/acknowledgement_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgement"
+path = "crates/kafkars/src/bridge/share_consumer/acknowledgement.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementBuildError"
+path = "crates/kafkars/src/bridge/share_consumer/acknowledgement.rs"
+
 [[linear_owners]]
 owner_type = "ShareConsumerRecv"
 path = "crates/kafkars/src/bridge/share_consumer/recv.rs"
@@ -18599,6 +18611,22 @@ test = "crates/kafkars/src/consumer/share/batch_test.rs"
 [[linear_owners]]
 owner_type = "ShareConsumerBatch"
 path = "crates/kafkars/src/consumer/share/batch.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share/acknowledgement.rs"
+test = "crates/kafkars/src/consumer/share/acknowledgement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share/acknowledgement_error.rs"
+test = "crates/kafkars/src/consumer/share/acknowledgement_error_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgement"
+path = "crates/kafkars/src/consumer/share/acknowledgement.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementBuildError"
+path = "crates/kafkars/src/consumer/share/acknowledgement_error.rs"
 
 [[test_mirrors]]
 production = "crates/kafkars/src/consumer/share/recv.rs"

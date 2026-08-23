@@ -1,5 +1,7 @@
 //! Declarative facade for share-group membership, delivery, and observation.
 
+mod acknowledgement;
+mod acknowledgement_error;
 mod assignment;
 mod batch;
 mod build_error;
@@ -23,6 +25,10 @@ pub use record::{ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords}
 pub use recv::RecvShareConsumerBatch;
 
 #[cfg(test)]
+mod acknowledgement_error_test;
+#[cfg(test)]
+mod acknowledgement_test;
+#[cfg(test)]
 mod assignment_test;
 #[cfg(test)]
 mod batch_test;
@@ -36,3 +42,7 @@ mod contract_test;
 mod fetch_config_test;
 #[cfg(test)]
 mod recv_test;
+pub use acknowledgement::{ShareAcknowledgement, ShareDisposition, ShareRecordDecision};
+pub use acknowledgement_error::{
+    ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind,
+};

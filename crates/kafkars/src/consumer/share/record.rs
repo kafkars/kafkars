@@ -5,6 +5,8 @@ use crate::bridge::share_consumer::{
     ShareConsumerRecords as BridgeRecords,
 };
 
+use super::{ShareDisposition, ShareRecordDecision};
+
 /// Records borrowing their bytes from one retained [`super::ShareConsumerBatch`].
 #[derive(Debug)]
 pub struct ShareConsumerRecords<'batch> {
@@ -54,6 +56,11 @@ impl<'batch> ShareConsumerRecord<'batch> {
     /// Returns Kafka's positive delivery count for this acquired range.
     pub const fn delivery_count(&self) -> i16 {
         self.inner.delivery_count()
+    }
+
+    /// Correlates one disposition to this exact acquired record.
+    pub const fn decision(&self, disposition: ShareDisposition) -> ShareRecordDecision {
+        ShareRecordDecision::from_bridge(self.inner.decision(disposition.into_bridge()))
     }
 
     /// Returns the Kafka timestamp in milliseconds when present.
