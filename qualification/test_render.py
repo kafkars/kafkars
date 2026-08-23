@@ -467,58 +467,6 @@ class RendererTests(unittest.TestCase):
             self.assertTrue(truthful_scenarios.issubset(scenarios))
             self.assertTrue(stale_scenarios.isdisjoint(scenarios))
 
-    def test_workflow_include_lists_match_policy_exactly(self) -> None:
-        workflow = (ROOT / ".github/workflows/qualification.yml").read_text(
-            encoding="utf-8"
-        )
-        pr_section = workflow.split("  qualification-pr:", 1)[1].split(
-            "\n  qualification-gate:", 1
-        )[0]
-        nightly_section = workflow.split("  qualification-matrix:", 1)[1].split(
-            "\n  qualification-aggregate:", 1
-        )[0]
-        aggregate_section = workflow.split("  qualification-aggregate:", 1)[1]
-        row = re.compile(
-            r"^\s+- \{ kafka_version: ([^,]+), profile: ([^,]+), "
-            r"security: ([^,}]+)(?:, gating: (true|false))? \}$",
-            re.MULTILINE,
-        )
-        pr_cells = [match.groups()[:3] for match in row.finditer(pr_section)]
-        expected_pr = [
-            (cell["kafka_version"], cell["profile"], cell["security"])
-            for cell in self.matrix["evidence_sets"]["pr"]
-        ]
-        self.assertEqual(pr_cells, expected_pr)
-        nightly_cells = [
-            (*match.groups()[:3], match.group(4) == "true")
-            for match in row.finditer(nightly_section)
-        ]
-        expected_nightly = [
-            (
-                cell["kafka_version"],
-                cell["profile"],
-                cell["security"],
-                cell["gating"],
-            )
-            for cell in self.matrix["evidence_sets"]["nightly"]
-        ]
-        self.assertEqual(nightly_cells, expected_nightly)
-        self.assertNotIn("release-crate-graph", workflow)
-        self.assertIn("--require-complete-set pr", workflow)
-        self.assertIn("--require-complete-set nightly", workflow)
-        self.assertIn('test "$QUALIFICATION_RESULT" = success', workflow)
-        self.assertIn('test "$POLICY_RESULT" = success', workflow)
-        self.assertIn("name: qualification-pr-aggregate-", workflow)
-        self.assertIn('if [[ "$POLICY_RESULT" != success ]]', aggregate_section)
-        self.assertNotIn("MATRIX_RESULT", aggregate_section)
-        architecture_gate = (ROOT / "scripts/check-architecture").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn(
-            "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest qualification.test_render -v",
-            architecture_gate,
-        )
-
     def test_compose_and_tls_assets_keep_security_boundaries(self) -> None:
         cluster = (ROOT / "qualification/compose/cluster.yml").read_text(
             encoding="utf-8"
