@@ -119,7 +119,7 @@ const CLOSE_METHOD_PATHS: &[&str] = &[
     "crates/kafkars/src/bridge/share_consumer/close.rs",
     "crates/kafkars/src/consumer/assigned.rs",
     "crates/kafkars/src/consumer/group_close.rs",
-    "crates/kafkars/src/consumer/share_close.rs",
+    "crates/kafkars/src/consumer/share/close.rs",
 ];
 
 #[test]
