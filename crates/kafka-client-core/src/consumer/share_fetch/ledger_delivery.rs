@@ -131,7 +131,7 @@ impl ShareAcquisitionLedger {
     pub fn next_reclaimable_deadline(&self) -> Option<crate::Deadline> {
         self.entries
             .iter()
-            .filter(|entry| entry.phase != ShareAcquisitionPhase::Delivered)
+            .filter(|entry| entry.phase.is_locally_reclaimable())
             .map(|entry| entry.range.lock_deadline())
             .min()
     }

@@ -3,7 +3,7 @@
 use crate::{AssignedTopicPartition, Deadline, DeliveryStatus, Moment};
 
 use super::{
-    ShareAcquiredRange, ShareAcquisitionLedger, ShareAcquisitionPolicy,
+    ShareAcknowledgeAttempt, ShareAcquiredRange, ShareAcquisitionLedger, ShareAcquisitionPolicy,
     ShareFetchAssignmentGeneration, ShareFetchAttempt, ShareFetchSessionApplyError,
     ShareFetchSessionEpoch, ShareFetchSessionErrorKind, ShareFetchSessionFence,
     ShareFetchSessionOpenError, ShareFetchSettlementError, ShareFetchSettlementErrorKind,
@@ -19,6 +19,8 @@ pub enum ShareFetchSessionPhase {
     Ready,
     /// One exact fetch attempt owns driver execution.
     InFlight,
+    /// One exact acknowledgement attempt owns driver execution.
+    Acknowledging,
     /// Session authority was lost and must be drained before reopening.
     Lost,
 }
@@ -26,11 +28,12 @@ pub enum ShareFetchSessionPhase {
 /// Deterministic owner of one broker-local `ShareFetch` session and acquisition ledger.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ShareFetchSessionMachine {
-    phase: ShareFetchSessionPhase,
-    fence: ShareFetchSessionFence,
+    pub(super) phase: ShareFetchSessionPhase,
+    pub(super) fence: ShareFetchSessionFence,
     assignment_generation: ShareFetchAssignmentGeneration,
     assignment: Vec<AssignedTopicPartition>,
-    in_flight: Option<ShareFetchAttempt>,
+    pub(super) in_flight: Option<ShareFetchAttempt>,
+    pub(super) acknowledging: Option<ShareAcknowledgeAttempt>,
     ledger: ShareAcquisitionLedger,
 }
 
@@ -53,6 +56,7 @@ impl ShareFetchSessionMachine {
             assignment_generation: ShareFetchAssignmentGeneration::initial(),
             assignment,
             in_flight: None,
+            acknowledging: None,
             ledger,
         })
     }
@@ -75,11 +79,6 @@ impl ShareFetchSessionMachine {
     /// Borrows the current partitions eligible for acquisition.
     pub fn assignment(&self) -> &[AssignedTopicPartition] {
         &self.assignment
-    }
-
-    /// Returns the sole in-flight attempt, if any.
-    pub const fn in_flight(&self) -> Option<ShareFetchAttempt> {
-        self.in_flight
     }
 
     /// Borrows the bounded acquisition ledger.
@@ -218,6 +217,7 @@ impl ShareFetchSessionMachine {
 
     fn lose(&mut self) {
         self.in_flight = None;
+        self.acknowledging = None;
         self.phase = ShareFetchSessionPhase::Lost;
     }
 }

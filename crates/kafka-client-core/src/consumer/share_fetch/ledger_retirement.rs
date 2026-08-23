@@ -14,8 +14,7 @@ impl ShareAcquisitionLedger {
         now: Moment,
     ) -> Result<Option<ShareAcquisitionRelease>, ErrorKind> {
         let index = self.entries.iter().position(|entry| {
-            entry.phase != ShareAcquisitionPhase::Delivered
-                && entry.range.lock_deadline().is_elapsed_at(now)
+            entry.phase.is_locally_reclaimable() && entry.range.lock_deadline().is_elapsed_at(now)
         });
         self.retire_index(index)
     }
@@ -25,9 +24,10 @@ impl ShareAcquisitionLedger {
         &mut self,
         fence: ShareFetchSessionFence,
     ) -> Result<Option<ShareAcquisitionRelease>, ErrorKind> {
-        let index = self.entries.iter().position(|entry| {
-            entry.fence == fence && entry.phase != ShareAcquisitionPhase::Delivered
-        });
+        let index = self
+            .entries
+            .iter()
+            .position(|entry| entry.fence == fence && entry.phase.is_locally_reclaimable());
         self.retire_index(index)
     }
 
@@ -36,7 +36,7 @@ impl ShareAcquisitionLedger {
         let index = self
             .entries
             .iter()
-            .position(|entry| entry.phase != ShareAcquisitionPhase::Delivered);
+            .position(|entry| entry.phase.is_locally_reclaimable());
         self.retire_index(index)
     }
 

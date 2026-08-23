@@ -270,6 +270,10 @@ test = "crates/kafka-client-core/src/consumer/share_fetch/session_test.rs"
 production = "crates/kafka-client-core/src/consumer/share_fetch/acknowledgement/normalize.rs"
 test = "crates/kafka-client-core/src/consumer/share_fetch/acknowledgement/normalize_test.rs"
 
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/share_fetch/session_acknowledgement.rs"
+test = "crates/kafka-client-core/src/consumer/share_fetch/session_acknowledgement_test.rs"
+
 [[linear_owners]]
 owner_type = "ShareAcquisition"
 path = "crates/kafka-client-core/src/consumer/share_fetch/acquisition.rs"
@@ -294,11 +298,24 @@ path = "crates/kafka-client-core/src/consumer/share_fetch/acknowledgement/model.
 owner_type = "ShareAcknowledgementBuildError"
 path = "crates/kafka-client-core/src/consumer/share_fetch/acknowledgement/error.rs"
 
+[[linear_owners]]
+owner_type = "ShareAcknowledgementAdmission"
+path = "crates/kafka-client-core/src/consumer/share_fetch/acknowledgement/operation.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementApplyError"
+path = "crates/kafka-client-core/src/consumer/share_fetch/acknowledgement/operation.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementFailureSettlement"
+path = "crates/kafka-client-core/src/consumer/share_fetch/acknowledgement/operation.rs"
+
 [[mutation_owners]]
 owner_type = "ShareAcquisitionLedger"
 field = "entries"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/share_fetch/ledger.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_acknowledgement.rs",
   "crates/kafka-client-core/src/consumer/share_fetch/ledger_delivery.rs",
   "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement.rs",
 ]
@@ -313,6 +330,7 @@ owner_type = "ShareAcquisitionLedger"
 field = "retained_records"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/share_fetch/ledger.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_acknowledgement.rs",
   "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement.rs",
 ]
 
@@ -329,6 +347,7 @@ owner_type = "ShareAcquisitionLedger"
 field = "retained_bytes"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/share_fetch/ledger.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_acknowledgement.rs",
   "crates/kafka-client-core/src/consumer/share_fetch/ledger_delivery.rs",
   "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement.rs",
 ]
@@ -336,12 +355,18 @@ allowed_paths = [
 [[mutation_owners]]
 owner_type = "ShareFetchSessionMachine"
 field = "phase"
-allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/share_fetch/session.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/session_acknowledgement.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ShareFetchSessionMachine"
 field = "fence"
-allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/share_fetch/session.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/session_acknowledgement.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ShareFetchSessionMachine"
@@ -357,6 +382,14 @@ allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
 owner_type = "ShareFetchSessionMachine"
 field = "in_flight"
 allowed_paths = ["crates/kafka-client-core/src/consumer/share_fetch/session.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareFetchSessionMachine"
+field = "acknowledging"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/share_fetch/session.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/session_acknowledgement.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ShareFetchSessionMachine"
