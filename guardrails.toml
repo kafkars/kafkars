@@ -287,6 +287,7 @@ owner_type = "ShareAcquisitionLedger"
 field = "entries"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/share_fetch/ledger.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_delivery.rs",
   "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement.rs",
 ]
 
@@ -303,11 +304,20 @@ allowed_paths = [
   "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement.rs",
 ]
 
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/share_fetch/ledger_delivery.rs"
+test = "crates/kafka-client-core/src/consumer/share_fetch/ledger_delivery_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcquisitionBatchError"
+path = "crates/kafka-client-core/src/consumer/share_fetch/ledger_delivery.rs"
+
 [[mutation_owners]]
 owner_type = "ShareAcquisitionLedger"
 field = "retained_bytes"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/share_fetch/ledger.rs",
+  "crates/kafka-client-core/src/consumer/share_fetch/ledger_delivery.rs",
   "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement.rs",
 ]
 

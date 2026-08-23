@@ -26,8 +26,13 @@ fn exact_attempt_advances_session_and_stages_acquisitions() {
         vec![range(1, 1, 0, 4, 8, 50)],
     ));
     assert_eq!(acquisitions, 1);
-    let acquisition = some(machine.ledger_mut().claim_next(Moment::from_tick(12)));
-    assert_eq!(acquisition.fence(), attempt.fence());
+    let delivery = okay(machine.ledger_mut().claim_batch(
+        attempt.fence(),
+        1,
+        Moment::from_tick(12),
+    ));
+    assert_eq!(delivery.len(), 1);
+    assert_eq!(delivery[0].fence(), attempt.fence());
     assert_eq!(machine.phase(), ShareFetchSessionPhase::Ready);
     assert_eq!(machine.fence().session_epoch().get(), 1);
     assert_eq!(machine.ledger().retained_records(), 5);

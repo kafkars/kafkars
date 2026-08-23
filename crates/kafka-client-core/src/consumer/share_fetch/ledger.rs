@@ -3,10 +3,9 @@
 use crate::{ByteCount, Moment};
 
 use super::{
-    ShareAcquiredRange, ShareAcquisition, ShareAcquisitionAdmissionError,
+    ShareAcquiredRange, ShareAcquisitionAdmissionError,
     ShareAcquisitionAdmissionErrorKind as ErrorKind, ShareAcquisitionGeneration,
-    ShareAcquisitionPhase, ShareAcquisitionPolicy, ShareFetchSessionFence,
-    acquisition::ShareAcquisitionEntry,
+    ShareAcquisitionPolicy, ShareFetchSessionFence, acquisition::ShareAcquisitionEntry,
 };
 
 /// Deterministic owner of all locally live acquisition ranges for one consumer.
@@ -64,16 +63,6 @@ impl ShareAcquisitionLedger {
         self.retained_records = records;
         self.retained_bytes = bytes;
         Ok(admitted)
-    }
-
-    /// Moves the oldest unexpired staged range into one application batch.
-    pub fn claim_next(&mut self, now: Moment) -> Option<ShareAcquisition> {
-        let entry = self.entries.iter_mut().find(|entry| {
-            entry.phase == ShareAcquisitionPhase::Staged
-                && !entry.range.lock_deadline().is_elapsed_at(now)
-        })?;
-        entry.phase = ShareAcquisitionPhase::Delivered;
-        Some(entry.delivery())
     }
 
     /// Returns the number of live broker-lock ranges.
