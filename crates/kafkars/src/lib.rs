@@ -1,9 +1,7 @@
-//! Experimental, runtime-neutral Rust client for Apache Kafka.
-//! The facade exposes bounded operations over the deterministic client engine.
+//! Experimental, runtime-neutral Rust client with bounded deterministic operations.
 //! Version 0.0.1 is an API preview, not a broker-compatibility claim.
-//! Apache Kafka and the Kafka logo are trademarks of The Apache Software
-//! Foundation. kafkars has no affiliation with and is not
-//! endorsed by The Apache Software Foundation.
+//! Apache Kafka and the Kafka logo are trademarks of The Apache Software Foundation.
+//! kafkars has no affiliation with or endorsement from the Foundation.
 #![forbid(unsafe_code)]
 mod admin;
 mod bridge;
@@ -120,21 +118,23 @@ pub use admin::{
 };
 pub use client::{Client, ClientBuilder};
 pub use consumer::{
-    AssignedConsumer, AssignedConsumerBuildError, AssignedConsumerBuilder, AssignedConsumerEvent,
-    AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
-    AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
-    AssignedConsumerPositionResolutionFailureKind, Checkpoint, CheckpointBuilder,
-    CheckpointMarkError, CheckpointMarkErrorKind, ClassicGroupAssignor, ClassicGroupConfig,
-    CloseAssignedConsumer, CloseConsumer, CloseShareConsumer, CommitConsumerCheckpoint, Consumer,
-    ConsumerAcknowledgeError, ConsumerAssignment, ConsumerAssignmentPartition, ConsumerBatch,
-    ConsumerBuildError, ConsumerBuilder, ConsumerCloseAdmissionError, ConsumerCommitAdmissionError,
-    ConsumerCommitError, ConsumerControl, ConsumerEvent, ConsumerFetchConfig,
-    ConsumerGroupProtocol, ConsumerHeader, ConsumerLimits, ConsumerRecord, ConsumerRecords,
-    ConsumerRevocation, GroupConsumerHeader, GroupConsumerOperationConfig, GroupConsumerRecord,
-    GroupConsumerRecords, GroupMembershipEpoch, GroupMetadata, NextAssignedEvent,
-    NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch, RecvAssignedBatch,
-    RecvConsumerBatch, RecvShareConsumerBatch, Seek, ShareAcknowledgement,
-    ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind, ShareConsumer,
+    AcknowledgeShareConsumer, AssignedConsumer, AssignedConsumerBuildError,
+    AssignedConsumerBuilder, AssignedConsumerEvent, AssignedConsumerFetchFailureKind,
+    AssignedConsumerFetchFence, AssignedConsumerFetchThrottleFailureKind,
+    AssignedConsumerPositionFence, AssignedConsumerPositionResolutionFailureKind, Checkpoint,
+    CheckpointBuilder, CheckpointMarkError, CheckpointMarkErrorKind, ClassicGroupAssignor,
+    ClassicGroupConfig, CloseAssignedConsumer, CloseConsumer, CloseShareConsumer,
+    CommitConsumerCheckpoint, Consumer, ConsumerAcknowledgeError, ConsumerAssignment,
+    ConsumerAssignmentPartition, ConsumerBatch, ConsumerBuildError, ConsumerBuilder,
+    ConsumerCloseAdmissionError, ConsumerCommitAdmissionError, ConsumerCommitError,
+    ConsumerControl, ConsumerEvent, ConsumerFetchConfig, ConsumerGroupProtocol, ConsumerHeader,
+    ConsumerLimits, ConsumerRecord, ConsumerRecords, ConsumerRevocation, GroupConsumerHeader,
+    GroupConsumerOperationConfig, GroupConsumerRecord, GroupConsumerRecords, GroupMembershipEpoch,
+    GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch,
+    RecvAssignedBatch, RecvConsumerBatch, RecvShareConsumerBatch, Seek, ShareAcknowledgement,
+    ShareAcknowledgementAdmissionError, ShareAcknowledgementBrokerError,
+    ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind, ShareAcknowledgementError,
+    ShareAcknowledgementPartitionOutcome, ShareAcknowledgementResponse, ShareConsumer,
     ShareConsumerAssignment, ShareConsumerAssignmentPartition, ShareConsumerBatch,
     ShareConsumerBuildError, ShareConsumerBuilder, ShareConsumerCloseAdmissionError,
     ShareConsumerFetchConfig, ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords,

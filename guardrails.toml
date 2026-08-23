@@ -18588,6 +18588,22 @@ path = "crates/kafkars/src/bridge/share_consumer/acknowledgement.rs"
 owner_type = "ShareAcknowledgementBuildError"
 path = "crates/kafkars/src/bridge/share_consumer/acknowledgement.rs"
 
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/share_consumer/acknowledge.rs"
+test = "crates/kafkars/src/bridge/share_consumer/acknowledge_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/share_consumer/acknowledge_result.rs"
+test = "crates/kafkars/src/bridge/share_consumer/acknowledge_result_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerAcknowledge"
+path = "crates/kafkars/src/bridge/share_consumer/acknowledge.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementError"
+path = "crates/kafkars/src/bridge/share_consumer/acknowledge_result.rs"
+
 [[linear_owners]]
 owner_type = "ShareConsumerRecv"
 path = "crates/kafkars/src/bridge/share_consumer/recv.rs"
@@ -18627,6 +18643,30 @@ path = "crates/kafkars/src/consumer/share/acknowledgement.rs"
 [[linear_owners]]
 owner_type = "ShareAcknowledgementBuildError"
 path = "crates/kafkars/src/consumer/share/acknowledgement_error.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share/acknowledge.rs"
+test = "crates/kafkars/src/consumer/share/acknowledge_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share/acknowledgement_operation_error.rs"
+test = "crates/kafkars/src/consumer/share/acknowledgement_operation_error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/share/acknowledgement_response.rs"
+test = "crates/kafkars/src/consumer/share/acknowledgement_response_test.rs"
+
+[[linear_owners]]
+owner_type = "AcknowledgeShareConsumer"
+path = "crates/kafkars/src/consumer/share/acknowledge.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementAdmissionError"
+path = "crates/kafkars/src/consumer/share/acknowledgement_operation_error.rs"
+
+[[linear_owners]]
+owner_type = "ShareAcknowledgementError"
+path = "crates/kafkars/src/consumer/share/acknowledgement_operation_error.rs"
 
 [[test_mirrors]]
 production = "crates/kafkars/src/consumer/share/recv.rs"

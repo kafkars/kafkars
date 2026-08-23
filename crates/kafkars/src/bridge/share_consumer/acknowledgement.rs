@@ -76,6 +76,10 @@ impl ShareAcknowledgement {
     pub(crate) fn range_count(&self) -> usize {
         self.inner.range_count()
     }
+
+    pub(super) fn into_engine(self) -> EngineAcknowledgement {
+        self.inner
+    }
 }
 
 impl std::fmt::Debug for ShareAcknowledgement {
