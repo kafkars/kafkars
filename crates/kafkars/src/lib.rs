@@ -1,5 +1,4 @@
 //! Experimental, runtime-neutral Rust client for Apache Kafka.
-//!
 //! The facade exposes bounded operations over the deterministic client engine.
 //! Version 0.0.1 is an API preview, not a broker-compatibility claim.
 //!
@@ -136,9 +135,10 @@ pub use consumer::{
     ConsumerRevocation, GroupConsumerHeader, GroupConsumerOperationConfig, GroupConsumerRecord,
     GroupConsumerRecords, GroupMembershipEpoch, GroupMetadata, NextAssignedEvent,
     NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch, RecvAssignedBatch,
-    RecvConsumerBatch, Seek, ShareConsumer, ShareConsumerAssignment,
-    ShareConsumerAssignmentPartition, ShareConsumerBuildError, ShareConsumerBuilder,
-    ShareConsumerCloseAdmissionError, ShareConsumerFetchConfig, StartPosition, TopicPartition,
+    RecvConsumerBatch, RecvShareConsumerBatch, Seek, ShareConsumer, ShareConsumerAssignment,
+    ShareConsumerAssignmentPartition, ShareConsumerBatch, ShareConsumerBuildError,
+    ShareConsumerBuilder, ShareConsumerCloseAdmissionError, ShareConsumerFetchConfig,
+    ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords, StartPosition, TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice};
 pub use metrics::{
