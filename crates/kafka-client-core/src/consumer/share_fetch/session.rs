@@ -1,6 +1,6 @@
 //! Nonoverlapping `ShareFetch` session, assignment, and response settlement.
 
-use crate::{AssignedTopicPartition, Deadline, Moment};
+use crate::{AssignedTopicPartition, Deadline, DeliveryStatus, Moment};
 
 use super::{
     ShareAcquiredRange, ShareAcquisitionLedger, ShareAcquisitionPolicy,
@@ -193,6 +193,27 @@ impl ShareFetchSessionMachine {
                 Err(ShareFetchSettlementError::new(kind, ranges))
             }
         }
+    }
+
+    /// Settles one exact failed attempt without inventing broker session state.
+    pub fn settle_failure(
+        &mut self,
+        attempt: ShareFetchAttempt,
+        delivery: DeliveryStatus,
+    ) -> Result<(), ShareFetchSessionApplyError> {
+        if self.phase != ShareFetchSessionPhase::InFlight || self.in_flight != Some(attempt) {
+            return Err(ShareFetchSessionApplyError::new(
+                ShareFetchSessionErrorKind::InvalidState,
+            ));
+        }
+        match delivery {
+            DeliveryStatus::NotSent => {
+                self.in_flight = None;
+                self.phase = ShareFetchSessionPhase::Ready;
+            }
+            DeliveryStatus::PossiblySent => self.lose(),
+        }
+        Ok(())
     }
 
     fn lose(&mut self) {
