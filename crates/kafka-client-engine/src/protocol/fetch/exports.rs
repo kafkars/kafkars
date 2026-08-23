@@ -5,12 +5,13 @@
     reason = "the direct-consumer interpreter will consume this retained protocol seam"
 )]
 pub(crate) use super::{
+    batch::decode_record_payload,
     failure::FetchDecodeFailure,
     isolation::FetchIsolation,
     limits::FetchDecodeLimits,
     model::{
         FetchBatch, FetchEndpoint, FetchHeader, FetchLeader, FetchPartition, FetchProducerIdentity,
-        FetchRecord, FetchResponse, FetchTimestampType, FetchTopic,
+        FetchRecord, FetchRecordPayload, FetchResponse, FetchTimestampType, FetchTopic,
     },
     outcome::{
         FetchBrokerFailure, FetchBrokerLevel, FetchOutcome, FetchOutcomeFailure,

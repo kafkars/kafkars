@@ -4,9 +4,25 @@ use bytes::Bytes;
 use kafka_wire_records::{RecordBatch, RecordBatchDecode};
 
 use super::{
-    batch_model::normalize_batch, failure::FetchDecodeFailure, limits::FetchBudget,
-    model::FetchBatch,
+    batch_model::normalize_batch,
+    failure::FetchDecodeFailure,
+    limits::FetchBudget,
+    limits::FetchDecodeLimits,
+    model::{FetchBatch, FetchRecordPayload},
 };
+
+pub(crate) fn decode_record_payload(
+    bytes: Bytes,
+    limits: FetchDecodeLimits,
+) -> Result<FetchRecordPayload, FetchDecodeFailure> {
+    let mut budget = FetchBudget::for_record_payload(bytes.len(), limits)?;
+    let batches = decode_batches(bytes, 0, 0, &mut budget)?;
+    Ok(FetchRecordPayload {
+        batches,
+        records: budget.records(),
+        logical_bytes: budget.logical_record_bytes(),
+    })
+}
 
 pub(super) fn decode_batches(
     mut bytes: Bytes,
