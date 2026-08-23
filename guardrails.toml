@@ -157,8 +157,8 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group_registration.rs", lines = 246, reason = "the public engine handle keeps capture-first registration, exact rejected request restoration, its sticky receive wake token, and unique operation entry points together" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request.rs", lines = 326, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request_test.rs", lines = 492, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 99, reason = "the declarative consumer facade names direct, group, and share membership ownership beside registered batch control and terminal-observable seek" },
-  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 121, reason = "the declarative share facade also names hosted assignment-wide and driver-authoritative ShareFetch routing, broker-local planning, assignment-fenced session sets, tracked execution and settlement, and sibling evidence" },
+  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 100, reason = "the declarative consumer facade names direct, group, and share membership ownership beside their linear batch boundaries and terminal-observable control" },
+  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 128, reason = "the declarative share facade also names hosted ShareFetch routing, broker-local sessions, response-wide delivery transfer and reclamation, and their sibling evidence" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -612,6 +612,22 @@ path = "crates/kafka-client-engine/src/consumer/share/fetch_delivery.rs"
 [[linear_owners]]
 owner_type = "ShareFetchDeliveryReclaimError"
 path = "crates/kafka-client-engine/src/consumer/share/fetch_delivery.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/registry_delivery.rs"
+test = "crates/kafka-client-engine/src/consumer/share/registry_delivery_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerDeliveryReclaimFailure"
+path = "crates/kafka-client-engine/src/consumer/share/registry_delivery.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share_batch/batch.rs"
+test = "crates/kafka-client-engine/src/consumer/share_batch/batch_test.rs"
+
+[[linear_owners]]
+owner_type = "ShareConsumerBatch"
+path = "crates/kafka-client-engine/src/consumer/share_batch/batch.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/share_group/request.rs"

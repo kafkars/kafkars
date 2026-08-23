@@ -108,6 +108,10 @@ pub(crate) use super::share::{
     ShareConsumerShardWake, ShareConsumerShardWakeError, ShareMembershipHostError,
     ShareMembershipTurn,
 };
+pub use super::share_batch::{
+    ShareConsumerBatch, ShareConsumerHeader, ShareConsumerRecord, ShareConsumerRecords,
+    ShareConsumerTryTakeBatchError, ShareConsumerTryTakeBatchErrorKind,
+};
 
 pub(crate) use super::{
     assigned_host::{

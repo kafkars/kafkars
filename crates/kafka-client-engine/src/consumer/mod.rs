@@ -96,4 +96,5 @@ mod position_prepare_error;
 #[cfg(test)]
 mod position_prepare_error_test;
 mod share;
+mod share_batch;
 pub use exports::*;
