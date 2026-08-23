@@ -77,6 +77,8 @@ mod registry_observation;
 #[cfg(test)]
 mod registry_observation_test;
 mod registry_recovery;
+mod registry_recv_notification;
+mod registry_recv_port;
 mod registry_registration;
 #[cfg(test)]
 mod registry_test;
@@ -88,6 +90,8 @@ mod request;
 mod request_test;
 mod settlement;
 mod shard;
+mod shard_delivery;
+mod shard_guard;
 mod shard_wake;
 mod topic_identity_call;
 mod transition;

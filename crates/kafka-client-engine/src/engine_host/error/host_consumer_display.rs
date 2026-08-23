@@ -6,6 +6,12 @@ use super::host::EngineHostError;
 
 pub(super) fn display(error: &EngineHostError, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
     match error {
+        EngineHostError::AssignedConsumerCompletion(error) => {
+            write!(
+                formatter,
+                "assigned-consumer completion notifier failed: {error}"
+            )
+        }
         EngineHostError::GroupConsumer(error) => {
             write!(formatter, "group-consumer registry failed: {error}")
         }
@@ -23,6 +29,9 @@ pub(super) fn display(error: &EngineHostError, formatter: &mut fmt::Formatter<'_
         }
         EngineHostError::ShareConsumerLockPoisoned => {
             formatter.write_str("share-consumer registry ownership lock is poisoned")
+        }
+        EngineHostError::ShareConsumerRecvNotifierUnavailable => {
+            formatter.write_str("share-consumer receive notifier is unavailable")
         }
         EngineHostError::ShareConsumerUnsettled(count) => {
             write!(

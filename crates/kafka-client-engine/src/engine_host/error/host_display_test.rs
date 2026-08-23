@@ -56,3 +56,13 @@ fn group_consumer_recv_notifier_failure_names_its_domain() {
         "group-consumer receive notifier is unavailable"
     );
 }
+
+#[test]
+fn share_consumer_recv_notifier_failure_names_its_domain() {
+    let error = EngineHostError::ShareConsumerRecvNotifierUnavailable;
+
+    assert_eq!(
+        error.to_string(),
+        "share-consumer receive notifier is unavailable"
+    );
+}

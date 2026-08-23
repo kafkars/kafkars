@@ -97,4 +97,5 @@ mod position_prepare_error;
 mod position_prepare_error_test;
 mod share;
 mod share_batch;
+mod share_recv;
 pub use exports::*;

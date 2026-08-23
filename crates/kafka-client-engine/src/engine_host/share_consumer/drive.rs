@@ -64,7 +64,13 @@ pub(super) fn drive_shard(
             .map_err(EngineHostError::Clock)?;
         registry.request_control_close(capture);
     }
-    drive_registry(&mut registry, clock, driver, stage_now)
+    let progress = drive_registry(&mut registry, clock, driver, stage_now)?;
+    let notify_observation = progress.progressed;
+    drop(registry);
+    if notify_observation {
+        shard.notify_recv_change();
+    }
+    Ok(progress)
 }
 
 pub(super) fn drive_registry(

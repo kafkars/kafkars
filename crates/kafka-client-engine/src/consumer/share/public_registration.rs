@@ -112,8 +112,8 @@ impl ShareConsumerStartCapture {
 /// Unique ownership of one hosted share-member registration.
 #[must_use = "the share member remains retained by its engine host"]
 pub struct ShareConsumerHandle {
-    pub(super) group_id: GroupId,
-    pub(super) port: ShareConsumerPort,
+    pub(in crate::consumer) group_id: GroupId,
+    pub(in crate::consumer) port: ShareConsumerPort,
     pub(super) lifetime: Arc<dyn Send + Sync>,
     pub(super) close_timeout: Duration,
     pub(super) startup_wake_failed: bool,
