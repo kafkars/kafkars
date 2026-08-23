@@ -107,7 +107,7 @@ impl ShareConsumerRegistry {
     }
 }
 
-fn current_generation(entry: &ShareConsumerEntry) -> Option<AssignmentGeneration> {
+pub(super) fn current_generation(entry: &ShareConsumerEntry) -> Option<AssignmentGeneration> {
     entry
         .membership
         .as_ref()
@@ -116,6 +116,9 @@ fn current_generation(entry: &ShareConsumerEntry) -> Option<AssignmentGeneration
 }
 
 fn fetch_routing_has_work(entry: &ShareConsumerEntry) -> bool {
+    if entry.fetch().sessions().is_some() || entry.fetch().session_fault().is_some() {
+        return false;
+    }
     if entry.fetch().routing().is_some() {
         return true;
     }

@@ -27,6 +27,10 @@ pub(super) struct ShareFetchSessionRequestPlan {
 }
 
 impl ShareBrokerSessionPlan {
+    pub(super) const fn broker_id(&self) -> ShareFetchBrokerId {
+        self.broker_id
+    }
+
     pub(super) fn try_initial(
         catalog: &ShareMembershipCatalog,
         broker_id: ShareFetchBrokerId,

@@ -27,6 +27,7 @@ mod fetch_session;
 mod fetch_session_execution;
 #[cfg(test)]
 mod fetch_session_execution_test;
+mod fetch_session_set;
 mod fetch_session_settlement;
 #[cfg(test)]
 mod fetch_session_settlement_test;
@@ -60,6 +61,9 @@ mod registry_close_test;
 mod registry_fetch_routing;
 #[cfg(test)]
 mod registry_fetch_routing_test;
+mod registry_fetch_sessions;
+#[cfg(test)]
+mod registry_fetch_sessions_test;
 mod registry_heartbeat_due;
 mod registry_heartbeat_settlement;
 mod registry_heartbeat_submission;
