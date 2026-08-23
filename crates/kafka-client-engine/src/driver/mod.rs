@@ -170,8 +170,8 @@ pub(crate) use rpc::{
     RemoveConsumerGroupMembersDriverFailureKind, RemoveConsumerGroupMembersTerminal,
     RemoveConsumerGroupMembersTerminalFact,
 };
-pub(crate) use rpc::{
-    classic_group, transaction_control, transaction_offsets, transaction_produce,
-};
+pub(crate) use rpc::{classic_group, share_group_heartbeat};
+
+pub(crate) use rpc::{transaction_control, transaction_offsets, transaction_produce};
 pub(crate) use security::{EngineSecurityError, ValidatedSecurity, validate as validate_security};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

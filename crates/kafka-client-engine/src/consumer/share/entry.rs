@@ -8,6 +8,7 @@ use ring::rand::{SecureRandom, SystemRandom};
 use super::topic_identity_call::ShareTopicIdentityCall;
 use super::{ShareMembershipInterpreter, catalog::ShareTopicIdentity};
 use crate::clock::DeadlineCapture;
+use crate::driver::share_group_heartbeat::ShareGroupHeartbeatCall;
 
 pub(super) const SHARE_TOPIC_CAPACITY: usize = 32;
 pub(super) const SHARE_NAME_BYTE_LIMIT: usize = 249;
@@ -24,6 +25,7 @@ pub(super) struct ShareConsumerEntry {
     pub(super) start: Option<DeadlineCapture>,
     pub(super) membership: Option<ShareMembershipInterpreter>,
     pub(super) topic_call: Option<ShareTopicIdentityCall>,
+    pub(super) heartbeat_call: Option<ShareGroupHeartbeatCall>,
     pub(super) fault: Option<kafka_client_core::ShareGroupHeartbeatFailure>,
 }
 
@@ -78,6 +80,7 @@ impl ShareConsumerEntry {
             start: None,
             membership: None,
             topic_call: None,
+            heartbeat_call: None,
             fault: None,
         })
     }
@@ -141,6 +144,7 @@ impl ShareConsumerEntry {
             start,
             membership,
             topic_call,
+            heartbeat_call,
             fault,
             ..
         } = self;
@@ -150,6 +154,7 @@ impl ShareConsumerEntry {
             start,
             membership,
             topic_call,
+            heartbeat_call,
             fault,
         ));
         (group, rack, topics)

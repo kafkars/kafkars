@@ -8,6 +8,7 @@ mod catalog;
 #[cfg(test)]
 mod catalog_test;
 mod entry;
+mod entry_calls;
 #[cfg(test)]
 mod entry_test;
 mod membership;
@@ -15,6 +16,13 @@ mod membership;
 mod membership_test;
 mod prepared;
 mod registry;
+mod registry_heartbeat_due;
+mod registry_heartbeat_settlement;
+mod registry_heartbeat_submission;
+#[cfg(test)]
+mod registry_heartbeat_test;
+mod registry_invalidation;
+mod registry_membership;
 mod registry_registration;
 #[cfg(test)]
 mod registry_test;
