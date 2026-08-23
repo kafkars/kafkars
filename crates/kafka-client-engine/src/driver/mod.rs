@@ -56,7 +56,7 @@ pub(crate) use rpc::exports::{
     ProducerTopicViewCall, RecoveredAdminListOffsetsCall, RecoveredAlterPartitionReassignmentsCall,
     RecoveredGroupOffsetAlterCall, RecoveredGroupOffsetDeleteCall, RecoveredGroupOffsetsCall,
     RecoveredListPartitionReassignmentsCall, ShareFetchCall, ShareFetchCompletionErrorKind,
-    ShareFetchDriverSubmitErrorKind, ShareFetchResolution, ShareFetchRoute,
+    ShareFetchDriverSubmitErrorKind, ShareFetchFailureKind, ShareFetchResolution, ShareFetchRoute,
     ShareFetchTerminalContext, StaleFetchConfirmationError, TopicPartitionCountAdmissionFailure,
     TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
     TopicPartitionCountFailure, TrackedBrokerFetchCalls, TrackedCreatePartitionsCalls,

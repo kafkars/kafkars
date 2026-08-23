@@ -26,14 +26,7 @@ pub(crate) use call::{
     ShareFetchCall, ShareFetchCallEvidence, ShareFetchCompletionErrorKind,
     ShareFetchCompletionFailure, ShareFetchDriverSubmitFailure, ShareFetchRecoveredCall,
 };
-#[cfg_attr(
-    not(test),
-    expect(
-        unused_imports,
-        reason = "hosted ShareFetch failure settlement lands in the next checkpoint"
-    )
-)]
-pub(crate) use failure::ShareFetchDriverFailureKind;
+pub(crate) use failure::ShareFetchDriverFailureKind as ShareFetchFailureKind;
 pub(crate) use route::ShareFetchRoute;
 pub(crate) use submission::ShareFetchDriverSubmitErrorKind;
 #[expect(

@@ -21,6 +21,9 @@ mod fetch_session;
 mod fetch_session_execution;
 #[cfg(test)]
 mod fetch_session_execution_test;
+mod fetch_session_settlement;
+#[cfg(test)]
+mod fetch_session_settlement_test;
 #[cfg(test)]
 mod fetch_session_test;
 mod membership;

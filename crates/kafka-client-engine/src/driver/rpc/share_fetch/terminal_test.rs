@@ -10,7 +10,7 @@ use crate::protocol::consumer::share_fetch::{
 };
 
 use super::{
-    ShareFetchDriverFailureKind, ShareFetchResolution, call::ShareFetchCallEvidence,
+    ShareFetchFailureKind, ShareFetchResolution, call::ShareFetchCallEvidence,
     terminal::retain_share_fetch_terminal,
 };
 
@@ -70,7 +70,7 @@ fn terminal_preserves_broker_code_and_request_delivery_certainty() {
     assert_eq!(
         resolution,
         ShareFetchResolution::Failed {
-            kind: ShareFetchDriverFailureKind::DeadlineElapsed,
+            kind: ShareFetchFailureKind::DeadlineElapsed,
             delivery: DeliveryStatus::NotSent,
         }
     );
@@ -92,7 +92,7 @@ fn missing_version_and_malformed_success_fail_with_possibly_sent_certainty() {
     assert_eq!(
         resolution,
         ShareFetchResolution::Failed {
-            kind: ShareFetchDriverFailureKind::Compatibility,
+            kind: ShareFetchFailureKind::Compatibility,
             delivery: DeliveryStatus::PossiblySent,
         }
     );
@@ -110,7 +110,7 @@ fn missing_version_and_malformed_success_fail_with_possibly_sent_certainty() {
     assert_eq!(
         resolution,
         ShareFetchResolution::Failed {
-            kind: ShareFetchDriverFailureKind::InvalidResponse,
+            kind: ShareFetchFailureKind::InvalidResponse,
             delivery: DeliveryStatus::PossiblySent,
         }
     );

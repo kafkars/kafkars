@@ -21,6 +21,11 @@ impl ShareFetchRoute {
         self.broker_id
     }
 
+    #[cfg(test)]
+    pub(crate) const fn without_token_for_test(broker_id: ShareFetchBrokerId) -> Self {
+        Self::new(broker_id, None)
+    }
+
     pub(crate) fn into_broker_token(self) -> Result<RouteFailureToken, Self> {
         if self.token.as_ref().map(RouteFailureToken::kind) != Some(RouteKind::Broker) {
             return Err(self);
