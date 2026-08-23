@@ -46,7 +46,7 @@ pub enum ShareGroupHeartbeatInput {
         /// Stable normalized failure category.
         failure: ShareGroupHeartbeatFailure,
     },
-    /// Replaces an exact attempt after share-coordinator loss.
+    /// Replaces an exact attempt after share membership coordinator loss.
     RetryHeartbeat {
         /// Exact rejected request identity.
         attempt: ShareGroupHeartbeatAttempt,

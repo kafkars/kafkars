@@ -1,4 +1,4 @@
-//! Share-coordinator invalidation terminal classification scenarios.
+//! Share membership coordinator invalidation terminal classification.
 
 use kafka_client_core::GroupId;
 use kafka_driver::{CompletionError, InvalidationDisposition};

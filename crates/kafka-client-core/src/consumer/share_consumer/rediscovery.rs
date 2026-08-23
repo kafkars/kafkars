@@ -1,4 +1,4 @@
-//! Bounded share-coordinator rediscovery for one unsettled heartbeat.
+//! Bounded share membership coordinator rediscovery for one heartbeat.
 
 use crate::Moment;
 

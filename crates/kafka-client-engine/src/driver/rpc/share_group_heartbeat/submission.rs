@@ -1,4 +1,4 @@
-//! Share-coordinator-routed submission of one generated API 76 v1 request.
+//! Group-coordinator-routed submission of one generated API 76 v1 request.
 #![allow(
     dead_code,
     reason = "closed submission adapter checkpoint precedes its hosted membership owner"
@@ -7,8 +7,7 @@
 use std::{error::Error, fmt};
 
 use kafka_driver::{
-    ApiVersion, CoordinatorKey, CoordinatorKeyError, CoordinatorKind, RequestOptions, Route,
-    RoutedCall, SubmitError, TrafficClass,
+    ApiVersion, CoordinatorKeyError, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass,
 };
 use kafka_wire::{ShareGroupHeartbeatRequest, ShareGroupHeartbeatResponse};
 
@@ -19,7 +18,7 @@ use crate::{
     },
 };
 
-use super::super::super::DriverOwner;
+use super::super::{super::DriverOwner, group_coordinator_route::group_coordinator_route};
 
 pub(super) const SHARE_HEARTBEAT_MIN_VERSION: ApiVersion =
     ApiVersion::new(SHARE_GROUP_HEARTBEAT_MIN_VERSION);
@@ -99,9 +98,7 @@ pub(super) fn share_group_heartbeat_route(
     if request.group_id.as_str() != group {
         return Err(ShareGroupHeartbeatSubmitError::GroupMismatch);
     }
-    let key = CoordinatorKey::new(CoordinatorKind::Share, group)
-        .map_err(ShareGroupHeartbeatSubmitError::InvalidGroup)?;
-    Ok(Route::Coordinator { key })
+    group_coordinator_route(group).map_err(ShareGroupHeartbeatSubmitError::InvalidGroup)
 }
 
 pub(super) const fn share_group_heartbeat_options(deadline: OperationDeadline) -> RequestOptions {

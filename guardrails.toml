@@ -18488,7 +18488,7 @@ path = "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_inva
 owner_type = "ClassicCoordinatorInvalidationShutdownRecovery"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation_recovery.rs"
 
-# Share-coordinator rediscovery owns the transferred route capability in one
+# Share membership coordinator rediscovery owns its route capability in one
 # bounded lane before the hosted registry is permitted to replace a heartbeat.
 [[authority_tokens]]
 owner_type = "ShareConsumerShardState"

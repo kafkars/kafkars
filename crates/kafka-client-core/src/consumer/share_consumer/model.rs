@@ -42,7 +42,7 @@ pub enum ShareGroupHeartbeatRequestKind {
 pub enum ShareGroupHeartbeatFailure {
     /// The current absolute attempt deadline elapsed.
     DeadlineElapsed,
-    /// Share-coordinator routing failed without a broker response.
+    /// Share membership coordinator routing failed without a broker response.
     CoordinatorUnavailable,
     /// The broker and client share no supported heartbeat version.
     Compatibility,
