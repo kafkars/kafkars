@@ -16,10 +16,12 @@ production release, or general broker-compatibility claim.
 
 The source includes concrete producer, direct and group consumer, admin,
 transaction, metrics, security, and shutdown APIs. There is no stable API
-promise. The repository now contains required pull-request smoke, scheduled
-compatibility, and release-qualification workflows, but no archived matrix has
-yet established a supported broker cell. This preview is Rust-only; a future
-foreign interface will require its own versioned contract and qualification.
+promise. External [Testlab](https://github.com/kafkars/testlab) is the Kafka
+real-broker qualification authority; this repository chooses pull-request or
+release qualification, retains the resulting evidence, and applies the required
+gate. No archived passing Testlab evidence has yet established a supported
+broker cell. This preview is Rust-only; a future foreign interface will require
+its own versioned contract and qualification.
 See [support and compatibility](SUPPORT.md) for the exact boundary.
 
 ## Use
@@ -87,7 +89,7 @@ that provenance.
 The reviewed driver integration now projects exact broker routes, Kafka topic
 UUIDs, and configured client IDs. These contracts have loopback integration
 evidence, but remain outside any broker-compatibility claim until the
-real-broker qualification matrix produces complete passing archived evidence.
+corresponding gating Testlab qualification produces passing archived evidence.
 
 ## License
 

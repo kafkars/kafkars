@@ -22,12 +22,12 @@ evidence and separate release authorization.
 | Area | Source status | Qualification status |
 | --- | --- | --- |
 | Rust facade | Concrete runtime-neutral builders, futures, blocking observation, and error vocabulary | Unit-tested; no stable API promise |
-| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
-| Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
-| Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
-| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Multi-member redistribution, explicit member close, client shutdown, and committed-offset resume scenario defined; no archived passing qualification cell |
-| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | PR and nightly scenarios defined; no archived passing qualification cell |
-| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
+| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
+| Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
+| Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
+| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Eligible for Testlab qualification; no archived passing gating evidence |
+| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | Eligible for Testlab qualification; no archived passing gating evidence |
+| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
 | Foreign bindings | Not included | No ABI or compatibility promise |
 
@@ -42,45 +42,30 @@ No Kafka broker version is release-supported in this preview. The protocol
 adapters negotiate bounded per-request version windows, but that is not a
 substitute for end-to-end qualification.
 
-The qualification target matrix is explicit even though no cell has archived
-passing evidence yet:
+[Testlab](https://github.com/kafkars/testlab) is the external authority for
+Kafka and Docker setup, broker versions, security modes, topologies,
+real-broker scenarios, repetitions, independent broker-visible observations,
+evidence sealing, aggregation, and deterministic verdicts. Kafkars owns the
+GitHub triggers, selects pull-request or release qualification, archives the
+returned evidence, and applies the required gate.
 
-<!-- qualification-evidence:begin -->
-| Kafka | Pull-request profile | Scheduled profile | Current evidence status |
-| --- | --- | --- | --- |
-| 4.3.1 | Full plaintext plus three security-smoke cells | Full over eight matrix security modes | Not yet qualified |
-| 4.2.1 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
-| 4.1.2 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
-| 4.0.2 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
-| 3.9.2 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
-| 3.8.1 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
-| 3.7.2 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
-<!-- qualification-evidence:end -->
-
-The Kafka 3.x targets are legacy lanes, not maintained upstream releases. Their
-scheduled results are advisory, but all three are mandatory pull-request
-gates. Every future qualified cell must be generated from archived
-qualification evidence rather than maintained as a prose promise. Until that
-evidence exists, compatibility reports should include the exact broker
-distribution and version.
-
-`.github/workflows/qualification.yml` runs ten explicit pull-request cells and
-fourteen explicit scheduled cells. It has no release profile. The pull-request
-gate downloads the cell artifacts and archives an evidence-generated aggregate
-containing `compatibility.json`, `COMPATIBILITY.md`, and `SUPPORT.md`.
-Incomplete sets, mixed crate graphs, mutable image references, failed runners,
-and failed gating cells cannot produce a qualified aggregate.
+Only archived passing evidence from the applicable gating Testlab run can
+establish a support claim. A Testlab `Failed` verdict blocks the claim and may
+identify a client defect. An `Invalid` verdict means the run did not constitute
+valid qualification and also blocks release. Until passing evidence exists,
+compatibility reports should include the exact broker distribution and version
+without describing either as supported.
 
 ## Transport and authentication
 
 | Configuration | Code path | Real-broker qualification |
 | --- | --- | --- |
-| Plain TCP without SASL | Present and the default | Targeted; no archived passing evidence |
-| TLS with platform roots | Present | Explicitly unqualified by the self-signed test matrix |
-| TLS with a custom PEM root bundle | Present | Targeted with hostname-rejection checks; no archived passing evidence |
-| SASL/PLAIN over plain TCP or custom-root TLS | Present | Targeted with wrong-secret checks; no archived passing evidence |
-| SCRAM-SHA-256 over plain TCP or custom-root TLS | Present | Targeted with wrong-secret checks; no archived passing evidence |
-| SCRAM-SHA-512 over plain TCP or custom-root TLS | Present | Targeted with wrong-secret checks; no archived passing evidence |
+| Plain TCP without SASL | Present and the default | No archived passing Testlab release evidence |
+| TLS with platform roots | Present | No archived passing Testlab release evidence |
+| TLS with a custom PEM root bundle | Present | No archived passing Testlab release evidence |
+| SASL/PLAIN over plain TCP or custom-root TLS | Present | No archived passing Testlab release evidence |
+| SCRAM-SHA-256 over plain TCP or custom-root TLS | Present | No archived passing Testlab release evidence |
+| SCRAM-SHA-512 over plain TCP or custom-root TLS | Present | No archived passing Testlab release evidence |
 | Mutual TLS client certificates | Not exposed | Unsupported |
 | SASL/OAUTHBEARER | Not exposed | Unsupported |
 | SASL/GSSAPI or Kerberos | Not exposed | Unsupported |
@@ -108,12 +93,10 @@ distinct from Kafka protocol topic UUIDs.
 
 ### Multi-member group progress
 
-The broker matrix is scoped to cover initial classic cooperative assignment,
-classic member shutdown/resume, and KIP-848 redistribution across separate
-client hosts. The KIP-848 scenario fetches and commits on both members, shuts
-one client down, then requires the survivor to resume both partitions at the
-committed offsets. Concurrent multi-member progress within one client host is
-not yet qualified.
+Local unit, invariant, simulation, and loopback evidence does not establish
+real-broker support. Consult archived Testlab evidence for the exact group
+scenarios a gating run covered; do not infer KIP-848 fetch, commit, or concurrent
+multi-member progress from narrower evidence.
 
 ### Fetch leader movement
 
