@@ -107,9 +107,9 @@ pub(crate) use super::share_fetch::{
 };
 pub(crate) use super::submission::ProduceSubmitError;
 pub(crate) use super::topic_view::{
-    ProducerTopicView, ProducerTopicViewCall, TopicPartitionCountAdmissionFailure,
-    TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
-    TopicPartitionCountFailure,
+    TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
+    TopicPartitionCountCall, TopicPartitionCountFact, TopicPartitionCountFailure, TopicRouteView,
+    TopicRouteViewCall,
 };
 pub(crate) use super::transaction_init_call::{TransactionInitCall, TransactionInitPoll};
 pub(crate) use super::transaction_init_terminal::{

@@ -4,7 +4,7 @@ use kafka_client_core::{DeliveryStatus, Moment, TransactionSendId, TransactionSe
 
 use crate::{
     completion::CompletionId,
-    driver::{DriverOwner, ProducerTopicViewCall, TopicPartitionCountAdmissionFailureKind},
+    driver::{DriverOwner, TopicPartitionCountAdmissionFailureKind, TopicRouteViewCall},
     producer::materialization::TransactionalMaterializationBatch,
     transaction::{
         TransactionLifecycleHostError,
@@ -80,7 +80,7 @@ impl TransactionSendOwner {
             )?;
             return Ok(TransactionSendTurn::Progress);
         }
-        match ProducerTopicViewCall::submit(
+        match TopicRouteViewCall::submit(
             driver,
             pending.request.topic(),
             pending.request.deadline().transport(),
@@ -102,7 +102,7 @@ impl TransactionSendOwner {
     pub(super) fn poll_partitioning(
         &mut self,
         pending: PendingTransactionPartitioning,
-        mut call: ProducerTopicViewCall,
+        mut call: TopicRouteViewCall,
         lifecycle: &mut dyn TransactionSendAggregate,
     ) -> Result<TransactionSendTurn, TransactionLifecycleHostError> {
         let Some(result) = call.try_terminal() else {

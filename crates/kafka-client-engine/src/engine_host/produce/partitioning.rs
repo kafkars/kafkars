@@ -2,8 +2,8 @@
 
 use crate::{
     driver::{
-        DriverOwner, ProducerTopicView, ProducerTopicViewCall,
-        TopicPartitionCountAdmissionFailureKind, TopicPartitionCountFailure,
+        DriverOwner, TopicPartitionCountAdmissionFailureKind, TopicPartitionCountFailure,
+        TopicRouteView, TopicRouteViewCall,
     },
     producer::{
         ProducerPartitionSource, ProducerPartitioningFailure, ProducerPartitioningRequest,
@@ -13,7 +13,7 @@ use crate::{
 
 use super::super::EngineHostError;
 
-impl ProducerPartitionSource for ProducerTopicView {
+impl ProducerPartitionSource for TopicRouteView {
     fn leader_broker_id(&self, partition: kafka_client_core::PartitionIndex) -> Option<i32> {
         self.leader_broker_id(partition)
     }
@@ -22,7 +22,7 @@ impl ProducerPartitionSource for ProducerTopicView {
 /// Exact waiting and driver ownership retained until metadata settles.
 pub(in crate::engine_host) struct ProducerPartitioningCall {
     request: ProducerPartitioningRequest,
-    call: ProducerTopicViewCall,
+    call: TopicRouteViewCall,
 }
 
 impl ProducerPartitioningCall {
@@ -45,7 +45,7 @@ pub(in crate::engine_host) fn admit(
     else {
         return Ok(false);
     };
-    match ProducerTopicViewCall::submit(driver, request.topic(), request.deadline().transport()) {
+    match TopicRouteViewCall::submit(driver, request.topic(), request.deadline().transport()) {
         Ok(call) => {
             *retained = Some(ProducerPartitioningCall { request, call });
             Ok(true)

@@ -1,4 +1,4 @@
-//! Producer policy borrowing over one accepted immutable driver topic view.
+//! Routing policy borrowing over one accepted immutable driver topic view.
 
 use std::time::Instant;
 
@@ -18,12 +18,12 @@ use super::partition_count::{
 
 /// Ephemeral borrowed-policy adapter over one driver-owned immutable view.
 #[derive(Debug)]
-pub(crate) struct ProducerTopicView {
+pub(crate) struct TopicRouteView {
     view: TopicView,
     logical_count: PartitionCount,
 }
 
-impl ProducerTopicView {
+impl TopicRouteView {
     fn try_new(view: TopicView) -> Result<Self, TopicPartitionCountFailure> {
         let logical_count = PartitionCount::try_from_raw(view.logical_partition_count())
             .ok_or(TopicPartitionCountFailure::Malformed)?;
@@ -63,7 +63,7 @@ impl ProducerTopicView {
     }
 }
 
-impl TopicPartitionSource for ProducerTopicView {
+impl TopicPartitionSource for TopicRouteView {
     fn generation(&self) -> TopicMetadataGeneration {
         TopicMetadataGeneration::from_raw(self.view.generation().get())
     }
@@ -92,14 +92,14 @@ impl TopicPartitionSource for ProducerTopicView {
     }
 }
 
-/// One producer-owned immutable-view lookup under the public call deadline.
-#[must_use = "an accepted producer topic-view lookup must settle or recover"]
-pub(crate) struct ProducerTopicViewCall {
+/// One engine-owned immutable-view lookup under the originating deadline.
+#[must_use = "an accepted topic-route lookup must settle or recover"]
+pub(crate) struct TopicRouteViewCall {
     topic: TopicName,
     call: Option<Call<Result<TopicView, TopicViewError>>>,
 }
 
-impl ProducerTopicViewCall {
+impl TopicRouteViewCall {
     pub(crate) fn submit(
         driver: &DriverOwner,
         topic: &str,
@@ -119,7 +119,7 @@ impl ProducerTopicViewCall {
 
     pub(crate) fn try_terminal(
         &mut self,
-    ) -> Option<Result<ProducerTopicView, TopicPartitionCountFailure>> {
+    ) -> Option<Result<TopicRouteView, TopicPartitionCountFailure>> {
         let result = self.call.as_mut()?.try_result()?;
         drop(self.call.take());
         Some(match result {
@@ -128,7 +128,7 @@ impl ProducerTopicViewCall {
             Ok(Ok(view)) if view.topic() != &self.topic => {
                 Err(TopicPartitionCountFailure::TopicMismatch)
             }
-            Ok(Ok(view)) => ProducerTopicView::try_new(view),
+            Ok(Ok(view)) => TopicRouteView::try_new(view),
         })
     }
 
