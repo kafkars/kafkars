@@ -1,5 +1,4 @@
 //! Concrete generated RPC ownership and closed exports.
-
 mod abort_partition_transaction_call;
 mod abort_partition_transaction_submission;
 #[cfg(test)]
@@ -428,6 +427,7 @@ mod renew_delegation_token_submission_test;
 mod renew_delegation_token_terminal;
 #[cfg(test)]
 mod renew_delegation_token_terminal_test;
+pub(crate) mod share_fetch;
 pub(crate) mod share_group_heartbeat;
 mod submission;
 #[cfg(test)]
