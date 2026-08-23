@@ -17,6 +17,7 @@ use crate::{
     },
 };
 
+use super::invalidation::PendingShareCoordinatorInvalidation;
 use super::{
     super::{
         super::DriverOwner,
@@ -51,6 +52,14 @@ pub(crate) struct ShareGroupHeartbeatRoute {
 }
 
 impl ShareGroupHeartbeatRoute {
+    pub(crate) fn into_invalidation(
+        self,
+        group_id: kafka_client_core::GroupId,
+    ) -> Result<PendingShareCoordinatorInvalidation, Self> {
+        self.into_coordinator_token()
+            .map(|token| PendingShareCoordinatorInvalidation::new(group_id, token))
+    }
+
     pub(crate) fn into_coordinator_token(self) -> Result<RouteFailureToken, Self> {
         if self.token.as_ref().map(RouteFailureToken::kind) != Some(RouteKind::Coordinator) {
             return Err(self);

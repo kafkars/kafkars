@@ -262,6 +262,14 @@ production = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/su
 test = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/submission_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation_drive.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation_drive_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/share/catalog.rs"
 test = "crates/kafka-client-engine/src/consumer/share/catalog_test.rs"
 
@@ -17492,6 +17500,32 @@ path = "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_inva
 owner_type = "ClassicCoordinatorInvalidationShutdownRecovery"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation_recovery.rs"
 
+# Share-coordinator rediscovery owns the transferred route capability in one
+# bounded lane before the hosted registry is permitted to replace a heartbeat.
+[[linear_owners]]
+owner_type = "PendingShareCoordinatorInvalidation"
+path = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation.rs"
+
+[[linear_owners]]
+owner_type = "ShareCoordinatorInvalidationPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation.rs"
+
+[[linear_owners]]
+owner_type = "ShareCoordinatorInvalidations"
+path = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation.rs"
+
+[[linear_owners]]
+owner_type = "ShareCoordinatorInvalidationAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation.rs"
+
+[[mutation_owners]]
+owner_type = "ShareCoordinatorInvalidations"
+field = "entries"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation.rs",
+  "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation_drive.rs",
+]
+
 [[mutation_owners]]
 owner_type = "ClassicCoordinatorInvalidations"
 field = "entries"
@@ -17512,6 +17546,7 @@ root = "crates/kafka-client-engine/src"
 method = "invalidate"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation_drive.rs",
+  "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation_drive.rs",
   "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs",
   "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions_refresh.rs",

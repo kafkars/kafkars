@@ -74,6 +74,7 @@ fn engine_channel_invalidation_and_facade_baselines_are_exact() {
         invalidate[0].allowed_paths,
         [
             "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation_drive.rs",
+            "crates/kafka-client-engine/src/driver/rpc/share_group_heartbeat/invalidation_drive.rs",
             "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs",
             "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_refresh.rs",
             "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions_refresh.rs",
