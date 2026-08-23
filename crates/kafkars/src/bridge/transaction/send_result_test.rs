@@ -9,26 +9,51 @@ use super::send_result::{
     translate_send_admission, translate_send_failure_kind, translate_send_failure_parts,
     translate_send_metadata_parts, translate_send_observation,
 };
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 #[test]
 fn every_send_admission_kind_has_one_stable_facade_category() {
     use TransactionSendAdmissionErrorKind as Kind;
     let cases = [
-        (Kind::InvalidDeadline, ErrorKind::Timeout),
-        (Kind::TimestampUnavailable, ErrorKind::Internal),
-        (Kind::EmptyTopic, ErrorKind::InvalidRecord),
-        (Kind::NegativeExplicitPartition, ErrorKind::InvalidRecord),
-        (Kind::RetainedSizeOverflow, ErrorKind::InvalidRecord),
-        (Kind::Contended, ErrorKind::Backpressure),
-        (Kind::Closed, ErrorKind::State),
-        (Kind::StaleOwner, ErrorKind::State),
+        (
+            Kind::InvalidDeadline,
+            ErrorKind::Timeout,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::TimestampUnavailable,
+            ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::EmptyTopic,
+            ErrorKind::InvalidRecord,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::NegativeExplicitPartition,
+            ErrorKind::InvalidRecord,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::RetainedSizeOverflow,
+            ErrorKind::InvalidRecord,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::Contended,
+            ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
+        ),
+        (Kind::Closed, ErrorKind::State, RetryAdvice::DoNotRetry),
+        (Kind::StaleOwner, ErrorKind::State, RetryAdvice::DoNotRetry),
         (
             Kind::RetainedRecordBytes {
                 actual: 2,
                 limit: 1,
             },
             ErrorKind::Backpressure,
+            RetryAdvice::DoNotRetry,
         ),
         (
             Kind::RetainedTopicCapacity {
@@ -36,6 +61,7 @@ fn every_send_admission_kind_has_one_stable_facade_category() {
                 limit: 1,
             },
             ErrorKind::Backpressure,
+            RetryAdvice::DoNotRetry,
         ),
         (
             Kind::RetainedTopicBytes {
@@ -43,23 +69,46 @@ fn every_send_admission_kind_has_one_stable_facade_category() {
                 limit: 1,
             },
             ErrorKind::Backpressure,
+            RetryAdvice::DoNotRetry,
         ),
-        (Kind::RetainedTopicBytesOverflow, ErrorKind::Internal),
-        (Kind::TopicIdentityExhausted, ErrorKind::Internal),
-        (Kind::Allocation, ErrorKind::Backpressure),
-        (Kind::Busy, ErrorKind::Backpressure),
-        (Kind::SendIdentityExhausted, ErrorKind::Internal),
-        (Kind::InvalidPartition, ErrorKind::InvalidRecord),
+        (
+            Kind::RetainedTopicBytesOverflow,
+            ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::TopicIdentityExhausted,
+            ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::Allocation,
+            ErrorKind::Backpressure,
+            RetryAdvice::DoNotRetry,
+        ),
+        (Kind::Busy, ErrorKind::Backpressure, RetryAdvice::DoNotRetry),
+        (
+            Kind::SendIdentityExhausted,
+            ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::InvalidPartition,
+            ErrorKind::InvalidRecord,
+            RetryAdvice::DoNotRetry,
+        ),
         (
             Kind::Transaction(TransactionControlErrorKind::Fenced),
             ErrorKind::Fenced,
+            RetryAdvice::DoNotRetry,
         ),
     ];
 
-    for (kind, expected) in cases {
+    for (kind, expected, expected_retry) in cases {
         let error = translate_send_admission(kind);
         assert_eq!(error.kind(), expected);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        assert_eq!(error.retry_advice(), expected_retry, "{kind:?}");
         assert!(!error.requires_transaction_abort());
     }
 }

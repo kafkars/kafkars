@@ -46,8 +46,13 @@ pub(super) fn translate_send_admission(kind: TransactionSendAdmissionErrorKind) 
             return translate_control_kind(kind).with_delivery_status(DeliveryStatus::NotSent);
         }
     };
-    KafkaError::new(public, format!("transactional send rejected: {kind:?}"))
-        .with_delivery_status(DeliveryStatus::NotSent)
+    let error = KafkaError::new(public, format!("transactional send rejected: {kind:?}"))
+        .with_delivery_status(DeliveryStatus::NotSent);
+    if kind == TransactionSendAdmissionErrorKind::Contended {
+        error.with_safe_retry()
+    } else {
+        error
+    }
 }
 
 pub(super) fn translate_send_observation(

@@ -21,15 +21,13 @@ pub(super) fn fencing_abort_commit_and_read_committed() -> Result<(), TestError>
         &mut first,
         "first transaction begin",
         |mut first_transaction| {
-            wait_within(
-                first_transaction.send(
-                    Record::to(fixture.topic.as_str())
-                        .partition(0)
-                        .value("fenced"),
-                    OPERATION_TIMEOUT,
-                )?,
+            transaction::send(
+                &mut first_transaction,
+                Record::to(fixture.topic.as_str())
+                    .partition(0)
+                    .value("fenced"),
                 "first transactional send",
-            )??;
+            )?;
 
             let replacement = transactional(&fixture, &transaction_id)?;
             let fenced =
@@ -55,15 +53,13 @@ pub(super) fn fencing_abort_commit_and_read_committed() -> Result<(), TestError>
         &mut replacement,
         "replacement commit begin",
         |mut committed| {
-            wait_within(
-                committed.send(
-                    Record::to(fixture.topic.as_str())
-                        .partition(0)
-                        .value("committed"),
-                    OPERATION_TIMEOUT,
-                )?,
+            transaction::send(
+                &mut committed,
+                Record::to(fixture.topic.as_str())
+                    .partition(0)
+                    .value("committed"),
                 "replacement committed send",
-            )??;
+            )?;
             transaction::commit(committed, "replacement commit")
         },
     )?;
@@ -72,15 +68,13 @@ pub(super) fn fencing_abort_commit_and_read_committed() -> Result<(), TestError>
         &mut replacement,
         "replacement abort begin",
         |mut aborted| {
-            wait_within(
-                aborted.send(
-                    Record::to(fixture.topic.as_str())
-                        .partition(0)
-                        .value("aborted"),
-                    OPERATION_TIMEOUT,
-                )?,
+            transaction::send(
+                &mut aborted,
+                Record::to(fixture.topic.as_str())
+                    .partition(0)
+                    .value("aborted"),
                 "replacement aborted send",
-            )??;
+            )?;
             transaction::abort(aborted, "replacement abort")
         },
     )?;
@@ -89,15 +83,13 @@ pub(super) fn fencing_abort_commit_and_read_committed() -> Result<(), TestError>
         &mut replacement,
         "replacement sentinel begin",
         |mut sentinel| {
-            wait_within(
-                sentinel.send(
-                    Record::to(fixture.topic.as_str())
-                        .partition(0)
-                        .value("sentinel"),
-                    OPERATION_TIMEOUT,
-                )?,
+            transaction::send(
+                &mut sentinel,
+                Record::to(fixture.topic.as_str())
+                    .partition(0)
+                    .value("sentinel"),
                 "replacement sentinel send",
-            )??;
+            )?;
             transaction::commit(sentinel, "replacement sentinel commit")
         },
     )?;

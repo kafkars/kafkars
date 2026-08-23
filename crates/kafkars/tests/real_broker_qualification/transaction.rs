@@ -20,13 +20,13 @@ pub(super) fn commit_and_abort(client: &Client, topic: &str, id: &str) -> Result
     )??;
 
     with_transaction(&mut producer, "transaction begin", |mut transaction| {
-        let send = transaction.send(
+        send(
+            &mut transaction,
             Record::to(topic)
                 .partition(0)
                 .value("transaction-committed"),
-            OPERATION_TIMEOUT,
+            "transactional committed send",
         )?;
-        wait_within(send, "transactional committed send")??;
         commit(transaction, "transaction commit")
     })?;
 
@@ -34,11 +34,11 @@ pub(super) fn commit_and_abort(client: &Client, topic: &str, id: &str) -> Result
         &mut producer,
         "transaction abort begin",
         |mut transaction| {
-            let send = transaction.send(
+            send(
+                &mut transaction,
                 Record::to(topic).partition(0).value("transaction-aborted"),
-                OPERATION_TIMEOUT,
+                "transactional aborted send",
             )?;
-            wait_within(send, "transactional aborted send")??;
             abort(transaction, "transaction abort")
         },
     )?;
@@ -62,6 +62,39 @@ pub(super) fn with_transaction<T>(
                 thread::sleep(Duration::from_millis(1));
             }
             Err(error) => return Err(error.into()),
+        }
+    }
+}
+
+pub(super) fn send(
+    transaction: &mut Transaction<'_>,
+    mut record: Record,
+    phase: &str,
+) -> Result<(), TestError> {
+    let deadline = Instant::now() + OPERATION_TIMEOUT;
+    loop {
+        let now = Instant::now();
+        if now >= deadline {
+            return Err(backpressure_timeout(phase));
+        }
+        let remaining = deadline.saturating_duration_since(now);
+        match transaction.send(record, remaining) {
+            Ok(observer) => {
+                wait_within_for(
+                    observer,
+                    phase,
+                    deadline.saturating_duration_since(Instant::now()),
+                )??;
+                return Ok(());
+            }
+            Err(rejection) => {
+                let (returned, error) = rejection.into_parts();
+                record = returned;
+                if error.retry_advice() != RetryAdvice::RetrySafe {
+                    return Err(error.into());
+                }
+                thread::sleep(Duration::from_millis(1));
+            }
         }
     }
 }
