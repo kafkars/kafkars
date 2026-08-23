@@ -19,7 +19,8 @@ use crate::{
 use super::{
     catalog::{ShareMembershipCatalog, ShareTopicIdentity},
     fetch_plan::ShareBrokerSessionPlan,
-    fetch_session::{ShareFetchSessionConfig, ShareFetchSessionOwner},
+    fetch_session::ShareFetchSessionOwner,
+    fetch_session_set::ShareFetchSessionConfig,
 };
 
 #[test]

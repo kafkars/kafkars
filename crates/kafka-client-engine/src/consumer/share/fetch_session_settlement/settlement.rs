@@ -11,25 +11,25 @@ use crate::{
     protocol::consumer::share_fetch::ShareFetchEndpoint,
 };
 
-use super::{
-    fetch_acquisition_decode::{
-        DecodedShareFetchPartition, ShareFetchAcquisitionDecodeError, decode_share_fetch_success,
-    },
+use super::super::{
+    fetch_acquisition_decode::{ShareFetchAcquisitionDecodeError, decode_share_fetch_success},
+    fetch_delivery::ShareFetchDeliveryPartition,
     fetch_session::{ShareFetchSessionOwner, ShareFetchSessionOwnerError},
 };
 
 /// Decoded records and route receipt retained after atomic core admission.
 #[must_use = "staged share delivery must be exposed or released"]
-pub(super) struct StagedShareFetchDelivery {
-    pub(super) route: ShareFetchRoute,
-    pub(super) throttle_time_ms: u32,
-    pub(super) endpoints: Vec<ShareFetchEndpoint>,
-    pub(super) partitions: Vec<DecodedShareFetchPartition>,
-    pub(super) acquisitions: usize,
+pub(in crate::consumer::share) struct StagedShareFetchDelivery {
+    pub(in crate::consumer::share) fence: kafka_client_core::ShareFetchSessionFence,
+    pub(in crate::consumer::share) route: ShareFetchRoute,
+    pub(in crate::consumer::share) throttle_time_ms: u32,
+    pub(in crate::consumer::share) endpoints: Vec<ShareFetchEndpoint>,
+    pub(in crate::consumer::share) partitions: Vec<ShareFetchDeliveryPartition>,
+    pub(in crate::consumer::share) acquisitions: usize,
 }
 
 impl ShareFetchSessionOwner {
-    pub(super) fn settle_terminal(
+    pub(in crate::consumer::share) fn settle_terminal(
         &mut self,
         now: Moment,
     ) -> Result<ShareFetchSettlementTurn, ShareFetchTerminalSettlementError> {
@@ -52,6 +52,15 @@ impl ShareFetchSessionOwner {
                     return Err(ShareFetchTerminalSettlementError::MissingLockTimeout);
                 };
                 let lock_deadline = match lock_deadline(terminal.context, timeout_ms) {
+                    Ok(deadline) => deadline,
+                    Err(error) => {
+                        terminal.route.accept();
+                        self.settle_attempt_failure(attempt, DeliveryStatus::PossiblySent)
+                            .map_err(ShareFetchTerminalSettlementError::Session)?;
+                        return Err(error);
+                    }
+                };
+                let throttle_until = match throttle_deadline(now, success.throttle_time_ms) {
                     Ok(deadline) => deadline,
                     Err(error) => {
                         terminal.route.accept();
@@ -88,7 +97,9 @@ impl ShareFetchSessionOwner {
                 if let Some(timeout_ms) = response_timeout {
                     self.commit_lock_timeout_ms(timeout_ms);
                 }
+                self.commit_throttle_until(throttle_until);
                 self.staged = Some(StagedShareFetchDelivery {
+                    fence: attempt.fence(),
                     route: terminal.route,
                     throttle_time_ms: decoded.throttle_time_ms,
                     endpoints: decoded.endpoints,
@@ -113,10 +124,6 @@ impl ShareFetchSessionOwner {
             }
         }
     }
-
-    pub(super) fn take_staged_delivery(&mut self) -> Option<StagedShareFetchDelivery> {
-        self.staged.take()
-    }
 }
 
 fn lock_deadline(
@@ -132,20 +139,75 @@ fn lock_deadline(
         .ok_or(ShareFetchTerminalSettlementError::LockDeadlineOverflow)
 }
 
+fn throttle_deadline(
+    now: Moment,
+    throttle_time_ms: u32,
+) -> Result<kafka_client_core::Deadline, ShareFetchTerminalSettlementError> {
+    let ticks = u64::from(throttle_time_ms)
+        .checked_mul(1_000_000)
+        .ok_or(ShareFetchTerminalSettlementError::ThrottleDeadlineOverflow)?;
+    now.checked_deadline_after(ticks)
+        .ok_or(ShareFetchTerminalSettlementError::ThrottleDeadlineOverflow)
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum ShareFetchSettlementTurn {
+pub(in crate::consumer::share) enum ShareFetchSettlementTurn {
     Acquired(usize),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum ShareFetchTerminalSettlementError {
+pub(in crate::consumer::share) enum ShareFetchTerminalSettlementError {
     Occupied,
     MissingTerminal,
     MissingLockTimeout,
     LockDeadlineOverflow,
+    ThrottleDeadlineOverflow,
     Decode(ShareFetchAcquisitionDecodeError),
     Core(ShareFetchSettlementErrorKind),
     BrokerRejected(NonZeroI16),
+    Driver {
+        kind: ShareFetchFailureKind,
+        delivery: DeliveryStatus,
+    },
+    Session(ShareFetchSessionOwnerError),
+}
+
+impl ShareFetchTerminalSettlementError {
+    pub(in crate::consumer::share) const fn kind(&self) -> ShareFetchTerminalSettlementErrorKind {
+        match self {
+            Self::Occupied => ShareFetchTerminalSettlementErrorKind::Occupied,
+            Self::MissingTerminal => ShareFetchTerminalSettlementErrorKind::MissingTerminal,
+            Self::MissingLockTimeout => ShareFetchTerminalSettlementErrorKind::MissingLockTimeout,
+            Self::LockDeadlineOverflow => {
+                ShareFetchTerminalSettlementErrorKind::LockDeadlineOverflow
+            }
+            Self::ThrottleDeadlineOverflow => {
+                ShareFetchTerminalSettlementErrorKind::ThrottleDeadlineOverflow
+            }
+            Self::Decode(_) => ShareFetchTerminalSettlementErrorKind::Decode,
+            Self::Core(kind) => ShareFetchTerminalSettlementErrorKind::Core(*kind),
+            Self::BrokerRejected(code) => {
+                ShareFetchTerminalSettlementErrorKind::BrokerRejected(code.get())
+            }
+            Self::Driver { kind, delivery } => ShareFetchTerminalSettlementErrorKind::Driver {
+                kind: *kind,
+                delivery: *delivery,
+            },
+            Self::Session(error) => ShareFetchTerminalSettlementErrorKind::Session(*error),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(in crate::consumer::share) enum ShareFetchTerminalSettlementErrorKind {
+    Occupied,
+    MissingTerminal,
+    MissingLockTimeout,
+    LockDeadlineOverflow,
+    ThrottleDeadlineOverflow,
+    Decode,
+    Core(ShareFetchSettlementErrorKind),
+    BrokerRejected(i16),
     Driver {
         kind: ShareFetchFailureKind,
         delivery: DeliveryStatus,

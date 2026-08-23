@@ -67,9 +67,15 @@ fn application_owned_ranges_survive_lock_expiry_and_session_loss() {
     assert_eq!(ledger.retire_one_session(fence(1)), Ok(None));
     assert_eq!(ledger.retained_bytes(), ByteCount::new(12));
     assert_eq!(ledger.retained_records(), 2);
+    assert_eq!(ledger.next_reclaimable_deadline(), None);
+    assert_eq!(ledger.retire_one_reclaimable(), Ok(None));
 
     assert_eq!(okay(ledger.abandon_batch(delivery)).len(), 1);
     assert_eq!(ledger.retained_bytes(), ByteCount::new(0));
-    assert!(ledger.retire_one_session(fence(1)).is_ok());
+    assert_eq!(
+        ledger.next_reclaimable_deadline(),
+        Some(crate::Deadline::from_tick(20))
+    );
+    assert!(ledger.retire_one_reclaimable().is_ok());
     assert!(ledger.is_empty());
 }

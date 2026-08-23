@@ -31,6 +31,15 @@ impl ShareAcquisitionLedger {
         self.retire_index(index)
     }
 
+    /// Retires one locally reclaimable range owned by this complete ledger.
+    pub fn retire_one_reclaimable(&mut self) -> Result<Option<ShareAcquisitionRelease>, ErrorKind> {
+        let index = self
+            .entries
+            .iter()
+            .position(|entry| entry.phase != ShareAcquisitionPhase::Delivered);
+        self.retire_index(index)
+    }
+
     fn retire_index(
         &mut self,
         index: Option<usize>,

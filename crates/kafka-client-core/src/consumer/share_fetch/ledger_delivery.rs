@@ -77,6 +77,64 @@ impl ShareAcquisitionLedger {
         self.retained_bytes = retained_bytes;
         Ok(releases)
     }
+
+    /// Abandons one exact engine-staged response before application transfer.
+    pub fn abandon_staged_batch(
+        &mut self,
+        fence: ShareFetchSessionFence,
+        expected: usize,
+    ) -> Result<Vec<ShareAcquisitionRelease>, ErrorKind> {
+        if expected == 0
+            || self
+                .entries
+                .iter()
+                .filter(|entry| {
+                    entry.fence == fence && entry.phase == ShareAcquisitionPhase::Staged
+                })
+                .count()
+                != expected
+        {
+            return Err(ErrorKind::InvalidOwnership);
+        }
+        let mut releases = Vec::new();
+        releases
+            .try_reserve_exact(expected)
+            .map_err(|_error| ErrorKind::AllocationFailed)?;
+        let mut released_bytes = crate::ByteCount::new(0);
+        for entry in self
+            .entries
+            .iter()
+            .filter(|entry| entry.fence == fence && entry.phase == ShareAcquisitionPhase::Staged)
+        {
+            released_bytes = released_bytes
+                .checked_add(entry.range.retained_bytes())
+                .ok_or(ErrorKind::AccountingInvariant)?;
+            releases.push(ShareAcquisitionRelease::new(
+                entry.generation,
+                entry.range.retained_bytes(),
+            ));
+        }
+        let retained_bytes = self
+            .retained_bytes
+            .checked_sub(released_bytes)
+            .ok_or(ErrorKind::AccountingInvariant)?;
+        for entry in &mut self.entries {
+            if entry.fence == fence && entry.phase == ShareAcquisitionPhase::Staged {
+                entry.phase = ShareAcquisitionPhase::Abandoned;
+            }
+        }
+        self.retained_bytes = retained_bytes;
+        Ok(releases)
+    }
+
+    /// Returns the earliest lock boundary not owned by an application batch.
+    pub fn next_reclaimable_deadline(&self) -> Option<crate::Deadline> {
+        self.entries
+            .iter()
+            .filter(|entry| entry.phase != ShareAcquisitionPhase::Delivered)
+            .map(|entry| entry.range.lock_deadline())
+            .min()
+    }
 }
 
 type AbandonPreflight = (Vec<usize>, Vec<ShareAcquisitionRelease>, crate::ByteCount);

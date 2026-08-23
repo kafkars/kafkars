@@ -14,6 +14,7 @@ mod entry_test;
 mod fetch_acquisition_decode;
 #[cfg(test)]
 mod fetch_acquisition_decode_test;
+mod fetch_delivery;
 mod fetch_plan;
 #[cfg(test)]
 mod fetch_plan_test;
@@ -29,8 +30,6 @@ mod fetch_session_execution;
 mod fetch_session_execution_test;
 mod fetch_session_set;
 mod fetch_session_settlement;
-#[cfg(test)]
-mod fetch_session_settlement_test;
 #[cfg(test)]
 mod fetch_session_test;
 mod fetch_state;

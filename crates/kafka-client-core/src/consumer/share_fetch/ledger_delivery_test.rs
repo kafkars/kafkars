@@ -95,6 +95,30 @@ fn claim_is_scoped_to_one_exact_broker_session_fence() {
     assert_eq!(ledger.retained_bytes(), ByteCount::new(11));
 }
 
+#[test]
+fn engine_staged_abandonment_is_atomic_and_preserves_lock_ownership() {
+    let mut ledger = ledger(3, 6, 30);
+    okay(ledger.try_admit(
+        fence(1),
+        Moment::from_tick(10),
+        vec![range(1, 1, 0, 0, 1, 5, 40), range(1, 1, 1, 1, 1, 6, 40)],
+    ));
+    assert_eq!(
+        ledger.abandon_staged_batch(fence(1), 1),
+        Err(ShareAcquisitionAdmissionErrorKind::InvalidOwnership)
+    );
+    assert_eq!(ledger.retained_bytes(), ByteCount::new(11));
+
+    let releases = okay(ledger.abandon_staged_batch(fence(1), 2));
+    assert_eq!(releases.len(), 2);
+    assert_eq!(ledger.retained_bytes(), ByteCount::new(0));
+    assert_eq!(ledger.retained_records(), 2);
+    assert_eq!(
+        ledger.next_reclaimable_deadline(),
+        Some(crate::Deadline::from_tick(40))
+    );
+}
+
 fn duplicate_of(acquisition: &super::ShareAcquisition) -> super::ShareAcquisition {
     super::ShareAcquisition::delivered(
         acquisition.generation(),

@@ -1,8 +1,10 @@
 //! Bounded decoding and exact range correlation before share-ledger admission.
 
+use std::sync::Arc;
+
 use kafka_client_core::{
-    AssignedTopicPartition, ByteCount, Deadline, Moment, ShareAcquiredOffsets, ShareAcquiredRange,
-    ShareAcquiredRangeError, ShareDeliveryCount, ShareTopicUuid,
+    ByteCount, Deadline, Moment, ShareAcquiredOffsets, ShareAcquiredRange, ShareAcquiredRangeError,
+    ShareDeliveryCount, ShareTopicUuid,
 };
 
 use crate::protocol::{
@@ -12,15 +14,9 @@ use crate::protocol::{
     },
 };
 
-use super::fetch_plan::ShareFetchSessionRequestPlan;
-
-/// One decoded partition retaining all record bytes until ledger admission succeeds.
-#[must_use = "decoded share records must enter delivery ownership or be released"]
-pub(super) struct DecodedShareFetchPartition {
-    pub(super) topic_uuid: ShareTopicUuid,
-    pub(super) partition: AssignedTopicPartition,
-    pub(super) batches: Vec<FetchBatch>,
-}
+use super::{
+    fetch_delivery::ShareFetchDeliveryPartition, fetch_plan::ShareFetchSessionRequestPlan,
+};
 
 /// Complete successful response facts prepared for one atomic core settlement.
 #[must_use = "decoded ShareFetch success must settle its session or be released"]
@@ -29,7 +25,7 @@ pub(super) struct DecodedShareFetchSuccess {
     pub(super) acquisition_lock_timeout_ms: Option<u32>,
     pub(super) endpoints: Vec<ShareFetchEndpoint>,
     pub(super) ranges: Vec<ShareAcquiredRange>,
-    pub(super) partitions: Vec<DecodedShareFetchPartition>,
+    pub(super) partitions: Vec<ShareFetchDeliveryPartition>,
 }
 
 pub(super) fn decode_share_fetch_success(
@@ -49,6 +45,10 @@ pub(super) fn decode_share_fetch_success(
     for topic in success.topics {
         let topic_uuid = ShareTopicUuid::try_from_bytes(topic.topic_id)
             .ok_or(ShareFetchAcquisitionDecodeError::TopicIdentity)?;
+        let topic_name = plan
+            .resolve_topic_name(topic.topic_id)
+            .map(Arc::clone)
+            .ok_or(ShareFetchAcquisitionDecodeError::UnknownPartition)?;
         partitions
             .try_reserve(topic.partitions.len())
             .map_err(|_error| ShareFetchAcquisitionDecodeError::Allocation)?;
@@ -102,11 +102,12 @@ pub(super) fn decode_share_fetch_success(
                 );
             }
             if !decoded.batches.is_empty() && has_acquisitions {
-                partitions.push(DecodedShareFetchPartition {
+                partitions.push(ShareFetchDeliveryPartition::new(
+                    Arc::clone(&topic_name),
                     topic_uuid,
-                    partition: local,
-                    batches: decoded.batches,
-                });
+                    local,
+                    decoded.batches,
+                ));
             }
         }
     }

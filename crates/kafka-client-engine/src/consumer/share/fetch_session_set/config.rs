@@ -14,8 +14,37 @@ use crate::{
     },
 };
 
-use super::super::fetch_session::ShareFetchSessionConfig;
 use super::ShareFetchSessionSetOpenError;
+
+/// Immutable bounded settings captured before one broker session opens.
+pub(in crate::consumer::share) struct ShareFetchSessionConfig {
+    pub(in crate::consumer::share) group: Arc<str>,
+    pub(in crate::consumer::share) member: Arc<str>,
+    pub(in crate::consumer::share) policy: ShareAcquisitionPolicy,
+    pub(in crate::consumer::share) settings: ShareFetchRequestSettings,
+    pub(in crate::consumer::share) response_limits: ShareFetchResponseLimits,
+    pub(in crate::consumer::share) decode_limits: FetchDecodeLimits,
+}
+
+impl ShareFetchSessionConfig {
+    pub(in crate::consumer::share) const fn new(
+        group: Arc<str>,
+        member: Arc<str>,
+        policy: ShareAcquisitionPolicy,
+        settings: ShareFetchRequestSettings,
+        response_limits: ShareFetchResponseLimits,
+        decode_limits: FetchDecodeLimits,
+    ) -> Self {
+        Self {
+            group,
+            member,
+            policy,
+            settings,
+            response_limits,
+            decode_limits,
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 pub(super) struct CompiledShareFetchSessionConfig {
