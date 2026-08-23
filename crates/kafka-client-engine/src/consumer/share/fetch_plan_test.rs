@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{GroupAssignmentPartition, PartitionIndex, ShareFetchBrokerId, TopicId};
+use kafka_client_core::{
+    AssignedTopicPartition, GroupAssignmentPartition, PartitionIndex, ShareFetchBrokerId, TopicId,
+};
 
 use super::{
     catalog::{ShareMembershipCatalog, ShareTopicIdentity},
@@ -51,6 +53,14 @@ fn membership_subset_becomes_one_complete_canonical_initial_plan() {
     assert!(request.forgotten_topics_data.is_empty());
     assert!(correlation.contains([1; 16], 0));
     assert!(correlation.contains([2; 16], 2));
+    assert_eq!(
+        request_plan.resolve_partition([1; 16], 0),
+        Some(AssignedTopicPartition::new(
+            TopicId::from_raw(1),
+            PartitionIndex::from_raw(0),
+        ))
+    );
+    assert_eq!(request_plan.resolve_partition([1; 16], 2), None);
 
     let steady = request_plan
         .prepare(
