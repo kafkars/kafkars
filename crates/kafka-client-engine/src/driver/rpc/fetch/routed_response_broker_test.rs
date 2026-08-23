@@ -21,7 +21,7 @@ use kafka_wire_core::{KafkaEncode, StrBytes, Uuid};
 use crate::driver::DriverOwner;
 
 /// Opaque loopback peers kept alive for one routed-response scenario.
-pub(in crate::driver::rpc) struct RoutedBroker {
+pub(crate) struct RoutedBroker {
     listener: TcpListener,
     port: u16,
     seed: Option<TcpStream>,
@@ -29,7 +29,7 @@ pub(in crate::driver::rpc) struct RoutedBroker {
 }
 
 impl RoutedBroker {
-    pub(in crate::driver::rpc) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let listener = TcpListener::bind("127.0.0.1:0")
             .unwrap_or_else(|error| panic!("bind loopback Kafka broker: {error}"));
         let port = listener
@@ -44,11 +44,11 @@ impl RoutedBroker {
         }
     }
 
-    pub(in crate::driver::rpc) fn endpoint(&self) -> String {
+    pub(crate) fn endpoint(&self) -> String {
         format!("127.0.0.1:{}", self.port)
     }
 
-    pub(in crate::driver::rpc) fn await_seed(driver: &mut DriverOwner) {
+    pub(crate) fn await_seed(driver: &mut DriverOwner) {
         for _turn in 0..32 {
             drive(driver, Duration::from_millis(100), "resolve bootstrap seed");
             let snapshot = driver
@@ -67,14 +67,14 @@ impl RoutedBroker {
         panic!("driver did not install the expected bootstrap seed")
     }
 
-    pub(in crate::driver::rpc) fn install_cluster(&mut self, driver: &mut DriverOwner) {
+    pub(crate) fn install_cluster(&mut self, driver: &mut DriverOwner) {
         let mut seed = accept_after_driving(&self.listener, driver);
         complete_negotiation(&mut seed, driver);
         respond_metadata(&mut seed, driver, self.port, false);
         self.seed = Some(seed);
     }
 
-    pub(in crate::driver::rpc) fn install_topic(&mut self, driver: &mut DriverOwner) {
+    pub(crate) fn install_topic(&mut self, driver: &mut DriverOwner) {
         let Some(seed) = self.seed.as_mut() else {
             panic!("cluster connection must precede topic Metadata");
         };

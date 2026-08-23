@@ -23,8 +23,6 @@ pub(crate) use endpoint::EndpointError;
 pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
 pub(crate) use rpc::exports::ConsumerGroupHeartbeatRoute;
-#[cfg(test)]
-pub(crate) use rpc::exports::GroupPositionOffsetFetchTestPartition;
 pub(crate) use rpc::exports::{
     AdminListOffsetsCall, AdminListOffsetsDriverFailureKind, AdminListOffsetsTerminal,
     AdminListOffsetsTerminalFact, AlterPartitionReassignmentsCall,
@@ -82,6 +80,8 @@ pub(crate) use rpc::exports::{
     GroupPositionOffsetFetchTerminal, GroupPositionOffsetFetchTerminalFact,
     TrackedGroupPositionOffsetFetchCalls,
 };
+#[cfg(test)]
+pub(crate) use rpc::exports::{GroupPositionOffsetFetchTestPartition, RoutedBroker};
 pub(crate) use rpc::{
     AbortPartitionTransactionCall, AbortPartitionTransactionDriverFailureKind,
     AbortPartitionTransactionRawTerminal, AbortPartitionTransactionTerminalFact, AddRaftVoterCall,
