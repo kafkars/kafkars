@@ -1,4 +1,4 @@
-//! Fair submission and terminal polling for share-coordinator invalidation.
+//! Fair submission and terminal polling for share membership route invalidation.
 #![allow(
     dead_code,
     reason = "the share invalidation driver turn precedes its hosted registry checkpoint"

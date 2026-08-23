@@ -46,7 +46,7 @@ pub(crate) enum ShareGroupHeartbeatResolution {
     Failed(ConsumerGroupHeartbeatDriverFailureKind),
 }
 
-/// Exact share-coordinator route evidence retained through interpretation.
+/// Exact share membership group-coordinator route evidence retained through interpretation.
 pub(crate) struct ShareGroupHeartbeatRoute {
     token: Option<RouteFailureToken>,
 }

@@ -1,4 +1,4 @@
-//! Bounded ownership of share-coordinator route invalidation capabilities.
+//! Bounded ownership of share membership group-coordinator invalidations.
 #![allow(
     dead_code,
     reason = "the bounded share invalidation owner precedes its hosted registry checkpoint"
@@ -10,7 +10,7 @@ use kafka_driver::{
 };
 
 /// Exact route capability transferred from one failed share heartbeat.
-#[must_use = "a transferred share-coordinator token must be installed or discarded"]
+#[must_use = "a transferred share membership coordinator token must be installed or discarded"]
 pub(crate) struct PendingShareCoordinatorInvalidation {
     group_id: GroupId,
     route_token: RouteFailureToken,

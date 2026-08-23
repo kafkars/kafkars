@@ -1,4 +1,4 @@
-//! Atomic share-coordinator invalidation ownership and retry permission.
+//! Atomic share membership coordinator invalidation and retry permission.
 
 use kafka_client_core::{GroupId, Moment, ShareGroupHeartbeatFailure, ShareGroupHeartbeatPhase};
 

@@ -27,7 +27,7 @@ pub enum ShareGroupHeartbeatEffect {
         /// Original absolute attempt deadline.
         deadline: Deadline,
     },
-    /// Invalidate one stale share-coordinator route.
+    /// Invalidate one stale share membership coordinator route.
     Rediscover {
         /// Stable engine-catalog group identity.
         group_id: GroupId,

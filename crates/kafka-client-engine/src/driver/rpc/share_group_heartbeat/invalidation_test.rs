@@ -1,4 +1,4 @@
-//! Share-coordinator invalidation capacity and duplicate fencing scenarios.
+//! Share membership coordinator invalidation capacity and duplicate fencing.
 
 use kafka_client_core::GroupId;
 

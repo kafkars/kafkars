@@ -30,7 +30,7 @@ fn options_preserve_absolute_deadline_control_lane_and_exact_v1_window() {
 }
 
 #[test]
-fn route_uses_share_namespace_and_requires_matching_group() {
+fn route_uses_group_namespace_and_requires_matching_group() {
     let mut request = ShareGroupHeartbeatRequest::default();
     request.group_id = "workers".into();
     assert!(matches!(
@@ -42,6 +42,6 @@ fn route_uses_share_namespace_and_requires_matching_group() {
     let Route::Coordinator { key } = route else {
         panic!("expected coordinator route")
     };
-    assert_eq!(key.kind(), CoordinatorKind::Share);
+    assert_eq!(key.kind(), CoordinatorKind::Group);
     assert_eq!(key.as_str(), "workers");
 }

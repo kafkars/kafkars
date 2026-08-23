@@ -116,7 +116,7 @@ impl ShareGroupHeartbeatSchedule {
 pub enum ShareGroupHeartbeatRetryCause {
     /// Kafka reported `COORDINATOR_LOAD_IN_PROGRESS` on the retained route.
     CoordinatorLoad,
-    /// A stale share-coordinator route must be invalidated before replacement.
+    /// A stale share membership coordinator route must be invalidated first.
     Rediscovery,
 }
 

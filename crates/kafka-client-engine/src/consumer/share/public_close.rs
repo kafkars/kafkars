@@ -58,7 +58,7 @@ impl std::error::Error for ShareConsumerCloseAdmissionError {}
 pub enum ShareConsumerCloseErrorKind {
     /// The original close deadline elapsed.
     DeadlineElapsed,
-    /// No usable share-coordinator route remained.
+    /// No usable share membership coordinator route remained.
     CoordinatorUnavailable,
     /// The broker lacks a compatible share-heartbeat version.
     Compatibility,
