@@ -22,14 +22,19 @@ mod nightly_producer;
 mod nightly_resilience;
 #[path = "nightly_resources.rs"]
 mod nightly_resources;
+#[path = "nightly_share.rs"]
+mod nightly_share;
 #[path = "nightly_support.rs"]
 mod nightly_support;
 #[path = "nightly_transaction.rs"]
 mod nightly_transaction;
+#[path = "share.rs"]
+mod share;
 #[path = "smoke.rs"]
 mod smoke;
 #[path = "transaction.rs"]
 mod transaction;
 
 pub(crate) use nightly::{run_classic_matrix, run_nightly_matrix};
+pub(crate) use nightly_share::run_share_matrix;
 pub(crate) use smoke::run_pull_request_smoke;

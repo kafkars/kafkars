@@ -29,3 +29,10 @@ fn classic_matrix() {
     qualification::run_classic_matrix()
         .unwrap_or_else(|error| panic!("real-broker classic matrix failed: {error:?}"));
 }
+
+#[test]
+#[ignore = "requires a qualification-managed share-enabled Kafka cluster"]
+fn share_matrix() {
+    qualification::run_share_matrix()
+        .unwrap_or_else(|error| panic!("real-broker share matrix failed: {error:?}"));
+}
