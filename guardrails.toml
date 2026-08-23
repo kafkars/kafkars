@@ -158,7 +158,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request.rs", lines = 326, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request_test.rs", lines = 492, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 99, reason = "the declarative consumer facade names direct, group, and share membership ownership beside registered batch control and terminal-observable seek" },
-  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 102, reason = "the declarative share facade also names broker-local ShareFetch planning, prepared session ownership, tracked execution, and sibling evidence" },
+  { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 105, reason = "the declarative share facade also names broker-local ShareFetch planning, decoded acquisition ownership, prepared sessions, tracked execution, and sibling evidence" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -422,6 +422,10 @@ allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/share_fetch/call.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/share/fetch_plan.rs"
 test = "crates/kafka-client-engine/src/consumer/share/fetch_plan_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/share/fetch_acquisition_decode.rs"
+test = "crates/kafka-client-engine/src/consumer/share/fetch_acquisition_decode_test.rs"
 
 [[linear_owners]]
 owner_type = "ShareBrokerSessionPlan"
@@ -4869,6 +4873,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_leave/turn.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_plan.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_acquisition_decode.rs",
   "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_partitions.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",

@@ -18,6 +18,7 @@ pub(crate) struct FetchRecordPayload {
     pub(crate) batches: Vec<FetchBatch>,
     pub(crate) records: usize,
     pub(crate) logical_bytes: usize,
+    pub(crate) retained_bytes: usize,
 }
 
 /// One topic result retaining its name bytes without generated protocol types.

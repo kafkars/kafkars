@@ -15,12 +15,17 @@ pub(crate) fn decode_record_payload(
     bytes: Bytes,
     limits: FetchDecodeLimits,
 ) -> Result<FetchRecordPayload, FetchDecodeFailure> {
-    let mut budget = FetchBudget::for_record_payload(bytes.len(), limits)?;
+    let raw_bytes = bytes.len();
+    let mut budget = FetchBudget::for_record_payload(raw_bytes, limits)?;
     let batches = decode_batches(bytes, 0, 0, &mut budget)?;
+    let retained_bytes = raw_bytes
+        .checked_add(budget.additional_retained_payload_bytes())
+        .ok_or(FetchDecodeFailure::AccountingOverflow)?;
     Ok(FetchRecordPayload {
         batches,
         records: budget.records(),
         logical_bytes: budget.logical_record_bytes(),
+        retained_bytes,
     })
 }
 

@@ -148,6 +148,10 @@ impl FetchBudget {
         self.logical_record_bytes
     }
 
+    pub(super) const fn additional_retained_payload_bytes(&self) -> usize {
+        self.additional_retained_payload_bytes
+    }
+
     pub(super) fn add_batch(
         &mut self,
         additional_retained_payload_bytes: usize,
