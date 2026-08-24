@@ -1245,7 +1245,7 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_leave/terminal_test.rs::every_other_signed_broker_code_remains_an_exact_close_failure",
   "crates/kafka-client-engine/src/consumer/group_close/error_test.rs::authentication_terminal_remains_distinct_from_transport",
   "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_test.rs::every_leave_group_terminal_has_one_stable_facade_category",
-  "crates/kafkars/src/consumer/group_test.rs::static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration",
+  "crates/kafkars/src/consumer/group_registration_test.rs::static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration",
   "crates/kafkars/src/consumer/group_event_test.rs::group_metadata_retains_the_configured_static_identity",
 ]
 
