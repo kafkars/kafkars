@@ -220,3 +220,32 @@ fn stable_leave_uses_current_epoch_then_revokes_and_closes() {
     ));
     assert_eq!(machine.phase(), ShareGroupHeartbeatPhase::Closed);
 }
+
+#[test]
+fn unsubmitted_steady_heartbeat_is_fenced_by_a_fresh_leave_attempt() {
+    let (mut machine, steady) = super::test_support::heartbeating();
+    let transition = machine
+        .apply(ShareGroupHeartbeatInput::ReplaceHeartbeatWithLeave {
+            attempt: steady,
+            now: moment(26),
+            deadline: deadline(40),
+        })
+        .unwrap_or_else(|error| panic!("replace steady with leave: {error}"));
+    let Some(ShareGroupHeartbeatEffect::Submit {
+        attempt: leave,
+        kind: ShareGroupHeartbeatRequestKind::Leave,
+        member_epoch: Some(member_epoch),
+        deadline: actual_deadline,
+        ..
+    }) = transition.into_effects().next()
+    else {
+        panic!("fresh leave request")
+    };
+
+    assert_ne!(leave, steady);
+    assert_eq!(member_epoch, epoch(1));
+    assert_eq!(actual_deadline, deadline(40));
+    assert_eq!(machine.in_flight(), Some(leave));
+    assert_eq!(machine.phase(), ShareGroupHeartbeatPhase::Leaving);
+    assert_eq!(machine.retry_schedule(), None);
+}

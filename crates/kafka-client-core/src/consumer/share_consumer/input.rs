@@ -94,6 +94,15 @@ pub enum ShareGroupHeartbeatInput {
         /// Original absolute close deadline.
         deadline: Deadline,
     },
+    /// Supersedes one unsubmitted steady heartbeat with an explicit leave.
+    ReplaceHeartbeatWithLeave {
+        /// Exact prepared steady request being retired before submission.
+        attempt: ShareGroupHeartbeatAttempt,
+        /// Current monotonic observation.
+        now: Moment,
+        /// Original absolute close deadline.
+        deadline: Deadline,
+    },
     /// Confirms successful leave settlement.
     LeaveSucceeded {
         /// Exact in-flight leave request.

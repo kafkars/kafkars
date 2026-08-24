@@ -71,6 +71,44 @@ impl ShareGroupHeartbeatMachine {
         )))
     }
 
+    pub(super) fn replace_heartbeat_with_leave(
+        &mut self,
+        attempt: ShareGroupHeartbeatAttempt,
+        now: Moment,
+        deadline: Deadline,
+    ) -> Result<ShareGroupHeartbeatTransition, ShareGroupHeartbeatErrorKind> {
+        if self.phase != ShareGroupHeartbeatPhase::Heartbeating {
+            return Err(ShareGroupHeartbeatErrorKind::InvalidPhase);
+        }
+        if self.in_flight != Some(attempt) {
+            return Err(ShareGroupHeartbeatErrorKind::AttemptMismatch);
+        }
+        if deadline.is_elapsed_at(now) {
+            return Err(ShareGroupHeartbeatErrorKind::DeadlineElapsed);
+        }
+        let member_epoch = self
+            .member_epoch
+            .ok_or(ShareGroupHeartbeatErrorKind::InvariantViolation)?;
+        if attempt.member_epoch() != Some(member_epoch) {
+            return Err(ShareGroupHeartbeatErrorKind::InvariantViolation);
+        }
+        let assignment_generation = self.current_assignment_generation()?;
+        let (leave, next_sequence) = self.reserve_attempt(Some(member_epoch))?;
+        self.phase = ShareGroupHeartbeatPhase::Leaving;
+        self.next_sequence = next_sequence;
+        self.schedule = None;
+        self.in_flight = Some(leave);
+        self.deadline = Some(deadline);
+        self.retry_schedule = None;
+        Ok(ShareGroupHeartbeatTransition::one(self.submit_effect(
+            leave,
+            ShareGroupHeartbeatRequestKind::Leave,
+            Some(member_epoch),
+            assignment_generation,
+            deadline,
+        )))
+    }
+
     pub(super) fn leave_succeeded(
         &mut self,
         attempt: ShareGroupHeartbeatAttempt,

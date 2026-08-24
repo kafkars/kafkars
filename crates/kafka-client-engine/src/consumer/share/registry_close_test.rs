@@ -103,6 +103,64 @@ fn elapsed_close_retains_exact_deadline_failure() {
 }
 
 #[test]
+fn close_supersedes_a_prepared_steady_rediscovery_retry() {
+    let (mut registry, group_id, clock) = membership();
+    let entry = registry
+        .entry_mut(group_id)
+        .unwrap_or_else(|| panic!("entry"));
+    let membership = entry
+        .membership
+        .as_mut()
+        .unwrap_or_else(|| panic!("membership"));
+    let schedule = membership
+        .machine()
+        .schedule()
+        .unwrap_or_else(|| panic!("schedule"));
+    membership
+        .prepare_heartbeat_due(Moment::from_tick(schedule.deadline().tick()), &clock)
+        .unwrap_or_else(|error| panic!("prepare steady: {error:?}"));
+    let rejected = membership
+        .prepared()
+        .unwrap_or_else(|| panic!("prepared steady"))
+        .attempt;
+    let _retry = membership
+        .settle_failure(
+            Moment::from_tick(schedule.deadline().tick().saturating_add(1)),
+            &clock,
+            ShareGroupHeartbeatFailure::CoordinatorUnavailable,
+        )
+        .unwrap_or_else(|error| panic!("schedule rediscovery: {error:?}"));
+    let retry = membership
+        .prepared()
+        .unwrap_or_else(|| panic!("prepared retry"))
+        .attempt;
+    assert_ne!(retry, rejected);
+    assert!(membership.machine().retry_schedule().is_some());
+    let capture = capture(&clock);
+    let _observer = registry
+        .begin_explicit_close(group_id, capture)
+        .unwrap_or_else(|error| panic!("close: {error:?}"));
+
+    assert_eq!(
+        turn(&mut registry, capture.now()),
+        ShareConsumerCloseTurn::Blocked
+    );
+    let membership = registry
+        .entry(group_id)
+        .and_then(|entry| entry.membership.as_ref())
+        .unwrap_or_else(|| panic!("membership after close"));
+    let leave = membership
+        .prepared()
+        .unwrap_or_else(|| panic!("prepared leave"));
+    assert_eq!(leave.kind, ShareGroupHeartbeatRequestKind::Leave);
+    assert_ne!(leave.attempt, retry);
+    assert_eq!(
+        membership.machine().phase(),
+        ShareGroupHeartbeatPhase::Leaving
+    );
+}
+
+#[test]
 fn control_close_needs_no_completion_and_recovery_settles_explicit_observer() {
     let (mut registry, first, clock) = registered();
     let second = registry

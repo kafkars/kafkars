@@ -79,6 +79,27 @@ impl ShareMembershipInterpreter {
         self.install_submit(transition, capture.operation_deadline(), None)
     }
 
+    pub(in crate::consumer::share) fn replace_heartbeat_with_leave(
+        &mut self,
+        capture: DeadlineCapture,
+    ) -> Result<(), ShareMembershipError> {
+        let prepared = self.prepared.ok_or(ShareMembershipError::EffectShape)?;
+        if prepared.kind != kafka_client_core::ShareGroupHeartbeatRequestKind::Steady {
+            return Err(ShareMembershipError::EffectShape);
+        }
+        let transition = self
+            .machine
+            .apply(ShareGroupHeartbeatInput::ReplaceHeartbeatWithLeave {
+                attempt: prepared.attempt,
+                now: capture.now(),
+                deadline: capture.deadline(),
+            })
+            .map_err(map_core)?;
+        self.install_submit(transition, capture.operation_deadline(), None)?;
+        self.retry_gate = ShareMembershipRetryGate::Open;
+        Ok(())
+    }
+
     pub(in crate::consumer::share) fn close_locally(&mut self) -> Result<(), ShareMembershipError> {
         let transition = self
             .machine

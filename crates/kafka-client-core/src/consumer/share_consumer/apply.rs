@@ -56,6 +56,11 @@ impl ShareGroupHeartbeatMachine {
             ShareGroupHeartbeatInput::BeginLeave { now, deadline } => {
                 self.begin_leave(now, deadline)
             }
+            ShareGroupHeartbeatInput::ReplaceHeartbeatWithLeave {
+                attempt,
+                now,
+                deadline,
+            } => self.replace_heartbeat_with_leave(attempt, now, deadline),
             ShareGroupHeartbeatInput::LeaveSucceeded { attempt } => self.leave_succeeded(attempt),
             ShareGroupHeartbeatInput::LeaveFailed { attempt, failure } => {
                 self.leave_failed(attempt, failure)

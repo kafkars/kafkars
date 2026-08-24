@@ -197,10 +197,14 @@ fn close_terminal(
             Ok(None)
         }
         ShareGroupHeartbeatPhase::Heartbeating => {
-            membership.close_locally()?;
-            Ok(Some(ShareConsumerCloseTerminal::Failed(
-                ShareGroupHeartbeatFailure::Execution,
-            )))
+            if close_capture.deadline().is_elapsed_at(now) {
+                membership.close_locally()?;
+                return Ok(Some(ShareConsumerCloseTerminal::Failed(
+                    ShareGroupHeartbeatFailure::DeadlineElapsed,
+                )));
+            }
+            membership.replace_heartbeat_with_leave(close_capture)?;
+            Ok(None)
         }
         ShareGroupHeartbeatPhase::Leaving => {
             let prepared = membership
