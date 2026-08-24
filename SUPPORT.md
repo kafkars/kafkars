@@ -26,6 +26,7 @@ evidence and separate release authorization.
 | Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
 | Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
 | KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Eligible for Testlab qualification; no archived passing gating evidence |
+| Share-group consumer | Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Source-complete and awaiting Testlab completion scenarios; no archived passing gating evidence |
 | Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | Eligible for Testlab qualification; no archived passing gating evidence |
 | Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |

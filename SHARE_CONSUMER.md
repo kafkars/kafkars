@@ -1,9 +1,10 @@
 # Share consumer design
 
-This document defines the first Rust share-group consumer for kafkars. It is a
-normative design checkpoint, not an implementation or support claim. The
-protocol behavior follows Apache Kafka KIP-932 while the ownership model follows
-the repository-wide rules in [ARCHITECTURE.md](ARCHITECTURE.md).
+This document defines the first Rust share-group consumer for kafkars. It is
+the normative ownership design for the source implementation, not a broker
+support claim. The protocol behavior follows Apache Kafka KIP-932 while the
+ownership model follows the repository-wide rules in
+[ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Scope and compatibility
 
@@ -35,18 +36,18 @@ let mut consumer = client
     .subscribe(["jobs"])
     .build()?;
 
-let batch = consumer.recv().await?;
+let batch = consumer.recv().await?.ok_or(Closed)?;
 
 for record in batch.records() {
     process(record)?;
 }
 
-let acknowledgement = batch.accept_all();
+let acknowledgement = batch.accept_all()?;
 consumer
-    .acknowledge(acknowledgement, Duration::from_secs(5))
+    .try_acknowledge(acknowledgement, Duration::from_secs(5))?
     .await?;
 
-consumer.close(Duration::from_secs(10)).await?;
+consumer.try_close()?.await?;
 ```
 
 Mixed outcomes consume the same batch capability:
@@ -60,16 +61,16 @@ let decisions = batch
             Err(ProcessError::Retryable) => ShareDisposition::Release,
             Err(ProcessError::Permanent) => ShareDisposition::Reject,
         };
-        (record.offset(), disposition)
+        record.decision(disposition)
     })
     .collect::<Vec<_>>();
 
 let acknowledgement = batch.into_acknowledgement(decisions)?;
-consumer.acknowledge(acknowledgement, timeout).await?;
+consumer.try_acknowledge(acknowledgement, timeout)?.await?;
 ```
 
-The names above establish direction; the implementation may refine inert
-builder spelling before it is exported. These ownership decisions are fixed:
+The names above are the implemented Rust source-preview spelling. These
+ownership decisions are fixed:
 
 - `ShareConsumer` is unique, non-cloneable, and `Send`.
 - `ShareConsumerBatch` is the linear capability for exact acquired records.

@@ -14,9 +14,9 @@ behavior.
 Version `0.0.1` is a source preview for API evaluation. It is not a beta,
 production release, or general broker-compatibility claim.
 
-The source includes concrete producer, direct and group consumer, admin,
-transaction, metrics, security, and shutdown APIs. There is no stable API
-promise. External [Testlab](https://github.com/kafkars/testlab) is the Kafka
+The source includes concrete producer, direct, group, and share-group consumer,
+admin, transaction, metrics, security, and shutdown APIs. There is no stable
+API promise. External [Testlab](https://github.com/kafkars/testlab) is the Kafka
 real-broker qualification authority; this repository chooses pull-request or
 release qualification, retains the resulting evidence, and applies the required
 gate. No archived passing Testlab evidence has yet established a supported
