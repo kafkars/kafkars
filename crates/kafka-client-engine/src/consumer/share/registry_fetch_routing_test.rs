@@ -85,6 +85,43 @@ fn close_abandons_routing_before_any_driver_call_is_admitted() {
         .unwrap_or_else(|error| panic!("recover: {error:?}"));
 }
 
+#[test]
+fn pending_first_member_route_does_not_starve_a_second_member() {
+    let (mut registry, first_id, clock, first_capture) = registry_with_routable_membership();
+    let (second_id, second_capture) = add_routable_membership(&mut registry, &clock, "workers");
+    settle_partition_three(&mut registry, first_id, first_capture.now());
+    settle_partition_three(&mut registry, second_id, second_capture.now());
+    let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver: {error}"));
+    for phase in ["start", "submit"] {
+        assert_eq!(
+            registry
+                .turn_one_fetch_routing(first_capture.now(), &clock, &driver)
+                .unwrap_or_else(|error| panic!("{phase} first route: {error:?}")),
+            ShareFetchRoutingHostTurn::Progress
+        );
+    }
+
+    assert_eq!(
+        registry
+            .turn_one_fetch_routing(second_capture.now(), &clock, &driver)
+            .unwrap_or_else(|error| panic!("start second route: {error:?}")),
+        ShareFetchRoutingHostTurn::Progress
+    );
+    assert!(
+        registry
+            .entry(second_id)
+            .is_some_and(|entry| entry.fetch().routing().is_some())
+    );
+
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("shutdown: {error}"));
+    registry
+        .recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover: {error:?}"));
+}
+
 pub(super) fn settle_partition_three(
     registry: &mut super::registry::ShareConsumerRegistry,
     group_id: kafka_client_core::GroupId,
@@ -119,12 +156,21 @@ pub(super) fn registry_with_routable_membership() -> (
     let clock = MonotonicClock::new();
     let mut registry =
         ShareConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error}"));
+    let (group_id, capture) = add_routable_membership(&mut registry, &clock, "workers");
+    (registry, group_id, clock, capture)
+}
+
+pub(super) fn add_routable_membership(
+    registry: &mut ShareConsumerRegistry,
+    clock: &MonotonicClock,
+    group: &str,
+) -> (kafka_client_core::GroupId, crate::clock::DeadlineCapture) {
     let capture = clock
         .capture_deadline_after(Duration::from_secs(30))
         .unwrap_or_else(|error| panic!("capture: {error:?}"));
     let group_id = registry
         .try_register(
-            Arc::from("workers"),
+            Arc::from(group),
             None,
             vec![Arc::from("events")],
             crate::EngineShareConsumerFetchConfig::default(),
@@ -151,7 +197,7 @@ pub(super) fn registry_with_routable_membership() -> (
         },
     )
     .unwrap_or_else(|error| panic!("topic identity: {error:?}"));
-    (registry, group_id, clock, capture)
+    (group_id, capture)
 }
 
 pub(super) fn routed_driver() -> (RoutedBroker, DriverOwner) {

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use kafka_client_core::{
     AssignedTopicPartition, GroupAssignmentPartition, SHARE_FETCH_MAX_PARTITIONS_PER_BROKER,
-    ShareFetchBrokerId, TopicId,
+    ShareFetchBrokerId, TopicId, partitioning::TopicMetadataGeneration,
 };
 
 use crate::protocol::consumer::share_fetch::{
@@ -38,18 +38,51 @@ impl ShareBrokerSessionPlan {
         broker_id: ShareFetchBrokerId,
         partitions: &[GroupAssignmentPartition],
     ) -> Result<Self, ShareBrokerSessionPlanError> {
-        if partitions.is_empty() {
+        Self::try_from_partitions(
+            catalog,
+            broker_id,
+            partitions.len(),
+            partitions
+                .iter()
+                .copied()
+                .map(|partition| (partition, None)),
+        )
+    }
+
+    pub(super) fn try_routed(
+        catalog: &ShareMembershipCatalog,
+        broker_id: ShareFetchBrokerId,
+        partitions: &[(GroupAssignmentPartition, TopicMetadataGeneration)],
+    ) -> Result<Self, ShareBrokerSessionPlanError> {
+        Self::try_from_partitions(
+            catalog,
+            broker_id,
+            partitions.len(),
+            partitions
+                .iter()
+                .copied()
+                .map(|(partition, generation)| (partition, Some(generation))),
+        )
+    }
+
+    fn try_from_partitions(
+        catalog: &ShareMembershipCatalog,
+        broker_id: ShareFetchBrokerId,
+        partition_count: usize,
+        partitions: impl Iterator<Item = (GroupAssignmentPartition, Option<TopicMetadataGeneration>)>,
+    ) -> Result<Self, ShareBrokerSessionPlanError> {
+        if partition_count == 0 {
             return Err(ShareBrokerSessionPlanError::EmptyAssignment);
         }
-        if partitions.len() > SHARE_FETCH_MAX_PARTITIONS_PER_BROKER {
+        if partition_count > SHARE_FETCH_MAX_PARTITIONS_PER_BROKER {
             return Err(ShareBrokerSessionPlanError::PartitionCapacity);
         }
         let mut assignment = Vec::new();
         assignment
-            .try_reserve_exact(partitions.len())
+            .try_reserve_exact(partition_count)
             .map_err(|_error| ShareBrokerSessionPlanError::Allocation)?;
         let mut topics: Vec<TopicBucket> = Vec::new();
-        for partition in partitions.iter().copied() {
+        for (partition, metadata_generation) in partitions {
             let identity = catalog
                 .topic_identity(partition.topic_id())
                 .ok_or(ShareBrokerSessionPlanError::UnknownTopic)?;
@@ -75,11 +108,13 @@ impl ShareBrokerSessionPlan {
                     local_topic_id: identity.local_topic_id(),
                     name: Arc::clone(identity.name()),
                     kafka_topic_id: identity.kafka_topic_id(),
+                    metadata_generation,
                     partitions: Vec::new(),
                 });
                 topics.len() - 1
             };
             let bucket = &mut topics[bucket_index];
+            bucket.metadata_generation = bucket.metadata_generation.max(metadata_generation);
             bucket
                 .partitions
                 .try_reserve(1)
@@ -130,6 +165,20 @@ impl ShareFetchSessionRequestPlan {
             .map(|topic| &topic.name)
     }
 
+    pub(super) fn route_refresh_requirement(
+        &self,
+        kafka_topic_id: [u8; 16],
+    ) -> Option<(Arc<str>, TopicMetadataGeneration)> {
+        self.topics
+            .iter()
+            .find(|topic| topic.kafka_topic_id == kafka_topic_id)
+            .and_then(|topic| {
+                topic
+                    .metadata_generation
+                    .map(|generation| (Arc::clone(&topic.name), generation))
+            })
+    }
+
     pub(super) fn prepare(
         &self,
         group_id: &str,
@@ -163,6 +212,7 @@ struct TopicBucket {
     local_topic_id: TopicId,
     name: Arc<str>,
     kafka_topic_id: [u8; 16],
+    metadata_generation: Option<TopicMetadataGeneration>,
     partitions: Vec<u32>,
 }
 

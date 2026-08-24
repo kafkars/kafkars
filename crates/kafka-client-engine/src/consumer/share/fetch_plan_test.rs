@@ -5,6 +5,7 @@ use std::sync::Arc;
 use kafka_client_core::{
     AssignedTopicPartition, GroupAssignmentPartition, PartitionIndex,
     SHARE_FETCH_MAX_PARTITIONS_PER_BROKER, ShareFetchBrokerId, TopicId,
+    partitioning::TopicMetadataGeneration,
 };
 
 use super::{
@@ -81,6 +82,31 @@ fn membership_subset_becomes_one_complete_canonical_initial_plan() {
     assert!(steady.topics.is_empty());
     assert!(steady.forgotten_topics_data.is_empty());
     assert!(steady_correlation.contains([1; 16], 0));
+}
+
+#[test]
+fn routed_plan_retains_the_newest_observed_generation_for_each_topic() {
+    let plan = ShareBrokerSessionPlan::try_routed(
+        &catalog(),
+        broker(),
+        &[
+            (partition(1, 0), TopicMetadataGeneration::from_raw(4)),
+            (partition(1, 1), TopicMetadataGeneration::from_raw(7)),
+            (partition(2, 2), TopicMetadataGeneration::from_raw(5)),
+        ],
+    )
+    .unwrap_or_else(|error| panic!("routed plan: {error:?}"));
+    let (_broker, _assignment, request) = plan.into_parts();
+
+    assert_eq!(
+        request.route_refresh_requirement([1; 16]),
+        Some((Arc::from("a"), TopicMetadataGeneration::from_raw(7)))
+    );
+    assert_eq!(
+        request.route_refresh_requirement([2; 16]),
+        Some((Arc::from("b"), TopicMetadataGeneration::from_raw(5)))
+    );
+    assert_eq!(request.route_refresh_requirement([9; 16]), None);
 }
 
 #[test]

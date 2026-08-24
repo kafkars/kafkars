@@ -3,18 +3,21 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    AssignmentGeneration, GroupAssignmentPartition, LiveGroupAssignment, Moment, ShareFetchBrokerId,
+    AssignmentGeneration, GroupAssignmentPartition, LiveGroupAssignment, Moment,
+    ShareFetchBrokerId, partitioning::TopicMetadataGeneration,
 };
 
 use crate::{
     clock::DeadlineCapture,
     driver::{
-        DriverOwner, TopicPartitionCountAdmissionFailureKind, TopicPartitionCountFailure,
-        TopicRouteViewCall,
+        DriverOwner, TopicPartitionCountAdmissionFailureKind, TopicRouteView, TopicRouteViewCall,
     },
 };
 
 use super::catalog::ShareMembershipCatalog;
+
+mod failure;
+pub(super) use failure::{ShareFetchPartitionRouteFailure, ShareFetchPartitionRouteFailureKind};
 
 /// Exact assigned partition retained until metadata routing settles.
 #[must_use = "a share partition route request must be submitted or released"]
@@ -23,6 +26,7 @@ pub(super) struct ShareFetchPartitionRouteRequest {
     partition: GroupAssignmentPartition,
     topic: Arc<str>,
     kafka_topic_id: [u8; 16],
+    newer_than: Option<TopicMetadataGeneration>,
     capture: DeadlineCapture,
 }
 
@@ -46,6 +50,7 @@ impl ShareFetchPartitionRouteRequest {
             partition,
             topic: Arc::clone(identity.name()),
             kafka_topic_id: identity.kafka_topic_id(),
+            newer_than: None,
             capture,
         })
     }
@@ -61,6 +66,15 @@ impl ShareFetchPartitionRouteRequest {
     pub(super) const fn capture(&self) -> DeadlineCapture {
         self.capture
     }
+
+    fn require_newer_than(&mut self, generation: TopicMetadataGeneration) {
+        self.newer_than = Some(generation);
+    }
+
+    #[cfg(test)]
+    pub(super) const fn newer_than(&self) -> Option<TopicMetadataGeneration> {
+        self.newer_than
+    }
 }
 
 /// One accepted topic-view call retaining the exact assigned partition.
@@ -71,6 +85,10 @@ pub(super) struct ShareFetchPartitionRouteCall {
 }
 
 impl ShareFetchPartitionRouteCall {
+    #[expect(
+        clippy::result_large_err,
+        reason = "route rejection returns the exact caller-owned assignment request"
+    )]
     pub(super) fn submit(
         driver: &DriverOwner,
         request: ShareFetchPartitionRouteRequest,
@@ -82,11 +100,24 @@ impl ShareFetchPartitionRouteCall {
                 ShareFetchPartitionRouteFailureKind::Deadline,
             ));
         }
-        match TopicRouteViewCall::submit(
-            driver,
-            &request.topic,
-            request.capture.operation_deadline().transport(),
-        ) {
+        let call = request.newer_than.map_or_else(
+            || {
+                TopicRouteViewCall::submit(
+                    driver,
+                    &request.topic,
+                    request.capture.operation_deadline().transport(),
+                )
+            },
+            |observed| {
+                TopicRouteViewCall::submit_newer_than(
+                    driver,
+                    &request.topic,
+                    observed,
+                    request.capture.operation_deadline().transport(),
+                )
+            },
+        );
+        match call {
             Ok(call) => Ok(Self {
                 request: Some(request),
                 call,
@@ -117,19 +148,7 @@ impl ShareFetchPartitionRouteCall {
                     ShareFetchPartitionRouteFailureKind::TopicIdentityChanged,
                 ))
             }
-            Ok(view) => match view.leader_broker_id(request.partition.partition()) {
-                Some(raw) => match ShareFetchBrokerId::try_from_raw(raw) {
-                    Some(broker_id) => Ok(RoutedShareFetchPartition { request, broker_id }),
-                    None => Err(ShareFetchPartitionRouteFailure::new(
-                        request,
-                        ShareFetchPartitionRouteFailureKind::InvalidBroker,
-                    )),
-                },
-                None => Err(ShareFetchPartitionRouteFailure::new(
-                    request,
-                    ShareFetchPartitionRouteFailureKind::LeaderUnavailable,
-                )),
-            },
+            Ok(view) => settle_route_view(request, &view),
             Err(error) => Err(ShareFetchPartitionRouteFailure::new(
                 request,
                 ShareFetchPartitionRouteFailureKind::TopicView(error),
@@ -145,11 +164,40 @@ impl ShareFetchPartitionRouteCall {
     }
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "route rejection returns the exact caller-owned assignment request"
+)]
+fn settle_route_view(
+    mut request: ShareFetchPartitionRouteRequest,
+    view: &TopicRouteView,
+) -> Result<RoutedShareFetchPartition, ShareFetchPartitionRouteFailure> {
+    let Some(raw) = view.leader_broker_id(request.partition.partition()) else {
+        request.require_newer_than(view.metadata_generation());
+        return Err(ShareFetchPartitionRouteFailure::new(
+            request,
+            ShareFetchPartitionRouteFailureKind::LeaderUnavailable,
+        ));
+    };
+    let Some(broker_id) = ShareFetchBrokerId::try_from_raw(raw) else {
+        return Err(ShareFetchPartitionRouteFailure::new(
+            request,
+            ShareFetchPartitionRouteFailureKind::InvalidBroker,
+        ));
+    };
+    Ok(RoutedShareFetchPartition {
+        request,
+        broker_id,
+        metadata_generation: view.metadata_generation(),
+    })
+}
+
 /// Exact membership partition paired with the driver-observed leader.
 #[must_use = "a routed share partition must enter a broker session or be released"]
 pub(super) struct RoutedShareFetchPartition {
     request: ShareFetchPartitionRouteRequest,
     broker_id: ShareFetchBrokerId,
+    metadata_generation: TopicMetadataGeneration,
 }
 
 impl RoutedShareFetchPartition {
@@ -161,44 +209,11 @@ impl RoutedShareFetchPartition {
         self.request.partition
     }
 
-    pub(super) fn into_request(self) -> ShareFetchPartitionRouteRequest {
-        self.request
-    }
-}
-
-/// Route failure retaining exact assignment ownership.
-#[must_use = "a failed share partition route must be retried or released"]
-pub(super) struct ShareFetchPartitionRouteFailure {
-    request: ShareFetchPartitionRouteRequest,
-    kind: ShareFetchPartitionRouteFailureKind,
-}
-
-impl ShareFetchPartitionRouteFailure {
-    const fn new(
-        request: ShareFetchPartitionRouteRequest,
-        kind: ShareFetchPartitionRouteFailureKind,
-    ) -> Self {
-        Self { request, kind }
-    }
-
-    pub(super) const fn kind(&self) -> ShareFetchPartitionRouteFailureKind {
-        self.kind
+    pub(super) const fn metadata_generation(&self) -> TopicMetadataGeneration {
+        self.metadata_generation
     }
 
     pub(super) fn into_request(self) -> ShareFetchPartitionRouteRequest {
         self.request
     }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum ShareFetchPartitionRouteFailureKind {
-    Unassigned,
-    UnknownTopic,
-    Deadline,
-    Backpressured,
-    DriverRejected,
-    TopicIdentityChanged,
-    LeaderUnavailable,
-    InvalidBroker,
-    TopicView(TopicPartitionCountFailure),
 }

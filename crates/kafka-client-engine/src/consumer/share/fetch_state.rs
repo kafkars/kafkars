@@ -83,7 +83,9 @@ impl ShareFetchEntryState {
 
     pub(super) fn next_deadline(&self) -> Option<Deadline> {
         [
-            self.routing.as_ref().map(ShareFetchRoutingOwner::deadline),
+            self.routing
+                .as_ref()
+                .map(ShareFetchRoutingOwner::next_deadline),
             self.sessions
                 .as_ref()
                 .and_then(ShareFetchSessionSet::next_deadline),

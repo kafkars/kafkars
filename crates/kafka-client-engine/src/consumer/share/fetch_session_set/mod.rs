@@ -15,6 +15,7 @@ pub(super) use owner::{
     ShareFetchSessionIdentity, ShareFetchSessionSet, ShareFetchSessionSetOpenError,
     ShareFetchSessionSetTurn,
 };
+pub(in crate::consumer::share) use recovery::ShareFetchSessionRecovery;
 
 #[cfg(test)]
 mod delivery_test;

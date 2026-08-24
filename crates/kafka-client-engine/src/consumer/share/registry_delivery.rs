@@ -51,7 +51,13 @@ impl ShareConsumerRegistry {
         if entry.has_close() {
             return Err(ShareConsumerDeliveryError::Closing);
         }
-        if entry.fault.is_some() {
+        if entry.fault.is_some()
+            || entry
+                .membership
+                .as_ref()
+                .and_then(|membership| membership.machine().fatal())
+                .is_some()
+        {
             return Err(ShareConsumerDeliveryError::MembershipFault);
         }
         if entry.fetch().fault().is_some() || entry.fetch().session_fault().is_some() {
@@ -60,6 +66,9 @@ impl ShareConsumerRegistry {
         let Some(sessions) = entry.fetch_mut().sessions_mut() else {
             return Err(ShareConsumerDeliveryError::Pending);
         };
+        if sessions.is_recovering() {
+            return Err(ShareConsumerDeliveryError::Pending);
+        }
         sessions.take_delivery(now).map_err(|error| match error {
             ShareFetchSessionSetDeliveryError::Cursor
             | ShareFetchSessionSetDeliveryError::Session(_) => {

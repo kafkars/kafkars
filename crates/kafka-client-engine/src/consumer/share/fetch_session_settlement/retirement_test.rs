@@ -23,10 +23,10 @@ fn empty_success_cannot_invent_an_application_batch() {
             retained_bytes: 0,
         },
     );
-    assert_eq!(
+    assert!(matches!(
         owner.settle_terminal(Moment::from_tick(7)),
         Ok(ShareFetchSettlementTurn::Empty)
-    );
+    ));
     assert!(
         owner
             .take_delivery(Moment::from_tick(8))

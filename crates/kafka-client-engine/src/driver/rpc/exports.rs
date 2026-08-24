@@ -105,7 +105,8 @@ pub(crate) use super::list_partition_reassignments_terminal::{
 };
 pub(crate) use super::share_fetch::{
     ShareFetchCall, ShareFetchCompletionErrorKind, ShareFetchDriverSubmitErrorKind,
-    ShareFetchFailureKind, ShareFetchResolution, ShareFetchRoute, ShareFetchTerminalContext,
+    ShareFetchFailureKind, ShareFetchResolution, ShareFetchRoute, ShareFetchRouteRefresh,
+    ShareFetchRouteRefreshPoll, ShareFetchTerminalContext,
 };
 pub(crate) use super::submission::ProduceSubmitError;
 pub(crate) use super::topic_view::{

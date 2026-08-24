@@ -30,81 +30,103 @@ impl ShareConsumerRegistry {
         clock: &MonotonicClock,
         driver: &DriverOwner,
     ) -> Result<ShareFetchRoutingHostTurn, ShareMembershipHostError> {
-        let Some(index) = self.entries.iter().position(fetch_routing_has_work) else {
-            return Ok(ShareFetchRoutingHostTurn::Idle);
-        };
-        let entry = &mut self.entries[index];
-        let target_generation = current_generation(entry);
-        let closing = entry.has_close();
-        let membership_faulted = entry.fault.is_some();
-        let (fetch, membership) = entry.fetch_and_membership();
-        if let Some(routing) = fetch.routing_mut() {
-            let abandon = closing || target_generation != Some(routing.generation());
-            if abandon && !routing.has_active_call() {
-                drop(fetch.take_routing());
-                return Ok(ShareFetchRoutingHostTurn::Progress);
+        let mut blocked = false;
+        for entry in &mut self.entries {
+            if !fetch_routing_has_work(entry) {
+                continue;
             }
-            return match routing.turn(driver, now) {
-                ShareFetchRoutingTurn::Progress => Ok(ShareFetchRoutingHostTurn::Progress),
-                ShareFetchRoutingTurn::Blocked => Ok(ShareFetchRoutingHostTurn::Blocked),
-                ShareFetchRoutingTurn::Complete if abandon => {
-                    drop(fetch.take_routing());
-                    Ok(ShareFetchRoutingHostTurn::Progress)
+            match turn_fetch_routing_entry(entry, now, clock, driver)? {
+                ShareFetchRoutingHostTurn::Progress => {
+                    return Ok(ShareFetchRoutingHostTurn::Progress);
                 }
-                ShareFetchRoutingTurn::Complete => {
-                    let membership = membership.ok_or(ShareMembershipHostError::EffectShape)?;
-                    let routed = routing
-                        .try_take_routed_assignment(&membership.catalog)
-                        .map_err(|_error| ShareMembershipHostError::EffectShape)?;
-                    if let Some(_routed) = fetch.install_routed(routed) {
-                        return Err(ShareMembershipHostError::EffectShape);
-                    }
-                    drop(fetch.take_routing());
-                    Ok(ShareFetchRoutingHostTurn::Progress)
-                }
-                ShareFetchRoutingTurn::Faulted(kind) => {
-                    let generation = routing.generation();
-                    if !fetch.retain_fault(ShareFetchRoutingFault::new(generation, kind)) {
-                        return Err(ShareMembershipHostError::EffectShape);
-                    }
-                    drop(fetch.take_routing());
-                    Ok(ShareFetchRoutingHostTurn::Progress)
-                }
-            };
-        }
-        if let Some(routed) = fetch.routed() {
-            if closing || target_generation != Some(routed.generation()) {
-                drop(fetch.take_routed());
-                return Ok(ShareFetchRoutingHostTurn::Progress);
+                ShareFetchRoutingHostTurn::Blocked => blocked = true,
+                ShareFetchRoutingHostTurn::Idle => {}
             }
-            return Ok(ShareFetchRoutingHostTurn::Idle);
         }
-        if let Some(fault) = fetch.fault() {
-            if closing || target_generation != Some(fault.generation()) {
-                fetch.clear_fault();
-                return Ok(ShareFetchRoutingHostTurn::Progress);
-            }
-            return Ok(ShareFetchRoutingHostTurn::Idle);
-        }
-        if closing || membership_faulted {
-            return Ok(ShareFetchRoutingHostTurn::Idle);
-        }
-        let membership = membership.ok_or(ShareMembershipHostError::EffectShape)?;
-        let Some(assignment) = membership.activated_assignment() else {
-            return Ok(ShareFetchRoutingHostTurn::Idle);
-        };
-        let capture = clock
-            .capture_deadline_after(SHARE_FETCH_ROUTE_TIMEOUT)
-            .map_err(|_error| {
-                ShareMembershipHostError::Membership(super::ShareMembershipError::DeadlineMapping)
-            })?;
-        let routing = ShareFetchRoutingOwner::try_begin(&membership.catalog, assignment, capture)
-            .map_err(|_error| ShareMembershipHostError::EffectShape)?;
-        if let Some(_routing) = fetch.install_routing(routing) {
-            return Err(ShareMembershipHostError::EffectShape);
-        }
-        Ok(ShareFetchRoutingHostTurn::Progress)
+        Ok(if blocked {
+            ShareFetchRoutingHostTurn::Blocked
+        } else {
+            ShareFetchRoutingHostTurn::Idle
+        })
     }
+}
+
+fn turn_fetch_routing_entry(
+    entry: &mut ShareConsumerEntry,
+    now: Moment,
+    clock: &MonotonicClock,
+    driver: &DriverOwner,
+) -> Result<ShareFetchRoutingHostTurn, ShareMembershipHostError> {
+    let target_generation = current_generation(entry);
+    let closing = entry.has_close();
+    let membership_faulted = entry.fault.is_some();
+    let (fetch, membership) = entry.fetch_and_membership();
+    if let Some(routing) = fetch.routing_mut() {
+        let abandon = closing || target_generation != Some(routing.generation());
+        if abandon && !routing.has_active_call() {
+            drop(fetch.take_routing());
+            return Ok(ShareFetchRoutingHostTurn::Progress);
+        }
+        return match routing.turn(driver, now) {
+            ShareFetchRoutingTurn::Progress => Ok(ShareFetchRoutingHostTurn::Progress),
+            ShareFetchRoutingTurn::Blocked => Ok(ShareFetchRoutingHostTurn::Blocked),
+            ShareFetchRoutingTurn::Complete if abandon => {
+                drop(fetch.take_routing());
+                Ok(ShareFetchRoutingHostTurn::Progress)
+            }
+            ShareFetchRoutingTurn::Complete => {
+                let membership = membership.ok_or(ShareMembershipHostError::EffectShape)?;
+                let routed = routing
+                    .try_take_routed_assignment(&membership.catalog)
+                    .map_err(|_error| ShareMembershipHostError::EffectShape)?;
+                if let Some(_routed) = fetch.install_routed(routed) {
+                    return Err(ShareMembershipHostError::EffectShape);
+                }
+                drop(fetch.take_routing());
+                Ok(ShareFetchRoutingHostTurn::Progress)
+            }
+            ShareFetchRoutingTurn::Faulted(kind) => {
+                let generation = routing.generation();
+                if !fetch.retain_fault(ShareFetchRoutingFault::new(generation, kind)) {
+                    return Err(ShareMembershipHostError::EffectShape);
+                }
+                drop(fetch.take_routing());
+                Ok(ShareFetchRoutingHostTurn::Progress)
+            }
+        };
+    }
+    if let Some(routed) = fetch.routed() {
+        if closing || target_generation != Some(routed.generation()) {
+            drop(fetch.take_routed());
+            return Ok(ShareFetchRoutingHostTurn::Progress);
+        }
+        return Ok(ShareFetchRoutingHostTurn::Idle);
+    }
+    if let Some(fault) = fetch.fault() {
+        if closing || target_generation != Some(fault.generation()) {
+            fetch.clear_fault();
+            return Ok(ShareFetchRoutingHostTurn::Progress);
+        }
+        return Ok(ShareFetchRoutingHostTurn::Idle);
+    }
+    if closing || membership_faulted {
+        return Ok(ShareFetchRoutingHostTurn::Idle);
+    }
+    let membership = membership.ok_or(ShareMembershipHostError::EffectShape)?;
+    let Some(assignment) = membership.activated_assignment() else {
+        return Ok(ShareFetchRoutingHostTurn::Idle);
+    };
+    let capture = clock
+        .capture_deadline_after(SHARE_FETCH_ROUTE_TIMEOUT)
+        .map_err(|_error| {
+            ShareMembershipHostError::Membership(super::ShareMembershipError::DeadlineMapping)
+        })?;
+    let routing = ShareFetchRoutingOwner::try_begin(&membership.catalog, assignment, capture)
+        .map_err(|_error| ShareMembershipHostError::EffectShape)?;
+    if let Some(_routing) = fetch.install_routing(routing) {
+        return Err(ShareMembershipHostError::EffectShape);
+    }
+    Ok(ShareFetchRoutingHostTurn::Progress)
 }
 
 pub(super) fn current_generation(entry: &ShareConsumerEntry) -> Option<AssignmentGeneration> {

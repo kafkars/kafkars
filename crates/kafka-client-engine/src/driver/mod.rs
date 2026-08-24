@@ -54,7 +54,8 @@ pub(crate) use rpc::exports::{
     RecoveredGroupOffsetDeleteCall, RecoveredGroupOffsetsCall,
     RecoveredListPartitionReassignmentsCall, ShareFetchCall, ShareFetchCompletionErrorKind,
     ShareFetchDriverSubmitErrorKind, ShareFetchFailureKind, ShareFetchResolution, ShareFetchRoute,
-    ShareFetchTerminalContext, StaleFetchConfirmationError, TopicPartitionCountAdmissionFailure,
+    ShareFetchRouteRefresh, ShareFetchRouteRefreshPoll, ShareFetchTerminalContext,
+    StaleFetchConfirmationError, TopicPartitionCountAdmissionFailure,
     TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
     TopicPartitionCountFailure, TopicRouteView, TopicRouteViewCall, TrackedBrokerFetchCalls,
     TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
@@ -81,7 +82,6 @@ pub(crate) use rpc::exports::{
 };
 #[cfg(test)]
 pub(crate) use rpc::exports::{GroupPositionOffsetFetchTestPartition, RoutedBroker};
-pub(crate) use rpc::share_acknowledge;
 pub(crate) use rpc::{
     AbortPartitionTransactionCall, AbortPartitionTransactionDriverFailureKind,
     AbortPartitionTransactionRawTerminal, AbortPartitionTransactionTerminalFact, AddRaftVoterCall,
@@ -171,7 +171,7 @@ pub(crate) use rpc::{
     RemoveConsumerGroupMembersDriverFailureKind, RemoveConsumerGroupMembersTerminal,
     RemoveConsumerGroupMembersTerminalFact,
 };
-pub(crate) use rpc::{classic_group, share_group_heartbeat};
+pub(crate) use rpc::{classic_group, share_acknowledge, share_group_heartbeat};
 pub(crate) use rpc::{transaction_control, transaction_offsets, transaction_produce};
 pub(crate) use security::{EngineSecurityError, ValidatedSecurity, validate as validate_security};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

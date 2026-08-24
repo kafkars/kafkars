@@ -566,7 +566,7 @@ path = "crates/kafka-client-engine/src/consumer/share/fetch_route.rs"
 
 [[linear_owners]]
 owner_type = "ShareFetchPartitionRouteFailure"
-path = "crates/kafka-client-engine/src/consumer/share/fetch_route.rs"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_route/failure.rs"
 
 [[mutation_owners]]
 owner_type = "ShareFetchPartitionRouteCall"
@@ -583,7 +583,7 @@ path = "crates/kafka-client-engine/src/consumer/share/fetch_routing.rs"
 
 [[linear_owners]]
 owner_type = "ShareFetchRoutedAssignment"
-path = "crates/kafka-client-engine/src/consumer/share/fetch_routing.rs"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_routing/outcome.rs"
 
 [[mutation_owners]]
 owner_type = "ShareFetchRoutingOwner"
@@ -593,6 +593,11 @@ allowed_paths = ["crates/kafka-client-engine/src/consumer/share/fetch_routing.rs
 [[mutation_owners]]
 owner_type = "ShareFetchRoutingOwner"
 field = "active"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/share/fetch_routing.rs"]
+
+[[mutation_owners]]
+owner_type = "ShareFetchRoutingOwner"
+field = "retry_not_before"
 allowed_paths = ["crates/kafka-client-engine/src/consumer/share/fetch_routing.rs"]
 
 [[mutation_owners]]
@@ -873,7 +878,7 @@ path = "crates/kafka-client-engine/src/consumer/share/fetch_session_execution.rs
 
 [[linear_owners]]
 owner_type = "StagedShareFetchDelivery"
-path = "crates/kafka-client-engine/src/consumer/share/fetch_session_settlement/settlement.rs"
+path = "crates/kafka-client-engine/src/consumer/share/fetch_session_settlement/terminal.rs"
 
 [[linear_owners]]
 owner_type = "ShareFetchDelivery"
@@ -6097,6 +6102,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/consumer_group_execution_calls.rs",
   "crates/kafka-client-engine/src/consumer/group/consumer_group_topic_identity_call.rs",
   "crates/kafka-client-engine/src/consumer/share/fetch_route.rs",
+  "crates/kafka-client-engine/src/consumer/share/fetch_session_set/recovery.rs",
+  "crates/kafka-client-engine/src/driver/rpc/share_fetch/route_refresh.rs",
 ]
 
 [[method_capabilities]]
@@ -18914,6 +18921,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/elect_leaders_terminal.rs",
   "crates/kafka-client-engine/src/driver/rpc/fetch/route_refresh.rs",
+  "crates/kafka-client-engine/src/driver/rpc/share_fetch/route_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/remove_raft_voter_terminal.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_init_call.rs",
   "crates/kafka-client-engine/src/driver/rpc/unregister_broker_terminal.rs",

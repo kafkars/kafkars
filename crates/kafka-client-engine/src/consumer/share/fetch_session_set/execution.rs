@@ -10,6 +10,7 @@ use super::{
         ShareFetchExecutionError, ShareFetchExecutionPoll, ShareFetchSubmissionTurn,
     },
     owner::{ShareFetchSessionSet, ShareFetchSessionSetTurn, release_unsubmitted},
+    recovery::ShareFetchSessionRecoveryPoll,
 };
 
 impl ShareFetchSessionSet {
@@ -18,6 +19,21 @@ impl ShareFetchSessionSet {
         driver: &DriverOwner,
         now: Moment,
     ) -> Result<ShareFetchSessionSetTurn, ShareFetchExecutionError> {
+        match self.poll_recovery(driver, now) {
+            ShareFetchSessionRecoveryPoll::Inactive => {}
+            ShareFetchSessionRecoveryPoll::Progress => {
+                return Ok(ShareFetchSessionSetTurn::Progress);
+            }
+            ShareFetchSessionRecoveryPoll::Pending => {
+                return Ok(ShareFetchSessionSetTurn::Blocked);
+            }
+            ShareFetchSessionRecoveryPoll::Ready => {
+                return Ok(ShareFetchSessionSetTurn::RecoveryReady);
+            }
+            ShareFetchSessionRecoveryPoll::Failed => {
+                return Err(ShareFetchExecutionError::Recovery);
+            }
+        }
         let (acknowledgement_turn, acknowledgement_active) =
             self.turn_acknowledgement(driver, now)?;
         if let Some(turn) = acknowledgement_turn {
@@ -25,9 +41,15 @@ impl ShareFetchSessionSet {
         }
         for session in &mut self.sessions {
             if session.terminal.is_some() {
-                session
+                let turn = session
                     .settle_terminal(now)
                     .map_err(|error| ShareFetchExecutionError::Settlement(error.kind()))?;
+                if let super::super::fetch_session_settlement::ShareFetchSettlementTurn::Recover(
+                    recovery,
+                ) = turn
+                {
+                    self.retain_recovery(recovery)?;
+                }
                 return Ok(ShareFetchSessionSetTurn::Progress);
             }
         }

@@ -16,6 +16,7 @@ use super::super::{
 };
 
 use super::config::compile_session_config;
+use super::recovery::ShareFetchSessionRecovery;
 
 /// Complete broker-session set for one membership assignment generation.
 #[must_use = "share fetch sessions must remain hosted until released"]
@@ -23,6 +24,7 @@ pub(in crate::consumer::share) struct ShareFetchSessionSet {
     pub(super) generation: AssignmentGeneration,
     pub(super) sessions: Vec<ShareFetchSessionOwner>,
     pub(super) delivery_cursor: usize,
+    pub(super) recovery: Option<ShareFetchSessionRecovery>,
 }
 
 /// Stable membership identity shared by one assignment's broker sessions.
@@ -98,6 +100,7 @@ impl ShareFetchSessionSet {
             generation,
             sessions,
             delivery_cursor: 0,
+            recovery: None,
         })
     }
 
@@ -124,6 +127,7 @@ pub(in crate::consumer::share) enum ShareFetchSessionSetTurn {
     Blocked,
     NeedsPreparation(usize),
     Released,
+    RecoveryReady,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

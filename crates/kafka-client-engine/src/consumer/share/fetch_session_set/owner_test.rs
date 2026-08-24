@@ -48,6 +48,7 @@ pub(super) fn session_set(sessions: Vec<ShareFetchSessionOwner>) -> ShareFetchSe
         generation: AssignmentGeneration::try_from_raw(1).unwrap_or_else(|| panic!("generation")),
         sessions,
         delivery_cursor: 0,
+        recovery: None,
     }
 }
 
@@ -143,7 +144,7 @@ pub(in crate::consumer::share) fn staged_session_set_for_test(offset: i64) -> Sh
 }
 
 pub(super) fn stage_success(owner: &mut ShareFetchSessionOwner, topic_uuid: [u8; 16], offset: i64) {
-    let (attempt, request, _capture) = owner
+    let (attempt, request, capture) = owner
         .take_prepared()
         .unwrap_or_else(|| panic!("prepared attempt"))
         .into_parts();
@@ -175,6 +176,7 @@ pub(super) fn stage_success(owner: &mut ShareFetchSessionOwner, topic_uuid: [u8;
             broker_id: attempt.fence().broker_id(),
             submitted_at: Moment::from_tick(5),
         },
+        capture,
     });
 }
 

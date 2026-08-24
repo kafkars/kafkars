@@ -88,6 +88,40 @@ fn changed_topic_identity_returns_the_exact_assignment_request() {
 }
 
 #[test]
+fn missing_leader_retains_the_observed_generation_for_a_fresh_retry() {
+    let (mut broker, mut driver) = routed_driver();
+    let clock = MonotonicClock::new();
+    let capture = clock
+        .capture_deadline_after(Duration::from_secs(60))
+        .unwrap_or_else(|error| panic!("capture: {error:?}"));
+    let assignment = assignment_at(2);
+    let request = request(&catalog([7; 16]), &assignment, capture);
+    let mut call = ShareFetchPartitionRouteCall::submit(&driver, request, capture.now())
+        .unwrap_or_else(|failure| panic!("route admission: {:?}", failure.kind()));
+    broker.install_topic(&mut driver);
+
+    let failure = (0..32)
+        .find_map(|_| {
+            call.try_terminal().or_else(|| {
+                drive(&mut driver);
+                call.try_terminal()
+            })
+        })
+        .unwrap_or_else(|| panic!("share route did not settle"))
+        .err()
+        .unwrap_or_else(|| panic!("leaderless partition must require newer metadata"));
+
+    assert_eq!(
+        failure.kind(),
+        ShareFetchPartitionRouteFailureKind::LeaderUnavailable
+    );
+    assert!(failure.into_request().newer_than().is_some());
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("shutdown: {error}"));
+}
+
+#[test]
 fn driver_shutdown_recovers_the_unsettled_assignment_request() {
     let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver: {error}"));
@@ -145,13 +179,17 @@ fn catalog(kafka_topic_id: [u8; 16]) -> ShareMembershipCatalog {
 }
 
 fn assignment() -> LiveGroupAssignment {
+    assignment_at(3)
+}
+
+fn assignment_at(partition: u32) -> LiveGroupAssignment {
     LiveGroupAssignment::try_new(
         GroupId::try_from_raw(1).unwrap_or_else(|| panic!("group")),
         MemberId::try_from_raw(1).unwrap_or_else(|| panic!("member")),
         AssignmentGeneration::try_from_raw(4).unwrap_or_else(|| panic!("generation")),
         vec![GroupAssignmentPartition::new(
             TopicId::from_raw(1),
-            PartitionIndex::from_raw(3),
+            PartitionIndex::from_raw(partition),
         )],
     )
     .unwrap_or_else(|error| panic!("assignment: {error:?}"))

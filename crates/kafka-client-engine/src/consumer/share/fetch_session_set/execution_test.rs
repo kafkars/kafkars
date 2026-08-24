@@ -11,9 +11,25 @@ use super::{
         fetch_acknowledgement_execution::ShareAcknowledgementExecutionOutcome,
         fetch_acknowledgement_test::delivered_acknowledgement,
     },
-    ShareFetchSessionSetTurn,
+    ShareFetchSessionRecovery, ShareFetchSessionSetTurn,
     owner_test::{driver, owner_for, session_set, shutdown, stage_success},
 };
+
+#[test]
+fn broker_session_recovery_drains_before_a_fresh_session_set_can_open() {
+    let mut set = session_set(vec![owner_for(1, 1, [7; 16], 0)]);
+    set.retain_recovery(ShareFetchSessionRecovery::session())
+        .unwrap_or_else(|error| panic!("retain recovery: {error:?}"));
+    let mut driver = driver();
+    assert_eq!(
+        set.turn(&driver, Moment::from_tick(0)),
+        Ok(ShareFetchSessionSetTurn::RecoveryReady)
+    );
+    assert_eq!(set.abandon_turn(), Ok(ShareFetchSessionSetTurn::Released));
+    set.release_unsubmitted()
+        .unwrap_or_else(|error| panic!("release recovered set: {error:?}"));
+    shutdown(&mut driver);
+}
 
 #[test]
 fn scheduler_settles_acknowledgement_before_resuming_fetch() {

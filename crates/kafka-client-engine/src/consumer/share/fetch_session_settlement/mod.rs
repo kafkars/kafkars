@@ -1,13 +1,19 @@
 //! Declarative facade for staged share-fetch settlement and retirement.
 
+mod recovery;
 mod retirement;
 mod settlement;
+mod terminal;
 
-pub(super) use settlement::{ShareFetchTerminalSettlementErrorKind, StagedShareFetchDelivery};
+pub(super) use terminal::{
+    ShareFetchSettlementTurn, ShareFetchTerminalSettlementErrorKind, StagedShareFetchDelivery,
+};
 
 #[cfg(test)]
-pub(super) use settlement::{ShareFetchSettlementTurn, ShareFetchTerminalSettlementError};
+pub(super) use terminal::ShareFetchTerminalSettlementError;
 
+#[cfg(test)]
+mod recovery_test;
 #[cfg(test)]
 mod retirement_test;
 #[cfg(test)]

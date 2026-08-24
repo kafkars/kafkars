@@ -3,18 +3,22 @@
 use std::{sync::Arc, time::Duration};
 
 use kafka_client_core::{
-    AssignmentGeneration, GroupAssignmentPartition, GroupId, LiveGroupAssignment, MemberId,
+    AssignmentGeneration, GroupAssignmentPartition, GroupId, LiveGroupAssignment, MemberId, Moment,
     PartitionIndex, ShareFetchBrokerId, TopicId,
 };
 
 use crate::{
     EngineConfig,
     clock::MonotonicClock,
-    driver::{DriverOwner, RoutedBroker},
+    driver::{DriverOwner, RoutedBroker, TopicPartitionCountFailure},
 };
 
 use super::{
     catalog::{ShareMembershipCatalog, ShareTopicIdentity},
+    fetch_route::{
+        ShareFetchPartitionRouteFailure, ShareFetchPartitionRouteFailureKind,
+        ShareFetchPartitionRouteRequest,
+    },
     fetch_routing::{ShareFetchRoutingOwner, ShareFetchRoutingTurn},
 };
 
@@ -84,6 +88,133 @@ fn driver_shutdown_restores_the_active_partition_to_pending_routing() {
     assert!(owner.try_take_routed_assignment(&catalog).is_err());
 }
 
+#[test]
+fn transient_leader_loss_retries_after_positive_delay_under_the_original_deadline() {
+    let (mut broker, mut driver) = routed_driver();
+    let clock = MonotonicClock::new();
+    let capture = clock
+        .capture_deadline_after(Duration::from_secs(60))
+        .unwrap_or_else(|error| panic!("capture: {error:?}"));
+    let catalog = catalog();
+    let mut owner = ShareFetchRoutingOwner::try_begin(&catalog, &empty_assignment(), capture)
+        .unwrap_or_else(|error| panic!("begin routing: {error:?}"));
+
+    assert_eq!(
+        owner.settle_terminal(
+            Err(route_failure(
+                &catalog,
+                capture,
+                ShareFetchPartitionRouteFailureKind::LeaderUnavailable,
+            )),
+            capture.now(),
+        ),
+        ShareFetchRoutingTurn::Progress
+    );
+    let retry = owner.next_deadline();
+    assert!(retry.tick() > capture.now().tick());
+    assert!(retry.tick() < owner.deadline().tick());
+    assert_eq!(
+        owner.turn(&driver, capture.now()),
+        ShareFetchRoutingTurn::Blocked
+    );
+    assert_eq!(
+        owner.turn(&driver, Moment::from_tick(retry.tick())),
+        ShareFetchRoutingTurn::Progress
+    );
+
+    broker.install_topic(&mut driver);
+    for _turn in 0..32 {
+        if owner.turn(&driver, Moment::from_tick(retry.tick())) == ShareFetchRoutingTurn::Complete {
+            break;
+        }
+        drive(&mut driver);
+    }
+    assert!(owner.try_take_routed_assignment(&catalog).is_ok());
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("shutdown: {error}"));
+}
+
+#[test]
+fn metadata_unavailable_retries_but_semantic_identity_failure_remains_terminal() {
+    let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver: {error}"));
+    let clock = MonotonicClock::new();
+    let capture = clock
+        .capture_deadline_after(Duration::from_secs(60))
+        .unwrap_or_else(|error| panic!("capture: {error:?}"));
+    let catalog = catalog();
+    let mut transient = ShareFetchRoutingOwner::try_begin(&catalog, &empty_assignment(), capture)
+        .unwrap_or_else(|error| panic!("begin transient routing: {error:?}"));
+    assert_eq!(
+        transient.settle_terminal(
+            Err(route_failure(
+                &catalog,
+                capture,
+                ShareFetchPartitionRouteFailureKind::TopicView(
+                    TopicPartitionCountFailure::Unavailable,
+                ),
+            )),
+            capture.now(),
+        ),
+        ShareFetchRoutingTurn::Progress
+    );
+    assert!(transient.next_deadline().tick() > capture.now().tick());
+
+    let mut semantic = ShareFetchRoutingOwner::try_begin(&catalog, &empty_assignment(), capture)
+        .unwrap_or_else(|error| panic!("begin semantic routing: {error:?}"));
+    assert_eq!(
+        semantic.settle_terminal(
+            Err(route_failure(
+                &catalog,
+                capture,
+                ShareFetchPartitionRouteFailureKind::TopicIdentityChanged,
+            )),
+            capture.now(),
+        ),
+        ShareFetchRoutingTurn::Progress
+    );
+    assert_eq!(
+        semantic.turn(&driver, capture.now()),
+        ShareFetchRoutingTurn::Faulted(ShareFetchPartitionRouteFailureKind::TopicIdentityChanged)
+    );
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("shutdown: {error}"));
+}
+
+#[test]
+fn transient_route_failure_at_the_original_deadline_terminalizes_as_deadline() {
+    let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver: {error}"));
+    let clock = MonotonicClock::new();
+    let capture = clock
+        .capture_deadline_after(Duration::from_secs(60))
+        .unwrap_or_else(|error| panic!("capture: {error:?}"));
+    let catalog = catalog();
+    let mut owner = ShareFetchRoutingOwner::try_begin(&catalog, &empty_assignment(), capture)
+        .unwrap_or_else(|error| panic!("begin routing: {error:?}"));
+    let elapsed = Moment::from_tick(capture.deadline().tick());
+    assert_eq!(
+        owner.settle_terminal(
+            Err(route_failure(
+                &catalog,
+                capture,
+                ShareFetchPartitionRouteFailureKind::LeaderUnavailable,
+            )),
+            elapsed,
+        ),
+        ShareFetchRoutingTurn::Progress
+    );
+    assert_eq!(
+        owner.turn(&driver, elapsed),
+        ShareFetchRoutingTurn::Faulted(ShareFetchPartitionRouteFailureKind::Deadline)
+    );
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("shutdown: {error}"));
+}
+
 fn routed_driver() -> (RoutedBroker, DriverOwner) {
     let mut broker = RoutedBroker::new();
     let mut driver = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
@@ -125,6 +256,26 @@ fn assignment() -> LiveGroupAssignment {
         )],
     )
     .unwrap_or_else(|error| panic!("assignment: {error:?}"))
+}
+
+fn empty_assignment() -> LiveGroupAssignment {
+    LiveGroupAssignment::try_new(
+        GroupId::try_from_raw(1).unwrap_or_else(|| panic!("group")),
+        MemberId::try_from_raw(1).unwrap_or_else(|| panic!("member")),
+        AssignmentGeneration::try_from_raw(4).unwrap_or_else(|| panic!("generation")),
+        Vec::new(),
+    )
+    .unwrap_or_else(|error| panic!("empty assignment: {error:?}"))
+}
+
+fn route_failure(
+    catalog: &ShareMembershipCatalog,
+    capture: crate::clock::DeadlineCapture,
+    kind: ShareFetchPartitionRouteFailureKind,
+) -> ShareFetchPartitionRouteFailure {
+    let request = ShareFetchPartitionRouteRequest::try_at(catalog, &assignment(), 0, capture)
+        .unwrap_or_else(|error| panic!("route request: {error:?}"));
+    ShareFetchPartitionRouteFailure::for_test(request, kind)
 }
 
 fn broker_id_one() -> ShareFetchBrokerId {

@@ -28,6 +28,42 @@ impl ShareConsumerShardWake for NoopWake {
 }
 
 #[test]
+fn terminal_runtime_membership_is_observed_instead_of_remaining_pending() {
+    let (mut registry, group_id, clock, capture) = registry_with_routable_membership();
+    super::registry_fetch_routing_test::settle_partition_three(
+        &mut registry,
+        group_id,
+        capture.now(),
+    );
+    let schedule = registry
+        .entry(group_id)
+        .and_then(|entry| entry.membership.as_ref())
+        .and_then(|membership| membership.machine().schedule())
+        .unwrap_or_else(|| panic!("heartbeat schedule"));
+    registry
+        .prepare_one_heartbeat_due(
+            kafka_client_core::Moment::from_tick(schedule.deadline().tick()),
+            &clock,
+        )
+        .unwrap_or_else(|error| panic!("prepare heartbeat: {error:?}"));
+    registry
+        .entry_mut(group_id)
+        .and_then(|entry| entry.membership.as_mut())
+        .unwrap_or_else(|| panic!("membership"))
+        .settle_failure(
+            capture.now(),
+            &clock,
+            kafka_client_core::ShareGroupHeartbeatFailure::Broker(27),
+        )
+        .unwrap_or_else(|error| panic!("terminal membership: {error:?}"));
+
+    assert!(matches!(
+        registry.take_delivery(group_id, capture.now()),
+        Err(ShareConsumerDeliveryError::MembershipFault)
+    ));
+}
+
+#[test]
 fn observation_transfers_once_and_drop_waits_to_abandon_the_exact_batch() {
     let (owner, mut handle, group_id) = staged_handle();
     let batch = handle

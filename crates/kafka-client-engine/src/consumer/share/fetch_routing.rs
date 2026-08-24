@@ -15,6 +15,11 @@ use super::{
     },
 };
 
+mod outcome;
+pub(super) use outcome::ShareFetchRoutedAssignment;
+
+const SHARE_FETCH_ROUTE_RETRY_TICKS: u64 = 100_000_000;
+
 /// Exact assignment-wide metadata-routing ownership.
 #[must_use = "share fetch routing must settle, recover, or be released"]
 pub(super) struct ShareFetchRoutingOwner {
@@ -22,16 +27,9 @@ pub(super) struct ShareFetchRoutingOwner {
     capture: DeadlineCapture,
     pending: Vec<ShareFetchPartitionRouteRequest>,
     active: Option<ShareFetchPartitionRouteCall>,
+    retry_not_before: Option<kafka_client_core::Deadline>,
     routed: Vec<RoutedShareFetchPartition>,
     fault: Option<ShareFetchPartitionRouteFailure>,
-}
-
-/// Completed broker-local plans retaining the original assignment boundary.
-#[must_use = "routed share assignment must open its broker sessions or be released"]
-pub(super) struct ShareFetchRoutedAssignment {
-    generation: AssignmentGeneration,
-    capture: DeadlineCapture,
-    plans: Vec<ShareBrokerSessionPlan>,
 }
 
 impl ShareFetchRoutingOwner {
@@ -59,6 +57,7 @@ impl ShareFetchRoutingOwner {
             capture,
             pending,
             active: None,
+            retry_not_before: None,
             routed,
             fault: None,
         })
@@ -68,16 +67,18 @@ impl ShareFetchRoutingOwner {
         if let Some(fault) = self.fault.as_ref() {
             return ShareFetchRoutingTurn::Faulted(fault.kind());
         }
+        if let Some(not_before) = self.retry_not_before {
+            if !not_before.is_elapsed_at(now) {
+                return ShareFetchRoutingTurn::Blocked;
+            }
+            self.retry_not_before = None;
+        }
         if let Some(active) = self.active.as_mut() {
             let Some(terminal) = active.try_terminal() else {
                 return ShareFetchRoutingTurn::Blocked;
             };
             self.active = None;
-            match terminal {
-                Ok(routed) => self.routed.push(routed),
-                Err(failure) => self.fault = Some(failure),
-            }
-            return ShareFetchRoutingTurn::Progress;
+            return self.settle_terminal(terminal, now);
         }
         let Some(request) = self.pending.pop() else {
             return ShareFetchRoutingTurn::Complete;
@@ -111,6 +112,12 @@ impl ShareFetchRoutingOwner {
         self.capture.deadline()
     }
 
+    pub(super) fn next_deadline(&self) -> kafka_client_core::Deadline {
+        self.retry_not_before
+            .unwrap_or_else(|| self.capture.deadline())
+            .min(self.capture.deadline())
+    }
+
     pub(super) const fn has_active_call(&self) -> bool {
         self.active.is_some()
     }
@@ -119,10 +126,20 @@ impl ShareFetchRoutingOwner {
         &mut self,
         catalog: &ShareMembershipCatalog,
     ) -> Result<ShareFetchRoutedAssignment, ShareFetchRoutingPlanError> {
-        if self.active.is_some() || !self.pending.is_empty() || self.fault.is_some() {
+        if self.active.is_some()
+            || self.retry_not_before.is_some()
+            || !self.pending.is_empty()
+            || self.fault.is_some()
+        {
             return Err(ShareFetchRoutingPlanError::Incomplete);
         }
-        let mut grouped: Vec<(ShareFetchBrokerId, Vec<GroupAssignmentPartition>)> = Vec::new();
+        let mut grouped: Vec<(
+            ShareFetchBrokerId,
+            Vec<(
+                GroupAssignmentPartition,
+                kafka_client_core::partitioning::TopicMetadataGeneration,
+            )>,
+        )> = Vec::new();
         if grouped.try_reserve_exact(self.routed.len()).is_err() {
             return Err(ShareFetchRoutingPlanError::Allocation);
         }
@@ -139,37 +156,50 @@ impl ShareFetchRoutingOwner {
             if grouped[index].1.try_reserve(1).is_err() {
                 return Err(ShareFetchRoutingPlanError::Allocation);
             }
-            grouped[index].1.push(routed.partition());
+            grouped[index]
+                .1
+                .push((routed.partition(), routed.metadata_generation()));
         }
         let mut plans = Vec::new();
         if plans.try_reserve_exact(grouped.len()).is_err() {
             return Err(ShareFetchRoutingPlanError::Allocation);
         }
         for (broker_id, partitions) in grouped {
-            let plan = ShareBrokerSessionPlan::try_initial(catalog, broker_id, &partitions)
+            let plan = ShareBrokerSessionPlan::try_routed(catalog, broker_id, &partitions)
                 .map_err(ShareFetchRoutingPlanError::Plan)?;
             plans.push(plan);
         }
         self.routed.clear();
-        Ok(ShareFetchRoutedAssignment {
-            generation: self.generation,
-            capture: self.capture,
+        Ok(ShareFetchRoutedAssignment::new(
+            self.generation,
+            self.capture,
             plans,
-        })
-    }
-}
-
-impl ShareFetchRoutedAssignment {
-    pub(super) const fn generation(&self) -> AssignmentGeneration {
-        self.generation
+        ))
     }
 
-    pub(super) const fn capture(&self) -> DeadlineCapture {
-        self.capture
-    }
-
-    pub(super) fn into_plans(self) -> Vec<ShareBrokerSessionPlan> {
-        self.plans
+    pub(super) fn settle_terminal(
+        &mut self,
+        terminal: Result<RoutedShareFetchPartition, ShareFetchPartitionRouteFailure>,
+        now: Moment,
+    ) -> ShareFetchRoutingTurn {
+        match terminal {
+            Ok(routed) => self.routed.push(routed),
+            Err(failure) if failure.kind().is_transient_metadata() => {
+                if self.capture.deadline().is_elapsed_at(now) {
+                    self.fault =
+                        Some(failure.with_kind(ShareFetchPartitionRouteFailureKind::Deadline));
+                } else {
+                    self.pending.push(failure.into_request());
+                    self.retry_not_before = Some(
+                        now.checked_deadline_after(SHARE_FETCH_ROUTE_RETRY_TICKS)
+                            .unwrap_or_else(|| self.capture.deadline())
+                            .min(self.capture.deadline()),
+                    );
+                }
+            }
+            Err(failure) => self.fault = Some(failure),
+        }
+        ShareFetchRoutingTurn::Progress
     }
 }
 

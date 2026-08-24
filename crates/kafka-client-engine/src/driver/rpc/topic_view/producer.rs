@@ -9,7 +9,7 @@ use kafka_client_core::{
         TopicPartitionSource,
     },
 };
-use kafka_driver::{Call, TopicName, TopicView, TopicViewError};
+use kafka_driver::{Call, MetadataGeneration, TopicName, TopicView, TopicViewError};
 
 use super::super::super::DriverOwner;
 use super::partition_count::{
@@ -68,6 +68,11 @@ impl TopicRouteView {
             .topic_id()
             .map(kafka_driver::KafkaTopicId::to_bytes)
     }
+
+    /// Returns the exact driver generation from which this view was projected.
+    pub(crate) const fn metadata_generation(&self) -> TopicMetadataGeneration {
+        TopicMetadataGeneration::from_raw(self.view.generation().get())
+    }
 }
 
 impl TopicPartitionSource for TopicRouteView {
@@ -112,11 +117,40 @@ impl TopicRouteViewCall {
         topic: &str,
         deadline: Instant,
     ) -> Result<Self, TopicPartitionCountAdmissionFailure> {
+        Self::submit_inner(driver, topic, None, deadline)
+    }
+
+    pub(crate) fn submit_newer_than(
+        driver: &DriverOwner,
+        topic: &str,
+        observed: TopicMetadataGeneration,
+        deadline: Instant,
+    ) -> Result<Self, TopicPartitionCountAdmissionFailure> {
+        Self::submit_inner(
+            driver,
+            topic,
+            Some(MetadataGeneration::from_raw(observed.get())),
+            deadline,
+        )
+    }
+
+    fn submit_inner(
+        driver: &DriverOwner,
+        topic: &str,
+        newer_than: Option<MetadataGeneration>,
+        deadline: Instant,
+    ) -> Result<Self, TopicPartitionCountAdmissionFailure> {
         let topic =
             TopicName::new(topic.to_owned()).map_err(TopicPartitionCountAdmissionFailure::Topic)?;
-        let call = driver
-            .driver
-            .topic_view(topic.clone(), deadline)
+        let call = newer_than
+            .map_or_else(
+                || driver.driver.topic_view(topic.clone(), deadline),
+                |observed| {
+                    driver
+                        .driver
+                        .topic_view_newer_than(topic.clone(), observed, deadline)
+                },
+            )
             .map_err(TopicPartitionCountAdmissionFailure::Driver)?;
         Ok(Self {
             topic,

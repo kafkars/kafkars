@@ -35,6 +35,7 @@ impl PreparedShareFetchSession {
 pub(super) struct ActiveShareFetchCall {
     attempt: ShareFetchAttempt,
     call: ShareFetchCall,
+    capture: DeadlineCapture,
 }
 
 #[must_use = "a ShareFetch terminal must enter session policy exactly once"]
@@ -43,6 +44,7 @@ pub(super) struct ShareFetchSessionTerminal {
     pub(super) resolution: ShareFetchResolution,
     pub(super) route: ShareFetchRoute,
     pub(super) context: ShareFetchTerminalContext,
+    pub(super) capture: DeadlineCapture,
 }
 
 impl ShareFetchSessionOwner {
@@ -70,7 +72,11 @@ impl ShareFetchSessionOwner {
             capture.operation_deadline(),
         ) {
             Ok(call) => {
-                self.active = Some(ActiveShareFetchCall { attempt, call });
+                self.active = Some(ActiveShareFetchCall {
+                    attempt,
+                    call,
+                    capture,
+                });
                 Ok(ShareFetchSubmissionTurn::Submitted)
             }
             Err(failure) => {
@@ -121,6 +127,7 @@ impl ShareFetchSessionOwner {
                     resolution,
                     route,
                     context,
+                    capture: active.capture,
                 });
                 Ok(ShareFetchExecutionPoll::Terminal)
             }
@@ -214,6 +221,7 @@ pub(super) enum ShareFetchExecutionError {
         super::fetch_acknowledgement_execution::ShareAcknowledgementExecutionFailureKind,
     ),
     Session(ShareFetchSessionOwnerError),
+    Recovery,
 }
 
 impl From<super::fetch_acknowledgement_execution::ShareAcknowledgementExecutionFailureKind>

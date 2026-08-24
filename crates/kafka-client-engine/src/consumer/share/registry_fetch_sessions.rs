@@ -17,6 +17,9 @@ use super::{
     registry_membership::ShareMembershipHostError,
 };
 
+mod abandon;
+use abandon::{abandon_sessions, fetch_sessions_have_work};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ShareFetchSessionsHostTurn {
     Idle,
@@ -31,66 +34,94 @@ impl ShareConsumerRegistry {
         clock: &MonotonicClock,
         driver: &DriverOwner,
     ) -> Result<ShareFetchSessionsHostTurn, ShareMembershipHostError> {
-        let Some(index) = self.entries.iter().position(fetch_sessions_have_work) else {
-            return Ok(ShareFetchSessionsHostTurn::Idle);
-        };
-        let entry = &mut self.entries[index];
-        let generation = current_generation(entry);
-        let abandon = entry.has_close()
-            || entry
-                .fetch()
-                .sessions()
-                .is_some_and(|sessions| generation != Some(sessions.generation()));
-        if entry.fetch().sessions().is_some() {
-            if abandon || entry.fetch().session_fault().is_some() {
-                return abandon_sessions(entry, abandon);
+        let mut blocked = false;
+        for entry in &mut self.entries {
+            if !fetch_sessions_have_work(entry) {
+                continue;
             }
-            let turn = entry
-                .fetch_mut()
-                .sessions_mut()
-                .ok_or(ShareMembershipHostError::EffectShape)?
-                .turn(driver, now);
-            return match turn {
-                Ok(ShareFetchSessionSetTurn::Progress) => Ok(ShareFetchSessionsHostTurn::Progress),
-                Ok(ShareFetchSessionSetTurn::Blocked) => Ok(ShareFetchSessionsHostTurn::Blocked),
-                Ok(ShareFetchSessionSetTurn::Idle) => Ok(ShareFetchSessionsHostTurn::Idle),
-                Ok(ShareFetchSessionSetTurn::NeedsPreparation(index)) => {
-                    prepare_next_session(entry, generation, index, clock)
+            match turn_fetch_sessions_entry(entry, now, clock, driver)? {
+                ShareFetchSessionsHostTurn::Progress => {
+                    return Ok(ShareFetchSessionsHostTurn::Progress);
                 }
-                Ok(ShareFetchSessionSetTurn::Released) => {
-                    Err(ShareMembershipHostError::EffectShape)
-                }
-                Err(error) => {
-                    let generation = generation.ok_or(ShareMembershipHostError::EffectShape)?;
-                    if !entry
-                        .fetch_mut()
-                        .retain_session_fault(ShareFetchSessionFault::new(
-                            generation,
-                            ShareFetchSessionFaultKind::Execution(error),
-                        ))
-                    {
-                        return Err(ShareMembershipHostError::EffectShape);
-                    }
-                    Ok(ShareFetchSessionsHostTurn::Progress)
-                }
-            };
-        }
-        if let Some(fault) = entry.fetch().session_fault() {
-            if entry.has_close() || generation != Some(fault.generation()) {
-                entry.fetch_mut().clear_session_fault();
-                return Ok(ShareFetchSessionsHostTurn::Progress);
+                ShareFetchSessionsHostTurn::Blocked => blocked = true,
+                ShareFetchSessionsHostTurn::Idle => {}
             }
-            return Ok(ShareFetchSessionsHostTurn::Idle);
         }
-        let Some(routed) = entry.fetch().routed() else {
-            return Ok(ShareFetchSessionsHostTurn::Idle);
+        Ok(if blocked {
+            ShareFetchSessionsHostTurn::Blocked
+        } else {
+            ShareFetchSessionsHostTurn::Idle
+        })
+    }
+}
+
+fn turn_fetch_sessions_entry(
+    entry: &mut ShareConsumerEntry,
+    now: Moment,
+    clock: &MonotonicClock,
+    driver: &DriverOwner,
+) -> Result<ShareFetchSessionsHostTurn, ShareMembershipHostError> {
+    let generation = current_generation(entry);
+    let abandon = entry.has_close()
+        || entry
+            .fetch()
+            .sessions()
+            .is_some_and(|sessions| generation != Some(sessions.generation()));
+    if entry.fetch().sessions().is_some() {
+        let recovering = entry
+            .fetch()
+            .sessions()
+            .is_some_and(super::fetch_session_set::ShareFetchSessionSet::is_recovering);
+        if abandon && !recovering {
+            return abandon_sessions(entry, true);
+        }
+        if entry.fetch().session_fault().is_some() && !recovering {
+            return abandon_sessions(entry, false);
+        }
+        let turn = entry
+            .fetch_mut()
+            .sessions_mut()
+            .ok_or(ShareMembershipHostError::EffectShape)?
+            .turn(driver, now);
+        return match turn {
+            Ok(ShareFetchSessionSetTurn::Progress) => Ok(ShareFetchSessionsHostTurn::Progress),
+            Ok(ShareFetchSessionSetTurn::Blocked) => Ok(ShareFetchSessionsHostTurn::Blocked),
+            Ok(ShareFetchSessionSetTurn::Idle) => Ok(ShareFetchSessionsHostTurn::Idle),
+            Ok(ShareFetchSessionSetTurn::NeedsPreparation(index)) => {
+                prepare_next_session(entry, generation, index, clock)
+            }
+            Ok(ShareFetchSessionSetTurn::Released) => Err(ShareMembershipHostError::EffectShape),
+            Ok(ShareFetchSessionSetTurn::RecoveryReady) => abandon_sessions(entry, false),
+            Err(error) => {
+                let generation = generation.ok_or(ShareMembershipHostError::EffectShape)?;
+                if !entry
+                    .fetch_mut()
+                    .retain_session_fault(ShareFetchSessionFault::new(
+                        generation,
+                        ShareFetchSessionFaultKind::Execution(error),
+                    ))
+                {
+                    return Err(ShareMembershipHostError::EffectShape);
+                }
+                Ok(ShareFetchSessionsHostTurn::Progress)
+            }
         };
-        if entry.has_close() || generation != Some(routed.generation()) {
-            drop(entry.fetch_mut().take_routed());
+    }
+    if let Some(fault) = entry.fetch().session_fault() {
+        if entry.has_close() || generation != Some(fault.generation()) {
+            entry.fetch_mut().clear_session_fault();
             return Ok(ShareFetchSessionsHostTurn::Progress);
         }
-        open_sessions(entry, clock)
+        return Ok(ShareFetchSessionsHostTurn::Idle);
     }
+    let Some(routed) = entry.fetch().routed() else {
+        return Ok(ShareFetchSessionsHostTurn::Idle);
+    };
+    if entry.has_close() || generation != Some(routed.generation()) {
+        drop(entry.fetch_mut().take_routed());
+        return Ok(ShareFetchSessionsHostTurn::Progress);
+    }
+    open_sessions(entry, clock)
 }
 
 fn open_sessions(
@@ -190,47 +221,4 @@ fn prepare_next_session(
             ),
         ),
     }
-}
-
-fn abandon_sessions(
-    entry: &mut ShareConsumerEntry,
-    clear_fault: bool,
-) -> Result<ShareFetchSessionsHostTurn, ShareMembershipHostError> {
-    let turn = entry
-        .fetch_mut()
-        .sessions_mut()
-        .ok_or(ShareMembershipHostError::EffectShape)?
-        .abandon_turn()
-        .map_err(|_error| ShareMembershipHostError::EffectShape)?;
-    match turn {
-        ShareFetchSessionSetTurn::Progress => Ok(ShareFetchSessionsHostTurn::Progress),
-        ShareFetchSessionSetTurn::Blocked => Ok(ShareFetchSessionsHostTurn::Blocked),
-        ShareFetchSessionSetTurn::Idle | ShareFetchSessionSetTurn::NeedsPreparation(_) => {
-            Err(ShareMembershipHostError::EffectShape)
-        }
-        ShareFetchSessionSetTurn::Released => {
-            let sessions = entry
-                .fetch_mut()
-                .take_sessions()
-                .ok_or(ShareMembershipHostError::EffectShape)?;
-            sessions
-                .release_unsubmitted()
-                .map_err(|_error| ShareMembershipHostError::EffectShape)?;
-            if clear_fault {
-                entry.fetch_mut().clear_session_fault();
-            }
-            Ok(ShareFetchSessionsHostTurn::Progress)
-        }
-    }
-}
-
-fn fetch_sessions_have_work(entry: &ShareConsumerEntry) -> bool {
-    let generation = current_generation(entry);
-    if entry.fetch().sessions().is_some() {
-        return true;
-    }
-    if let Some(fault) = entry.fetch().session_fault() {
-        return entry.has_close() || generation != Some(fault.generation());
-    }
-    entry.fetch().routed().is_some()
 }

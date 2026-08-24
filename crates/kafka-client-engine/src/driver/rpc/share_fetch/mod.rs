@@ -11,6 +11,7 @@ mod failure;
 #[cfg(test)]
 mod failure_test;
 mod route;
+mod route_refresh;
 mod submission;
 #[cfg(test)]
 mod submission_test;
@@ -28,6 +29,7 @@ pub(crate) use call::{
 };
 pub(crate) use failure::ShareFetchDriverFailureKind as ShareFetchFailureKind;
 pub(crate) use route::ShareFetchRoute;
+pub(crate) use route_refresh::{ShareFetchRouteRefresh, ShareFetchRouteRefreshPoll};
 pub(crate) use submission::ShareFetchDriverSubmitErrorKind;
 #[expect(
     unused_imports,

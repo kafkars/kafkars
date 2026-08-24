@@ -1,34 +1,25 @@
 //! Atomic `ShareFetch` terminal interpretation and decoded delivery staging.
 
-use core::num::NonZeroI16;
+use kafka_client_core::{DeliveryStatus, Moment};
 
-use kafka_client_core::{DeliveryStatus, Moment, ShareFetchSettlementErrorKind};
-
-use crate::{
-    driver::{
-        ShareFetchFailureKind, ShareFetchResolution, ShareFetchRoute, ShareFetchTerminalContext,
-    },
-    protocol::consumer::share_fetch::ShareFetchEndpoint,
-};
+use crate::driver::{ShareFetchResolution, ShareFetchTerminalContext};
 
 use super::super::{
     fetch_acquisition_decode::{ShareFetchAcquisitionDecodeError, decode_share_fetch_success},
-    fetch_delivery::ShareFetchDeliveryPartition,
-    fetch_session::{ShareFetchSessionOwner, ShareFetchSessionOwnerError},
+    fetch_session::ShareFetchSessionOwner,
+};
+use super::recovery::{
+    ShareFetchResponseRecovery, broker_recovery, driver_recovery, response_recovery, route_recovery,
+};
+use super::terminal::{
+    ShareFetchSettlementTurn, ShareFetchTerminalSettlementError, StagedShareFetchDelivery,
 };
 
-/// Decoded records and route receipt retained after atomic core admission.
-#[must_use = "staged share delivery must be exposed or released"]
-pub(in crate::consumer::share) struct StagedShareFetchDelivery {
-    pub(in crate::consumer::share) fence: kafka_client_core::ShareFetchSessionFence,
-    pub(in crate::consumer::share) route: ShareFetchRoute,
-    pub(in crate::consumer::share) throttle_time_ms: u32,
-    pub(in crate::consumer::share) endpoints: Vec<ShareFetchEndpoint>,
-    pub(in crate::consumer::share) partitions: Vec<ShareFetchDeliveryPartition>,
-    pub(in crate::consumer::share) acquisitions: usize,
-}
-
 impl ShareFetchSessionOwner {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one atomic terminal transition retains route certainty through recovery or delivery staging"
+    )]
     pub(in crate::consumer::share) fn settle_terminal(
         &mut self,
         now: Moment,
@@ -42,6 +33,52 @@ impl ShareFetchSessionOwner {
         let attempt = terminal.attempt;
         match terminal.resolution {
             ShareFetchResolution::Succeeded(success) => {
+                match response_recovery(&success) {
+                    ShareFetchResponseRecovery::Session => {
+                        terminal.route.accept();
+                        self.settle_attempt_failure(attempt, DeliveryStatus::PossiblySent)
+                            .map_err(ShareFetchTerminalSettlementError::Session)?;
+                        return Ok(ShareFetchSettlementTurn::Recover(
+                            super::super::fetch_session_set::ShareFetchSessionRecovery::session(),
+                        ));
+                    }
+                    ShareFetchResponseRecovery::Route(kafka_topic_id) => {
+                        let Some((topic, observed)) = self
+                            .request_plan()
+                            .route_refresh_requirement(kafka_topic_id)
+                        else {
+                            terminal.route.accept();
+                            self.settle_attempt_failure(attempt, DeliveryStatus::PossiblySent)
+                                .map_err(ShareFetchTerminalSettlementError::Session)?;
+                            return Err(ShareFetchTerminalSettlementError::Decode(
+                                ShareFetchAcquisitionDecodeError::PartitionRejected,
+                            ));
+                        };
+                        let recovery = route_recovery(
+                            terminal.route,
+                            attempt,
+                            terminal.capture,
+                            now,
+                            topic,
+                            observed,
+                        );
+                        let recovery = match recovery {
+                            Ok(recovery) => recovery,
+                            Err(route) => {
+                                route.accept();
+                                self.settle_attempt_failure(attempt, DeliveryStatus::PossiblySent)
+                                    .map_err(ShareFetchTerminalSettlementError::Session)?;
+                                return Err(ShareFetchTerminalSettlementError::Decode(
+                                    ShareFetchAcquisitionDecodeError::PartitionRejected,
+                                ));
+                            }
+                        };
+                        self.settle_attempt_failure(attempt, DeliveryStatus::PossiblySent)
+                            .map_err(ShareFetchTerminalSettlementError::Session)?;
+                        return Ok(ShareFetchSettlementTurn::Recover(recovery));
+                    }
+                    ShareFetchResponseRecovery::None | ShareFetchResponseRecovery::Terminal => {}
+                }
                 let Some(timeout_ms) = success
                     .acquisition_lock_timeout_ms
                     .or(self.lock_timeout_ms())
@@ -115,6 +152,12 @@ impl ShareFetchSessionOwner {
                 Ok(ShareFetchSettlementTurn::Acquired(acquisitions))
             }
             ShareFetchResolution::BrokerRejected(rejection) => {
+                if let Some(recovery) = broker_recovery(rejection.error_code) {
+                    terminal.route.accept();
+                    self.settle_attempt_failure(attempt, DeliveryStatus::PossiblySent)
+                        .map_err(ShareFetchTerminalSettlementError::Session)?;
+                    return Ok(ShareFetchSettlementTurn::Recover(recovery));
+                }
                 terminal.route.accept();
                 self.settle_attempt_failure(attempt, DeliveryStatus::PossiblySent)
                     .map_err(ShareFetchTerminalSettlementError::Session)?;
@@ -123,9 +166,25 @@ impl ShareFetchSessionOwner {
                 ))
             }
             ShareFetchResolution::Failed { kind, delivery } => {
-                terminal.route.accept();
+                let recovery = driver_recovery(
+                    terminal.route,
+                    attempt,
+                    terminal.context.submitted_at,
+                    now,
+                    kind,
+                );
+                let recovery = match recovery {
+                    Ok(recovery) => Some(recovery),
+                    Err(route) => {
+                        route.accept();
+                        None
+                    }
+                };
                 self.settle_attempt_failure(attempt, delivery)
                     .map_err(ShareFetchTerminalSettlementError::Session)?;
+                if let Some(recovery) = recovery {
+                    return Ok(ShareFetchSettlementTurn::Recover(recovery));
+                }
                 Err(ShareFetchTerminalSettlementError::Driver { kind, delivery })
             }
         }
@@ -154,70 +213,4 @@ fn throttle_deadline(
         .ok_or(ShareFetchTerminalSettlementError::ThrottleDeadlineOverflow)?;
     now.checked_deadline_after(ticks)
         .ok_or(ShareFetchTerminalSettlementError::ThrottleDeadlineOverflow)
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::consumer::share) enum ShareFetchSettlementTurn {
-    Empty,
-    Acquired(usize),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(in crate::consumer::share) enum ShareFetchTerminalSettlementError {
-    Occupied,
-    MissingTerminal,
-    MissingLockTimeout,
-    LockDeadlineOverflow,
-    ThrottleDeadlineOverflow,
-    Decode(ShareFetchAcquisitionDecodeError),
-    Core(ShareFetchSettlementErrorKind),
-    BrokerRejected(NonZeroI16),
-    Driver {
-        kind: ShareFetchFailureKind,
-        delivery: DeliveryStatus,
-    },
-    Session(ShareFetchSessionOwnerError),
-}
-
-impl ShareFetchTerminalSettlementError {
-    pub(in crate::consumer::share) const fn kind(&self) -> ShareFetchTerminalSettlementErrorKind {
-        match self {
-            Self::Occupied => ShareFetchTerminalSettlementErrorKind::Occupied,
-            Self::MissingTerminal => ShareFetchTerminalSettlementErrorKind::MissingTerminal,
-            Self::MissingLockTimeout => ShareFetchTerminalSettlementErrorKind::MissingLockTimeout,
-            Self::LockDeadlineOverflow => {
-                ShareFetchTerminalSettlementErrorKind::LockDeadlineOverflow
-            }
-            Self::ThrottleDeadlineOverflow => {
-                ShareFetchTerminalSettlementErrorKind::ThrottleDeadlineOverflow
-            }
-            Self::Decode(_) => ShareFetchTerminalSettlementErrorKind::Decode,
-            Self::Core(kind) => ShareFetchTerminalSettlementErrorKind::Core(*kind),
-            Self::BrokerRejected(code) => {
-                ShareFetchTerminalSettlementErrorKind::BrokerRejected(code.get())
-            }
-            Self::Driver { kind, delivery } => ShareFetchTerminalSettlementErrorKind::Driver {
-                kind: *kind,
-                delivery: *delivery,
-            },
-            Self::Session(error) => ShareFetchTerminalSettlementErrorKind::Session(*error),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::consumer::share) enum ShareFetchTerminalSettlementErrorKind {
-    Occupied,
-    MissingTerminal,
-    MissingLockTimeout,
-    LockDeadlineOverflow,
-    ThrottleDeadlineOverflow,
-    Decode,
-    Core(ShareFetchSettlementErrorKind),
-    BrokerRejected(i16),
-    Driver {
-        kind: ShareFetchFailureKind,
-        delivery: DeliveryStatus,
-    },
-    Session(ShareFetchSessionOwnerError),
 }
