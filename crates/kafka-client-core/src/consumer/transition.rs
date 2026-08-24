@@ -23,6 +23,14 @@ impl AssignedConsumerMachine {
                 now,
                 resolution_deadline,
             } => self.assign(partitions, now, resolution_deadline),
+            AssignedConsumerInput::AddAssignments {
+                partitions,
+                now,
+                resolution_deadline,
+            } => self.add_assignments(partitions, now, resolution_deadline),
+            AssignedConsumerInput::RemoveAssignments { partitions } => {
+                self.remove_assignments(&partitions)
+            }
             AssignedConsumerInput::RetireAssignment { assignment_epoch } => self
                 .retire_assignment(RetireAssignment::new(assignment_epoch))
                 .map_err(|error| reusable_retirement_error(error.kind())),
@@ -55,51 +63,32 @@ impl AssignedConsumerMachine {
                 now,
                 throttle_ticks,
             } => {
-                let assignment = self.assignment_mut(fence.assignment_epoch())?;
-                let effect = assignment.find_mut(fence.partition())?.position_resolved(
-                    fence,
-                    next_offset,
-                    now,
-                    throttle_ticks,
-                )?;
-                Ok(AssignedConsumerTransition::new(
-                    fence.assignment_epoch(),
-                    vec![effect],
-                ))
+                let (current, state) =
+                    self.fenced_partition_mut(fence.assignment_epoch(), fence.partition())?;
+                let effect = state.position_resolved(fence, next_offset, now, throttle_ticks)?;
+                Ok(AssignedConsumerTransition::new(current, vec![effect]))
             }
             AssignedConsumerInput::PositionResolutionFailed {
                 fence,
                 now,
                 failure,
             } => {
-                let assignment = self.assignment_mut(fence.assignment_epoch())?;
-                let effect = assignment
-                    .find_mut(fence.partition())?
-                    .position_resolution_failed(fence, now, failure)?;
-                Ok(AssignedConsumerTransition::new(
-                    fence.assignment_epoch(),
-                    vec![effect],
-                ))
+                let (current, state) =
+                    self.fenced_partition_mut(fence.assignment_epoch(), fence.partition())?;
+                let effect = state.position_resolution_failed(fence, now, failure)?;
+                Ok(AssignedConsumerTransition::new(current, vec![effect]))
             }
             AssignedConsumerInput::PositionResolutionDeadlineElapsed { fence, now } => {
-                let assignment = self.assignment_mut(fence.assignment_epoch())?;
-                let effect = assignment
-                    .find_mut(fence.partition())?
-                    .position_resolution_deadline_elapsed(fence, now)?;
-                Ok(AssignedConsumerTransition::new(
-                    fence.assignment_epoch(),
-                    vec![effect],
-                ))
+                let (current, state) =
+                    self.fenced_partition_mut(fence.assignment_epoch(), fence.partition())?;
+                let effect = state.position_resolution_deadline_elapsed(fence, now)?;
+                Ok(AssignedConsumerTransition::new(current, vec![effect]))
             }
             AssignedConsumerInput::PositionThrottleElapsed { fence, now } => {
-                let assignment = self.assignment_mut(fence.assignment_epoch())?;
-                let effect = assignment
-                    .find_mut(fence.partition())?
-                    .position_throttle_elapsed(fence, now)?;
-                Ok(AssignedConsumerTransition::new(
-                    fence.assignment_epoch(),
-                    vec![effect],
-                ))
+                let (current, state) =
+                    self.fenced_partition_mut(fence.assignment_epoch(), fence.partition())?;
+                let effect = state.position_throttle_elapsed(fence, now)?;
+                Ok(AssignedConsumerTransition::new(current, vec![effect]))
             }
             AssignedConsumerInput::FetchAdvanced {
                 fence,
@@ -144,7 +133,7 @@ impl AssignedConsumerMachine {
         if let Some(assignment) = &self.assignment {
             effects.extend(assignment.partitions.iter().map(|state| {
                 AssignedConsumerEffect::Revoke {
-                    assignment_epoch: assignment.epoch,
+                    assignment_epoch: state.assignment_epoch(),
                     partition: state.partition,
                 }
             }));
@@ -164,10 +153,7 @@ impl AssignedConsumerMachine {
         partition: AssignedTopicPartition,
     ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
         self.ensure_open()?;
-        let effect = self
-            .assignment_mut(epoch)?
-            .find_mut(partition)?
-            .pause(epoch)?;
+        let effect = self.assignment_mut(epoch)?.find_mut(partition)?.pause()?;
         Ok(AssignedConsumerTransition::new(
             epoch,
             effect.into_iter().collect(),
@@ -185,7 +171,7 @@ impl AssignedConsumerMachine {
         let effect = self
             .assignment_mut(epoch)?
             .find_mut(partition)?
-            .resume(epoch, now, deadline)?;
+            .resume(now, deadline)?;
         Ok(AssignedConsumerTransition::new(
             epoch,
             effect.into_iter().collect(),
@@ -204,7 +190,7 @@ impl AssignedConsumerMachine {
         let effects = self
             .assignment_mut(epoch)?
             .find_mut(partition)?
-            .seek(epoch, position, now, deadline)?;
+            .seek(position, now, deadline)?;
         Ok(AssignedConsumerTransition::new(epoch, effects))
     }
 

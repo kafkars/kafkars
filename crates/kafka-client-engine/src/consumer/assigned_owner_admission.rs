@@ -8,9 +8,23 @@ use kafka_client_core::{AssignedConsumerInput, AssignmentEpoch};
 use crate::clock::DeadlineCapture;
 
 use super::{
-    assigned_owner::AssignedConsumerOwner, assigned_owner_fault::AssignedConsumerOwnerFault,
-    assigned_owner_model::AssignedConsumerOwnerError, assigned_topics::AssignedPartitionInput,
+    assigned_event::{AssignedConsumerEventStoreError, PreparedEventClaims},
+    assigned_owner::AssignedConsumerOwner,
+    assigned_owner_fault::AssignedConsumerOwnerFault,
+    assigned_owner_model::AssignedConsumerOwnerError,
+    assigned_topics::AssignedPartitionInput,
 };
+
+pub(super) fn commit_assignment_event_claims(
+    claims: PreparedEventClaims<'_, '_>,
+    effects: &[kafka_client_core::AssignedConsumerEffect],
+) -> Result<(), AssignedConsumerEventStoreError> {
+    claims.commit_event_claims(effects)
+}
+
+pub(super) fn rollback_assignment_event_claims(claims: PreparedEventClaims<'_, '_>) {
+    claims.rollback_event_claims();
+}
 
 impl AssignedConsumerOwner {
     /// Replaces all assigned partitions after one deadline-first, two-phase preparation.

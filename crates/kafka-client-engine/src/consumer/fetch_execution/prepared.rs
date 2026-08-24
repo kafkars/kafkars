@@ -117,6 +117,10 @@ impl PreparedFetchExecution {
         self.request.operation_deadline().core()
     }
 
+    pub(super) fn is_superseded_by(&self, effect: AssignedConsumerEffect) -> bool {
+        self.request.is_superseded_by(effect)
+    }
+
     /// Reconciles queued work against the core-owned directional fence policy.
     #[allow(
         clippy::result_large_err,

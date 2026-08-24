@@ -34,11 +34,12 @@ impl AssignedPartitionState {
         &self.position
     }
 
-    pub(in crate::consumer) const fn position_fence(
-        &self,
-        assignment_epoch: AssignmentEpoch,
-    ) -> PositionFence {
-        PositionFence::new(assignment_epoch, self.partition, self.position.epoch())
+    pub(in crate::consumer) const fn assignment_epoch(&self) -> AssignmentEpoch {
+        self.assignment_epoch
+    }
+
+    pub(in crate::consumer) const fn position_fence(&self) -> PositionFence {
+        PositionFence::new(self.assignment_epoch, self.partition, self.position.epoch())
     }
 
     pub(in crate::consumer) fn plan_assignment_reconciliation(
@@ -56,18 +57,19 @@ impl AssignedPartitionState {
 
     pub(in crate::consumer) fn install_assignment_reconciliation(
         &mut self,
+        new_assignment_epoch: AssignmentEpoch,
         plan: RetainedAssignmentPositionPlan,
     ) -> Option<AssignedConsumerEffect> {
+        self.assignment_epoch = new_assignment_epoch;
         self.position.install_assignment_reconciliation(plan)
     }
 
     pub(super) fn activate(
         &mut self,
-        assignment_epoch: AssignmentEpoch,
         now: Moment,
         deadline: Deadline,
     ) -> Result<Option<AssignedConsumerEffect>, AssignedConsumerMachineError> {
-        let fence = self.position_fence(assignment_epoch);
+        let fence = self.position_fence();
         self.position.activate(fence, self.partition, now, deadline)
     }
 
@@ -79,7 +81,7 @@ impl AssignedPartitionState {
         &self,
         supplied: PositionFence,
     ) -> Result<(), AssignedConsumerMachineError> {
-        let active = self.position_fence(supplied.assignment_epoch());
+        let active = self.position_fence();
         if active == supplied {
             Ok(())
         } else {

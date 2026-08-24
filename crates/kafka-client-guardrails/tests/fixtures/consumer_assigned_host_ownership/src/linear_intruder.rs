@@ -1,6 +1,9 @@
 //! Deliberately cloneable assigned-host lifecycle owners.
 
 #[derive(Clone, Copy)]
+struct AssignedConsumerAddAssignmentsCapture;
+
+#[derive(Clone, Copy)]
 struct AssignedConsumerShardState;
 
 #[derive(Clone, Copy)]

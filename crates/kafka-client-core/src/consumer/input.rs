@@ -1,8 +1,8 @@
 //! Facts and direct control requests accepted by the assigned-consumer owner.
 //!
-//! `Assign`, `Resume`, and `Seek` carry an absolute child-resolution deadline
-//! captured before the public call enters the engine. Core never reconstructs
-//! that deadline from a later relative timeout.
+//! `Assign`, `AddAssignments`, `Resume`, and `Seek` carry an absolute
+//! child-resolution deadline captured before the public call enters the engine.
+//! Core never reconstructs that deadline from a later relative timeout.
 
 use super::{
     AssignedConsumerCloseId, AssignedPartition, AssignedTopicPartition, AssignmentEpoch,
@@ -35,21 +35,37 @@ pub enum AssignedConsumerInput {
         /// Explicit offsets need no resolution and therefore ignore this value.
         resolution_deadline: Deadline,
     },
+    /// Adds new partitions without disturbing retained partition positions.
+    AddAssignments {
+        /// Caller-ordered partitions and their initial positions.
+        partitions: Vec<AssignedPartition>,
+        /// Monotonic observation captured at this public operation boundary.
+        now: Moment,
+        /// Absolute child-resolution deadline captured before this input reached the core.
+        ///
+        /// Explicit offsets need no resolution and therefore ignore this value.
+        resolution_deadline: Deadline,
+    },
+    /// Removes assigned partitions without disturbing surviving partition positions.
+    RemoveAssignments {
+        /// Caller-ordered topic-partitions to remove.
+        partitions: Vec<AssignedTopicPartition>,
+    },
     /// Retires the exact optional assignment observed by classic-group ownership.
     RetireAssignment {
-        /// Exact active epoch, or `None` only when no assignment was observed.
+        /// Exact complete-assignment control revision, or `None` when unassigned.
         assignment_epoch: Option<AssignmentEpoch>,
     },
     /// Fences and pauses one assigned partition.
     Pause {
-        /// Assignment generation observed by the caller.
+        /// Current complete-assignment control revision observed by the caller.
         assignment_epoch: AssignmentEpoch,
         /// Partition to pause.
         partition: AssignedTopicPartition,
     },
     /// Resumes one paused partition at its retained next position.
     Resume {
-        /// Assignment generation observed by the caller.
+        /// Current complete-assignment control revision observed by the caller.
         assignment_epoch: AssignmentEpoch,
         /// Partition to resume.
         partition: AssignedTopicPartition,
@@ -62,7 +78,7 @@ pub enum AssignedConsumerInput {
     },
     /// Fences outstanding work and replaces one partition position.
     Seek {
-        /// Assignment generation observed by the caller.
+        /// Current complete-assignment control revision observed by the caller.
         assignment_epoch: AssignmentEpoch,
         /// Partition whose position changes.
         partition: AssignedTopicPartition,

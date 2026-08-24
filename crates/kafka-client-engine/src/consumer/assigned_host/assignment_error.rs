@@ -85,10 +85,11 @@ const fn topic_error_kind(
         }
         AssignedTopicsError::RetainedNameBytesOverflow
         | AssignedTopicsError::RetainedTopicCountOverflow
-        | AssignedTopicsError::TopicIdentityExhausted => {
+        | AssignedTopicsError::TopicIdentityExhausted
+        | AssignedTopicsError::Allocation => {
             AssignedConsumerTryReplaceAssignmentErrorKind::ResourceExhausted
         }
-        AssignedTopicsError::UnknownTopic(_) => {
+        AssignedTopicsError::UnknownTopicName | AssignedTopicsError::UnknownTopic(_) => {
             AssignedConsumerTryReplaceAssignmentErrorKind::InternalInvariant
         }
     }
@@ -108,6 +109,7 @@ const fn core_error_kind(
             AssignedConsumerTryReplaceAssignmentErrorKind::DuplicatePartition
         }
         AssignedConsumerMachineError::ControlAllocationFailed
+        | AssignedConsumerMachineError::AssignmentChangeAllocationFailed
         | AssignedConsumerMachineError::AssignmentEpochExhausted => {
             AssignedConsumerTryReplaceAssignmentErrorKind::ResourceExhausted
         }
@@ -116,6 +118,7 @@ const fn core_error_kind(
         | AssignedConsumerMachineError::CloseAlreadyCompleted { .. }
         | AssignedConsumerMachineError::AssignmentRetirementRejected { .. }
         | AssignedConsumerMachineError::NoAssignment
+        | AssignedConsumerMachineError::PartitionAlreadyAssigned { .. }
         | AssignedConsumerMachineError::StaleAssignment { .. }
         | AssignedConsumerMachineError::UnknownPartition { .. }
         | AssignedConsumerMachineError::PositionEpochExhausted { .. }

@@ -8,6 +8,8 @@ use super::super::AssignedConsumerEventStore;
 pub(super) enum PreparedKind<'input> {
     Replacement(usize),
     Reconciliation(usize),
+    Addition(usize),
+    Removal(usize),
     Partition(AssignedTopicPartition),
     Pause(&'input [AssignedTopicPartition]),
     Resume(&'input [AssignedTopicPartition]),

@@ -20,23 +20,21 @@ impl AssignedConsumerMachine {
             .assignment
             .as_ref()
             .ok_or(AssignedConsumerMachineError::NoAssignment)?;
-        if position.assignment_epoch() < assignment.epoch {
-            return Ok(FetchOwnership::Superseded);
-        }
-        if position.assignment_epoch() > assignment.epoch {
-            return Err(AssignedConsumerMachineError::StaleAssignment {
-                active: assignment.epoch,
-                supplied: position.assignment_epoch(),
-            });
-        }
-        assignment
-            .partitions
-            .iter()
-            .find(|state| state.partition == position.partition())
-            .ok_or(AssignedConsumerMachineError::UnknownPartition {
+        match assignment.find(position.partition()) {
+            Some(state) => state.fetch_ownership(fence),
+            None if position.assignment_epoch() < assignment.epoch => {
+                Ok(FetchOwnership::Superseded)
+            }
+            None if position.assignment_epoch() > assignment.epoch => {
+                Err(AssignedConsumerMachineError::StaleAssignment {
+                    active: assignment.epoch,
+                    supplied: position.assignment_epoch(),
+                })
+            }
+            None => Err(AssignedConsumerMachineError::UnknownPartition {
                 partition: position.partition(),
-            })?
-            .fetch_ownership(fence)
+            }),
+        }
     }
 
     pub(super) fn fetch_advanced(
@@ -48,14 +46,10 @@ impl AssignedConsumerMachine {
         throttle_ticks: u64,
     ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
         let position = fence.position();
-        let effects = self
-            .assignment_mut(position.assignment_epoch())?
-            .find_mut(position.partition())?
-            .fetch_advanced(fence, records, next_offset, now, throttle_ticks)?;
-        Ok(AssignedConsumerTransition::new(
-            position.assignment_epoch(),
-            effects,
-        ))
+        let (current, state) =
+            self.fenced_partition_mut(position.assignment_epoch(), position.partition())?;
+        let effects = state.fetch_advanced(fence, records, next_offset, now, throttle_ticks)?;
+        Ok(AssignedConsumerTransition::new(current, effects))
     }
 
     pub(super) fn fetch_failed(
@@ -64,14 +58,10 @@ impl AssignedConsumerMachine {
         failure: FetchFailure,
     ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
         let position = fence.position();
-        let effect = self
-            .assignment_mut(position.assignment_epoch())?
-            .find_mut(position.partition())?
-            .fetch_failed(fence, failure)?;
-        Ok(AssignedConsumerTransition::new(
-            position.assignment_epoch(),
-            vec![effect],
-        ))
+        let (current, state) =
+            self.fenced_partition_mut(position.assignment_epoch(), position.partition())?;
+        let effect = state.fetch_failed(fence, failure)?;
+        Ok(AssignedConsumerTransition::new(current, vec![effect]))
     }
 
     pub(super) fn fetch_retry(
@@ -79,14 +69,10 @@ impl AssignedConsumerMachine {
         fence: FetchFence,
     ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
         let position = fence.position();
-        let effect = self
-            .assignment_mut(position.assignment_epoch())?
-            .find_mut(position.partition())?
-            .fetch_retry(fence)?;
-        Ok(AssignedConsumerTransition::new(
-            position.assignment_epoch(),
-            vec![effect],
-        ))
+        let (current, state) =
+            self.fenced_partition_mut(position.assignment_epoch(), position.partition())?;
+        let effect = state.fetch_retry(fence)?;
+        Ok(AssignedConsumerTransition::new(current, vec![effect]))
     }
 
     pub(super) fn fetch_throttle_elapsed(
@@ -95,13 +81,9 @@ impl AssignedConsumerMachine {
         now: Moment,
     ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
         let position = fence.position();
-        let effect = self
-            .assignment_mut(position.assignment_epoch())?
-            .find_mut(position.partition())?
-            .fetch_throttle_elapsed(fence, now)?;
-        Ok(AssignedConsumerTransition::new(
-            position.assignment_epoch(),
-            vec![effect],
-        ))
+        let (current, state) =
+            self.fenced_partition_mut(position.assignment_epoch(), position.partition())?;
+        let effect = state.fetch_throttle_elapsed(fence, now)?;
+        Ok(AssignedConsumerTransition::new(current, vec![effect]))
     }
 }

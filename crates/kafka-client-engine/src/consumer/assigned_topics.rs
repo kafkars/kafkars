@@ -1,5 +1,8 @@
 //! Bounded lifecycle topic identities and ordered core facts for direct assignment.
 
+mod incremental;
+#[cfg(test)]
+mod incremental_test;
 mod prepared;
 #[cfg(test)]
 mod prepared_test;
@@ -8,6 +11,7 @@ use kafka_client_core::{AssignedPartition, AssignedTopicPartition, PartitionInde
 use std::{collections::BTreeMap, sync::Arc};
 
 pub(crate) use super::assigned_host::AssignedPartitionInput;
+pub(super) use incremental::{PreparedAssignedTopicsAddition, PreparedAssignedTopicsRemoval};
 pub(super) use prepared::PreparedAssignedTopicsReplacement;
 
 /// Bounds topic identities, retained names, and one current assignment.
@@ -53,7 +57,9 @@ pub(crate) enum AssignedTopicsError {
     RetainedNameBytesOverflow,
     RetainedTopicCountOverflow,
     TopicIdentityExhausted,
+    UnknownTopicName,
     UnknownTopic(TopicId),
+    Allocation,
 }
 
 /// Failure to copy one retained topic into exact request ownership.
@@ -93,6 +99,20 @@ impl AssignedTopics {
         PreparedAssignedTopicsReplacement::prepare(self, entries)
     }
 
+    pub(super) fn prepare_addition(
+        &mut self,
+        entries: Vec<AssignedPartitionInput>,
+    ) -> Result<PreparedAssignedTopicsAddition<'_>, AssignedTopicsError> {
+        PreparedAssignedTopicsAddition::prepare(self, entries)
+    }
+
+    pub(super) fn prepare_removal(
+        &mut self,
+        entries: &[super::assigned_host::AssignedConsumerPartition],
+    ) -> Result<PreparedAssignedTopicsRemoval<'_>, AssignedTopicsError> {
+        PreparedAssignedTopicsRemoval::prepare(self, entries)
+    }
+
     fn install_replacement(
         &mut self,
         staged_names: BTreeMap<Arc<str>, TopicId>,
@@ -107,6 +127,22 @@ impl AssignedTopics {
         self.next_topic_id = staged_next_topic_id;
         self.retained_name_bytes = staged_name_bytes;
         self.partitions = staged_partitions;
+    }
+
+    fn install_partitions(&mut self, partitions: Vec<AssignedPartition>) {
+        self.partitions = partitions;
+    }
+
+    fn retained_topic_id(&self, topic: &str) -> Option<TopicId> {
+        self.by_name.get(topic).copied()
+    }
+
+    fn topic_id_is_retained(&self, topic_id: TopicId) -> bool {
+        self.by_id.contains_key(&topic_id)
+    }
+
+    const fn next_topic_id(&self) -> Option<TopicId> {
+        self.next_topic_id
     }
 
     pub(super) fn partitions(&self) -> &[AssignedPartition] {

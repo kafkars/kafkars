@@ -116,9 +116,11 @@ downgrade switches.
 ### Consumer
 
 Direct assignment and hosted group membership reuse mechanisms but not policy.
-Assignment epochs fence delivery, seek, pause, resume, and checkpoint commit.
-Fetch retains bounded decoded batches and advances only through core-authorized
-facts. Group heartbeats do not substitute for application-processing liveness.
+Direct assignment retains one current control revision while each partition's
+acquisition revision independently fences delivery and Fetch work. Incremental
+changes preserve unchanged partition positions and fences. Fetch retains bounded
+decoded batches and advances only through core-authorized facts. Group heartbeats
+do not substitute for application-processing liveness.
 
 Classic and consumer-protocol membership retain separate concrete machines.
 The driver owns coordinator routing; the client owns no coordinator cache.

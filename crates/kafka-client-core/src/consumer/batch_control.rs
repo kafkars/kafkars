@@ -37,9 +37,7 @@ impl AssignedConsumerMachine {
             .as_mut()
             .unwrap_or_else(|| unreachable!("batch preflight retained the assignment"));
         for (index, plan) in plans {
-            if let Some(effect) =
-                assignment.partitions[index].install_planned_pause(assignment_epoch, plan)
-            {
+            if let Some(effect) = assignment.partitions[index].install_planned_pause(plan) {
                 effects.push(effect);
             }
         }
@@ -73,11 +71,7 @@ impl AssignedConsumerMachine {
                 })?;
             plans.push((
                 index,
-                assignment.partitions[index].plan_retained_resume(
-                    assignment_epoch,
-                    now,
-                    resolution_deadline,
-                )?,
+                assignment.partitions[index].plan_retained_resume(now, resolution_deadline)?,
             ));
         }
         let assignment = self

@@ -4,7 +4,7 @@ use core::fmt;
 
 use super::AssignmentEpoch;
 
-/// Exact optional active assignment that may be retired.
+/// Exact optional complete-assignment control revision that may be retired.
 #[must_use = "an assignment retirement must be applied or explicitly abandoned"]
 #[derive(Debug, Eq, PartialEq)]
 pub struct RetireAssignment {
@@ -12,14 +12,14 @@ pub struct RetireAssignment {
 }
 
 impl RetireAssignment {
-    /// Binds retirement to the complete assignment state observed by its owner.
+    /// Binds retirement to the complete-assignment control state observed by its owner.
     pub const fn new(expected_assignment_epoch: Option<AssignmentEpoch>) -> Self {
         Self {
             expected_assignment_epoch,
         }
     }
 
-    /// Returns the exact optional active assignment this input may retire.
+    /// Returns the exact optional control revision this input may retire.
     pub const fn expected_assignment_epoch(&self) -> Option<AssignmentEpoch> {
         self.expected_assignment_epoch
     }

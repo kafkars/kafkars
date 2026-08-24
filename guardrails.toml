@@ -95,8 +95,8 @@ baseline = [
   { path = "crates/kafka-client-core/src/consumer/classic_group/processing_lease/machine.rs", lines = 274, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-core/src/consumer/classic_group/reconciliation.rs", lines = 271, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-core/src/consumer/classic_group/transition.rs", lines = 269, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-core/src/consumer/mod.rs", lines = 84, reason = "the declarative core consumer facade names atomic batch control and its sibling evidence beside direct-assignment policy" },
-  { path = "crates/kafka-client-core/src/consumer/resolved_assignment/reconciliation_transition.rs", lines = 292, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-core/src/consumer/mod.rs", lines = 91, reason = "the declarative core consumer facade names atomic batch control, incremental direct assignment, and their sibling evidence" },
+  { path = "crates/kafka-client-core/src/consumer/resolved_assignment/reconciliation_transition.rs", lines = 291, reason = "the focused owner keeps resolved reconciliation and heterogeneous acquisition fencing in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-core/src/consumer/resolved_assignment/reconciliation_transition_test.rs", lines = 449, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-core/src/producer/idempotence_transition.rs", lines = 253, reason = "the identity transition keeps exact code-fourteen retry classification beside atomic terminal fencing; this measured baseline ratchets further growth pending a focused split" },
   { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 95, reason = "the declarative producer facade names the complete deterministic producer state surface including bounded identity retry, waiting, and their evidence" },
@@ -156,7 +156,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group_registration.rs", lines = 246, reason = "the public engine handle keeps capture-first registration, exact rejected request restoration, its sticky receive wake token, and unique operation entry points together" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request.rs", lines = 326, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group_registration_request_test.rs", lines = 492, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 102, reason = "the declarative consumer facade adds the public ShareAcknowledge admission and observation boundary beside share batches" },
+  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 105, reason = "the declarative consumer facade names the public ShareAcknowledge boundary and focused incremental direct-assignment admission owner" },
   { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 149, reason = "the declarative share facade names acknowledgement completion, capture-first admission, hosted publication, and their sibling evidence beside ShareFetch ownership" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
@@ -193,7 +193,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members.rs", lines = 270, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members_test.rs", lines = 302, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/mod.rs", lines = 89, reason = "the declarative consumer protocol facade names classic-group, Fetch, share-heartbeat, ShareAcknowledge, position, and offset-commit protocol ownership including static membership" },
-  { path = "crates/kafka-client-engine/src/public_api.rs", lines = 490, reason = "the engine crate facade explicitly reexports the complete typed Rust source-preview engine, lease-preserving owned direct-consumer batch vocabulary, transactional batch vocabulary, and operational metrics surface" },
+  { path = "crates/kafka-client-engine/src/public_api.rs", lines = 492, reason = "the engine crate facade explicitly reexports the complete typed Rust source-preview engine, incremental and lease-preserving direct-consumer vocabulary, transactional batch vocabulary, and operational metrics surface" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 265, reason = "the transaction-initialization settlement seam preserves its prior public failure taxonomy while the shared API 22 terminal now distinguishes compatibility for producer-fencing callers" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host.rs", lines = 245, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host_test.rs", lines = 325, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -204,7 +204,6 @@ baseline = [
   { path = "crates/kafka-client-guardrails/tests/admin_expire_delegation_token_guard/expectations.rs", lines = 335, reason = "the detector-safe finite API 40 ownership, capability, and mirror path map remains explicit in one checked-in expectation table" },
   { path = "crates/kafka-client-guardrails/tests/admin_renew_delegation_token_guard/expectations.rs", lines = 335, reason = "the detector-safe finite API 39 ownership, capability, and mirror path map remains explicit in one checked-in expectation table" },
   { path = "crates/kafka-client-guardrails/tests/consumer_assigned_event_ownership_guard.rs", lines = 311, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-guardrails/tests/consumer_assigned_host_ownership_guard.rs", lines = 311, reason = "the exact post-driver recovery authority set remains one guard scenario" },
   { path = "crates/kafka-client-guardrails/tests/consumer_classic_group_fetch_preparation_guard.rs", lines = 332, reason = "the exact Fetch mutation and attempt-authority policy includes atomic batch-control ownership in one guard scenario" },
   { path = "crates/kafka-client-guardrails/tests/consumer_group_registry_guard.rs", lines = 305, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-guardrails/tests/support/capability.rs", lines = 320, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -1546,6 +1545,10 @@ production = "crates/kafka-client-core/src/consumer/assignment_retirement_transi
 test = "crates/kafka-client-core/src/consumer/assignment_retirement_transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/incremental_assignment.rs"
+test = "crates/kafka-client-core/src/consumer/incremental_assignment_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/close.rs"
 test = "crates/kafka-client-core/src/consumer/close_test.rs"
 
@@ -2550,6 +2553,26 @@ production = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_c
 test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_capture_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_capture.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_capture_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_error.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_handle.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_port.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_port_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_result.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_result_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/position_prepare_error.rs"
 test = "crates/kafka-client-engine/src/consumer/position_prepare_error_test.rs"
 
@@ -2594,6 +2617,10 @@ production = "crates/kafka-client-engine/src/consumer/assigned_topics/prepared.r
 test = "crates/kafka-client-engine/src/consumer/assigned_topics/prepared_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_topics/incremental.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_topics/incremental_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/delivery_ownership.rs"
 test = "crates/kafka-client-core/src/consumer/delivery_ownership_test.rs"
 
@@ -2604,6 +2631,10 @@ test = "crates/kafka-client-engine/src/consumer/assigned_owner_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_owner_admission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_host/owner_control.rs"
@@ -3212,6 +3243,10 @@ test = "crates/kafkars/src/producer/handle_test.rs"
 [[test_mirrors]]
 production = "crates/kafkars/src/consumer/assigned.rs"
 test = "crates/kafkars/src/consumer/assigned_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/assigned_incremental.rs"
+test = "crates/kafkars/src/consumer/assigned_incremental_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafkars/src/consumer/assignment.rs"
@@ -4720,6 +4755,34 @@ forbidden = [
   "Retry",
 ]
 
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_topics/incremental.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
 # Direct-consumer position execution may use the engine driver port, never raw
 # driver, wire, clock acquisition, sibling policy, or generic async machinery.
 [[capability_rules]]
@@ -5984,6 +6047,13 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "install_addition_claims"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_event/prepared/commit.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "take_event"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_event.rs",
@@ -6371,6 +6441,23 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/assigned_host/owner_control.rs"
 forbidden = [
   "kafka_driver",
@@ -6610,6 +6697,91 @@ forbidden = [
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_result.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_capture.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_error.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_handle.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_port.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_result.rs"
 forbidden = [
   "kafka_driver",
   "kafka_wire",
@@ -7854,6 +8026,7 @@ allowed_paths = ["crates/kafka-client-core/src/producer/sticky.rs"]
 owner_type = "AssignedConsumerMachine"
 field = "next_epoch"
 allowed_paths = [
+  "crates/kafka-client-core/src/consumer/incremental_assignment.rs",
   "crates/kafka-client-core/src/consumer/machine.rs",
   "crates/kafka-client-core/src/consumer/resolved_assignment_install.rs",
   "crates/kafka-client-core/src/consumer/transition.rs",
@@ -7868,6 +8041,7 @@ allowed_paths = [
   "crates/kafka-client-core/src/consumer/close.rs",
   "crates/kafka-client-core/src/consumer/delivery_ownership.rs",
   "crates/kafka-client-core/src/consumer/fetch_transition.rs",
+  "crates/kafka-client-core/src/consumer/incremental_assignment.rs",
   "crates/kafka-client-core/src/consumer/machine.rs",
   "crates/kafka-client-core/src/consumer/position_ownership.rs",
   "crates/kafka-client-core/src/consumer/resolved_assignment_install.rs",
@@ -7890,6 +8064,13 @@ field = "paused"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/position.rs",
   "crates/kafka-client-core/src/consumer/position/control.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedPartitionState"
+field = "assignment_epoch"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/position/access.rs",
 ]
 
 [[mutation_owners]]
@@ -9109,6 +9290,10 @@ owner_type = "AssignedConsumerAssignmentCapture"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_capture.rs"
 
 [[linear_owners]]
+owner_type = "AssignedConsumerAddAssignmentsCapture"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_capture.rs"
+
+[[linear_owners]]
 owner_type = "AssignedConsumerResumeCapture"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/control_capture.rs"
 
@@ -9168,6 +9353,14 @@ path = "crates/kafka-client-engine/src/consumer/assigned_topics.rs"
 [[linear_owners]]
 owner_type = "PreparedAssignedTopicsReplacement"
 path = "crates/kafka-client-engine/src/consumer/assigned_topics/prepared.rs"
+
+[[linear_owners]]
+owner_type = "PreparedAssignedTopicsAddition"
+path = "crates/kafka-client-engine/src/consumer/assigned_topics/incremental.rs"
+
+[[linear_owners]]
+owner_type = "PreparedAssignedTopicsRemoval"
+path = "crates/kafka-client-engine/src/consumer/assigned_topics/incremental.rs"
 
 [[linear_owners]]
 owner_type = "PreparedPositionResolution"
@@ -9364,6 +9557,7 @@ owner_type = "AssignedConsumerOwner"
 field = "machine"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
@@ -9378,6 +9572,7 @@ field = "events"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
@@ -9457,6 +9652,7 @@ field = "fault"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",

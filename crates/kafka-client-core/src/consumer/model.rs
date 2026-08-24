@@ -81,7 +81,7 @@ impl AssignedPartition {
     }
 }
 
-/// Exact assignment and position generation for one interpreter action.
+/// Exact partition-acquisition and position generation for one interpreter action.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PositionFence {
     assignment_epoch: AssignmentEpoch,
@@ -102,7 +102,7 @@ impl PositionFence {
         }
     }
 
-    /// Returns the complete assignment generation.
+    /// Returns the revision that acquired this partition ownership.
     pub const fn assignment_epoch(self) -> AssignmentEpoch {
         self.assignment_epoch
     }

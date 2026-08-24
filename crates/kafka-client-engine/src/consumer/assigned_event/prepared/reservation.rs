@@ -1,6 +1,6 @@
 //! Pre-core capacity and uniqueness checks for each claim-bearing transition.
 
-use kafka_client_core::AssignedTopicPartition;
+use kafka_client_core::{AssignedPartition, AssignedTopicPartition};
 
 use super::{
     super::{AssignedConsumerEventStore, AssignedConsumerEventStoreError},
@@ -8,6 +8,49 @@ use super::{
 };
 
 impl AssignedConsumerEventStore {
+    pub(crate) fn prepare_addition(
+        &mut self,
+        partitions: &[AssignedPartition],
+    ) -> Result<PreparedEventClaims<'_, 'static>, AssignedConsumerEventStoreError> {
+        let mut additional = 0usize;
+        for (index, partition) in partitions.iter().enumerate() {
+            let partition = partition.partition();
+            let already_counted = partitions[..index]
+                .iter()
+                .any(|present| present.partition() == partition);
+            let already_claimed = self
+                .claims
+                .iter()
+                .any(|claim| claim.partition() == partition);
+            if !already_counted && !already_claimed {
+                additional = additional.saturating_add(1);
+            }
+        }
+        if self
+            .claims
+            .len()
+            .saturating_add(self.ready.len())
+            .saturating_add(additional)
+            > self.capacity
+        {
+            return Err(AssignedConsumerEventStoreError::Capacity);
+        }
+        Ok(PreparedEventClaims {
+            store: self,
+            kind: PreparedKind::Addition(partitions.len()),
+        })
+    }
+
+    pub(crate) fn prepare_removal(
+        &mut self,
+        partition_count: usize,
+    ) -> PreparedEventClaims<'_, 'static> {
+        PreparedEventClaims {
+            store: self,
+            kind: PreparedKind::Removal(partition_count),
+        }
+    }
+
     pub(crate) fn prepare_replacement(
         &mut self,
         partition_count: usize,

@@ -69,7 +69,7 @@ fn positive_throttle_arms_exact_initial_fetch_fences_until_due() {
 }
 
 #[test]
-fn replacement_revokes_old_assignment_before_resolved_fetches() {
+fn replacement_revokes_each_acquisition_epoch_before_resolved_fetches() {
     let mut machine = AssignedConsumerMachine::new();
     machine
         .apply(AssignedConsumerInput::Assign {
@@ -81,6 +81,19 @@ fn replacement_revokes_old_assignment_before_resolved_fetches() {
             resolution_deadline: Deadline::from_tick(10),
         })
         .unwrap_or_else(|error| panic!("initial direct assignment: {error}"));
+    let addition = machine
+        .apply(AssignedConsumerInput::AddAssignments {
+            partitions: vec![AssignedPartition::new(
+                topic_partition(1, 2),
+                StartPosition::Offset(offset(9)),
+            )],
+            now: Moment::from_tick(11),
+            resolution_deadline: Deadline::from_tick(13),
+        })
+        .unwrap_or_else(|error| panic!("incremental addition: {error}"));
+    let addition_epoch = addition
+        .assignment_epoch()
+        .unwrap_or_else(|| panic!("addition epoch"));
 
     let transition = machine
         .install_resolved_assignment(install(machine.assignment_epoch(), &[(2, 1, 13)], 17, 0))
@@ -88,19 +101,25 @@ fn replacement_revokes_old_assignment_before_resolved_fetches() {
 
     assert_eq!(
         transition.assignment_epoch().map(AssignmentEpoch::get),
-        Some(2)
+        Some(3)
     );
     assert!(matches!(
         transition.effects(),
         [
             AssignedConsumerEffect::Revoke {
-                assignment_epoch,
-                partition,
+                assignment_epoch: first_epoch,
+                partition: first_partition,
+            },
+            AssignedConsumerEffect::Revoke {
+                assignment_epoch: second_epoch,
+                partition: second_partition,
             },
             AssignedConsumerEffect::FetchReady { fence, next_offset },
-        ] if assignment_epoch.get() == 1
-            && *partition == topic_partition(1, 0)
-            && fence.position().assignment_epoch().get() == 2
+        ] if first_epoch.get() == 1
+            && *first_partition == topic_partition(1, 0)
+            && *second_epoch == addition_epoch
+            && *second_partition == topic_partition(1, 2)
+            && fence.position().assignment_epoch().get() == 3
             && fence.position().partition() == topic_partition(2, 1)
             && *next_offset == offset(13)
     ));

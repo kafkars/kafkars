@@ -8,81 +8,40 @@ use support::{
     mutation_violations, workspace_root,
 };
 
-const MIRRORS: &[(&str, &str)] = &[
-    (
-        "consumer/assigned_host/assignment.rs",
-        "consumer/assigned_host/assignment_test.rs",
-    ),
-    (
-        "consumer/assigned_owner_recovery.rs",
-        "consumer/assigned_owner_recovery_test.rs",
-    ),
-    (
-        "consumer/assigned_owner_status.rs",
-        "consumer/assigned_owner_status_test.rs",
-    ),
-    (
-        "consumer/assigned_host/assignment_error.rs",
-        "consumer/assigned_host/assignment_error_test.rs",
-    ),
-    (
-        "consumer/assigned_host/assignment_result.rs",
-        "consumer/assigned_host/assignment_result_test.rs",
-    ),
-    (
-        "consumer/assigned_host/port.rs",
-        "consumer/assigned_host/port_test.rs",
-    ),
-    (
-        "consumer/assigned_host/reclaim.rs",
-        "consumer/assigned_host/reclaim_test.rs",
-    ),
-    (
-        "consumer/assigned_host/result.rs",
-        "consumer/assigned_host/result_test.rs",
-    ),
-    (
-        "consumer/assigned_host/shard.rs",
-        "consumer/assigned_host/shard_test.rs",
-    ),
-    (
-        "consumer/assigned_host/state.rs",
-        "consumer/assigned_host/state_test.rs",
-    ),
-    (
-        "consumer/assigned_host/wake.rs",
-        "consumer/assigned_host/wake_test.rs",
-    ),
-    (
-        "consumer/assigned_host/start.rs",
-        "consumer/assigned_host/start_test.rs",
-    ),
-    (
-        "engine_host/assigned_consumer.rs",
-        "engine_host/assigned_consumer_test.rs",
-    ),
-    (
-        "engine_host/assigned_consumer_start.rs",
-        "engine_host/assigned_consumer_start_test.rs",
-    ),
-    (
-        "engine_host/assigned_consumer_wake.rs",
-        "engine_host/assigned_consumer_wake_test.rs",
-    ),
-    (
-        "engine_host/start_handoff.rs",
-        "engine_host/start_handoff_test.rs",
-    ),
-    (
-        "engine_host/error/host_display.rs",
-        "engine_host/error/host_display_test.rs",
-    ),
+const MIRRORED_PRODUCTION: &[&str] = &[
+    "consumer/assigned_host/assignment.rs",
+    "consumer/assigned_owner_recovery.rs",
+    "consumer/assigned_owner_status.rs",
+    "consumer/assigned_host/assignment_error.rs",
+    "consumer/assigned_host/assignment_change_capture.rs",
+    "consumer/assigned_host/assignment_change_error.rs",
+    "consumer/assigned_host/assignment_change_handle.rs",
+    "consumer/assigned_host/assignment_change_port.rs",
+    "consumer/assigned_host/assignment_change_result.rs",
+    "consumer/assigned_host/assignment_result.rs",
+    "consumer/assigned_host/port.rs",
+    "consumer/assigned_host/reclaim.rs",
+    "consumer/assigned_host/result.rs",
+    "consumer/assigned_host/shard.rs",
+    "consumer/assigned_host/state.rs",
+    "consumer/assigned_host/wake.rs",
+    "consumer/assigned_host/start.rs",
+    "engine_host/assigned_consumer.rs",
+    "engine_host/assigned_consumer_start.rs",
+    "engine_host/assigned_consumer_wake.rs",
+    "engine_host/start_handoff.rs",
+    "engine_host/error/host_display.rs",
 ];
 const CAPABILITY_FILES: &[&str] = &[
     "consumer/assigned_host.rs",
     "consumer/assigned_owner_recovery.rs",
     "consumer/assigned_owner_status.rs",
     "consumer/assigned_host/assignment.rs",
+    "consumer/assigned_host/assignment_change_capture.rs",
+    "consumer/assigned_host/assignment_change_error.rs",
+    "consumer/assigned_host/assignment_change_handle.rs",
+    "consumer/assigned_host/assignment_change_port.rs",
+    "consumer/assigned_host/assignment_change_result.rs",
     "consumer/assigned_host/assignment_error.rs",
     "consumer/assigned_host/assignment_result.rs",
     "consumer/assigned_host/port.rs",
@@ -98,6 +57,10 @@ const CAPABILITY_FILES: &[&str] = &[
     "engine_host/assigned_consumer_wake.rs",
 ];
 const LINEAR: &[(&str, &str)] = &[
+    (
+        "AssignedConsumerAddAssignmentsCapture",
+        "consumer/assigned_host/assignment_change_capture.rs",
+    ),
     (
         "AssignedConsumerShardState",
         "consumer/assigned_host/state.rs",
@@ -164,9 +127,14 @@ const PREFIX: &str = "crates/kafka-client-engine/src/";
 #[test]
 fn checked_in_shape_policy_is_exact() {
     let config = load_config(&workspace_root());
-    for (production, test) in MIRRORS {
+    for production in MIRRORED_PRODUCTION {
+        let test = format!(
+            "{PREFIX}{}_test.rs",
+            production
+                .strip_suffix(".rs")
+                .unwrap_or_else(|| panic!("mirrored production path is not Rust: {production}"))
+        );
         let production = format!("{PREFIX}{production}");
-        let test = format!("{PREFIX}{test}");
         let rules = config
             .test_mirrors
             .iter()

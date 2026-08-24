@@ -55,6 +55,34 @@ impl AssignedConsumerEngine {
         Ok(())
     }
 
+    /// Captures time before converting inputs, then attempts one atomic addition.
+    pub(crate) fn try_add_assignments<I>(
+        &mut self,
+        entries: I,
+        resolution_timeout: std::time::Duration,
+    ) -> Result<(), KafkaError>
+    where
+        I: IntoIterator<Item = crate::consumer::TopicPartition>,
+    {
+        let accepted = AssignedConsumerAssignmentState::try_add(
+            &mut self.handle,
+            entries,
+            resolution_timeout,
+        )?;
+        AssignedConsumerAssignmentState::install_change(&mut self.assignment, accepted);
+        Ok(())
+    }
+
+    /// Converts identity-only inputs before attempting one deadline-free removal.
+    pub(crate) fn try_remove_assignments<I>(&mut self, entries: I) -> Result<(), KafkaError>
+    where
+        I: IntoIterator<Item = crate::consumer::TopicPartition>,
+    {
+        let accepted = AssignedConsumerAssignmentState::try_remove(&mut self.handle, entries)?;
+        AssignedConsumerAssignmentState::install_change(&mut self.assignment, accepted);
+        Ok(())
+    }
+
     /// Attempts one deadline-free assignment-fenced pause.
     pub(crate) fn try_pause(
         &mut self,

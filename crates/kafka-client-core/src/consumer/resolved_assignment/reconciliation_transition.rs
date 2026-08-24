@@ -12,10 +12,11 @@ use crate::consumer::{
 use crate::{Deadline, Moment};
 
 pub(super) enum PreparedReconciliationTarget {
-    Retain {
-        partition: AssignedTopicPartition,
-        plan: RetainedAssignmentPositionPlan,
-    },
+    Retain(
+        AssignedTopicPartition,
+        AssignmentEpoch,
+        RetainedAssignmentPositionPlan,
+    ),
     Acquire {
         state: AssignedPartitionState,
         effect: AssignedConsumerEffect,
@@ -114,14 +115,14 @@ impl AssignedConsumerMachine {
                 .iter()
                 .filter(|state| !target_retains(input.targets(), state.partition))
                 .map(|state| AssignedConsumerEffect::Revoke {
-                    assignment_epoch: assignment.epoch,
+                    assignment_epoch: state.assignment_epoch(),
                     partition: state.partition,
                 }),
         );
         effects.extend(targets.iter().filter_map(|target| match target {
-            PreparedReconciliationTarget::Retain { partition, plan } => {
+            PreparedReconciliationTarget::Retain(partition, epoch, plan) => {
                 Some(AssignedConsumerEffect::Suspend {
-                    fence: plan.suspension_fence(assignment.epoch, *partition),
+                    fence: plan.suspension_fence(*epoch, *partition),
                 })
             }
             PreparedReconciliationTarget::Acquire { .. } => None,
@@ -146,7 +147,7 @@ impl AssignedConsumerMachine {
         let mut old_states = assignment.partitions;
         for target in prepared.targets {
             match target {
-                PreparedReconciliationTarget::Retain { partition, plan } => {
+                PreparedReconciliationTarget::Retain(partition, _, plan) => {
                     let index = old_states
                         .iter()
                         .position(|state| state.partition == partition)
@@ -154,7 +155,9 @@ impl AssignedConsumerMachine {
                             unreachable!("preflighted retained state remains owned")
                         });
                     let mut state = old_states.swap_remove(index);
-                    if let Some(effect) = state.install_assignment_reconciliation(plan) {
+                    if let Some(effect) =
+                        state.install_assignment_reconciliation(prepared.epoch, plan)
+                    {
                         prepared.effects.push(effect);
                     }
                     prepared.states.push(state);
@@ -173,7 +176,6 @@ impl AssignedConsumerMachine {
         AssignedConsumerTransition::new(prepared.epoch, prepared.effects)
     }
 }
-
 fn prepare_reconciliation_target(
     assignment: &DirectAssignment,
     target: ResolvedAssignmentTarget,
@@ -195,7 +197,7 @@ fn prepare_reconciliation_target(
                 .map_err(|error| reconciliation_position_error(error, partition))?;
             let restarts = !state.is_paused() && plan.has_effect();
             Ok((
-                PreparedReconciliationTarget::Retain { partition, plan },
+                PreparedReconciliationTarget::Retain(partition, state.assignment_epoch(), plan),
                 restarts,
             ))
         }
@@ -221,7 +223,6 @@ fn prepare_reconciliation_target(
         }
     }
 }
-
 fn validate_targets(
     targets: &[ResolvedAssignmentTarget],
 ) -> Result<(), ReconcileResolvedAssignmentErrorKind> {
@@ -242,7 +243,6 @@ fn validate_targets(
     }
     Ok(())
 }
-
 fn acquired_throttle_deadline(
     input: &ReconcileResolvedAssignment,
     acquire_count: usize,
@@ -256,7 +256,6 @@ fn acquired_throttle_deadline(
             .ok_or(ReconcileResolvedAssignmentErrorKind::AcquiredFetchThrottleDeadlineOverflow),
     }
 }
-
 fn target_retains(targets: &[ResolvedAssignmentTarget], partition: AssignedTopicPartition) -> bool {
     targets.iter().any(|target| {
         matches!(target, ResolvedAssignmentTarget::Retain(retained) if *retained == partition)

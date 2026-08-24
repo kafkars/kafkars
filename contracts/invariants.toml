@@ -565,7 +565,7 @@ evidence = [
   "crates/kafka-client-core/src/consumer/assignment_retirement_input_test.rs::retired_fetch_terminal_is_inert_before_and_after_rejoin",
   "crates/kafka-client-core/src/consumer/resolved_assignment_install_test.rs::zero_throttle_installs_one_epoch_and_emits_ordered_fetch_ready",
   "crates/kafka-client-core/src/consumer/resolved_assignment_install_test.rs::positive_throttle_arms_exact_initial_fetch_fences_until_due",
-  "crates/kafka-client-core/src/consumer/resolved_assignment_install_test.rs::replacement_revokes_old_assignment_before_resolved_fetches",
+  "crates/kafka-client-core/src/consumer/resolved_assignment_install_test.rs::replacement_revokes_each_acquisition_epoch_before_resolved_fetches",
   "crates/kafka-client-core/src/consumer/resolved_assignment_install_test.rs::empty_install_allocates_a_fresh_epoch_without_fetch_or_deadline_work",
   "crates/kafka-client-core/src/consumer/resolved_assignment_install_test.rs::nonempty_to_empty_replacement_revokes_old_order_without_fetch_work",
   "crates/kafka-client-core/src/consumer/resolved_assignment_rejection_test.rs::overflow_and_invalid_order_return_the_exact_input_without_mutation",
@@ -1297,9 +1297,33 @@ evidence = [
 ]
 
 [[invariant]]
+id = "CON-20"
+title = "Incremental direct assignment preserves survivor ownership"
+statement = "A direct consumer admits each nonempty assignment addition or removal atomically against one current complete-assignment control revision. Addition captures and validates one absolute position-resolution deadline at the public call boundary before input iteration, while removal is deadline-free. Each accepted nonempty change spends one fresh control revision, but every retained partition preserves its exact acquisition epoch, resolved position, Position and Fetch fences, pause, throttle, failure, timer, route-recovery, event-claim, ready-delivery, and executor ownership. Additions append only caller-ordered new partitions under the fresh acquisition epoch; removals emit caller-ordered Revoke effects using each removed partition's acquisition epoch, preserve survivor order, and retain an explicit empty assigned revision after remove-all. Removed work drains as superseded, and remove then re-add cannot reuse a fence or revive an earlier owner. Engine catalog and event preparation commit with the core transition or roll back without mutation, and only target work is started or retired. A valid empty change spends no epoch, changes no state or pending effect, and requests no wake even while earlier effects remain pending; owner fault and closed core state still reject. This introduces no group membership behavior, second timeout, callback, async runtime, generated protocol type, or broker-orchestration authority."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/incremental_assignment_test.rs::unrelated_add_preserves_resolution_fetch_delivery_and_offset_fences",
+  "crates/kafka-client-core/src/consumer/incremental_assignment_test.rs::remove_and_readd_never_revive_old_work_or_perturb_survivors",
+  "crates/kafka-client-core/src/consumer/incremental_assignment_test.rs::controls_use_current_revision_but_emit_the_survivor_acquisition_epoch",
+  "crates/kafka-client-core/src/consumer/incremental_assignment_reconciliation_test.rs::close_and_full_replacement_revoke_each_partition_acquisition_epoch",
+  "crates/kafka-client-core/src/consumer/incremental_assignment_reconciliation_test.rs::pause_and_fetch_throttle_survive_unrelated_changes_exactly",
+  "crates/kafka-client-core/src/consumer/incremental_assignment_edge_test.rs::remove_all_retains_an_empty_revision_and_later_add_is_fresh",
+  "crates/kafka-client-core/src/consumer/assignment_retirement_transition_test.rs::retirement_revokes_each_partition_acquisition_epoch_after_incremental_add",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission_test.rs::addition_preserves_survivor_fence_claim_and_catalog_order",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission_test.rs::removal_revokes_only_target_and_preserves_survivor_work",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission_test.rs::empty_changes_preserve_unassigned_and_assigned_epochs",
+  "crates/kafka-client-engine/src/consumer/assigned_event/prepared_incremental_test.rs::incremental_claims_preserve_unrelated_claims_and_ready_events",
+  "crates/kafka-client-engine/src/consumer/assigned_topics/incremental_test.rs::additions_append_and_removals_preserve_survivor_order_and_topic_identity",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/leader_route_test.rs::incremental_revoke_retires_only_the_matching_leader_recovery",
+  "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_handle_test.rs::empty_changes_preserve_pending_effects_without_an_extra_wake",
+  "crates/kafkars/src/consumer/assigned_incremental_test.rs::incremental_assignment_api_is_synchronous_and_handle_preserving",
+  "crates/kafkars/src/bridge/consumer/assignment_result_test.rs::only_transient_incremental_assignment_rejections_are_retry_safe",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Client policy consumes one absolute deadline"
-statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant. Public operations capture at their public boundary, while engine-owned background Fetch captures at the exact internal-attempt boundary and fence rather than borrowing a later recv observation timeout. Accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and a producer-identity coordinator-load backoff selects the earliest surviving unchanged public deadline without erasing identity-request deadline completion."
+statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant. Public operations, including incremental direct-assignment additions, capture at their public boundary before input iteration or conversion, while engine-owned background Fetch captures at the exact internal-attempt boundary and fence rather than borrowing a later recv observation timeout. Accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and a producer-identity coordinator-load backoff selects the earliest surviving unchanged public deadline without erasing identity-request deadline completion."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/clock/monotonic_test.rs::deadline_capture_uses_one_boundary_observation",
@@ -1327,6 +1351,9 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_position/submission_test.rs::elapsed_prepared_request_settles_before_saturated_capacity",
   "crates/kafka-client-engine/src/consumer/group_seek/admission_test.rs::capture_borrows_the_unique_handle_and_exposes_stable_rejection",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek_test.rs::active_symbolic_seek_retains_original_deadline_until_list_offsets_terminal",
+  "crates/kafka-client-core/src/consumer/incremental_assignment_test.rs::symbolic_add_preserves_the_exact_call_boundary_resolution_deadline",
+  "crates/kafka-client-engine/src/consumer/assigned_host/assignment_change_capture_test.rs::captured_addition_deadline_stays_bound_across_later_contention",
+  "crates/kafkars/src/consumer/assigned_incremental_test.rs::addition_deadline_capture_precedes_input_iteration_and_conversion",
 ]
 
 [[invariant]]

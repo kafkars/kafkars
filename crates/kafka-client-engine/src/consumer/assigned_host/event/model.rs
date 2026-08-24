@@ -22,7 +22,7 @@ impl AssignedConsumerPositionFence {
         self.partition
     }
 
-    /// Returns the complete assignment generation.
+    /// Returns the partition acquisition generation retained by this fence.
     pub const fn assignment_epoch(&self) -> u64 {
         self.assignment_epoch
     }

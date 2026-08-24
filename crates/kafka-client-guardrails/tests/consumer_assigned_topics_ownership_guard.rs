@@ -10,9 +10,12 @@ use support::{
 const OWNER: &str = "AssignedTopics";
 const PATH: &str = "crates/kafka-client-engine/src/consumer/assigned_topics.rs";
 const PREPARED: &str = "crates/kafka-client-engine/src/consumer/assigned_topics/prepared.rs";
+const INCREMENTAL: &str = "crates/kafka-client-engine/src/consumer/assigned_topics/incremental.rs";
 const LINEAR: &[(&str, &str)] = &[
     (OWNER, PATH),
     ("PreparedAssignedTopicsReplacement", PREPARED),
+    ("PreparedAssignedTopicsAddition", INCREMENTAL),
+    ("PreparedAssignedTopicsRemoval", INCREMENTAL),
 ];
 const FIELDS: &[&str] = &[
     "next_topic_id",
@@ -70,7 +73,7 @@ fn checked_in_assigned_topics_policy_is_exact() {
         assert_eq!(mutations[0].allowed_paths, [PATH]);
     }
 
-    for path in [PATH, PREPARED] {
+    for path in [PATH, PREPARED, INCREMENTAL] {
         let capabilities = config
             .capability_rules
             .iter()

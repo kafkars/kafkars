@@ -5,6 +5,7 @@ struct Intruder;
 impl Intruder {
     fn violate(&self) {
         self.install_replacement_claims();
+        self.install_addition_claims();
         self.install_partition_claim();
         self.commit_event_claims();
         self.rollback_event_claims();

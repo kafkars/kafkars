@@ -7,6 +7,7 @@ use kafka_client_engine::{
     AssignedConsumerAssignmentEpoch as EngineAssignmentEpoch,
     AssignedConsumerHandle as EngineAssignedConsumerHandle,
     AssignedConsumerStartPosition as EngineStartPosition,
+    AssignedConsumerTryChangeAssignmentAccepted as EngineChangeAccepted,
 };
 
 use crate::{
@@ -16,8 +17,9 @@ use crate::{
 
 use super::assignment_result::{
     translate_assigned_assignment_admission, translate_assigned_assignment_fault,
-    translate_assigned_assignment_input,
+    translate_assigned_assignment_input, translate_assigned_change_admission,
 };
+use super::control::engine_partition;
 
 /// Private accepted assignment fence retained for later consumer operations.
 pub(crate) struct AssignedConsumerAssignmentState {
@@ -48,6 +50,64 @@ impl AssignedConsumerAssignmentState {
             epoch: accepted.epoch(),
             accepted_diagnostic: accepted.fault().map(translate_assigned_assignment_fault),
         })
+    }
+
+    pub(crate) fn try_add<I>(
+        handle: &mut EngineAssignedConsumerHandle,
+        entries: I,
+        resolution_timeout: Duration,
+    ) -> Result<EngineChangeAccepted, KafkaError>
+    where
+        I: IntoIterator<Item = TopicPartition>,
+    {
+        let capture = handle
+            .capture_add_assignments(resolution_timeout)
+            .map_err(translate_assigned_change_admission)?;
+        let entries = entries
+            .into_iter()
+            .map(into_engine_assignment)
+            .collect::<Result<Vec<_>, _>>()?;
+        capture
+            .try_add_assignments(entries)
+            .map_err(translate_assigned_change_admission)
+    }
+
+    pub(crate) fn try_remove<I>(
+        handle: &mut EngineAssignedConsumerHandle,
+        entries: I,
+    ) -> Result<EngineChangeAccepted, KafkaError>
+    where
+        I: IntoIterator<Item = TopicPartition>,
+    {
+        let entries = entries
+            .into_iter()
+            .map(|entry| engine_partition(&entry))
+            .collect::<Result<Vec<_>, _>>()?;
+        handle
+            .try_remove_assignments(entries)
+            .map_err(translate_assigned_change_admission)
+    }
+
+    pub(crate) fn install_change(current: &mut Option<Self>, accepted: EngineChangeAccepted) {
+        let diagnostic = accepted.fault().map(translate_assigned_assignment_fault);
+        let Some(epoch) = accepted.epoch() else {
+            if let Some(current) = current {
+                current.retain_control_diagnostic(diagnostic);
+            }
+            return;
+        };
+        match current {
+            Some(current) => {
+                current.epoch = epoch;
+                current.retain_control_diagnostic(diagnostic);
+            }
+            None => {
+                *current = Some(Self {
+                    epoch,
+                    accepted_diagnostic: diagnostic,
+                });
+            }
+        }
     }
 
     pub(super) const fn epoch(&self) -> EngineAssignmentEpoch {

@@ -4,6 +4,21 @@ mod assignment;
 mod assignment_capture;
 #[cfg(test)]
 mod assignment_capture_test;
+mod assignment_change_capture;
+#[cfg(test)]
+mod assignment_change_capture_test;
+mod assignment_change_error;
+#[cfg(test)]
+mod assignment_change_error_test;
+mod assignment_change_handle;
+#[cfg(test)]
+mod assignment_change_handle_test;
+mod assignment_change_port;
+#[cfg(test)]
+mod assignment_change_port_test;
+mod assignment_change_result;
+#[cfg(test)]
+mod assignment_change_result_test;
 mod assignment_error;
 #[cfg(test)]
 mod assignment_error_test;
@@ -77,6 +92,11 @@ pub use assignment::{
     AssignedConsumerAssignmentInputErrorKind, AssignedConsumerStartPosition,
 };
 pub use assignment_capture::AssignedConsumerAssignmentCapture;
+pub use assignment_change_capture::AssignedConsumerAddAssignmentsCapture;
+pub use assignment_change_result::{
+    AssignedConsumerTryChangeAssignmentAccepted, AssignedConsumerTryChangeAssignmentError,
+    AssignedConsumerTryChangeAssignmentErrorKind,
+};
 pub use assignment_result::{
     AssignedConsumerAssignmentEpoch, AssignedConsumerTryReplaceAssignmentAccepted,
     AssignedConsumerTryReplaceAssignmentError, AssignedConsumerTryReplaceAssignmentErrorKind,

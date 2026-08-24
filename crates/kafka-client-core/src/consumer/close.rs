@@ -48,8 +48,8 @@ impl AssignedConsumerMachine {
                 .saturating_add(1),
         );
         effects.push(AssignedConsumerEffect::AcceptClose { close_id });
-        if let (Some(epoch), Some(assignment)) = (assignment_epoch, self.assignment.as_mut()) {
-            append_cleanup_effects(assignment, epoch, plans, &mut effects);
+        if let Some(assignment) = self.assignment.as_mut() {
+            append_cleanup_effects(assignment, plans, &mut effects);
         }
         self.close_state = AssignedConsumerCloseState::Draining(close_id);
         Ok(close_transition(assignment_epoch, effects))
@@ -92,14 +92,14 @@ impl AssignedConsumerMachine {
 
 fn append_cleanup_effects(
     assignment: &mut super::machine::DirectAssignment,
-    epoch: AssignmentEpoch,
     plans: Vec<PositionEpoch>,
     effects: &mut Vec<AssignedConsumerEffect>,
 ) {
     for (state, next_epoch) in assignment.partitions.iter_mut().zip(plans) {
-        effects.push(state.suspend_for_close(epoch, next_epoch));
+        let assignment_epoch = state.assignment_epoch();
+        effects.push(state.suspend_for_close(next_epoch));
         effects.push(AssignedConsumerEffect::Revoke {
-            assignment_epoch: epoch,
+            assignment_epoch,
             partition: state.partition,
         });
     }

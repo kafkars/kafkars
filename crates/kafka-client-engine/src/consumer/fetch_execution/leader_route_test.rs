@@ -3,7 +3,11 @@
 use std::sync::Arc;
 
 use crate::driver::FetchRouteRefresh;
-use kafka_client_core::{FetchOwnership, Moment};
+use kafka_client_core::{
+    AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition,
+    AssignedTopicPartition, Deadline, FetchOwnership, Moment, NextFetchOffset, PartitionIndex,
+    StartPosition, TopicId,
+};
 
 use super::{
     broker_execution::ActiveBrokerSession,
@@ -74,6 +78,47 @@ fn temporarily_leaderless_topic_view_retains_the_same_fetch_attempt() {
 }
 
 #[test]
+fn incremental_revoke_retires_only_the_matching_leader_recovery() {
+    let (effects, mut machine) = two_partition_assignment();
+    let removed = fetch_fence(effects[0]);
+    let survivor = fetch_fence(effects[1]);
+    let mut executor = DirectFetchExecutor::create_unbound(2, 2, 8_192);
+    executor
+        .try_enable_sessions(2)
+        .unwrap_or_else(|()| panic!("reserve leader recovery"));
+    for effect in effects {
+        executor.leader_recovery.begin(
+            Some(FetchRouteRefresh::Unavailable),
+            Some(prepared(effect)),
+            None,
+        );
+    }
+    assert_eq!(executor.leader_recovery.retained(), 4);
+
+    let transition = machine
+        .apply(AssignedConsumerInput::RemoveAssignments {
+            partitions: vec![removed.position().partition()],
+        })
+        .unwrap_or_else(|error| panic!("incremental removal: {error}"));
+    executor
+        .observe_control(transition.effects()[0])
+        .unwrap_or_else(|error| panic!("observe incremental revoke: {error:?}"));
+    assert_eq!(executor.leader_recovery.retained(), 2);
+
+    let driver = driver();
+    assert!(executor.leader_recovery.poll(&driver));
+    let waiting = executor
+        .leader_recovery
+        .take_waiting()
+        .unwrap_or_else(|| panic!("surviving leader recovery"));
+    let prepared = match waiting {
+        super::route_refresh::WaitingLeaderRoute::Ready { prepared, .. }
+        | super::route_refresh::WaitingLeaderRoute::Failed { prepared, .. } => prepared,
+    };
+    assert_eq!(prepared.fence(), survivor);
+}
+
+#[test]
 fn closed_driver_completion_retries_the_same_offset_through_topic_metadata() {
     let (effect, machine) = assignment();
     let fence = fetch_fence(effect);
@@ -138,4 +183,25 @@ fn closed_driver_completion_retries_the_same_offset_through_topic_metadata() {
     assert_eq!(request.operation_deadline(), original_deadline);
     assert_eq!(request.next_offset().get(), 10);
     assert_ne!(request.fence(), fence);
+}
+
+fn two_partition_assignment() -> (Vec<AssignedConsumerEffect>, AssignedConsumerMachine) {
+    let mut machine = AssignedConsumerMachine::new();
+    let transition = machine
+        .apply(AssignedConsumerInput::Assign {
+            partitions: vec![entry(3, 10), entry(4, 20)],
+            now: Moment::from_tick(0),
+            resolution_deadline: Deadline::from_tick(1_000_000_000),
+        })
+        .unwrap_or_else(|error| panic!("two-partition assignment: {error}"));
+    (transition.into_effects(), machine)
+}
+
+fn entry(partition: u32, offset: i64) -> AssignedPartition {
+    AssignedPartition::new(
+        AssignedTopicPartition::new(TopicId::from_raw(1), PartitionIndex::from_raw(partition)),
+        StartPosition::Offset(
+            NextFetchOffset::try_from_raw(offset).unwrap_or_else(|| panic!("nonnegative offset")),
+        ),
+    )
 }

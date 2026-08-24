@@ -49,7 +49,7 @@ pub enum AssignedConsumerEffect {
     },
     /// Terminally cancels all internal interpreter work for a partition.
     Revoke {
-        /// Superseded assignment epoch.
+        /// Superseded partition-acquisition epoch.
         assignment_epoch: AssignmentEpoch,
         /// Superseded partition.
         partition: AssignedTopicPartition,
@@ -151,7 +151,7 @@ impl AssignedConsumerTransition {
         }
     }
 
-    /// Returns the retained assignment generation, when one exists.
+    /// Returns the current complete-assignment control revision, when one exists.
     pub const fn assignment_epoch(&self) -> Option<AssignmentEpoch> {
         self.assignment_epoch
     }

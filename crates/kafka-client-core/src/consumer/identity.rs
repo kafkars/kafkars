@@ -20,7 +20,10 @@ impl AssignedConsumerCloseId {
     }
 }
 
-/// Monotonic identity of one complete direct assignment.
+/// Monotonic identity of one direct-assignment revision.
+///
+/// Each partition retains the revision in which its current ownership was
+/// acquired, while the assignment owner may advance to a later control revision.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct AssignmentEpoch(u64);
 

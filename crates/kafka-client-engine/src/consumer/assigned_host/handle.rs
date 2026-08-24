@@ -96,7 +96,7 @@ impl AssignedConsumerHandle {
             .map_err(|error| AssignedConsumerTryReplaceAssignmentError::from_port(&error))
     }
 
-    /// Attempts to fence and pause one partition in the supplied assignment generation.
+    /// Attempts to fence and pause one partition under the supplied control revision.
     pub fn try_pause(
         &mut self,
         epoch: AssignedConsumerAssignmentEpoch,

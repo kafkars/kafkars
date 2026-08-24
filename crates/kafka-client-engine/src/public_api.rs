@@ -383,8 +383,8 @@ pub use crate::config::{
     EngineSaslMechanism, EngineSecurity, EngineTls, ProducerCompression,
 };
 pub use crate::consumer::{
-    AssignedConsumerAcceptedFaultKind, AssignedConsumerAssignment,
-    AssignedConsumerAssignmentCapture, AssignedConsumerAssignmentEpoch,
+    AssignedConsumerAcceptedFaultKind, AssignedConsumerAddAssignmentsCapture,
+    AssignedConsumerAssignment, AssignedConsumerAssignmentCapture, AssignedConsumerAssignmentEpoch,
     AssignedConsumerAssignmentInputError, AssignedConsumerAssignmentInputErrorKind,
     AssignedConsumerBatch, AssignedConsumerClaimError, AssignedConsumerCloseObserver,
     AssignedConsumerCloseObserverError, AssignedConsumerControlAccepted,
@@ -399,7 +399,9 @@ pub use crate::consumer::{
     AssignedConsumerPositionResolutionFailure, AssignedConsumerPositionResolutionFailureKind,
     AssignedConsumerRecord, AssignedConsumerRecords, AssignedConsumerRecv,
     AssignedConsumerRecvError, AssignedConsumerRecvErrorKind, AssignedConsumerResumeCapture,
-    AssignedConsumerSeekCapture, AssignedConsumerStartPosition, AssignedConsumerTryCloseAccepted,
+    AssignedConsumerSeekCapture, AssignedConsumerStartPosition,
+    AssignedConsumerTryChangeAssignmentAccepted, AssignedConsumerTryChangeAssignmentError,
+    AssignedConsumerTryChangeAssignmentErrorKind, AssignedConsumerTryCloseAccepted,
     AssignedConsumerTryCloseError, AssignedConsumerTryCloseErrorKind,
     AssignedConsumerTryReplaceAssignmentAccepted, AssignedConsumerTryReplaceAssignmentError,
     AssignedConsumerTryReplaceAssignmentErrorKind, AssignedConsumerTryTakeBatchError,

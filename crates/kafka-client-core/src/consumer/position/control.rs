@@ -4,8 +4,7 @@ use super::{AssignedPartitionState, RetainedResolutionPlan, RetainedResumePlan};
 use crate::{
     Deadline, Moment,
     consumer::{
-        AssignedConsumerEffect, AssignedConsumerMachineError, AssignmentEpoch, PositionEpoch,
-        StartPosition,
+        AssignedConsumerEffect, AssignedConsumerMachineError, PositionEpoch, StartPosition,
     },
 };
 
@@ -22,27 +21,25 @@ impl AssignedPartitionState {
 
     pub(in crate::consumer) fn install_planned_pause(
         &mut self,
-        assignment_epoch: AssignmentEpoch,
         next_epoch: Option<PositionEpoch>,
     ) -> Option<AssignedConsumerEffect> {
         let next_epoch = next_epoch?;
         self.position.install_preflighted_fence(next_epoch);
         self.paused = true;
         Some(AssignedConsumerEffect::Suspend {
-            fence: self.position_fence(assignment_epoch),
+            fence: self.position_fence(),
         })
     }
 
     pub(in crate::consumer) fn plan_retained_resume(
         &self,
-        assignment_epoch: AssignmentEpoch,
         now: Moment,
         resolution_deadline: Deadline,
     ) -> Result<RetainedResumePlan, AssignedConsumerMachineError> {
         if !self.paused {
             return Ok(RetainedResumePlan::AlreadyResumed);
         }
-        let fence = self.position_fence(assignment_epoch);
+        let fence = self.position_fence();
         if let Some(plan) =
             self.position
                 .plan_retained_resolution_activation(fence, now, resolution_deadline)
@@ -91,19 +88,17 @@ impl AssignedPartitionState {
 
     pub(in crate::consumer) fn suspend_for_close(
         &mut self,
-        assignment_epoch: AssignmentEpoch,
         next_epoch: PositionEpoch,
     ) -> AssignedConsumerEffect {
         self.position.install_preflighted_fence(next_epoch);
         self.paused = true;
         AssignedConsumerEffect::Suspend {
-            fence: self.position_fence(assignment_epoch),
+            fence: self.position_fence(),
         }
     }
 
     pub(in crate::consumer) fn pause(
         &mut self,
-        assignment_epoch: AssignmentEpoch,
     ) -> Result<Option<AssignedConsumerEffect>, AssignedConsumerMachineError> {
         if self.paused {
             return Ok(None);
@@ -111,13 +106,12 @@ impl AssignedPartitionState {
         self.fence_position()?;
         self.paused = true;
         Ok(Some(AssignedConsumerEffect::Suspend {
-            fence: self.position_fence(assignment_epoch),
+            fence: self.position_fence(),
         }))
     }
 
     pub(in crate::consumer) fn resume(
         &mut self,
-        assignment_epoch: AssignmentEpoch,
         now: Moment,
         deadline: Deadline,
     ) -> Result<Option<AssignedConsumerEffect>, AssignedConsumerMachineError> {
@@ -125,12 +119,11 @@ impl AssignedPartitionState {
             return Ok(None);
         }
         self.paused = false;
-        self.activate(assignment_epoch, now, deadline)
+        self.activate(now, deadline)
     }
 
     pub(in crate::consumer) fn seek(
         &mut self,
-        assignment_epoch: AssignmentEpoch,
         position: StartPosition,
         now: Moment,
         deadline: Deadline,
@@ -138,10 +131,10 @@ impl AssignedPartitionState {
         self.fence_position()?;
         self.position.replace(position);
         let mut effects = vec![AssignedConsumerEffect::Suspend {
-            fence: self.position_fence(assignment_epoch),
+            fence: self.position_fence(),
         }];
         if !self.paused {
-            if let Some(effect) = self.activate(assignment_epoch, now, deadline)? {
+            if let Some(effect) = self.activate(now, deadline)? {
                 effects.push(effect);
             }
         }

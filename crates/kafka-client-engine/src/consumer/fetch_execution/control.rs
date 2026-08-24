@@ -44,6 +44,7 @@ impl DirectFetchExecutor {
             }
         }
         self.retire_broker_routes_for_control(effect);
+        self.leader_recovery.observe_control(effect);
         if let Some(sessions) = &mut self.broker_sessions {
             sessions.observe_control(effect);
         }

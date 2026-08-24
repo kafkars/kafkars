@@ -12,6 +12,8 @@ mod model;
 mod model_test;
 mod prepared;
 #[cfg(test)]
+mod prepared_incremental_test;
+#[cfg(test)]
 mod prepared_reconciliation_test;
 #[cfg(test)]
 mod prepared_test;
@@ -26,6 +28,7 @@ pub(crate) use model::{
     AssignedConsumerEvent, AssignedConsumerEventRecovery, AssignedConsumerEventStoreBuildError,
     AssignedConsumerEventStoreError,
 };
+pub(crate) use prepared::PreparedEventClaims;
 use prepared::effect_claim;
 use terminal::{terminal_claim, terminal_event};
 
@@ -174,6 +177,14 @@ impl AssignedConsumerEventStore {
 
     fn install_replacement_claims(&mut self, effects: &[AssignedConsumerEffect]) {
         self.claims.clear();
+        for effect in effects {
+            if let Some(claim) = effect_claim(*effect) {
+                self.claims.push(claim);
+            }
+        }
+    }
+
+    fn install_addition_claims(&mut self, effects: &[AssignedConsumerEffect]) {
         for effect in effects {
             if let Some(claim) = effect_claim(*effect) {
                 self.claims.push(claim);

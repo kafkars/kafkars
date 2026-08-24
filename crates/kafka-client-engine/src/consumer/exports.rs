@@ -1,8 +1,8 @@
 //! Crate-private assigned-consumer capabilities exposed to the engine host.
 
 pub use super::assigned_host::{
-    AssignedConsumerAcceptedFaultKind, AssignedConsumerAssignment,
-    AssignedConsumerAssignmentCapture, AssignedConsumerAssignmentEpoch,
+    AssignedConsumerAcceptedFaultKind, AssignedConsumerAddAssignmentsCapture,
+    AssignedConsumerAssignment, AssignedConsumerAssignmentCapture, AssignedConsumerAssignmentEpoch,
     AssignedConsumerAssignmentInputError, AssignedConsumerAssignmentInputErrorKind,
     AssignedConsumerBatch, AssignedConsumerClaimError, AssignedConsumerCloseObserver,
     AssignedConsumerCloseObserverError, AssignedConsumerControlAccepted,
@@ -17,7 +17,9 @@ pub use super::assigned_host::{
     AssignedConsumerPositionResolutionFailure, AssignedConsumerPositionResolutionFailureKind,
     AssignedConsumerRecord, AssignedConsumerRecords, AssignedConsumerRecv,
     AssignedConsumerRecvError, AssignedConsumerRecvErrorKind, AssignedConsumerResumeCapture,
-    AssignedConsumerSeekCapture, AssignedConsumerStartPosition, AssignedConsumerTryCloseAccepted,
+    AssignedConsumerSeekCapture, AssignedConsumerStartPosition,
+    AssignedConsumerTryChangeAssignmentAccepted, AssignedConsumerTryChangeAssignmentError,
+    AssignedConsumerTryChangeAssignmentErrorKind, AssignedConsumerTryCloseAccepted,
     AssignedConsumerTryCloseError, AssignedConsumerTryCloseErrorKind,
     AssignedConsumerTryReplaceAssignmentAccepted, AssignedConsumerTryReplaceAssignmentError,
     AssignedConsumerTryReplaceAssignmentErrorKind, AssignedConsumerTryTakeBatchError,

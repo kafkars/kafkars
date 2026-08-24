@@ -39,6 +39,7 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
@@ -61,6 +62,7 @@ const CLAIM_TRANSFERS: &[&str] = &[
 ];
 const METHODS: &[(&str, &[&str])] = &[
     ("install_replacement_claims", &[PREPARED_COMMIT]),
+    ("install_addition_claims", &[PREPARED_COMMIT]),
     ("install_partition_claim", &[PREPARED_COMMIT]),
     ("commit_event_claims", CLAIM_TRANSFERS),
     ("rollback_event_claims", CLAIM_TRANSFERS),
@@ -251,7 +253,6 @@ fn fixture_rejects_duplication_and_foreign_mutation() {
             && violation.contains("events")
     }));
 }
-
 #[test]
 fn fixture_rejects_runtime_transport_and_foreign_domain_capabilities() {
     let (root, _) = fixture_files("consumer_assigned_event_ownership");
@@ -272,7 +273,6 @@ fn fixture_rejects_runtime_transport_and_foreign_domain_capabilities() {
         );
     }
 }
-
 #[test]
 fn fixture_rejects_capabilities_in_a_new_nested_event_module() {
     let (root, _) = fixture_files("consumer_assigned_event_ownership");

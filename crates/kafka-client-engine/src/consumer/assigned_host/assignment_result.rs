@@ -9,7 +9,7 @@ use super::{
     },
 };
 
-/// Opaque engine representation of one accepted assignment generation.
+/// Opaque engine representation of the latest assignment control revision.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct AssignedConsumerAssignmentEpoch(AssignmentEpoch);
 
@@ -37,7 +37,7 @@ pub struct AssignedConsumerTryReplaceAssignmentAccepted {
 }
 
 impl AssignedConsumerTryReplaceAssignmentAccepted {
-    /// Returns the new assignment generation.
+    /// Returns the new assignment control revision.
     pub const fn epoch(&self) -> AssignedConsumerAssignmentEpoch {
         self.epoch
     }

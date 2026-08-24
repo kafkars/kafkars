@@ -28,6 +28,9 @@ mod assigned_owner_event_test;
 mod assigned_owner_fault;
 #[cfg(test)]
 mod assigned_owner_fault_test;
+mod assigned_owner_incremental_admission;
+#[cfg(test)]
+mod assigned_owner_incremental_admission_test;
 mod assigned_owner_model;
 #[cfg(test)]
 mod assigned_owner_model_test;

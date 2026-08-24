@@ -11,7 +11,7 @@ use super::{
 ///
 #[derive(Debug)]
 pub struct AssignedConsumer {
-    engine: AssignedConsumerEngine,
+    pub(super) engine: AssignedConsumerEngine,
 }
 
 impl AssignedConsumer {

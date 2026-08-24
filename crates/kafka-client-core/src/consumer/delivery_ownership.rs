@@ -11,7 +11,16 @@ impl AssignedPartitionState {
         fence: FetchFence,
     ) -> Result<DeliveryOwnership, AssignedConsumerMachineError> {
         let supplied = fence.position();
-        let active = self.position_fence(supplied.assignment_epoch());
+        let active = self.position_fence();
+        if supplied.assignment_epoch() < active.assignment_epoch() {
+            return Ok(DeliveryOwnership::Superseded);
+        }
+        if supplied.assignment_epoch() > active.assignment_epoch() {
+            return Err(AssignedConsumerMachineError::StaleAssignment {
+                active: active.assignment_epoch(),
+                supplied: supplied.assignment_epoch(),
+            });
+        }
         if supplied.position_epoch() < active.position_epoch() {
             return Ok(DeliveryOwnership::Superseded);
         }
@@ -32,22 +41,20 @@ impl AssignedConsumerMachine {
             .assignment
             .as_ref()
             .ok_or(AssignedConsumerMachineError::NoAssignment)?;
-        if fence.position().assignment_epoch() < assignment.epoch {
-            return Ok(DeliveryOwnership::Superseded);
-        }
-        if fence.position().assignment_epoch() > assignment.epoch {
-            return Err(AssignedConsumerMachineError::StaleAssignment {
-                active: assignment.epoch,
-                supplied: fence.position().assignment_epoch(),
-            });
-        }
-        assignment
-            .partitions
-            .iter()
-            .find(|state| state.partition == fence.position().partition())
-            .ok_or(AssignedConsumerMachineError::UnknownPartition {
+        match assignment.find(fence.position().partition()) {
+            Some(state) => state.delivery_ownership(fence),
+            None if fence.position().assignment_epoch() < assignment.epoch => {
+                Ok(DeliveryOwnership::Superseded)
+            }
+            None if fence.position().assignment_epoch() > assignment.epoch => {
+                Err(AssignedConsumerMachineError::StaleAssignment {
+                    active: assignment.epoch,
+                    supplied: fence.position().assignment_epoch(),
+                })
+            }
+            None => Err(AssignedConsumerMachineError::UnknownPartition {
                 partition: fence.position().partition(),
-            })?
-            .delivery_ownership(fence)
+            }),
+        }
     }
 }

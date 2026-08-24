@@ -4,6 +4,7 @@ mod assigned;
 mod assigned_build_error;
 mod assigned_builder;
 mod assigned_close;
+mod assigned_incremental;
 mod assigned_next_event;
 mod assigned_recv;
 mod assignment;
@@ -98,6 +99,8 @@ mod assigned_build_error_test;
 mod assigned_builder_test;
 #[cfg(test)]
 mod assigned_close_test;
+#[cfg(test)]
+mod assigned_incremental_test;
 #[cfg(test)]
 mod assigned_next_event_test;
 #[cfg(test)]

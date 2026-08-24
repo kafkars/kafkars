@@ -5,3 +5,9 @@ struct AssignedTopics;
 
 #[derive(Clone, Copy)]
 struct PreparedAssignedTopicsReplacement;
+
+#[derive(Clone, Copy)]
+struct PreparedAssignedTopicsAddition;
+
+#[derive(Clone, Copy)]
+struct PreparedAssignedTopicsRemoval;

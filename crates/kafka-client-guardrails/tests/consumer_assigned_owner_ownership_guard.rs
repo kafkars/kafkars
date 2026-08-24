@@ -12,6 +12,7 @@ const PATH: &str = "crates/kafka-client-engine/src/consumer/assigned_owner.rs";
 const OWNER_FILES: &[&str] = &[
     "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+    "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
@@ -154,7 +155,6 @@ fn fixture_rejects_clone_mutation_and_raw_runtime_capabilities() {
     for derived in ["derives Clone", "derives Copy"] {
         assert!(linear.iter().any(|violation| violation.contains(derived)));
     }
-
     let mutations = mutation_violations(
         &root,
         &files,
@@ -170,7 +170,6 @@ fn fixture_rejects_clone_mutation_and_raw_runtime_capabilities() {
     for field in FIELDS {
         assert!(mutations.iter().any(|violation| violation.contains(field)));
     }
-
     let capabilities = capability_violations(
         &root,
         &[CapabilityRule {
@@ -187,7 +186,6 @@ fn fixture_rejects_clone_mutation_and_raw_runtime_capabilities() {
             "missed {forbidden}: {capabilities:?}"
         );
     }
-
     for (call, allowed) in [
         (
             "DirectFetchExecutor::create_unbound",
@@ -222,6 +220,7 @@ fn expected_paths(field: &str) -> Vec<String> {
     let paths: &[&str] = match field {
         "machine" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
@@ -232,6 +231,7 @@ fn expected_paths(field: &str) -> Vec<String> {
         "events" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
@@ -277,6 +277,7 @@ fn expected_paths(field: &str) -> Vec<String> {
         "fault" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_incremental_admission.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",

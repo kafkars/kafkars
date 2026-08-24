@@ -17,13 +17,14 @@ impl AssignedPartitionState {
         deadline: Deadline,
     ) -> Result<(Self, AssignedConsumerEffect), AssignedConsumerMachineError> {
         let mut state = Self {
+            assignment_epoch,
             partition: assigned.partition(),
             paused: false,
             position: PartitionPosition::new(assigned.start()),
         };
-        let effect = state.activate(assignment_epoch, now, deadline)?.ok_or(
+        let effect = state.activate(now, deadline)?.ok_or(
             AssignedConsumerMachineError::PositionResolutionNotPending {
-                fence: state.position_fence(assignment_epoch),
+                fence: state.position_fence(),
             },
         )?;
         Ok((state, effect))
@@ -35,11 +36,12 @@ impl AssignedPartitionState {
         throttle_deadline: Option<Deadline>,
     ) -> (Self, AssignedConsumerEffect) {
         let mut state = Self {
+            assignment_epoch,
             partition: assigned.partition(),
             paused: false,
             position: PartitionPosition::new(StartPosition::Offset(assigned.next_offset())),
         };
-        let fence = state.position_fence(assignment_epoch);
+        let fence = state.position_fence();
         let effect = state.position.start_resolved_assignment_fetch(
             fence,
             assigned.next_offset(),

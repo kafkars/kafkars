@@ -37,6 +37,13 @@ pub enum AssignedConsumerMachineError {
         /// Duplicated partition.
         partition: AssignedTopicPartition,
     },
+    /// An incremental addition named a partition already assigned.
+    PartitionAlreadyAssigned {
+        /// Existing partition that cannot be added again.
+        partition: AssignedTopicPartition,
+    },
+    /// One atomic assignment change could not reserve its complete state and effects.
+    AssignmentChangeAllocationFailed,
     /// One atomic control batch could not reserve its complete plan and effects.
     ControlAllocationFailed,
     /// No further assignment epoch is representable.
@@ -48,11 +55,11 @@ pub enum AssignedConsumerMachineError {
     },
     /// Control or execution input arrived before assignment.
     NoAssignment,
-    /// Input belongs to a superseded assignment.
+    /// Input carries a mismatched assignment control or acquisition revision.
     StaleAssignment {
-        /// Active assignment epoch.
+        /// Active control or partition-acquisition revision.
         active: AssignmentEpoch,
-        /// Epoch supplied by the input.
+        /// Control or partition-acquisition revision supplied by the input.
         supplied: AssignmentEpoch,
     },
     /// Input names a partition outside the active assignment.
@@ -155,6 +162,12 @@ impl fmt::Display for AssignedConsumerMachineError {
             Self::DuplicatePartition { .. } => {
                 formatter.write_str("direct assignment contains a duplicate partition")
             }
+            Self::PartitionAlreadyAssigned { .. } => {
+                formatter.write_str("partition is already directly assigned")
+            }
+            Self::AssignmentChangeAllocationFailed => {
+                formatter.write_str("direct assignment change allocation failed")
+            }
             Self::ControlAllocationFailed => {
                 formatter.write_str("assigned-consumer control allocation failed")
             }
@@ -166,7 +179,7 @@ impl fmt::Display for AssignedConsumerMachineError {
             }
             Self::NoAssignment => formatter.write_str("direct consumer has no assignment"),
             Self::StaleAssignment { .. } => {
-                formatter.write_str("input belongs to a superseded assignment")
+                formatter.write_str("input carries a mismatched assignment revision")
             }
             Self::UnknownPartition { .. } => {
                 formatter.write_str("partition is not in the active assignment")

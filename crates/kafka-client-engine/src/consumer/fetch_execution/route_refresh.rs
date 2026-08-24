@@ -1,5 +1,7 @@
 //! Causal metadata refresh retained beside each KIP-951 replacement Fetch.
 
+use kafka_client_core::AssignedConsumerEffect;
+
 use crate::driver::{BrokerId, DriverOwner, FetchRouteRefresh, FetchRouteRefreshPoll};
 
 use super::{executor::DirectFetchExecutor, prepared::PreparedFetchExecution};
@@ -133,6 +135,15 @@ impl LeaderMovementRecovery {
                 .saturating_add(usize::from(attempt.refresh.is_some()))
                 .saturating_add(usize::from(attempt.waiting.is_some()))
         })
+    }
+
+    pub(super) fn observe_control(&mut self, effect: AssignedConsumerEffect) {
+        self.attempts.retain(|attempt| {
+            !attempt
+                .waiting
+                .as_ref()
+                .is_some_and(|waiting| waiting.is_superseded_by(effect))
+        });
     }
 
     pub(super) fn recover_after_driver_shutdown(self) -> Vec<PreparedFetchExecution> {

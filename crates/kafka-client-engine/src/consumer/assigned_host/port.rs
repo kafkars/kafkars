@@ -165,8 +165,16 @@ impl AssignedConsumerPort {
         ))
     }
 
-    fn admit<T>(
+    pub(super) fn admit<T>(
         &self,
+        operation: impl FnOnce(&mut AssignedConsumerOwner) -> Result<T, AssignedConsumerOwnerError>,
+    ) -> Result<AssignedConsumerAccepted<T>, AssignedConsumerPortError> {
+        self.admit_with_wake(true, operation)
+    }
+
+    pub(super) fn admit_with_wake<T>(
+        &self,
+        request_wake: bool,
         operation: impl FnOnce(&mut AssignedConsumerOwner) -> Result<T, AssignedConsumerOwnerError>,
     ) -> Result<AssignedConsumerAccepted<T>, AssignedConsumerPortError> {
         if self.shared.assigned_admission_is_closed() {
@@ -190,7 +198,11 @@ impl AssignedConsumerPort {
         };
         Ok(AssignedConsumerAccepted::new(
             value,
-            self.shared.wake.request_assigned_turn(),
+            if request_wake {
+                self.shared.wake.request_assigned_turn()
+            } else {
+                Ok(())
+            },
         ))
     }
 

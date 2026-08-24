@@ -1,12 +1,12 @@
 //! Current, stale, closed, and capacity outcomes for assignment retirement.
 
-use crate::{Moment, NextFetchOffset, PartitionIndex, TopicId};
+use crate::{Deadline, Moment, NextFetchOffset, PartitionIndex, TopicId};
 
 use super::{
-    AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine, AssignedTopicPartition,
-    AssignmentEpoch, FetchOwnership, InstallResolvedAssignment, ResolvedAssignedPartition,
-    RetireAssignment, RetireAssignmentError, RetireAssignmentErrorKind,
-    assignment_retirement_transition::reserve_retirement_effects,
+    AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition,
+    AssignedTopicPartition, AssignmentEpoch, FetchOwnership, InstallResolvedAssignment,
+    ResolvedAssignedPartition, RetireAssignment, RetireAssignmentError, RetireAssignmentErrorKind,
+    StartPosition, assignment_retirement_transition::reserve_retirement_effects,
 };
 
 #[test]
@@ -77,6 +77,41 @@ fn exact_unassigned_and_empty_assignment_retirement_are_deadline_free() {
     assert_eq!(retired.assignment_epoch(), None);
     assert!(retired.effects().is_empty());
     assert_eq!(machine.assignment_epoch(), None);
+}
+
+#[test]
+fn retirement_revokes_each_partition_acquisition_epoch_after_incremental_add() {
+    let mut machine = AssignedConsumerMachine::new();
+    let initial = machine
+        .install_resolved_assignment(install(None, &[(2, 3, 7)]))
+        .unwrap_or_else(|error| panic!("initial resolved assignment: {error}"));
+    let first_epoch = initial
+        .assignment_epoch()
+        .unwrap_or_else(|| panic!("epoch"));
+    let added = machine
+        .apply(AssignedConsumerInput::AddAssignments {
+            partitions: vec![AssignedPartition::new(
+                partition(4, 1),
+                StartPosition::Offset(next_offset(11)),
+            )],
+            now: Moment::from_tick(13),
+            resolution_deadline: Deadline::from_tick(17),
+        })
+        .unwrap_or_else(|error| panic!("incremental add: {error}"));
+    let second_epoch = added.assignment_epoch().unwrap_or_else(|| panic!("epoch"));
+
+    let retired = machine
+        .retire_assignment(RetireAssignment::new(Some(second_epoch)))
+        .unwrap_or_else(|error| panic!("heterogeneous retirement: {error}"));
+    assert!(matches!(
+        retired.effects(),
+        [
+            AssignedConsumerEffect::Revoke { assignment_epoch: first, partition: first_partition },
+            AssignedConsumerEffect::Revoke { assignment_epoch: second, partition: second_partition },
+        ] if *first == first_epoch && *first_partition == partition(2, 3)
+            && *second == second_epoch && *second_partition == partition(4, 1)
+    ));
+    assert_eq!(retired.assignment_epoch(), None);
 }
 
 #[test]

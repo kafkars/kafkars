@@ -49,7 +49,7 @@ impl AssignedConsumerMachine {
                 .partitions
                 .iter()
                 .map(|state| AssignedConsumerEffect::Revoke {
-                    assignment_epoch: assignment.epoch,
+                    assignment_epoch: state.assignment_epoch(),
                     partition: state.partition,
                 }),
         );

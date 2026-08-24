@@ -34,7 +34,7 @@ impl AssignedConsumerPositionFence {
         self.partition
     }
 
-    /// Returns the complete direct-assignment generation.
+    /// Returns this partition acquisition's direct-assignment generation.
     pub const fn assignment_epoch(&self) -> u64 {
         self.assignment_epoch
     }

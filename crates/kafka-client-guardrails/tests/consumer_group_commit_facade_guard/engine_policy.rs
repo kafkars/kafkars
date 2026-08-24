@@ -13,7 +13,7 @@ fn engine_channel_invalidation_and_facade_baselines_are_exact() {
     let config = load_config(&workspace_root());
     for (path, lines) in [
         ("crates/kafka-client-engine/src/consumer/group.rs", 389),
-        ("crates/kafka-client-engine/src/consumer/mod.rs", 102),
+        ("crates/kafka-client-engine/src/consumer/mod.rs", 105),
     ] {
         let baselines = config
             .budgets

@@ -15,6 +15,7 @@ mod fetch_transition;
 mod group_commit;
 mod group_position;
 mod identity;
+mod incremental_assignment;
 mod input;
 mod machine;
 mod model;
@@ -56,6 +57,12 @@ mod fetch_state_test;
 mod fetch_throttle_test;
 #[cfg(test)]
 mod identity_test;
+#[cfg(test)]
+mod incremental_assignment_edge_test;
+#[cfg(test)]
+mod incremental_assignment_reconciliation_test;
+#[cfg(test)]
+mod incremental_assignment_test;
 #[cfg(test)]
 mod model_test;
 #[cfg(test)]

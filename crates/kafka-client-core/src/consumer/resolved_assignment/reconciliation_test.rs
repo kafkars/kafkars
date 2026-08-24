@@ -140,7 +140,7 @@ fn closed_absent_position_and_assignment_exhaustion_preserve_input_and_state() {
         .as_ref()
         .unwrap_or_else(|| panic!("assignment"))
         .partitions[0]
-        .position_fence(epoch);
+        .position_fence();
     assert_eq!(retained_position.position_epoch().get(), u64::MAX);
 
     let (mut assignment_exhausted, epoch, active_fetch) = active();

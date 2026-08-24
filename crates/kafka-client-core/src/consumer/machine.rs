@@ -35,7 +35,7 @@ impl AssignedConsumerMachine {
         self.read_isolation
     }
 
-    /// Returns the retained assignment epoch, when one has been installed.
+    /// Returns the current complete-assignment control revision, when installed.
     ///
     /// A closed machine retains this identity only to fence draining work.
     pub const fn assignment_epoch(&self) -> Option<AssignmentEpoch> {
@@ -99,5 +99,49 @@ impl DirectAssignment {
             .iter_mut()
             .find(|state| state.partition == partition)
             .ok_or(AssignedConsumerMachineError::UnknownPartition { partition })
+    }
+
+    pub(super) fn find(
+        &self,
+        partition: AssignedTopicPartition,
+    ) -> Option<&AssignedPartitionState> {
+        self.partitions
+            .iter()
+            .find(|state| state.partition == partition)
+    }
+}
+
+impl AssignedConsumerMachine {
+    pub(super) fn fenced_partition_mut(
+        &mut self,
+        supplied: AssignmentEpoch,
+        partition: AssignedTopicPartition,
+    ) -> Result<(AssignmentEpoch, &mut AssignedPartitionState), AssignedConsumerMachineError> {
+        let assignment = self
+            .assignment
+            .as_mut()
+            .ok_or(AssignedConsumerMachineError::NoAssignment)?;
+        let current = assignment.epoch;
+        let Some(state) = assignment
+            .partitions
+            .iter_mut()
+            .find(|state| state.partition == partition)
+        else {
+            return if supplied == current {
+                Err(AssignedConsumerMachineError::UnknownPartition { partition })
+            } else {
+                Err(AssignedConsumerMachineError::StaleAssignment {
+                    active: current,
+                    supplied,
+                })
+            };
+        };
+        if state.assignment_epoch != supplied {
+            return Err(AssignedConsumerMachineError::StaleAssignment {
+                active: state.assignment_epoch,
+                supplied,
+            });
+        }
+        Ok((current, state))
     }
 }

@@ -16,9 +16,51 @@ impl PreparedEventClaims<'_, '_> {
         match self.kind {
             PreparedKind::Replacement(count) => self.commit_replacement(count, effects),
             PreparedKind::Reconciliation(count) => self.commit_reconciliation(count, effects),
+            PreparedKind::Addition(count) => self.commit_addition(count, effects),
+            PreparedKind::Removal(count) => self.commit_removal(count, effects),
             PreparedKind::Partition(partition) => self.commit_partition(partition, effects),
             PreparedKind::Pause(partitions) => self.commit_pause(partitions, effects),
             PreparedKind::Resume(partitions) => self.commit_resume(partitions, effects),
+        }
+    }
+
+    fn commit_addition(
+        self,
+        count: usize,
+        effects: &[AssignedConsumerEffect],
+    ) -> Result<(), AssignedConsumerEventStoreError> {
+        if effects.len() != count
+            || effects.iter().any(|effect| effect_claim(*effect).is_none())
+            || has_duplicate_claim(effects)
+            || effects.iter().any(|effect| {
+                effect_claim(*effect).is_some_and(|candidate| {
+                    self.store
+                        .claims
+                        .iter()
+                        .any(|present| present.partition() == candidate.partition())
+                })
+            })
+        {
+            return Err(AssignedConsumerEventStoreError::TransitionMismatch);
+        }
+        self.store.install_addition_claims(effects);
+        Ok(())
+    }
+
+    fn commit_removal(
+        self,
+        count: usize,
+        effects: &[AssignedConsumerEffect],
+    ) -> Result<(), AssignedConsumerEventStoreError> {
+        let Self { store: _, kind: _ } = self;
+        if effects.len() == count
+            && effects
+                .iter()
+                .all(|effect| matches!(effect, AssignedConsumerEffect::Revoke { .. }))
+        {
+            Ok(())
+        } else {
+            Err(AssignedConsumerEventStoreError::TransitionMismatch)
         }
     }
 

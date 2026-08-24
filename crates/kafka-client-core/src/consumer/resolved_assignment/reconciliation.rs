@@ -8,7 +8,7 @@ use crate::Moment;
 /// One ordered partition in the next assignment.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ResolvedAssignmentTarget {
-    /// Moves the exact active partition state into the next assignment epoch.
+    /// Moves exact active partition state into the next control revision.
     Retain(AssignedTopicPartition),
     /// Acquires a partition that is absent from the active assignment.
     Acquire(ResolvedAssignedPartition),
@@ -35,7 +35,7 @@ pub struct ReconcileResolvedAssignment {
 }
 
 impl ReconcileResolvedAssignment {
-    /// Retains one exact assignment fence and complete ordered target.
+    /// Retains one exact control revision and complete ordered target.
     pub const fn new(
         expected_assignment_epoch: AssignmentEpoch,
         targets: Vec<ResolvedAssignmentTarget>,
@@ -50,7 +50,7 @@ impl ReconcileResolvedAssignment {
         }
     }
 
-    /// Returns the exact active assignment this input may reconcile.
+    /// Returns the exact active control revision this input may reconcile.
     pub const fn expected_assignment_epoch(&self) -> AssignmentEpoch {
         self.expected_assignment_epoch
     }

@@ -84,7 +84,7 @@ impl AssignedConsumerMachine {
         if let Some(assignment) = &self.assignment {
             effects.extend(assignment.partitions.iter().map(|state| {
                 AssignedConsumerEffect::Revoke {
-                    assignment_epoch: assignment.epoch,
+                    assignment_epoch: state.assignment_epoch(),
                     partition: state.partition,
                 }
             }));

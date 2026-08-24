@@ -6,3 +6,4 @@ mod model;
 mod reservation;
 
 pub(super) use claim::effect_claim;
+pub(crate) use model::PreparedEventClaims;

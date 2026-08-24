@@ -95,6 +95,7 @@ const fn core_error_kind(error: AssignedConsumerMachineError) -> AssignedConsume
             AssignedConsumerControlErrorKind::UnknownPartition
         }
         AssignedConsumerMachineError::ControlAllocationFailed
+        | AssignedConsumerMachineError::AssignmentChangeAllocationFailed
         | AssignedConsumerMachineError::AssignmentEpochExhausted
         | AssignedConsumerMachineError::PositionEpochExhausted { .. }
         | AssignedConsumerMachineError::FetchRevisionExhausted { .. } => {
@@ -106,6 +107,7 @@ const fn core_error_kind(error: AssignedConsumerMachineError) -> AssignedConsume
         | AssignedConsumerMachineError::AssignmentRetirementRejected { .. }
         | AssignedConsumerMachineError::EmptyAssignment
         | AssignedConsumerMachineError::DuplicatePartition { .. }
+        | AssignedConsumerMachineError::PartitionAlreadyAssigned { .. }
         | AssignedConsumerMachineError::PositionNotRetained { .. }
         | AssignedConsumerMachineError::StalePosition { .. }
         | AssignedConsumerMachineError::PositionResolutionNotPending { .. }

@@ -70,7 +70,7 @@ impl InstallResolvedAssignment {
         }
     }
 
-    /// Returns the exact retained assignment this install may replace.
+    /// Returns the exact retained control revision this install may replace.
     pub const fn expected_assignment_epoch(&self) -> Option<AssignmentEpoch> {
         self.expected_assignment_epoch
     }
