@@ -115,9 +115,12 @@ fn blocking_wait_uses_the_same_notification_state() {
     assign(&owner, &mut handle);
     let waiter = thread::spawn(move || handle.recv().wait());
 
-    owner
-        .try_with_owner(|assigned| install_pending_ready(assigned, 10))
-        .unwrap_or_else(|error| panic!("prepare delivery: {error:?}"));
+    let mut guard = owner.lock_for_test();
+    let assigned = guard
+        .as_mut()
+        .unwrap_or_else(|| panic!("assigned consumer owner missing"));
+    install_pending_ready(assigned, 10);
+    drop(guard);
     owner.notify_recv_change();
 
     let result = waiter
