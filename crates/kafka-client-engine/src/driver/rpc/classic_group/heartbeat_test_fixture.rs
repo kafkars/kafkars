@@ -5,7 +5,7 @@ use kafka_client_core::{
     ClassicGroupTiming, ClassicHeartbeatAttempt, ClassicHeartbeatPolicy, ClassicRejoinPolicy,
     Deadline, GroupId, MemberId, Moment,
 };
-use kafka_driver::{RequestError, ResponseCloseReason};
+use kafka_driver::{CallFailure, Delivery, RequestError, ResponseCloseReason};
 use kafka_wire::HeartbeatResponse;
 
 use super::{ClassicHeartbeatCallKey, TrackedClassicHeartbeatCalls};
@@ -47,6 +47,20 @@ pub(crate) fn install_heartbeat_transport_loss_terminal(
         Err(RequestError::ConnectionClosed(
             ResponseCloseReason::TransportClosed,
         )),
+    );
+}
+
+pub(crate) fn install_heartbeat_deadline_terminal(
+    calls: &mut TrackedClassicHeartbeatCalls,
+    key: ClassicHeartbeatCallKey,
+) {
+    calls.install_terminal_for_test(
+        key,
+        None,
+        Err(RequestError::Rejected {
+            failure: CallFailure::DeadlineExceeded,
+            delivery: Delivery::NotSent,
+        }),
     );
 }
 

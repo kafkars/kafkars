@@ -9,11 +9,12 @@ use super::GroupOffsetCommitPartitionOutcome;
 /// One normalized fact for an admitted group offset commit.
 #[derive(Debug, Eq, PartialEq)]
 pub enum GroupOffsetCommitInput {
-    /// The driver accepted the sole request attempt.
+    /// The driver accepted the initial request attempt.
     DriverAccepted,
     /// The driver rejected the request before transport ownership.
     DriverRejected,
-    /// The engine could not materialize an already capacity-reserved attempt.
+    /// The engine could not materialize an already capacity-reserved attempt
+    /// or its sole coordinator-authorized replacement.
     ExecutionUnavailable,
     /// The original deadline elapsed with ownership-authoritative certainty.
     DeadlineElapsed {

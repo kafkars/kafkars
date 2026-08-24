@@ -1,7 +1,6 @@
 //! Exact privileged method ownership shared with classic-group shutdown recovery.
 
 pub(super) const METHODS: &[(&str, &str)] = &[
-    ("try_reserve_group_commit", "turn.rs"),
     ("poll_group_commit", "turn.rs"),
     ("begin_group_commit_settlement", "settlement.rs"),
     ("confirm_group_commit_settlement", "settlement.rs"),
@@ -19,7 +18,7 @@ pub(super) const METHODS: &[(&str, &str)] = &[
 
 pub(super) const DRIVER_METHODS: &[(&str, &str)] = &[(
     "into_generated_offset_commit_request",
-    "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
+    "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission.rs",
 )];
 
 pub(super) const MULTI_OWNER_METHODS: &[(&str, &[&str])] = &[
@@ -36,6 +35,13 @@ pub(super) const MULTI_OWNER_METHODS: &[(&str, &[&str])] = &[
 ];
 
 pub(super) const CROSS_DOMAIN_METHODS: &[(&str, &[&str])] = &[
+    (
+        "try_reserve_group_commit",
+        &[
+            "crates/kafka-client-engine/src/consumer/group/offset_commit/turn.rs",
+            "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_retry/candidate.rs",
+        ],
+    ),
     (
         "pop_active",
         &[

@@ -172,10 +172,7 @@ impl GroupConsumerRegistry {
         if let Some(consumer) = entry.consumer.as_ref() {
             return match consumer.rediscovery_state() {
                 ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission => match result {
-                    Ok(
-                        ClassicCoordinatorInvalidationPermission::Applied
-                        | ClassicCoordinatorInvalidationPermission::IgnoredStale,
-                    ) => entry
+                    Ok(_permission) => entry
                         .consumer
                         .as_mut()
                         .ok_or(ClassicGroupExecutionError::CoordinatorInvalidationGate)?
@@ -194,10 +191,7 @@ impl GroupConsumerRegistry {
             };
         }
         match result {
-            Ok(
-                ClassicCoordinatorInvalidationPermission::Applied
-                | ClassicCoordinatorInvalidationPermission::IgnoredStale,
-            ) => entry
+            Ok(_permission) => entry
                 .rediscovery
                 .permit_rejoin()
                 .map_err(|_error| ClassicGroupExecutionError::CoordinatorInvalidationGate),

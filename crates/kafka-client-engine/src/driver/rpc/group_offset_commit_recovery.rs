@@ -5,9 +5,8 @@ use kafka_driver::CompletionError;
 
 use crate::protocol::consumer::PreparedGroupOffsetCommit;
 
-use super::{
-    group_offset_commit_calls::TrackedGroupOffsetCommitCall,
-    group_offset_commit_submission::GroupOffsetCommitSubmitError,
+use super::group_offset_commit_submission::{
+    GroupOffsetCommitSubmitError, TrackedGroupOffsetCommitCall,
 };
 
 /// Definitely-unsent rejection after moving one prebuilt generated request.

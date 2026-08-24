@@ -21,6 +21,10 @@ fn only_route_loss_terminals_request_coordinator_recovery() {
         failure: CallFailure::Closed,
         delivery: Delivery::NotSent,
     }));
+    assert!(coordinator_path_lost(&RequestError::Rejected {
+        failure: CallFailure::DeadlineExceeded,
+        delivery: Delivery::NotSent,
+    }));
     assert!(coordinator_path_lost(&RequestError::ConnectionClosed(
         ResponseCloseReason::TransportClosed,
     )));

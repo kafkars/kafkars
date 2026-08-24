@@ -94,18 +94,37 @@ fn fetch_v16_partition_failure_retains_only_a_well_formed_leader_hint() {
     let leader = failure.leader().unwrap_or_else(|| panic!("leader hint"));
     assert_eq!((leader.broker_id, leader.epoch), (4, 10));
 
-    let mut malformed = PartitionData::default();
-    malformed.partition_index = i32::try_from(PARTITION).unwrap_or_else(|_| panic!("partition"));
-    malformed.error_code = 6;
-    malformed.current_leader.leader_id = -2;
-    malformed.current_leader.leader_epoch = 10;
-    let Err(rejected) = normalize_v16(malformed) else {
-        panic!("malformed v16 leader must reject");
-    };
-    assert!(matches!(
-        rejected.failure(),
-        FetchOutcomeFailure::Response(FetchResponseFailure::Decode(_))
-    ));
+    for (leader_id, leader_epoch) in [(-1, 10), (4, -1)] {
+        let mut partial = PartitionData::default();
+        partial.partition_index = i32::try_from(PARTITION).unwrap_or_else(|_| panic!("partition"));
+        partial.error_code = 74;
+        partial.current_leader.leader_id = leader_id;
+        partial.current_leader.leader_epoch = leader_epoch;
+        let failure = normalize_v16(partial)
+            .unwrap_or_else(|rejected| panic!("partial v16 leader: {:?}", rejected.failure()))
+            .0
+            .outcome()
+            .broker_failure()
+            .unwrap_or_else(|| panic!("partition failure"));
+        assert_eq!(failure.code(), nonzero(74));
+        assert_eq!(failure.leader(), None);
+    }
+
+    for (leader_id, leader_epoch) in [(-2, 10), (4, -2)] {
+        let mut malformed = PartitionData::default();
+        malformed.partition_index =
+            i32::try_from(PARTITION).unwrap_or_else(|_| panic!("partition"));
+        malformed.error_code = 6;
+        malformed.current_leader.leader_id = leader_id;
+        malformed.current_leader.leader_epoch = leader_epoch;
+        let Err(rejected) = normalize_v16(malformed) else {
+            panic!("malformed v16 leader must reject");
+        };
+        assert!(matches!(
+            rejected.failure(),
+            FetchOutcomeFailure::Response(FetchResponseFailure::Decode(_))
+        ));
+    }
 }
 
 #[test]

@@ -14,6 +14,14 @@ use super::{
 };
 
 impl DirectFetchExecutor {
+    pub(in crate::consumer) fn discard_retired_terminal_proposal(
+        &mut self,
+        proposal: FetchTerminalProposal,
+    ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
+        let fact = proposal.into_fact();
+        self.discard_stale_terminal(fact.request, fact.storage, fact.session)
+    }
+
     pub(in crate::consumer) fn apply_terminal_proposal(
         &mut self,
         machine: &mut AssignedConsumerMachine,

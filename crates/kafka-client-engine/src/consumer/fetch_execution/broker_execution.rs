@@ -3,7 +3,8 @@
 use crate::clock::MonotonicClock;
 use crate::driver::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId, DriverOwner};
 use kafka_client_core::{
-    AssignedConsumerMachine, AssignedConsumerTransition, FetchFailure, Moment,
+    AssignedConsumerMachine, AssignedConsumerMachineError, AssignedConsumerTransition,
+    FetchFailure, Moment,
 };
 
 use super::{
@@ -158,6 +159,7 @@ impl DirectFetchExecutor {
         let prepared = match prepared.reconcile_ownership(machine) {
             Ok(Some(prepared)) => prepared,
             Ok(None) => return Ok(None),
+            Err((AssignedConsumerMachineError::NoAssignment, _prepared)) => return Ok(None),
             Err((error, prepared)) => {
                 self.fault = Some(RetainedFetchFault::Prepared {
                     _prepared: prepared,

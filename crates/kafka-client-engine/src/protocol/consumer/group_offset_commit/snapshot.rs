@@ -129,6 +129,7 @@ impl PreparedGroupOffsetCommit {
             operation_deadline,
             session.group,
             session.member,
+            session.group_instance_id,
             epoch,
             entries,
             result_reservation.into_outcomes(),

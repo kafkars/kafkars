@@ -192,12 +192,14 @@ fn normalize_epoch_end(
     }
 }
 
+/// Retains a route hint only when both independently nullable Kafka facts are known.
 pub(super) fn normalize_leader(
     leader_id: i32,
     leader_epoch: i32,
 ) -> Result<Option<FetchLeader>, FetchDecodeFailure> {
     match (leader_id, leader_epoch) {
-        (-1, -1) => Ok(None),
+        (-1, epoch) if epoch >= -1 => Ok(None),
+        (broker_id, -1) if broker_id >= 0 => Ok(None),
         (broker_id, epoch) if broker_id >= 0 && epoch >= 0 => {
             Ok(Some(FetchLeader { broker_id, epoch }))
         }

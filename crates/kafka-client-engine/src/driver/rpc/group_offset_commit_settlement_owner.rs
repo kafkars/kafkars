@@ -4,7 +4,7 @@ use kafka_client_core::{GroupOffsetCommitInput, OperationId};
 
 use super::{
     group_offset_commit_calls::TrackedGroupOffsetCommitCalls,
-    group_offset_commit_settlement::{
+    group_offset_commit_retry::{
         GroupOffsetCommitBeginError, GroupOffsetCommitConfirmationError,
         GroupOffsetCommitRestoreError, GroupOffsetCommitRestoreFailure,
     },

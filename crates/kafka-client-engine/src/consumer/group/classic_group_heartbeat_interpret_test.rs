@@ -2,7 +2,9 @@
 
 use kafka_client_core::{ClassicBrokerStage, ClassicGroupFatalReason, ClassicGroupPhase, Moment};
 
-use crate::driver::classic_group::install_heartbeat_broker_rejection_terminal;
+use crate::driver::classic_group::{
+    install_heartbeat_broker_rejection_terminal, install_heartbeat_deadline_terminal,
+};
 
 use super::{
     classic_group_heartbeat::{ClassicHeartbeatExecutionState, ClassicHeartbeatSuccessor},
@@ -65,6 +67,58 @@ fn unknown_heartbeat_code_revokes_and_becomes_the_exact_core_fatal() {
     assert!(entry.rejoin.is_dormant());
 
     confirm_terminal(&mut registry, group_id);
+    stop_registry(&mut registry);
+}
+
+#[test]
+fn coordinator_deadline_after_the_old_attempt_starts_a_fresh_bounded_rejoin() {
+    let (mut registry, group_id, key) = prepared_heartbeat();
+    make_driver_owned(&mut registry, group_id, key);
+    install_heartbeat_deadline_terminal(heartbeat_calls(&mut registry), key);
+    let (entries, calls) = (&mut registry.entries, &mut registry.heartbeat_calls);
+    let entry = entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("entry expected"));
+    let terminal = calls
+        .as_mut()
+        .unwrap_or_else(|| panic!("Heartbeat calls expected"))
+        .begin_classic_heartbeat_settlement(
+            entry
+                .heartbeat
+                .accepted()
+                .unwrap_or_else(|| panic!("accepted Heartbeat expected")),
+        )
+        .unwrap_or_else(|error| panic!("Heartbeat settlement failed: {error:?}"));
+
+    let successor = interpret_heartbeat(
+        entry,
+        Moment::from_tick(key.deadline().core().tick() + 1),
+        &terminal,
+        true,
+    )
+    .unwrap_or_else(|_error| panic!("coordinator-loss interpretation failed"));
+    assert!(matches!(successor, ClassicHeartbeatSuccessor::Dormant));
+    assert_eq!(
+        entry.classic.machine().phase(),
+        ClassicGroupPhase::WaitingToRejoin
+    );
+    assert_eq!(
+        entry.rejoin.schedule(),
+        entry.classic.machine().pending_rejoin()
+    );
+    assert!(entry.rediscovery.awaits_route_transfer());
+    assert!(!entry.revocation.is_dormant());
+
+    drop(terminal);
+    confirm_terminal(&mut registry, group_id);
+    registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("entry expected"))
+        .rediscovery
+        .clear_rediscovery_after_driver_shutdown();
     stop_registry(&mut registry);
 }
 

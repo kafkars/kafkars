@@ -140,7 +140,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret.rs", lines = 249, reason = "Join settlement keeps static MEMBER_ID_REQUIRED staging and dynamic or static terminal interpretation inside one cycle-fenced transition seam" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_leave/completion.rs", lines = 253, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_reconciliation_turn.rs", lines = 451, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs", lines = 258, reason = "the focused owner keeps its reviewed responsibility and terminal-gated invalidation admission in one explicit seam; this exact reduced baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs", lines = 252, reason = "the focused owner keeps its reviewed responsibility while all positive invalidation permissions share one terminal-gated transition; this reduced baseline ratchets further growth" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_due.rs", lines = 248, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_install.rs", lines = 313, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/registry_close.rs", lines = 319, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -168,7 +168,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs", lines = 297, reason = "AddOffsetsToTxn retains one explicit call, causal coordinator refresh, terminal delivery, and abort-required ownership state machine" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs", lines = 256, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc/unregister_broker_terminal.rs", lines = 242, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/driver/rpc.rs", lines = 667, reason = "the declarative driver RPC facade names every concrete source-preview tracked lane without a glob capability bypass" },
+  { path = "crates/kafka-client-engine/src/driver/rpc.rs", lines = 668, reason = "the declarative driver RPC facade explicitly names the bounded group-commit coordinator-retry owner beside every concrete source-preview tracked lane without a glob capability bypass" },
   { path = "crates/kafka-client-engine/src/engine.rs", lines = 342, reason = "the engine composition root retains common configuration and admission ports while Admin capture methods live in a focused child seam" },
   { path = "crates/kafka-client-engine/src/engine_host/admin/recovery.rs", lines = 251, reason = "the Admin recovery dispatcher exhaustively returns each concrete tracked owner to its exact bounded host after driver shutdown" },
   { path = "crates/kafka-client-engine/src/engine_host/admin/schedule.rs", lines = 451, reason = "the fair Admin scheduler drives every bounded source-preview operation once per fresh-time host cycle" },
@@ -10919,6 +10919,14 @@ production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_reco
 test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_recovery_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_retry/candidate.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_retry/candidate_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_retry/state.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_retry/state_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_test.rs"
 
@@ -11136,7 +11144,7 @@ forbidden = [
 root = "crates/kafka-client-engine/src"
 method = "submit_tracked_group_offset_commit"
 allowed_paths = [
-  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission.rs",
 ]
 
 [[method_capabilities]]
@@ -11144,6 +11152,7 @@ root = "crates/kafka-client-engine/src"
 method = "try_reserve_group_commit"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/offset_commit/turn.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_retry/candidate.rs",
 ]
 
 [[method_capabilities]]
@@ -11245,7 +11254,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "into_generated_offset_commit_request"
 allowed_paths = [
-  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission.rs",
 ]
 
 [[method_capabilities]]
@@ -11341,6 +11350,7 @@ owner_type = "TrackedGroupOffsetCommitCalls"
 field = "settled"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_retry/candidate.rs",
   "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner.rs",
 ]
 
@@ -11509,11 +11519,11 @@ path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/pre
 
 [[linear_owners]]
 owner_type = "GroupOffsetCommitCallPermit"
-path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission.rs"
 
 [[linear_owners]]
 owner_type = "TrackedGroupOffsetCommitCall"
-path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission.rs"
 
 [[linear_owners]]
 owner_type = "GroupOffsetCommitPrebuiltAdmissionFailure"
@@ -11545,7 +11555,7 @@ path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement
 
 [[linear_owners]]
 owner_type = "GroupOffsetCommitRestoreFailure"
-path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_retry/state.rs"
 
 [[linear_owners]]
 owner_type = "TrackedGroupOffsetCommitCalls"
@@ -18405,6 +18415,10 @@ test = "crates/kafka-client-engine/src/consumer/group/classic_group_leave/failur
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/classic_group_leave/owner.rs"
 test = "crates/kafka-client-engine/src/consumer/group/classic_group_leave/owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_leave/terminal.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_leave/terminal_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/registry_close_port.rs"

@@ -61,6 +61,29 @@ pub(crate) fn normalize_group_offset_commit_response(
     Ok((throttle_time_ms, outcomes))
 }
 
+/// Recognizes an exactly correlated response that rejected every partition on
+/// stale coordinator authority and therefore committed no supplied offset.
+pub(crate) fn is_exact_group_offset_commit_coordinator_rejection(
+    prepared: &PreparedGroupOffsetCommit,
+    response: &OffsetCommitResponse,
+) -> bool {
+    if response.throttle_time_ms < 0
+        || response.topics.len() > MAX_GROUP_OFFSET_COMMIT_ENTRIES
+        || response.topics.iter().try_fold(0usize, |count, topic| {
+            count.checked_add(topic.partitions.len())
+        }) != Some(prepared.entries().len())
+        || prepared.entries().is_empty()
+        || validate_topics(prepared, response).is_err()
+    {
+        return false;
+    }
+    prepared.entries().iter().all(|entry| {
+        matching_topic(entry.topic().as_ref(), response)
+            .and_then(|topic| matching_partition(entry.partition_index(), &topic.partitions))
+            .is_ok_and(|partition| matches!(partition.error_code, 15 | 16))
+    })
+}
+
 fn validate_topics(
     prepared: &PreparedGroupOffsetCommit,
     response: &OffsetCommitResponse,

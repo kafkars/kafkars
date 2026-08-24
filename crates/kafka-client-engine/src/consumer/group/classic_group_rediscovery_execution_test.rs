@@ -27,6 +27,7 @@ fn submitted_modern_invalidation_stays_blocked_until_its_terminal_permission() {
     for permission in [
         ClassicCoordinatorInvalidationPermission::Applied,
         ClassicCoordinatorInvalidationPermission::IgnoredStale,
+        ClassicCoordinatorInvalidationPermission::Unavailable,
     ] {
         let (mut registry, group_id) = modern_awaiting_registry(true);
         let execution = registry.entries[0]
@@ -73,10 +74,11 @@ fn modern_invalidation_terminal_failure_becomes_a_startup_terminal() {
 }
 
 #[test]
-fn applied_and_stale_terminals_are_the_only_fresh_join_permissions() {
+fn applied_stale_and_unavailable_terminals_permit_fresh_join_discovery() {
     for permission in [
         ClassicCoordinatorInvalidationPermission::Applied,
         ClassicCoordinatorInvalidationPermission::IgnoredStale,
+        ClassicCoordinatorInvalidationPermission::Unavailable,
     ] {
         let (mut registry, group_id) = invalidating_registry();
         registry

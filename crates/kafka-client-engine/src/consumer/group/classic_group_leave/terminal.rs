@@ -41,7 +41,8 @@ pub(super) fn normalize_terminal(
         return failure(GroupConsumerCloseTerminalFailureKind::DeadlineElapsed, None);
     }
     match resolution {
-        ClassicGroupLeaveResolution::Succeeded => GroupConsumerCloseTerminal::Succeeded,
+        ClassicGroupLeaveResolution::Succeeded
+        | ClassicGroupLeaveResolution::BrokerRejected(25) => GroupConsumerCloseTerminal::Succeeded,
         ClassicGroupLeaveResolution::BrokerRejected(error_code) => failure(
             GroupConsumerCloseTerminalFailureKind::BrokerRejected,
             Some(error_code),

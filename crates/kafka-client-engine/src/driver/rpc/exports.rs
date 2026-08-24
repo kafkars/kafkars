@@ -58,8 +58,8 @@ pub(crate) use super::group_offset_alter_terminal::{
 };
 pub(crate) use super::group_offset_commit_calls::TrackedGroupOffsetCommitCalls;
 pub(crate) use super::group_offset_commit_recovery::GroupOffsetCommitShutdownRecovery;
-pub(crate) use super::group_offset_commit_settlement::{
-    GroupOffsetCommitPoll, GroupOffsetCommitRefreshPoll,
+pub(crate) use super::group_offset_commit_retry::{
+    GroupOffsetCommitPoll, GroupOffsetCommitRefreshPoll, GroupOffsetCommitReplacementPoll,
 };
 pub(crate) use super::group_offset_delete_call::GroupOffsetDeleteCall;
 pub(crate) use super::group_offset_delete_terminal::{

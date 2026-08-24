@@ -23,7 +23,7 @@ use crate::{
 
 use super::{
     super::DriverOwner, group_offset_commit_calls::TrackedGroupOffsetCommitCalls,
-    group_offset_commit_settlement_test::broker_rejection,
+    group_offset_commit_retry::broker_rejection,
 };
 
 #[test]
