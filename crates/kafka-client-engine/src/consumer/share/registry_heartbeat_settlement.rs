@@ -102,16 +102,36 @@ impl ShareConsumerRegistry {
                 )?;
             }
             ShareGroupHeartbeatResolution::Failed(failure) => {
-                let failure = driver_failure(failure);
-                if failure == ShareGroupHeartbeatFailure::CoordinatorUnavailable {
+                if let Some(failure) =
+                    rediscovery_failure(kind, failure, route.has_coordinator_token())
+                {
                     self.begin_rediscovery(index, now, clock, failure, route)?;
                 } else {
+                    let failure = driver_failure(failure);
                     route.accept();
                     settle_local_failure(&mut self.entries[index], now, clock, failure)?;
                 }
             }
         }
         Ok(ShareHeartbeatSettlementTurn::Progress)
+    }
+}
+
+pub(super) fn rediscovery_failure(
+    kind: ShareGroupHeartbeatRequestKind,
+    failure: ConsumerGroupHeartbeatDriverFailureKind,
+    has_coordinator_route: bool,
+) -> Option<ShareGroupHeartbeatFailure> {
+    match failure {
+        ConsumerGroupHeartbeatDriverFailureKind::Transport => {
+            Some(ShareGroupHeartbeatFailure::CoordinatorUnavailable)
+        }
+        ConsumerGroupHeartbeatDriverFailureKind::DeadlineElapsed
+            if kind == ShareGroupHeartbeatRequestKind::Steady && has_coordinator_route =>
+        {
+            Some(ShareGroupHeartbeatFailure::CoordinatorUnavailable)
+        }
+        _ => None,
     }
 }
 

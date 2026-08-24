@@ -1,20 +1,21 @@
 //! Hosted share cadence, retry-gate, and failure-classification scenarios.
 
 use super::{
-    membership::ShareMembershipFailureTurn, registry::ShareConsumerRegistry,
-    registry_heartbeat_due::ShareHeartbeatDueTurn, registry_heartbeat_settlement::driver_failure,
-    registry_topic_identity::complete_topic_identity,
+    membership::ShareMembershipFailureTurn,
+    registry_heartbeat_due::ShareHeartbeatDueTurn,
+    registry_heartbeat_settlement::{driver_failure, rediscovery_failure},
+    registry_test::{add_membership, registry_with_membership, settle_assignment},
 };
 use crate::{
-    EngineShareConsumerFetchConfig as FetchConfig,
-    clock::MonotonicClock,
-    driver::{ConsumerGroupHeartbeatDriverFailureKind, TopicPartitionCountFact},
+    driver::{
+        ConsumerGroupHeartbeatDriverFailureKind, share_group_heartbeat::ShareGroupHeartbeatRoute,
+    },
     protocol::consumer::share_group::share_group_heartbeat_success_for_test,
 };
 use kafka_client_core::{
     Moment, ShareGroupHeartbeatFailure, ShareGroupHeartbeatPhase, ShareGroupHeartbeatRequestKind,
 };
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 #[test]
 fn accepted_assignment_arms_and_prepares_one_steady_heartbeat() {
@@ -91,6 +92,38 @@ fn rediscovery_needs_permission_and_positive_delay_in_either_order() {
     assert_eq!(
         registry
             .prepare_one_heartbeat_due(Moment::from_tick(schedule.not_before().tick()), &clock)
+            .unwrap_or_else(|error| panic!("retry due: {error:?}")),
+        ShareHeartbeatDueTurn::Progress
+    );
+    assert!(
+        registry
+            .entry(group_id)
+            .and_then(|entry| entry.membership.as_ref())
+            .is_some_and(super::ShareMembershipInterpreter::is_ready_to_submit)
+    );
+}
+
+#[test]
+fn route_less_transport_retries_after_delay_without_an_invalidation_owner() {
+    let (mut registry, group_id, clock, capture) = registry_with_membership();
+    registry
+        .begin_rediscovery(
+            0,
+            capture.now(),
+            &clock,
+            ShareGroupHeartbeatFailure::CoordinatorUnavailable,
+            ShareGroupHeartbeatRoute::without_token_for_test(),
+        )
+        .unwrap_or_else(|error| panic!("route-less rediscovery: {error:?}"));
+    assert_eq!(registry.invalidations.retained_count(), 0);
+    let schedule = registry
+        .entry(group_id)
+        .and_then(|entry| entry.membership.as_ref())
+        .and_then(|membership| membership.machine().retry_schedule())
+        .unwrap_or_else(|| panic!("retry schedule"));
+    assert_eq!(
+        registry
+            .prepare_one_heartbeat_due(Moment::from_tick(schedule.not_before().tick()), &clock,)
             .unwrap_or_else(|error| panic!("retry due: {error:?}")),
         ShareHeartbeatDueTurn::Progress
     );
@@ -220,81 +253,30 @@ fn driver_failures_map_without_granting_unknown_retry_authority() {
     );
 }
 
-pub(super) fn registry_with_membership() -> (
-    ShareConsumerRegistry,
-    kafka_client_core::GroupId,
-    MonotonicClock,
-    crate::clock::DeadlineCapture,
-) {
-    let clock = MonotonicClock::new();
-    let mut registry =
-        ShareConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error:?}"));
-    let (group_id, capture) = add_membership(&mut registry, &clock, "workers");
-    (registry, group_id, clock, capture)
-}
-
-fn add_membership(
-    registry: &mut ShareConsumerRegistry,
-    clock: &MonotonicClock,
-    group: &str,
-) -> (kafka_client_core::GroupId, crate::clock::DeadlineCapture) {
-    let capture = clock
-        .capture_deadline_after(Duration::from_secs(30))
-        .unwrap_or_else(|error| panic!("capture: {error:?}"));
-    let group_id = registry
-        .try_register(
-            Arc::from(group),
-            None,
-            vec![Arc::from("jobs")],
-            FetchConfig::default(),
-        )
-        .unwrap_or_else(|_error| panic!("register"));
-    registry
-        .try_begin(group_id, capture)
-        .unwrap_or_else(|error| panic!("begin: {error:?}"));
-    let entry = registry
-        .entry_mut(group_id)
-        .unwrap_or_else(|| panic!("entry"));
-    let local_topic_id = entry
-        .local_topic_id(0)
-        .unwrap_or_else(|| panic!("topic id"));
-    complete_topic_identity(
-        entry,
-        local_topic_id,
-        Arc::from("jobs"),
-        capture.operation_deadline(),
-        TopicPartitionCountFact {
-            metadata_generation: 1,
-            logical_partition_count: 1,
-            kafka_topic_id: Some([7; 16]),
-        },
-    )
-    .unwrap_or_else(|error| panic!("topic identity: {error:?}"));
-    (group_id, capture)
-}
-
-pub(super) fn settle_assignment(
-    registry: &mut ShareConsumerRegistry,
-    group_id: kafka_client_core::GroupId,
-    now: Moment,
-    heartbeat_interval_ms: i32,
-) {
-    let entry = registry
-        .entry_mut(group_id)
-        .unwrap_or_else(|| panic!("entry"));
-    let member = Arc::clone(entry.member());
-    entry
-        .membership
-        .as_mut()
-        .unwrap_or_else(|| panic!("membership"))
-        .settle_success(
-            now,
-            share_group_heartbeat_success_for_test(
-                Some(&member),
-                1,
-                heartbeat_interval_ms,
-                vec![([7; 16], vec![0])],
-            ),
-        )
-        .unwrap_or_else(|error| panic!("success: {error:?}"));
+#[test]
+fn only_route_evidenced_steady_deadlines_authorize_rediscovery() {
+    assert_eq!(
+        rediscovery_failure(
+            ShareGroupHeartbeatRequestKind::Steady,
+            ConsumerGroupHeartbeatDriverFailureKind::DeadlineElapsed,
+            true,
+        ),
+        Some(ShareGroupHeartbeatFailure::CoordinatorUnavailable)
+    );
+    assert_eq!(
+        rediscovery_failure(
+            ShareGroupHeartbeatRequestKind::Steady,
+            ConsumerGroupHeartbeatDriverFailureKind::DeadlineElapsed,
+            false,
+        ),
+        None
+    );
+    assert_eq!(
+        rediscovery_failure(
+            ShareGroupHeartbeatRequestKind::Join,
+            ConsumerGroupHeartbeatDriverFailureKind::DeadlineElapsed,
+            true,
+        ),
+        None
+    );
 }

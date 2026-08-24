@@ -52,18 +52,23 @@ impl ShareGroupHeartbeatMachine {
         ) {
             return Err(ShareGroupHeartbeatErrorKind::FailureNotRetryable);
         }
-        let deadline = self
-            .deadline
-            .ok_or(ShareGroupHeartbeatErrorKind::InvariantViolation)?;
-        if deadline.is_elapsed_at(now) {
-            return Ok(self.fail(attempt, ShareGroupHeartbeatFailure::DeadlineElapsed));
-        }
         let kind = match self.phase {
             ShareGroupHeartbeatPhase::Joining => ShareGroupHeartbeatRequestKind::Join,
             ShareGroupHeartbeatPhase::Heartbeating => ShareGroupHeartbeatRequestKind::Steady,
             ShareGroupHeartbeatPhase::Leaving => ShareGroupHeartbeatRequestKind::Leave,
             _ => return Err(ShareGroupHeartbeatErrorKind::InvalidPhase),
         };
+        let deadline = self
+            .deadline
+            .ok_or(ShareGroupHeartbeatErrorKind::InvariantViolation)?;
+        if deadline.is_elapsed_at(now) {
+            if kind == ShareGroupHeartbeatRequestKind::Steady
+                && failure == ShareGroupHeartbeatFailure::CoordinatorUnavailable
+            {
+                return self.rejoin_after_expired_coordinator_route(attempt, now);
+            }
+            return Ok(self.fail(attempt, ShareGroupHeartbeatFailure::DeadlineElapsed));
+        }
         let (member_epoch, assignment_generation) = self.retry_facts(kind)?;
         let (replacement, next_sequence) = match self.reserve_attempt(member_epoch) {
             Ok(reserved) => reserved,
@@ -84,12 +89,58 @@ impl ShareGroupHeartbeatMachine {
         self.retry_schedule = Some(schedule);
         Ok(ShareGroupHeartbeatTransition::two(
             ShareGroupHeartbeatEffect::Rediscover {
+                previous: None,
                 group_id: self.group_id,
                 member_id: self.member_id,
                 attempt: replacement,
                 kind,
                 member_epoch,
                 assignment_generation,
+                deadline,
+            },
+            ShareGroupHeartbeatEffect::ArmRetry { schedule },
+        ))
+    }
+
+    fn rejoin_after_expired_coordinator_route(
+        &mut self,
+        rejected: ShareGroupHeartbeatAttempt,
+        now: Moment,
+    ) -> Result<ShareGroupHeartbeatTransition, ShareGroupHeartbeatErrorKind> {
+        let deadline = now
+            .checked_deadline_after(self.policy.attempt_timeout_ticks())
+            .ok_or(ShareGroupHeartbeatErrorKind::DeadlineOverflow)?;
+        let (replacement, next_sequence) = match self.reserve_attempt(None) {
+            Ok(reserved) => reserved,
+            Err(ShareGroupHeartbeatErrorKind::AttemptExhausted) => {
+                return Ok(self.fail(rejected, ShareGroupHeartbeatFailure::Execution));
+            }
+            Err(error) => return Err(error),
+        };
+        let schedule = retry_schedule(
+            replacement,
+            ShareGroupHeartbeatRequestKind::Join,
+            ShareGroupHeartbeatRetryCause::Rediscovery,
+            now,
+            deadline,
+        );
+        let previous = self.live_assignment.take();
+        self.phase = ShareGroupHeartbeatPhase::Joining;
+        self.next_sequence = next_sequence;
+        self.in_flight = Some(replacement);
+        self.deadline = Some(deadline);
+        self.retry_schedule = Some(schedule);
+        self.member_epoch = None;
+        self.schedule = None;
+        Ok(ShareGroupHeartbeatTransition::two(
+            ShareGroupHeartbeatEffect::Rediscover {
+                previous,
+                group_id: self.group_id,
+                member_id: self.member_id,
+                attempt: replacement,
+                kind: ShareGroupHeartbeatRequestKind::Join,
+                member_epoch: None,
+                assignment_generation: None,
                 deadline,
             },
             ShareGroupHeartbeatEffect::ArmRetry { schedule },

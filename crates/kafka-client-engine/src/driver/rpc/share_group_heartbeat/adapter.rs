@@ -52,6 +52,15 @@ pub(crate) struct ShareGroupHeartbeatRoute {
 }
 
 impl ShareGroupHeartbeatRoute {
+    #[cfg(test)]
+    pub(crate) const fn without_token_for_test() -> Self {
+        Self { token: None }
+    }
+
+    pub(crate) fn has_coordinator_token(&self) -> bool {
+        self.token.as_ref().map(RouteFailureToken::kind) == Some(RouteKind::Coordinator)
+    }
+
     pub(crate) fn into_invalidation(
         self,
         group_id: kafka_client_core::GroupId,

@@ -37,6 +37,25 @@ impl ShareConsumerRegistry {
         failure: ShareGroupHeartbeatFailure,
         route: ShareGroupHeartbeatRoute,
     ) -> Result<(), ShareMembershipHostError> {
+        if !route.has_coordinator_token() {
+            route.accept();
+            let turn = self.entries[index]
+                .membership
+                .as_mut()
+                .ok_or(ShareMembershipHostError::EffectShape)?
+                .settle_failure(now, clock, failure)?;
+            return match turn {
+                ShareMembershipFailureTurn::Rediscovery(_schedule) => self.entries[index]
+                    .membership
+                    .as_mut()
+                    .ok_or(ShareMembershipHostError::EffectShape)?
+                    .permit_rediscovery()
+                    .map_err(ShareMembershipHostError::from),
+                ShareMembershipFailureTurn::Terminal => Ok(()),
+                ShareMembershipFailureTurn::RetryScheduled(_)
+                | ShareMembershipFailureTurn::Rejoin => Err(ShareMembershipHostError::EffectShape),
+            };
+        }
         let group_id = self
             .entries
             .get(index)

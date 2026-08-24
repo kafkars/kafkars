@@ -54,7 +54,7 @@ impl ShareMembershipInterpreter {
                 self.finish_terminal_transition(transition)?;
                 return Ok(ShareMembershipFailureTurn::Terminal);
             }
-            return self.install_rediscovery(transition, prepared);
+            return self.install_rediscovery(transition, clock, prepared);
         }
         if prepared.kind == ShareGroupHeartbeatRequestKind::Steady
             && matches!(failure, ShareGroupHeartbeatFailure::Broker(25 | 110))

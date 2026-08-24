@@ -2,7 +2,16 @@
 
 use std::{sync::Arc, time::Duration};
 
-use super::{ShareConsumerRegistrationFailureKind, ShareConsumerRegistry, ShareConsumerStartError};
+use kafka_client_core::Moment;
+
+use super::{
+    ShareConsumerRegistrationFailureKind, ShareConsumerRegistry, ShareConsumerStartError,
+    registry_topic_identity::complete_topic_identity,
+};
+use crate::{
+    clock::MonotonicClock, driver::TopicPartitionCountFact,
+    protocol::consumer::share_group::share_group_heartbeat_success_for_test,
+};
 
 #[test]
 fn registration_is_bounded_and_assigns_stable_distinct_member_identity() {
@@ -139,4 +148,83 @@ fn start_retains_the_original_capture_and_rejects_replacement() {
 
 fn topics() -> Vec<Arc<str>> {
     vec![Arc::from("orders"), Arc::from("payments")]
+}
+
+pub(super) fn registry_with_membership() -> (
+    ShareConsumerRegistry,
+    kafka_client_core::GroupId,
+    MonotonicClock,
+    crate::clock::DeadlineCapture,
+) {
+    let clock = MonotonicClock::new();
+    let mut registry =
+        ShareConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error:?}"));
+    let (group_id, capture) = add_membership(&mut registry, &clock, "workers");
+    (registry, group_id, clock, capture)
+}
+
+pub(super) fn add_membership(
+    registry: &mut ShareConsumerRegistry,
+    clock: &MonotonicClock,
+    group: &str,
+) -> (kafka_client_core::GroupId, crate::clock::DeadlineCapture) {
+    let capture = clock
+        .capture_deadline_after(Duration::from_secs(30))
+        .unwrap_or_else(|error| panic!("capture: {error:?}"));
+    let group_id = registry
+        .try_register(
+            Arc::from(group),
+            None,
+            vec![Arc::from("jobs")],
+            crate::EngineShareConsumerFetchConfig::default(),
+        )
+        .unwrap_or_else(|_error| panic!("register"));
+    registry
+        .try_begin(group_id, capture)
+        .unwrap_or_else(|error| panic!("begin: {error:?}"));
+    let entry = registry
+        .entry_mut(group_id)
+        .unwrap_or_else(|| panic!("entry"));
+    let local_topic_id = entry
+        .local_topic_id(0)
+        .unwrap_or_else(|| panic!("topic id"));
+    complete_topic_identity(
+        entry,
+        local_topic_id,
+        Arc::from("jobs"),
+        capture.operation_deadline(),
+        TopicPartitionCountFact {
+            metadata_generation: 1,
+            logical_partition_count: 1,
+            kafka_topic_id: Some([7; 16]),
+        },
+    )
+    .unwrap_or_else(|error| panic!("topic identity: {error:?}"));
+    (group_id, capture)
+}
+
+pub(super) fn settle_assignment(
+    registry: &mut ShareConsumerRegistry,
+    group_id: kafka_client_core::GroupId,
+    now: Moment,
+    heartbeat_interval_ms: i32,
+) {
+    let entry = registry
+        .entry_mut(group_id)
+        .unwrap_or_else(|| panic!("entry"));
+    let member = Arc::clone(entry.member());
+    entry
+        .membership
+        .as_mut()
+        .unwrap_or_else(|| panic!("membership"))
+        .settle_success(
+            now,
+            share_group_heartbeat_success_for_test(
+                Some(&member),
+                1,
+                heartbeat_interval_ms,
+                vec![([7; 16], vec![0])],
+            ),
+        )
+        .unwrap_or_else(|error| panic!("success: {error:?}"));
 }

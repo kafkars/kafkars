@@ -29,19 +29,21 @@ pub enum ShareGroupHeartbeatEffect {
     },
     /// Invalidate one stale share membership coordinator route.
     Rediscover {
+        /// Prior assignment to retire when an expired steady route requires rejoin.
+        previous: Option<LiveGroupAssignment>,
         /// Stable engine-catalog group identity.
         group_id: GroupId,
         /// Stable consumer-generated member identity.
         member_id: MemberId,
         /// Fresh nonreused replacement request.
         attempt: ShareGroupHeartbeatAttempt,
-        /// Retained request shape.
+        /// Retained request shape, or Join after an expired steady route.
         kind: ShareGroupHeartbeatRequestKind,
         /// Current positive epoch, absent for Join.
         member_epoch: Option<ShareGroupMemberEpoch>,
         /// Current local assignment fence.
         assignment_generation: Option<AssignmentGeneration>,
-        /// Original absolute attempt deadline.
+        /// Original absolute deadline, or a fresh bounded background Join deadline.
         deadline: Deadline,
     },
     /// Arm one exact positive retry delay.

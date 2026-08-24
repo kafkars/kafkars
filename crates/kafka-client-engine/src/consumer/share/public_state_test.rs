@@ -2,7 +2,7 @@
 
 use kafka_client_core::{Moment, ShareGroupHeartbeatFailure};
 
-use super::registry_heartbeat_test::{registry_with_membership, settle_assignment};
+use super::registry_test::{registry_with_membership, settle_assignment};
 
 #[test]
 fn state_copies_exact_epoch_generation_topic_and_partition() {

@@ -76,6 +76,7 @@ fn not_coordinator_reserves_fresh_attempt_and_pairs_invalidation_with_delay() {
     let effects = transition.into_effects().collect::<Vec<_>>();
     let [
         ShareGroupHeartbeatEffect::Rediscover {
+            previous: None,
             attempt: replacement,
             kind: ShareGroupHeartbeatRequestKind::Join,
             ..
@@ -89,6 +90,60 @@ fn not_coordinator_reserves_fresh_attempt_and_pairs_invalidation_with_delay() {
     assert_eq!(schedule.attempt(), *replacement);
     assert_eq!(schedule.cause(), ShareGroupHeartbeatRetryCause::Rediscovery);
     assert_eq!(machine.in_flight(), Some(*replacement));
+}
+
+#[test]
+fn expired_steady_coordinator_route_revokes_and_schedules_a_fresh_join() {
+    let (mut machine, attempt) = heartbeating();
+    let original_deadline = deadline(35);
+    let transition = machine
+        .apply(ShareGroupHeartbeatInput::RetryHeartbeat {
+            attempt,
+            now: moment(original_deadline.tick()),
+            failure: ShareGroupHeartbeatFailure::CoordinatorUnavailable,
+        })
+        .unwrap_or_else(|error| panic!("recover expired coordinator route: {error}"));
+    let effects = transition.into_effects().collect::<Vec<_>>();
+    let [
+        ShareGroupHeartbeatEffect::Rediscover {
+            previous: Some(previous),
+            attempt: replacement,
+            kind: ShareGroupHeartbeatRequestKind::Join,
+            member_epoch: None,
+            assignment_generation: None,
+            deadline: replacement_deadline,
+            ..
+        },
+        ShareGroupHeartbeatEffect::ArmRetry { schedule },
+    ] = effects.as_slice()
+    else {
+        panic!("revoking rediscovery and retry schedule")
+    };
+    assert_eq!(previous.assignment_generation().get(), 1);
+    assert_ne!(*replacement, attempt);
+    assert_eq!(replacement_deadline.tick(), 45);
+    assert_eq!(schedule.attempt(), *replacement);
+    assert_eq!(schedule.deadline(), *replacement_deadline);
+    assert_eq!(machine.phase(), ShareGroupHeartbeatPhase::Joining);
+    assert_eq!(machine.member_epoch(), None);
+    assert!(machine.live_assignment().is_none());
+}
+
+#[test]
+fn expired_join_coordinator_route_remains_terminal() {
+    let (mut machine, attempt) = joining();
+    let transition = machine
+        .apply(ShareGroupHeartbeatInput::RetryHeartbeat {
+            attempt,
+            now: moment(40),
+            failure: ShareGroupHeartbeatFailure::CoordinatorUnavailable,
+        })
+        .unwrap_or_else(|error| panic!("settle expired join route: {error}"));
+    assert!(matches!(
+        transition.into_effects().next(),
+        Some(ShareGroupHeartbeatEffect::Fatal { fatal })
+            if fatal.failure() == ShareGroupHeartbeatFailure::DeadlineElapsed
+    ));
 }
 
 #[test]
