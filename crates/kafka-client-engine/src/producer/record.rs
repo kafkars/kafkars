@@ -1,96 +1,22 @@
 //! Bytes-native producer records retained exclusively by the engine.
 
+mod header;
+#[cfg(test)]
+mod header_test;
 mod partitioning;
 
-use std::mem::size_of;
-use std::sync::{Arc, atomic::AtomicUsize};
+use std::sync::Arc;
 
 use bytes::Bytes;
 use kafka_client_core::PartitionIndex;
 
 use super::ProducerStoreError;
-use super::materialization::{MaterializationHeader, MaterializationRecord};
+use super::materialization::MaterializationRecord;
 
-#[repr(C)]
-struct BytesOwnerControlLayout {
-    _reference_count: AtomicUsize,
-    _owner: HeaderNameOwner,
-}
-
-pub(super) const HEADER_BYTES_OWNER_CONTROL_BYTES: usize = size_of::<BytesOwnerControlLayout>();
-pub(super) const HEADER_NAME_ARC_CONTROL_BYTES: usize = 2 * size_of::<AtomicUsize>();
-// One inline vector element plus both reference-counted owner allocations.
-pub(super) const HEADER_CONTROL_BYTES: usize =
-    size_of::<ProducerHeader>() + HEADER_BYTES_OWNER_CONTROL_BYTES + HEADER_NAME_ARC_CONTROL_BYTES;
-
-#[derive(Debug)]
-struct HeaderNameOwner(Arc<str>);
-
-impl AsRef<[u8]> for HeaderNameOwner {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_bytes()
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-struct ValidatedHeaderName {
-    text: Arc<str>,
-    bytes: Bytes,
-}
-
-impl ValidatedHeaderName {
-    fn new(text: String) -> Self {
-        let text: Arc<str> = Arc::from(text.into_boxed_str());
-        let bytes = Bytes::from_owner(HeaderNameOwner(Arc::clone(&text)));
-        Self { text, bytes }
-    }
-
-    fn len(&self) -> usize {
-        self.bytes.len()
-    }
-
-    fn shared_bytes(&self) -> Bytes {
-        self.bytes.clone()
-    }
-
-    fn into_string(self) -> String {
-        let Self { text, bytes } = self;
-        drop(bytes);
-        text.as_ref().to_owned()
-    }
-}
-
-/// One ordered Kafka header with a non-null name and nullable value.
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) struct ProducerHeader {
-    name: ValidatedHeaderName,
-    value: Option<Bytes>,
-}
-
-impl ProducerHeader {
-    /// Captures a validated header name once as shared immutable bytes.
-    pub(crate) fn new(name: String, value: Option<Bytes>) -> Self {
-        Self {
-            name: ValidatedHeaderName::new(name),
-            value,
-        }
-    }
-
-    pub(super) fn retained_bytes(&self) -> Result<usize, ProducerStoreError> {
-        self.name
-            .len()
-            .checked_add(self.value.as_ref().map_or(0, Bytes::len))
-            .ok_or(ProducerStoreError::RetainedSizeOverflow)
-    }
-
-    pub(super) fn materialization_view(&self) -> MaterializationHeader {
-        MaterializationHeader::new(self.name.shared_bytes(), self.value.clone())
-    }
-
-    pub(super) fn into_parts(self) -> (String, Option<Bytes>) {
-        (self.name.into_string(), self.value)
-    }
-}
+#[cfg(test)]
+pub(super) use header::HEADER_BYTES_OWNER_CONTROL_BYTES;
+pub(super) use header::HEADER_CONTROL_BYTES;
+pub(in crate::producer) use header::{ProducerHeader, ProducerSourceOwner};
 
 /// Complete engine-owned application record before Kafka batch encoding.
 #[derive(Debug, Eq, PartialEq)]
@@ -104,6 +30,7 @@ pub(crate) struct ProducerRecord {
     key: Option<Bytes>,
     value: Option<Bytes>,
     headers: Vec<ProducerHeader>,
+    source_owner: ProducerSourceOwner,
 }
 
 pub(super) struct ProducerRecordParts {
@@ -114,6 +41,7 @@ pub(super) struct ProducerRecordParts {
     pub(super) key: Option<Bytes>,
     pub(super) value: Option<Bytes>,
     pub(super) headers: Vec<ProducerHeader>,
+    pub(super) source_owner: ProducerSourceOwner,
 }
 
 impl ProducerRecord {
@@ -135,33 +63,28 @@ impl ProducerRecord {
             key,
             value,
             headers: Vec::new(),
+            source_owner: ProducerSourceOwner::none(),
         }
     }
 
-    pub(super) const fn from_public(
-        topic: Arc<str>,
-        partition: Option<PartitionIndex>,
-        timestamp_ms: i64,
-        defaulted_timestamp: bool,
-        key: Option<Bytes>,
-        value: Option<Bytes>,
-        headers: Vec<ProducerHeader>,
-    ) -> Self {
+    pub(super) fn from_public(parts: ProducerRecordParts) -> Self {
+        let automatic_partition = parts.partition.is_none();
         Self {
-            topic,
-            partition,
+            topic: parts.topic,
+            partition: parts.partition,
             leader_broker_id: None,
-            automatic_partition: partition.is_none(),
-            timestamp_ms,
-            defaulted_timestamp,
-            key,
-            value,
-            headers,
+            automatic_partition,
+            timestamp_ms: parts.timestamp_ms,
+            defaulted_timestamp: parts.defaulted_timestamp,
+            key: parts.key,
+            value: parts.value,
+            headers: parts.headers,
+            source_owner: parts.source_owner,
         }
     }
 
     /// Attaches headers in application order without deduplicating names.
-    pub(crate) fn with_headers(mut self, headers: Vec<ProducerHeader>) -> Self {
+    pub(in crate::producer) fn with_headers(mut self, headers: Vec<ProducerHeader>) -> Self {
         self.headers = headers;
         self
     }
@@ -199,6 +122,13 @@ impl ProducerRecord {
             self.value.clone(),
             headers,
         )
+    }
+
+    pub(super) fn release_source_owner(&mut self) {
+        self.source_owner.release();
+        for header in &mut self.headers {
+            header.release_source_owner();
+        }
     }
 
     pub(super) fn into_parts(

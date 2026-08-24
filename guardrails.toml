@@ -68,7 +68,7 @@ baseline = [
   { path = "crates/kafkars/src/bridge/describe_streams_group/result.rs", lines = 327, reason = "the API 89 bridge result translator exhaustively maps the complete generated-free topology, member, task, exact broker rejection, and delivery vocabulary into the curated public surface" },
   { path = "crates/kafkars/src/bridge/mod.rs", lines = 138, reason = "the declarative bridge facade explicitly names every private Rust source-preview adapter including share-consumer ownership" },
   { path = "crates/kafkars/src/bridge/producer/handle.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafkars/src/lib.rs", lines = 174, reason = "the crate facade explicitly reexports the complete curated Rust source-preview surface, preview limitation, and required trademark notice" },
+  { path = "crates/kafkars/src/lib.rs", lines = 179, reason = "the crate facade explicitly reexports the complete curated Rust source-preview surface, preview limitation, and required trademark notice" },
   { path = "crates/kafka-client-core/src/admin/alter_share_group_offsets/outcome.rs", lines = 268, reason = "the bounded API 91 outcome seam keeps caller-ordered partition identities, nonzero topic IDs, exact group and partition errors, delivery certainty, and terminal variants in one deterministic vocabulary" },
   { path = "crates/kafka-client-core/src/admin/delete_share_group_offsets/outcome.rs", lines = 245, reason = "the bounded API 92 outcome seam keeps exact signed top-level and per-topic broker failures, nonzero topic identities, delivery certainty, and retained-byte accounting together" },
   { path = "crates/kafka-client-core/src/admin/delete_share_group_offsets/transition.rs", lines = 268, reason = "the destructive API 92 state transition keeps admission, handoff, deadline, broker settlement, and shutdown recovery exhaustive over one explicit operation state" },
@@ -193,7 +193,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members.rs", lines = 270, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members_test.rs", lines = 302, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/mod.rs", lines = 89, reason = "the declarative consumer protocol facade names classic-group, Fetch, share-heartbeat, ShareAcknowledge, position, and offset-commit protocol ownership including static membership" },
-  { path = "crates/kafka-client-engine/src/public_api.rs", lines = 486, reason = "the engine crate facade explicitly reexports the complete typed Rust source-preview engine and operational metrics surface" },
+  { path = "crates/kafka-client-engine/src/public_api.rs", lines = 488, reason = "the engine crate facade explicitly reexports the complete typed Rust source-preview engine, lease-preserving owned direct-consumer batch vocabulary, and operational metrics surface" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 265, reason = "the transaction-initialization settlement seam preserves its prior public failure taxonomy while the shared API 22 terminal now distinguishes compatibility for producer-fencing callers" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host.rs", lines = 245, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host_test.rs", lines = 325, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -10386,7 +10386,7 @@ path = "crates/kafka-client-engine/src/producer/record.rs"
 
 [[linear_owners]]
 owner_type = "ProducerHeader"
-path = "crates/kafka-client-engine/src/producer/record.rs"
+path = "crates/kafka-client-engine/src/producer/record/header.rs"
 
 [[linear_owners]]
 owner_type = "ProducerRecord"
@@ -24404,3 +24404,142 @@ path = "crates/kafkars/src/admin/expire_delegation_token/builder.rs"
 [[linear_owners]]
 owner_type = "ExpireDelegationToken"
 path = "crates/kafkars/src/admin/expire_delegation_token/operation.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/record/header.rs"
+test = "crates/kafka-client-engine/src/producer/record/header_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/record/header.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/record/header_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_batch.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_batch_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_record.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_record_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/header_name.rs"
+test = "crates/kafkars/src/header_name_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/consumer/owned_batch.rs"
+test = "crates/kafkars/src/bridge/consumer/owned_batch_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/owned_batch.rs"
+test = "crates/kafkars/src/consumer/owned_batch_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/owned_record.rs"
+test = "crates/kafkars/src/consumer/owned_record_test.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerOwnedBatch"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_batch.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerOwnedRecords"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_record.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerOwnedRecord"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_record.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerOwnedHeader"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_record.rs"
+
+[[linear_owners]]
+owner_type = "ProducerSourceOwner"
+path = "crates/kafka-client-engine/src/producer/record/header.rs"
+
+[[linear_owners]]
+owner_type = "ProducerHeader"
+path = "crates/kafka-client-engine/src/producer/boundary/record/header.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerOwnedBatch"
+path = "crates/kafkars/src/bridge/consumer/owned_batch.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerOwnedRecords"
+path = "crates/kafkars/src/bridge/consumer/owned_batch.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerOwnedRecord"
+path = "crates/kafkars/src/bridge/consumer/owned_batch.rs"
+
+[[linear_owners]]
+owner_type = "OwnedConsumerBatch"
+path = "crates/kafkars/src/consumer/owned_batch.rs"
+
+[[linear_owners]]
+owner_type = "OwnedConsumerRecords"
+path = "crates/kafkars/src/consumer/owned_record.rs"
+
+[[linear_owners]]
+owner_type = "OwnedConsumerRecord"
+path = "crates/kafkars/src/consumer/owned_record.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_batch.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Future",
+  "Metadata",
+  "Retry",
+  "Stream",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_record.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Future",
+  "Metadata",
+  "Retry",
+  "Stream",
+  "Transport",
+  "async",
+]

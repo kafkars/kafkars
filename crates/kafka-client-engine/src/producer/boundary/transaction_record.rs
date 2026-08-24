@@ -69,10 +69,7 @@ impl ProducerRecord {
             .headers
             .iter()
             .map(|header| {
-                MaterializationHeader::new(
-                    Bytes::copy_from_slice(header.name.as_bytes()),
-                    header.value.clone(),
-                )
+                MaterializationHeader::new(header.shared_name_bytes(), header.shared_value())
             })
             .collect();
         Ok(TransactionRecordView {
@@ -96,8 +93,8 @@ impl ProducerRecord {
             .and_then(|size| size.checked_add(self.value.as_ref().map_or(0, Bytes::len)))
             .ok_or(TransactionRecordViewError::RetainedSizeOverflow)?;
         let fields = self.headers.iter().try_fold(fields, |size, header| {
-            size.checked_add(header.name.len())
-                .and_then(|size| size.checked_add(header.value.as_ref().map_or(0, Bytes::len)))
+            size.checked_add(header.name_len())
+                .and_then(|size| size.checked_add(header.value().map_or(0, Bytes::len)))
                 .ok_or(TransactionRecordViewError::RetainedSizeOverflow)
         })?;
         self.headers

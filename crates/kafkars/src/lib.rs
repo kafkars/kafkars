@@ -8,6 +8,7 @@ mod bridge;
 mod client;
 mod consumer;
 mod error;
+mod header_name;
 mod metrics;
 mod producer;
 mod readiness;
@@ -130,7 +131,8 @@ pub use consumer::{
     ConsumerControl, ConsumerEvent, ConsumerFetchConfig, ConsumerGroupProtocol, ConsumerHeader,
     ConsumerLimits, ConsumerRecord, ConsumerRecords, ConsumerRevocation, GroupConsumerHeader,
     GroupConsumerOperationConfig, GroupConsumerRecord, GroupConsumerRecords, GroupMembershipEpoch,
-    GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch,
+    GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset, OwnedConsumerBatch,
+    OwnedConsumerHeader, OwnedConsumerRecord, OwnedConsumerRecords, ReadIsolation, RecordBatch,
     RecvAssignedBatch, RecvConsumerBatch, RecvShareConsumerBatch, Seek, ShareAcknowledgement,
     ShareAcknowledgementAdmissionError, ShareAcknowledgementBrokerError,
     ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind, ShareAcknowledgementError,
@@ -141,6 +143,7 @@ pub use consumer::{
     ShareDisposition, ShareRecordDecision, StartPosition, TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice};
+pub use header_name::HeaderName;
 pub use metrics::{
     CallMetrics, FailureMetrics, LatencyMetric, LatencyMetrics, MailboxMetrics, Metrics,
     MetricsSnapshot, ProducerMetrics,
@@ -164,6 +167,8 @@ pub use transaction::{
 mod client_test;
 #[cfg(test)]
 mod error_test;
+#[cfg(test)]
+mod header_name_test;
 #[cfg(test)]
 mod readiness_test;
 #[cfg(test)]

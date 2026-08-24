@@ -256,7 +256,7 @@ fn absent_timestamp_defaults_inside_engine_and_restores_as_absent() {
     assert_eq!(restored.timestamp(), None);
 }
 
-fn setup() -> (ProducerShardOwner, ProducerHandle, Arc<CountingWake>) {
+pub(super) fn setup() -> (ProducerShardOwner, ProducerHandle, Arc<CountingWake>) {
     let wake = Arc::new(CountingWake::default());
     let owner = ProducerShardOwner::new(start(valid_limits()), Arc::clone(&wake));
     let handle = ProducerHandle::from_port(
@@ -268,7 +268,7 @@ fn setup() -> (ProducerShardOwner, ProducerHandle, Arc<CountingWake>) {
     (owner, handle, wake)
 }
 
-fn host(
+pub(super) fn host(
     owner: &ProducerShardOwner,
 ) -> std::sync::MutexGuard<'_, crate::producer::ingress::ProducerShardData> {
     match owner.try_data() {
@@ -277,7 +277,7 @@ fn host(
     }
 }
 
-fn record() -> ProducerRecord {
+pub(super) fn record() -> ProducerRecord {
     ProducerRecord::to("orders")
         .partition(3)
         .key(Bytes::from_static(b"key"))

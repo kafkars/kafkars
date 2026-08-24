@@ -1,49 +1,19 @@
 //! Stable bytes-native producer records at the public engine boundary.
 
+mod header;
+#[cfg(test)]
+mod header_test;
+
 use std::sync::Arc;
 
 use bytes::Bytes;
 use kafka_client_core::PartitionIndex;
 
 use super::super::record::{
-    ProducerHeader as StoredProducerHeader, ProducerRecord as StoredProducerRecord,
-    ProducerRecordParts,
+    ProducerRecord as StoredProducerRecord, ProducerRecordParts, ProducerSourceOwner,
 };
 
-/// One ordered Kafka header with a non-null name and nullable bytes.
-#[derive(Debug, Eq, PartialEq)]
-pub struct ProducerHeader {
-    pub(super) name: String,
-    pub(super) value: Option<Bytes>,
-}
-
-impl ProducerHeader {
-    /// Creates a header with a non-null value.
-    pub fn new(name: impl Into<String>, value: impl Into<Bytes>) -> Self {
-        Self {
-            name: name.into(),
-            value: Some(value.into()),
-        }
-    }
-
-    /// Creates a header with a null value.
-    pub fn null(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            value: None,
-        }
-    }
-
-    /// Returns the header name.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Returns the nullable header bytes.
-    pub fn value(&self) -> Option<&Bytes> {
-        self.value.as_ref()
-    }
-}
+pub use header::ProducerHeader;
 
 /// One engine-owned bytes-native record before producer admission.
 #[derive(Debug, Eq, PartialEq)]
@@ -54,6 +24,7 @@ pub struct ProducerRecord {
     pub(super) key: Option<Bytes>,
     pub(super) value: Option<Bytes>,
     pub(super) headers: Vec<ProducerHeader>,
+    pub(super) source_owner: ProducerSourceOwner,
 }
 
 impl ProducerRecord {
@@ -66,6 +37,7 @@ impl ProducerRecord {
             key: None,
             value: None,
             headers: Vec::new(),
+            source_owner: ProducerSourceOwner::none(),
         }
     }
 
@@ -129,6 +101,41 @@ impl ProducerRecord {
         &self.headers
     }
 
+    /// Attaches an opaque upstream byte lease through admission or rejection.
+    #[doc(hidden)]
+    pub fn retain_source_owner(mut self, owner: Arc<dyn Send + Sync>) -> Self {
+        self.source_owner = ProducerSourceOwner::new(owner);
+        self
+    }
+
+    /// Transfers the exact public record fields and any opaque source lease.
+    #[doc(hidden)]
+    #[allow(
+        clippy::type_complexity,
+        reason = "private facade transfer is one exact record"
+    )]
+    pub fn into_shared_parts(
+        self,
+    ) -> (
+        Arc<str>,
+        Option<i32>,
+        Option<i64>,
+        Option<Bytes>,
+        Option<Bytes>,
+        Vec<ProducerHeader>,
+        Option<Arc<dyn Send + Sync>>,
+    ) {
+        (
+            self.topic,
+            self.partition,
+            self.timestamp_ms,
+            self.key,
+            self.value,
+            self.headers,
+            self.source_owner.into_inner(),
+        )
+    }
+
     pub(super) fn validate_explicit_partition(&self) -> Option<PartitionIndex> {
         let raw = u32::try_from(self.partition?).ok()?;
         Some(PartitionIndex::from_raw(raw))
@@ -144,17 +151,18 @@ impl ProducerRecord {
         let headers = self
             .headers
             .into_iter()
-            .map(|header| StoredProducerHeader::new(header.name, header.value))
+            .map(ProducerHeader::into_stored)
             .collect();
-        StoredProducerRecord::from_public(
-            self.topic,
+        StoredProducerRecord::from_public(ProducerRecordParts {
+            topic: self.topic,
             partition,
             timestamp_ms,
             defaulted_timestamp,
-            self.key,
-            self.value,
+            key: self.key,
+            value: self.value,
             headers,
-        )
+            source_owner: self.source_owner,
+        })
     }
 
     pub(super) fn from_stored(record: StoredProducerRecord) -> Self {
@@ -166,13 +174,11 @@ impl ProducerRecord {
             key,
             value,
             headers,
+            source_owner,
         } = record.into_public_parts();
         let headers = headers
             .into_iter()
-            .map(|header| {
-                let (name, value) = header.into_parts();
-                ProducerHeader { name, value }
-            })
+            .map(ProducerHeader::from_stored)
             .collect();
         Self {
             topic,
@@ -181,6 +187,7 @@ impl ProducerRecord {
             key,
             value,
             headers,
+            source_owner,
         }
     }
 }

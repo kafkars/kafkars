@@ -52,6 +52,7 @@ impl ProducerRecord {
             key: self.key,
             value: self.value,
             headers: self.headers,
+            source_owner: self.source_owner,
         }
     }
 }

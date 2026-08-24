@@ -12,6 +12,7 @@ mod event_result;
 mod handle;
 mod next_event;
 mod next_event_result;
+mod owned_batch;
 mod recv;
 mod recv_result;
 mod result;
@@ -22,6 +23,10 @@ pub(crate) use batch::{
 pub(crate) use close::AssignedConsumerClose;
 pub(crate) use handle::AssignedConsumerEngine;
 pub(crate) use next_event::AssignedConsumerNextEvent;
+pub(crate) use owned_batch::{
+    AssignedConsumerOwnedBatch, AssignedConsumerOwnedHeader, AssignedConsumerOwnedRecord,
+    AssignedConsumerOwnedRecords,
+};
 pub(crate) use recv::AssignedConsumerRecv;
 
 #[cfg(test)]
@@ -48,6 +53,8 @@ mod handle_test;
 mod next_event_result_test;
 #[cfg(test)]
 mod next_event_test;
+#[cfg(test)]
+mod owned_batch_test;
 #[cfg(test)]
 mod recv_result_test;
 #[cfg(test)]

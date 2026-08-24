@@ -1,13 +1,16 @@
 //! Record reservation, rollback, accounting, and identity scenarios.
 
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
 use bytes::Bytes;
 use kafka_client_core::{ByteCount, PartitionIndex};
 
 use super::{
     ProducerRecord, ProducerStore, ProducerStoreError, ProducerStoreLimits, ProducerStoreStats,
-    record::ProducerHeader,
+    record::{ProducerHeader, ProducerRecordParts, ProducerSourceOwner},
 };
 
 #[test]
@@ -130,6 +133,34 @@ fn reservation_keeps_record_bytes_outside_the_fallible_slot_until_commit() {
 }
 
 #[test]
+fn commit_releases_source_owner_only_after_retained_bytes_are_charged() {
+    let dropped = Arc::new(AtomicBool::new(false));
+    let source_owner: Arc<dyn Send + Sync> = Arc::new(DropSentinel(Arc::clone(&dropped)));
+    let mut records = super::record_store::RecordStore::new(1, 64);
+    let reservation = records
+        .reserve(ProducerRecord::from_public(ProducerRecordParts {
+            topic: Arc::from("orders"),
+            partition: Some(PartitionIndex::from_raw(0)),
+            timestamp_ms: 10,
+            defaulted_timestamp: false,
+            key: None,
+            value: Some(Bytes::from_static(b"value")),
+            headers: Vec::new(),
+            source_owner: ProducerSourceOwner::new(source_owner),
+        }))
+        .unwrap_or_else(|error| panic!("record should reserve: {error}"));
+    let retained_bytes = reservation.facts().retained_bytes().get();
+
+    assert_eq!(u64::try_from(records.used_bytes()), Ok(retained_bytes));
+    assert!(!dropped.load(Ordering::Acquire));
+    records
+        .commit(reservation)
+        .unwrap_or_else(|error| panic!("charged reservation should commit: {error}"));
+    assert_eq!(u64::try_from(records.used_bytes()), Ok(retained_bytes));
+    assert!(dropped.load(Ordering::Acquire));
+}
+
+#[test]
 fn cleanup_corruption_cannot_consume_the_reserved_record() {
     let value = Bytes::from_static(b"must-return");
     let mut records = super::record_store::RecordStore::new(1, 64);
@@ -197,4 +228,12 @@ fn record(
         value.map(Bytes::from_static),
     )
     .with_headers(headers)
+}
+
+struct DropSentinel(Arc<AtomicBool>);
+
+impl Drop for DropSentinel {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Release);
+    }
 }

@@ -32,6 +32,8 @@ mod group_recv;
 mod group_seek;
 mod limits;
 mod offset_reset;
+mod owned_batch;
+mod owned_record;
 mod read_isolation;
 mod record;
 mod record_batch;
@@ -74,6 +76,8 @@ pub use group_recv::RecvConsumerBatch;
 pub use group_seek::Seek;
 pub use limits::ConsumerLimits;
 pub use offset_reset::OffsetReset;
+pub use owned_batch::OwnedConsumerBatch;
+pub use owned_record::{OwnedConsumerHeader, OwnedConsumerRecord, OwnedConsumerRecords};
 pub use read_isolation::ReadIsolation;
 pub use record::{ConsumerHeader, ConsumerRecord, ConsumerRecords};
 pub use record_batch::RecordBatch;
@@ -150,6 +154,10 @@ mod group_startup_error_test;
 mod group_test;
 #[cfg(test)]
 mod limits_test;
+#[cfg(test)]
+mod owned_batch_test;
+#[cfg(test)]
+mod owned_record_test;
 #[cfg(test)]
 mod read_isolation_test;
 #[cfg(test)]

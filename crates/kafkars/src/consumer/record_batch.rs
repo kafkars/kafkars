@@ -2,7 +2,7 @@
 
 use crate::bridge::consumer::AssignedConsumerBatch;
 
-use super::ConsumerRecords;
+use super::{ConsumerRecords, OwnedConsumerBatch, OwnedConsumerRecords};
 
 /// Owned batch whose borrowed records remain valid until this value is dropped.
 ///
@@ -46,6 +46,16 @@ impl RecordBatch {
     /// Iterates normalized application records in Kafka order without copying.
     pub fn records(&self) -> ConsumerRecords<'_> {
         ConsumerRecords::from_bridge(self.inner.records())
+    }
+
+    /// Consumes the batch into non-clone records sharing its delivery lease.
+    pub fn into_owned_records(self) -> OwnedConsumerRecords {
+        OwnedConsumerRecords::from_bridge(self.inner.into_owned_records())
+    }
+
+    /// Consumes this delivery into an owned batch retaining its exact lease.
+    pub fn into_owned(self) -> OwnedConsumerBatch {
+        OwnedConsumerBatch::from_bridge(self.inner.into_owned())
     }
 }
 

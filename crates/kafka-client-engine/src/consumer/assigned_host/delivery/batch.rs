@@ -3,8 +3,36 @@
 use std::sync::Arc;
 
 use super::{
-    super::state::AssignedConsumerShardState, AssignedConsumerDelivery, AssignedConsumerRecords,
+    super::state::AssignedConsumerShardState, AssignedConsumerDelivery, AssignedConsumerOwnedBatch,
+    AssignedConsumerOwnedRecords, AssignedConsumerRecords,
 };
+
+/// Shared final-drop owner for one exact direct-consumer delivery lease.
+pub(super) struct AssignedConsumerSharedDelivery {
+    delivery: Option<AssignedConsumerDelivery>,
+    return_to: Arc<AssignedConsumerShardState>,
+}
+
+impl AssignedConsumerSharedDelivery {
+    fn new(delivery: AssignedConsumerDelivery, return_to: Arc<AssignedConsumerShardState>) -> Self {
+        Self {
+            delivery: Some(delivery),
+            return_to,
+        }
+    }
+
+    pub(super) fn delivery(&self) -> &AssignedConsumerDelivery {
+        &self.delivery.as_slice()[0]
+    }
+}
+
+impl Drop for AssignedConsumerSharedDelivery {
+    fn drop(&mut self) {
+        if let Some(delivery) = self.delivery.take() {
+            self.return_to.return_assigned_delivery(delivery);
+        }
+    }
+}
 
 /// One engine-owned direct-consumer delivery and its bounded byte lease.
 ///
@@ -12,18 +40,16 @@ use super::{
 /// consumer owner. The owner lock is never held while requesting reactor work.
 #[must_use = "dropping the batch returns its bounded delivery lease"]
 pub struct AssignedConsumerBatch {
-    delivery: Option<AssignedConsumerDelivery>,
-    return_to: Arc<AssignedConsumerShardState>,
+    delivery: Arc<AssignedConsumerSharedDelivery>,
 }
 
 impl AssignedConsumerBatch {
-    pub(in crate::consumer::assigned_host) const fn new(
+    pub(in crate::consumer::assigned_host) fn new(
         delivery: AssignedConsumerDelivery,
         return_to: Arc<AssignedConsumerShardState>,
     ) -> Self {
         Self {
-            delivery: Some(delivery),
-            return_to,
+            delivery: Arc::new(AssignedConsumerSharedDelivery::new(delivery, return_to)),
         }
     }
 
@@ -47,21 +73,26 @@ impl AssignedConsumerBatch {
         AssignedConsumerRecords::new(self.delivery())
     }
 
+    /// Consumes this delivery into an owned batch retaining its exact lease.
+    pub fn into_owned(self) -> AssignedConsumerOwnedBatch {
+        AssignedConsumerOwnedBatch::new(self.delivery)
+    }
+
+    /// Consumes this batch into non-clone record owners sharing its exact lease.
+    ///
+    /// The delivery is returned only after the iterator and every record it
+    /// yielded have been dropped or transferred together with their bytes.
+    pub fn into_owned_records(self) -> AssignedConsumerOwnedRecords {
+        self.into_owned().into_records()
+    }
+
     /// Counts normalized application records without copying their bytes.
     pub fn record_count(&self) -> usize {
         self.records().count()
     }
 
     fn delivery(&self) -> &AssignedConsumerDelivery {
-        &self.delivery.as_slice()[0]
-    }
-}
-
-impl Drop for AssignedConsumerBatch {
-    fn drop(&mut self) {
-        if let Some(delivery) = self.delivery.take() {
-            self.return_to.return_assigned_delivery(delivery);
-        }
+        self.delivery.delivery()
     }
 }
 

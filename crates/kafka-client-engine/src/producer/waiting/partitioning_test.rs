@@ -24,6 +24,7 @@ use crate::{
 use super::super::{
     ProducerHost, ProducerPartitionSource, ProducerRecord,
     host_limits_test::{start, valid_limits},
+    record::{ProducerRecordParts, ProducerSourceOwner},
 };
 use super::ProducerPartitioningFailure;
 
@@ -194,15 +195,16 @@ fn promote_and_materialize(host: &mut ProducerHost, now: u64) -> i32 {
 }
 
 fn automatic_record(key: Option<Bytes>) -> ProducerRecord {
-    ProducerRecord::from_public(
-        Arc::from("orders"),
-        None,
-        10,
-        false,
+    ProducerRecord::from_public(ProducerRecordParts {
+        topic: Arc::from("orders"),
+        partition: None,
+        timestamp_ms: 10,
+        defaulted_timestamp: false,
         key,
-        Some(Bytes::from_static(b"value")),
-        Vec::new(),
-    )
+        value: Some(Bytes::from_static(b"value")),
+        headers: Vec::new(),
+        source_owner: ProducerSourceOwner::none(),
+    })
 }
 
 fn explicit_record() -> ProducerRecord {

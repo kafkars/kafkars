@@ -100,8 +100,10 @@ pub use control_result::{
 };
 pub(crate) use delivery::AssignedConsumerDelivery;
 pub use delivery::{
-    AssignedConsumerBatch, AssignedConsumerHeader, AssignedConsumerRecord, AssignedConsumerRecords,
-    AssignedConsumerTryTakeBatchError, AssignedConsumerTryTakeBatchErrorKind,
+    AssignedConsumerBatch, AssignedConsumerHeader, AssignedConsumerOwnedBatch,
+    AssignedConsumerOwnedHeader, AssignedConsumerOwnedRecord, AssignedConsumerOwnedRecords,
+    AssignedConsumerRecord, AssignedConsumerRecords, AssignedConsumerTryTakeBatchError,
+    AssignedConsumerTryTakeBatchErrorKind,
 };
 pub use event::{
     AssignedConsumerEvent, AssignedConsumerFetchFailure, AssignedConsumerFetchFailureKind,

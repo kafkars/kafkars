@@ -10,11 +10,14 @@ use super::{
 impl RecordSlot {
     pub(super) fn commit_reservation(
         &mut self,
-        record: ProducerRecord,
+        mut record: ProducerRecord,
     ) -> Result<(), ProducerStoreError> {
         if self.state != PayloadState::Reserved || self.record.is_some() {
             return Err(ProducerStoreError::InvalidPayloadState);
         }
+        // The slot is already byte-charged and core accepted this reservation.
+        // Only now may an upstream consumer delivery return its exact lease.
+        record.release_source_owner();
         self.record = Some(record);
         self.state = PayloadState::Admitted;
         Ok(())

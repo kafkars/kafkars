@@ -1,6 +1,6 @@
 //! Public transactional record-send admission and ownership scenarios.
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use bytes::Bytes;
 
@@ -124,5 +124,28 @@ fn accepted_send_returns_one_token_borrowing_observer() {
         .unwrap_or_else(|error| panic!("send admission: {error:?}"));
 
     assert!(!accepted.wake_failed());
+    drop(accepted.into_observer());
+}
+
+#[test]
+fn accepted_single_releases_its_source_only_after_retained_byte_admission() {
+    let fixture = Fixture::new();
+    let mut owner = fixture.initialize(41);
+    let mut transaction = owner
+        .begin_transaction()
+        .unwrap_or_else(|error| panic!("begin transaction: {error:?}"))
+        .into_transaction();
+    let source = Arc::new(());
+    let source_weak = Arc::downgrade(&source);
+    let record = ProducerRecord::to("orders")
+        .partition(2)
+        .value(Bytes::from_static(b"value"))
+        .retain_source_owner(source);
+
+    let accepted = transaction
+        .send(record, Duration::from_secs(5))
+        .unwrap_or_else(|error| panic!("send admission: {error:?}"));
+
+    assert!(source_weak.upgrade().is_none());
     drop(accepted.into_observer());
 }

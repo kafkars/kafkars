@@ -5,6 +5,8 @@ use kafka_client_engine::{
     AssignedConsumerRecord as EngineRecord, AssignedConsumerRecords as EngineRecords,
 };
 
+use super::owned_batch::{AssignedConsumerOwnedBatch, AssignedConsumerOwnedRecords};
+
 /// Linear private bridge retaining one exact engine delivery lease.
 pub(crate) struct AssignedConsumerBatch {
     inner: EngineBatch,
@@ -35,6 +37,14 @@ impl AssignedConsumerBatch {
         AssignedConsumerRecords {
             inner: self.inner.records(),
         }
+    }
+
+    pub(crate) fn into_owned_records(self) -> AssignedConsumerOwnedRecords {
+        AssignedConsumerOwnedRecords::from_engine(self.inner.into_owned_records())
+    }
+
+    pub(crate) fn into_owned(self) -> AssignedConsumerOwnedBatch {
+        AssignedConsumerOwnedBatch::from_engine(self.inner.into_owned())
     }
 }
 

@@ -7,7 +7,7 @@ use kafka_client_engine::{Engine, EngineConfig};
 
 use super::{ProducerEngine, into_engine_record, restore_rejected_record};
 use crate::{
-    DeliveryStatus, ErrorKind,
+    DeliveryStatus, ErrorKind, HeaderName,
     record::{Header, Record, RecordParts},
 };
 
@@ -49,17 +49,21 @@ fn capture_failure_precedes_conversion_and_returns_exact_facade_record() {
 
 #[test]
 fn record_bridge_preserves_nullable_and_ordered_semantics() {
+    let key = Bytes::from_static(b"key");
+    let header_name_bytes = Bytes::from("trace".to_owned());
+    let header_name = HeaderName::try_from_bytes(header_name_bytes.clone())
+        .unwrap_or_else(|error| panic!("valid header name: {error}"));
     let retained = Bytes::from_static(b"last");
     let original = Record::from_parts(RecordParts {
         topic: "orders".into(),
         partition: None,
         timestamp_milliseconds: None,
-        key: Some(Bytes::new()),
+        key: Some(key.clone()),
         value: None,
         headers: vec![
-            Header::from_parts("trace".to_owned(), None),
-            Header::from_parts("trace".to_owned(), Some(Bytes::new())),
-            Header::from_parts("trace".to_owned(), Some(retained.clone())),
+            Header::from_parts(header_name.clone(), None),
+            Header::from_parts(header_name.clone(), Some(Bytes::new())),
+            Header::from_parts(header_name, Some(retained.clone())),
         ],
     });
     let expected = original.clone();
@@ -69,10 +73,19 @@ fn record_bridge_preserves_nullable_and_ordered_semantics() {
     assert_eq!(engine.topic(), "orders");
     assert_eq!(engine.explicit_partition(), None);
     assert_eq!(engine.timestamp(), None);
-    assert_eq!(engine.key_bytes(), Some(&Bytes::new()));
+    assert_eq!(
+        engine.key_bytes().map(|bytes| bytes.as_ptr()),
+        Some(key.as_ptr())
+    );
     assert_eq!(engine.value_bytes(), None);
     assert_eq!(engine.headers()[0].value(), None);
     assert_eq!(engine.headers()[1].value(), Some(&Bytes::new()));
+    assert!(
+        engine
+            .headers()
+            .iter()
+            .all(|header| header.name().as_bytes().as_ptr() == header_name_bytes.as_ptr())
+    );
     assert_eq!(
         engine.headers()[2].value().map(|bytes| bytes.as_ptr()),
         Some(retained.as_ptr())
@@ -80,6 +93,16 @@ fn record_bridge_preserves_nullable_and_ordered_semantics() {
 
     let restored = restore_rejected_record(engine);
     assert_eq!(restored, expected);
+    assert_eq!(
+        restored.key_bytes().map(|bytes| bytes.as_ptr()),
+        Some(key.as_ptr())
+    );
+    assert!(
+        restored
+            .headers()
+            .iter()
+            .all(|header| header.header_name().as_bytes().as_ptr() == header_name_bytes.as_ptr())
+    );
     assert_eq!(
         restored.headers()[2].value().map(|bytes| bytes.as_ptr()),
         Some(retained.as_ptr())

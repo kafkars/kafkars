@@ -4,7 +4,10 @@ use kafka_client_engine::{
     ProducerHeader as EngineProducerHeader, ProducerRecord as EngineProducerRecord,
 };
 
-use crate::record::{Header, Record, RecordParts};
+use crate::{
+    header_name::SourceOwner,
+    record::{Header, Record, RecordTransferParts},
+};
 
 pub(crate) fn validate_batch_records(
     records: &[Record],
@@ -24,14 +27,15 @@ pub(crate) fn validate_batch_records(
 }
 
 pub(crate) fn into_engine_record(record: Record) -> EngineProducerRecord {
-    let RecordParts {
+    let RecordTransferParts {
         topic,
         partition,
         timestamp_milliseconds,
         key,
         value,
         headers,
-    } = record.into_parts();
+        source_owner,
+    } = record.into_transfer_parts();
     let record = EngineProducerRecord::to(topic);
     let record = match partition {
         Some(partition) => record.partition(partition),
@@ -49,35 +53,43 @@ pub(crate) fn into_engine_record(record: Record) -> EngineProducerRecord {
         Some(value) => record.value(value),
         None => record,
     };
-    headers.into_iter().fold(record, |record, header| {
+    let record = headers.into_iter().fold(record, |record, header| {
         record.header(into_engine_header(header))
-    })
+    });
+    match source_owner.into_arc() {
+        Some(owner) => record.retain_source_owner(owner),
+        None => record,
+    }
 }
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "a rejected engine record transfers ownership back to the facade"
-)]
 pub(crate) fn restore_rejected_record(record: EngineProducerRecord) -> Record {
-    let headers = record
-        .headers()
-        .iter()
-        .map(|header| Header::from_parts(header.name().to_owned(), header.value().cloned()))
+    let (topic, partition, timestamp_milliseconds, key, value, headers, source_owner) =
+        record.into_shared_parts();
+    let headers = headers
+        .into_iter()
+        .map(|header| {
+            let (name, value, source_owner) = header.into_shared_parts();
+            Header::from_shared_parts(name, value, SourceOwner::from_optional(source_owner))
+        })
         .collect();
-    Record::from_parts(RecordParts {
-        topic: std::sync::Arc::from(record.topic()),
-        partition: record.explicit_partition(),
-        timestamp_milliseconds: record.timestamp(),
-        key: record.key_bytes().cloned(),
-        value: record.value_bytes().cloned(),
+    Record::from_transfer_parts(RecordTransferParts {
+        topic,
+        partition,
+        timestamp_milliseconds,
+        key,
+        value,
         headers,
+        source_owner: SourceOwner::from_optional(source_owner),
     })
 }
 
 fn into_engine_header(header: Header) -> EngineProducerHeader {
     let (name, value) = header.into_parts();
-    match value {
-        Some(value) => EngineProducerHeader::new(name, value),
-        None => EngineProducerHeader::null(name),
+    let (name, source_owner) = name.into_shared_parts();
+    let header = EngineProducerHeader::try_from_shared_name(name, value)
+        .unwrap_or_else(|_error| unreachable!("facade header name was validated"));
+    match source_owner.into_arc() {
+        Some(owner) => header.retain_source_owner(owner),
+        None => header,
     }
 }

@@ -4,6 +4,15 @@ use crate::protocol::fetch::{FetchBatch, FetchHeader, FetchRecord};
 
 use super::AssignedConsumerDelivery;
 
+pub(super) fn application_batches(delivery: &AssignedConsumerDelivery) -> &[FetchBatch] {
+    delivery
+        .lease()
+        .outcome()
+        .outcome()
+        .data_batches()
+        .unwrap_or_default()
+}
+
 /// Ordered borrowed application records from one direct-consumer delivery.
 #[derive(Debug)]
 pub struct AssignedConsumerRecords<'batch> {
@@ -16,12 +25,7 @@ pub struct AssignedConsumerRecords<'batch> {
 
 impl<'batch> AssignedConsumerRecords<'batch> {
     pub(super) fn new(delivery: &'batch AssignedConsumerDelivery) -> Self {
-        let batches = delivery
-            .lease()
-            .outcome()
-            .outcome()
-            .data_batches()
-            .unwrap_or_default();
+        let batches = application_batches(delivery);
         Self {
             topic: delivery.topic(),
             partition: delivery.partition(),
@@ -112,6 +116,10 @@ pub struct AssignedConsumerHeader<'record> {
 }
 
 impl AssignedConsumerHeader<'_> {
+    pub(super) const fn from_fetch(header: &FetchHeader) -> AssignedConsumerHeader<'_> {
+        AssignedConsumerHeader { header }
+    }
+
     /// Returns the header key bytes.
     pub fn key(&self) -> &[u8] {
         &self.header.key

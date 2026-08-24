@@ -16,12 +16,17 @@ use super::{
 #[test]
 fn transactional_view_preserves_one_explicit_route_and_materialization_view() {
     let value = Bytes::from_static(b"value");
+    let header_name = Bytes::from("trace".to_owned());
+    let header_name_pointer = header_name.as_ptr();
     let view = ProducerRecord::to("orders")
         .partition(3)
         .timestamp_milliseconds(71)
         .key(Bytes::from_static(b"key"))
         .value(value.clone())
-        .header(ProducerHeader::new("trace", Bytes::from_static(b"abc")))
+        .header(
+            ProducerHeader::try_from_shared_name(header_name, Some(Bytes::from_static(b"abc")))
+                .expect("valid shared header name"),
+        )
         .header(ProducerHeader::null("nullable"))
         .transaction_view(99)
         .expect("valid transactional record");
@@ -35,15 +40,13 @@ fn transactional_view_preserves_one_explicit_route_and_materialization_view() {
     assert_eq!(actual_value, Some(value));
     assert!(retained_bytes >= "orders".len() + 3 + 5 + 5 + 3 + 8);
     let mut headers = headers.into_iter();
-    assert_eq!(
-        headers
-            .next()
-            .map(super::super::materialization::MaterializationHeader::into_parts),
-        Some((
-            Bytes::from_static(b"trace"),
-            Some(Bytes::from_static(b"abc"))
-        ))
-    );
+    let (actual_header_name, actual_header_value) = headers
+        .next()
+        .map(super::super::materialization::MaterializationHeader::into_parts)
+        .expect("first header");
+    assert_eq!(actual_header_name.as_ref(), b"trace");
+    assert_eq!(actual_header_name.as_ptr(), header_name_pointer);
+    assert_eq!(actual_header_value, Some(Bytes::from_static(b"abc")));
     assert_eq!(
         headers
             .next()

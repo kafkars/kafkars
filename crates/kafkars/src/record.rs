@@ -4,7 +4,10 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
+use crate::header_name::{HeaderName, SourceOwner};
+
 /// Crate-private ownership transfer for the engine bridge.
+#[cfg(test)]
 #[derive(Debug)]
 pub(crate) struct RecordParts {
     pub(crate) topic: Arc<str>,
@@ -15,16 +18,27 @@ pub(crate) struct RecordParts {
     pub(crate) headers: Vec<Header>,
 }
 
+/// Crate-private exact transfer retaining any upstream consumer byte lease.
+pub(crate) struct RecordTransferParts {
+    pub(crate) topic: Arc<str>,
+    pub(crate) partition: Option<i32>,
+    pub(crate) timestamp_milliseconds: Option<i64>,
+    pub(crate) key: Option<Bytes>,
+    pub(crate) value: Option<Bytes>,
+    pub(crate) headers: Vec<Header>,
+    pub(crate) source_owner: SourceOwner,
+}
+
 /// One Kafka record header.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Header {
-    name: String,
+    name: HeaderName,
     value: Option<Bytes>,
 }
 
 impl Header {
     /// Creates a non-null header.
-    pub fn new(name: impl Into<String>, value: impl Into<Bytes>) -> Self {
+    pub fn new(name: impl Into<HeaderName>, value: impl Into<Bytes>) -> Self {
         Self {
             name: name.into(),
             value: Some(value.into()),
@@ -32,7 +46,7 @@ impl Header {
     }
 
     /// Creates a header with a null value.
-    pub fn null(name: impl Into<String>) -> Self {
+    pub fn null(name: impl Into<HeaderName>) -> Self {
         Self {
             name: name.into(),
             value: None,
@@ -41,6 +55,11 @@ impl Header {
 
     /// Returns the header name.
     pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    /// Returns the cloneable shared validated name owner.
+    pub const fn header_name(&self) -> &HeaderName {
         &self.name
     }
 
@@ -49,11 +68,26 @@ impl Header {
         self.value.as_ref()
     }
 
-    pub(crate) const fn from_parts(name: String, value: Option<Bytes>) -> Self {
-        Self { name, value }
+    #[cfg(test)]
+    pub(crate) fn from_parts(name: impl Into<HeaderName>, value: Option<Bytes>) -> Self {
+        Self {
+            name: name.into(),
+            value,
+        }
     }
 
-    pub(crate) fn into_parts(self) -> (String, Option<Bytes>) {
+    pub(crate) fn from_shared_parts(
+        name: Bytes,
+        value: Option<Bytes>,
+        source_owner: SourceOwner,
+    ) -> Self {
+        Self {
+            name: HeaderName::from_shared(name, source_owner),
+            value,
+        }
+    }
+
+    pub(crate) fn into_parts(self) -> (HeaderName, Option<Bytes>) {
         (self.name, self.value)
     }
 }
@@ -67,6 +101,7 @@ pub struct Record {
     key: Option<Bytes>,
     value: Option<Bytes>,
     headers: Vec<Header>,
+    source_owner: SourceOwner,
 }
 
 impl Record {
@@ -82,6 +117,7 @@ impl Record {
             key: None,
             value: None,
             headers: Vec::new(),
+            source_owner: SourceOwner::none(),
         }
     }
 
@@ -121,7 +157,7 @@ impl Record {
     }
 
     /// Appends one non-null header without deduplicating its name.
-    pub fn header(self, name: impl Into<String>, value: impl Into<Bytes>) -> Self {
+    pub fn header(self, name: impl Into<HeaderName>, value: impl Into<Bytes>) -> Self {
         self.with_header(Header::new(name, value))
     }
 
@@ -159,6 +195,7 @@ impl Record {
         &self.headers
     }
 
+    #[cfg(test)]
     pub(crate) fn from_parts(parts: RecordParts) -> Self {
         Self {
             topic: parts.topic,
@@ -167,17 +204,31 @@ impl Record {
             key: parts.key,
             value: parts.value,
             headers: parts.headers,
+            source_owner: SourceOwner::none(),
         }
     }
 
-    pub(crate) fn into_parts(self) -> RecordParts {
-        RecordParts {
+    pub(crate) fn from_transfer_parts(parts: RecordTransferParts) -> Self {
+        Self {
+            topic: parts.topic,
+            partition: parts.partition,
+            timestamp_milliseconds: parts.timestamp_milliseconds,
+            key: parts.key,
+            value: parts.value,
+            headers: parts.headers,
+            source_owner: parts.source_owner,
+        }
+    }
+
+    pub(crate) fn into_transfer_parts(self) -> RecordTransferParts {
+        RecordTransferParts {
             topic: self.topic,
             partition: self.partition,
             timestamp_milliseconds: self.timestamp_milliseconds,
             key: self.key,
             value: self.value,
             headers: self.headers,
+            source_owner: self.source_owner,
         }
     }
 }
