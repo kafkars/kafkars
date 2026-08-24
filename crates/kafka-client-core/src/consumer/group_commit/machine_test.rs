@@ -149,6 +149,11 @@ fn deadline_after_driver_acceptance_preserves_timeout_kind_and_certainty() {
 fn submitted_nontransport_failures_keep_exact_categories_and_certainty() {
     for (input, kind, delivery) in [
         (
+            GroupOffsetCommitInput::ExecutionUnavailable,
+            GroupOffsetCommitFailureKind::ExecutionUnavailable,
+            DeliveryStatus::NotSent,
+        ),
+        (
             GroupOffsetCommitInput::ProtocolIncompatible {
                 delivery: DeliveryStatus::NotSent,
             },

@@ -15,6 +15,12 @@ const SETTLEMENT_PATH: &str =
     "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs";
 const SETTLEMENT_OWNER_PATH: &str =
     "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner.rs";
+const SUBMISSION_PATH: &str =
+    "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission.rs";
+const RETRY_CANDIDATE_PATH: &str =
+    "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_retry/candidate.rs";
+const RETRY_STATE_PATH: &str =
+    "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_retry/state.rs";
 const SNAPSHOT_PATH: &str =
     "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/snapshot.rs";
 const LINEAR_OWNERS: [(&str, &str); 17] = [
@@ -42,8 +48,8 @@ const LINEAR_OWNERS: [(&str, &str); 17] = [
         "GroupOffsetCommitPreparationError",
         "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/preparation.rs",
     ),
-    ("GroupOffsetCommitCallPermit", CALL_PATH),
-    ("TrackedGroupOffsetCommitCall", CALL_PATH),
+    ("GroupOffsetCommitCallPermit", SUBMISSION_PATH),
+    ("TrackedGroupOffsetCommitCall", SUBMISSION_PATH),
     ("TrackedGroupOffsetCommitCalls", CALL_PATH),
     ("GroupOffsetCommitPrebuiltAdmissionFailure", RECOVERY_PATH),
     ("GroupOffsetCommitCompletionFailure", RECOVERY_PATH),
@@ -52,7 +58,7 @@ const LINEAR_OWNERS: [(&str, &str); 17] = [
     ("GroupOffsetCommitShutdownRecovery", RECOVERY_PATH),
     ("SettledGroupOffsetCommitCall", SETTLEMENT_PATH),
     ("PendingGroupOffsetCommitConfirmation", SETTLEMENT_PATH),
-    ("GroupOffsetCommitRestoreFailure", SETTLEMENT_PATH),
+    ("GroupOffsetCommitRestoreFailure", RETRY_STATE_PATH),
 ];
 const MUTATIONS: [(&str, &str); 4] = [
     ("TrackedGroupOffsetCommitCalls", "calls"),
@@ -84,7 +90,12 @@ fn live_group_commit_owners_are_registered_and_linear() {
         let expected = match (owner_type, field) {
             ("TrackedGroupOffsetCommitCalls", "calls" | "completion_failure") => vec![CALL_PATH],
             ("TrackedGroupOffsetCommitCalls", "settled" | "pending_confirmation") => {
-                vec![CALL_PATH, SETTLEMENT_OWNER_PATH]
+                let mut paths = vec![CALL_PATH];
+                if field == "settled" {
+                    paths.push(RETRY_CANDIDATE_PATH);
+                }
+                paths.push(SETTLEMENT_OWNER_PATH);
+                paths
             }
             _ => panic!("unexpected mutation owner"),
         };

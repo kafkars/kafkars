@@ -127,7 +127,7 @@ pub(super) fn terminal(
             Ok(ClassicCoordinatorInvalidationPermission::IgnoredStale)
         }
         Ok(InvalidationDisposition::Unavailable) => {
-            Err(ClassicCoordinatorInvalidationTerminalFailure::Unavailable)
+            Ok(ClassicCoordinatorInvalidationPermission::Unavailable)
         }
         Ok(InvalidationDisposition::CapacityReached) => {
             Err(ClassicCoordinatorInvalidationTerminalFailure::CapacityReached)

@@ -2,7 +2,10 @@
 
 use kafka_client_core::{DeliveryStatus, GroupOffsetCommitInput, Moment};
 
-use crate::driver::{DriverOwner, GroupOffsetCommitPoll, GroupOffsetCommitRefreshPoll};
+use crate::driver::{
+    DriverOwner, GroupOffsetCommitPoll, GroupOffsetCommitRefreshPoll,
+    GroupOffsetCommitReplacementPoll,
+};
 
 use super::host::{
     GroupOffsetCommitAttempt, GroupOffsetCommitHost, GroupOffsetCommitHostError,
@@ -71,6 +74,20 @@ impl GroupOffsetCommitHost {
                         .poll_group_commit_coordinator_refresh(operation_id, driver)
                     {
                         Some(GroupOffsetCommitRefreshPoll::Ready) => {}
+                        Some(GroupOffsetCommitRefreshPoll::ReplacementReady) => {
+                            match self
+                                .calls
+                                .submit_group_commit_replacement(operation_id, driver)
+                            {
+                                Some(
+                                    GroupOffsetCommitReplacementPoll::Submitted
+                                    | GroupOffsetCommitReplacementPoll::Settled,
+                                ) => {
+                                    return Ok(GroupOffsetCommitTurn::Progress);
+                                }
+                                None => return Err(GroupOffsetCommitHostError::Settlement),
+                            }
+                        }
                         Some(GroupOffsetCommitRefreshPoll::Submitted) => {
                             return Ok(GroupOffsetCommitTurn::Progress);
                         }

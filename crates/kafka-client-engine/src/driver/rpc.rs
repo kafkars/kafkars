@@ -277,6 +277,7 @@ mod group_offset_commit_calls_test;
 mod group_offset_commit_recovery;
 #[cfg(test)]
 mod group_offset_commit_recovery_test;
+mod group_offset_commit_retry;
 mod group_offset_commit_settlement;
 mod group_offset_commit_settlement_owner;
 #[cfg(test)]

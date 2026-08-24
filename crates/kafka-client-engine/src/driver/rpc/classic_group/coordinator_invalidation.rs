@@ -164,12 +164,12 @@ impl ClassicCoordinatorInvalidationInstallFailure {
 pub(crate) enum ClassicCoordinatorInvalidationPermission {
     Applied,
     IgnoredStale,
+    Unavailable,
 }
 
 /// A terminal invalidation outcome that cannot permit a fresh Join.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ClassicCoordinatorInvalidationTerminalFailure {
-    Unavailable,
     CapacityReached,
     Completion(CompletionError),
     UnrecognizedDisposition,

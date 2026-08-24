@@ -86,8 +86,8 @@ pub(crate) use heartbeat_terminal::{
 #[cfg(test)]
 pub(crate) use heartbeat_test_fixture::{
     heartbeat_attempts, install_heartbeat_broker_rejection_terminal,
-    install_heartbeat_route_failure_terminal, install_heartbeat_success_terminal,
-    install_heartbeat_transport_loss_terminal,
+    install_heartbeat_deadline_terminal, install_heartbeat_route_failure_terminal,
+    install_heartbeat_success_terminal, install_heartbeat_transport_loss_terminal,
 };
 pub(crate) use join_group_calls::{
     AcceptedJoinGroupCall, JoinGroupCallReservationError, TrackedJoinGroupCalls,

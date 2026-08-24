@@ -96,7 +96,8 @@ pub(super) const fn coordinator_path_lost(error: &RequestError) -> bool {
         | RequestError::ConnectionClosed(ResponseCloseReason::TransportClosed) => true,
         RequestError::Rejected { failure, .. } => matches!(
             failure,
-            CallFailure::NotReady
+            CallFailure::DeadlineExceeded
+                | CallFailure::NotReady
                 | CallFailure::Closed
                 | CallFailure::ConnectionClosed {
                     reason: ConnectionCloseReason::OpenFailed(_)

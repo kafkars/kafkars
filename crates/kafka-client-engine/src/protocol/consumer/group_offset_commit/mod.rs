@@ -24,7 +24,8 @@ pub(crate) use prepared_request::{
 };
 pub(crate) use request::group_offset_commit_request;
 pub(crate) use response::{
-    GroupOffsetCommitProtocolFailure, normalize_group_offset_commit_response,
+    GroupOffsetCommitProtocolFailure, is_exact_group_offset_commit_coordinator_rejection,
+    normalize_group_offset_commit_response,
 };
 pub(crate) use result_reservation::{
     GroupOffsetCommitResultReservation, GroupOffsetCommitResultReservationError,

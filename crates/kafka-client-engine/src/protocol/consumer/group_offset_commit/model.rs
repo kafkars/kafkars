@@ -53,6 +53,7 @@ pub(crate) struct PreparedGroupOffsetCommit {
     operation_deadline: OperationDeadline,
     group: Arc<str>,
     member: Arc<str>,
+    group_instance_id: Option<Arc<str>>,
     epoch: GroupOffsetCommitEpoch<i32>,
     entries: Vec<PreparedGroupOffsetCommitEntry>,
     outcomes: Vec<GroupOffsetCommitPartitionOutcome>,
@@ -69,6 +70,7 @@ impl PreparedGroupOffsetCommit {
         operation_deadline: OperationDeadline,
         group: Arc<str>,
         member: Arc<str>,
+        group_instance_id: Option<Arc<str>>,
         epoch: GroupOffsetCommitEpoch<i32>,
         entries: Vec<PreparedGroupOffsetCommitEntry>,
         outcomes: Vec<GroupOffsetCommitPartitionOutcome>,
@@ -79,6 +81,7 @@ impl PreparedGroupOffsetCommit {
             operation_deadline,
             group,
             member,
+            group_instance_id,
             epoch,
             entries,
             outcomes,
@@ -100,6 +103,10 @@ impl PreparedGroupOffsetCommit {
 
     pub(super) fn member(&self) -> &Arc<str> {
         &self.member
+    }
+
+    pub(super) fn group_instance_id(&self) -> Option<&Arc<str>> {
+        self.group_instance_id.as_ref()
     }
 
     pub(super) const fn generation_id_or_member_epoch(&self) -> i32 {
@@ -148,6 +155,9 @@ impl PreparedGroupOffsetCommit {
             .checked_add(self.member.len())?
             .checked_add(entry_bytes)?
             .checked_add(outcome_bytes)?;
+        if let Some(group_instance_id) = &self.group_instance_id {
+            retained = retained.checked_add(group_instance_id.len())?;
+        }
         for (index, entry) in self.entries.iter().enumerate() {
             if !self.entries[..index]
                 .iter()

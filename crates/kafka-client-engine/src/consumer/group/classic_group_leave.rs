@@ -22,3 +22,5 @@ mod completion_test;
 mod failure_test;
 #[cfg(test)]
 mod owner_test;
+#[cfg(test)]
+mod terminal_test;

@@ -9,7 +9,7 @@ use kafka_client_core::{
 use super::{
     group_offset_commit_calls::TrackedGroupOffsetCommitCalls,
     group_offset_commit_calls_test::{awaiting_machine, result_error},
-    group_offset_commit_settlement::{
+    group_offset_commit_retry::{
         GroupOffsetCommitBeginError, GroupOffsetCommitConfirmationError, GroupOffsetCommitPoll,
     },
 };

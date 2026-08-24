@@ -32,6 +32,9 @@ impl ClassicGroupFetchOwner {
         now: kafka_client_core::Moment,
         proposal: FetchTerminalProposal,
     ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
+        if self.activation().is_none() {
+            return self.fetches.discard_retired_terminal_proposal(proposal);
+        }
         let proposal = match proposal.into_partition_offset_out_of_range() {
             Ok(proposal) => proposal,
             Err(proposal) => {

@@ -6,7 +6,7 @@ mod consumer_group;
     not(test),
     expect(dead_code, reason = "awaiting classic-group commit executor")
 )]
-mod group_offset_commit;
+pub(crate) mod group_offset_commit;
 #[cfg_attr(
     not(test),
     expect(

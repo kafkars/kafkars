@@ -53,7 +53,7 @@ fn sync_rejection_uses_policy_before_but_loses_at_the_cycle_deadline() {
 }
 
 #[test]
-fn heartbeat_rejection_rejoins_before_but_only_revokes_at_its_attempt_deadline() {
+fn heartbeat_rejection_stops_at_deadline_while_coordinator_loss_starts_a_fresh_rejoin() {
     let (mut early, attempt, deadline) = stable_inflight();
     let transition = reject_heartbeat(&mut early, attempt, deadline.tick() - 1, 15);
     let mut effects = transition.effects();
@@ -78,18 +78,24 @@ fn heartbeat_rejection_rejoins_before_but_only_revokes_at_its_attempt_deadline()
     assert!(effects.next().is_none());
     assert_lost_without_recovery(&exact);
 
-    let (mut lost, attempt, deadline) = stable_inflight();
-    let transition = lost
+    let (mut recovered, attempt, deadline) = stable_inflight();
+    let transition = recovered
         .apply(ClassicGroupInput::HeartbeatCoordinatorLost {
             attempt,
-            now: Moment::from_tick(deadline.tick()),
+            now: Moment::from_tick(deadline.tick() + 1),
         })
-        .unwrap_or_else(|error| panic!("exact-deadline coordinator loss: {error}"));
+        .unwrap_or_else(|error| panic!("expired-attempt coordinator loss: {error}"));
+    let mut effects = transition.effects();
     assert!(matches!(
-        transition.effects().next(),
+        effects.next(),
         Some(ClassicGroupEffect::Revoke { .. })
     ));
-    assert_lost_without_recovery(&lost);
+    assert!(matches!(
+        effects.next(),
+        Some(ClassicGroupEffect::ArmRejoin { .. })
+    ));
+    assert!(effects.next().is_none());
+    assert_eq!(recovered.phase(), ClassicGroupPhase::WaitingToRejoin);
 }
 
 #[test]

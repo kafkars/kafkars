@@ -7,7 +7,7 @@ use kafka_wire::{
 };
 use kafka_wire_core::StrBytes;
 
-use super::{ClassicGroupCommitSession, GroupOffsetCommitTopicName};
+use super::{ClassicGroupCommitSession, GroupOffsetCommitTopicName, PreparedGroupOffsetCommit};
 
 /// Pre-core request construction failure; no operation has been accepted.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -111,6 +111,53 @@ impl PreparedGroupOffsetCommitRequest {
 
     pub(crate) const fn retained_bytes(&self) -> usize {
         self.retained_bytes
+    }
+
+    /// Rebuilds the exact generated request for one core-authorized replacement.
+    pub(crate) fn try_from_prepared(
+        prepared: &PreparedGroupOffsetCommit,
+    ) -> Result<Self, GroupOffsetCommitRequestPreparationError> {
+        let mut topics: Vec<OffsetCommitRequestTopic> = Vec::new();
+        topics
+            .try_reserve_exact(prepared.entries().len())
+            .map_err(|_error| GroupOffsetCommitRequestPreparationError::Allocation)?;
+        for entry in prepared.entries() {
+            let mut partition = OffsetCommitRequestPartition::default();
+            partition.partition_index = entry.partition_index();
+            partition.committed_offset = entry.next_offset();
+            partition.committed_leader_epoch = entry.leader_epoch().unwrap_or(-1);
+            partition.committed_metadata = Some(StrBytes::default());
+            if let Some(topic) = topics
+                .last_mut()
+                .filter(|topic| topic.name.as_str() == entry.topic().as_ref())
+            {
+                topic.partitions.push(partition);
+            } else {
+                let mut topic = OffsetCommitRequestTopic::default();
+                topic.name = try_string(entry.topic().as_ref())?;
+                topic
+                    .partitions
+                    .try_reserve_exact(1)
+                    .map_err(|_error| GroupOffsetCommitRequestPreparationError::Allocation)?;
+                topic.partitions.push(partition);
+                topics.push(topic);
+            }
+        }
+        let mut request = OffsetCommitRequest::default();
+        request.group_id = try_string(prepared.group().as_ref())?;
+        request.generation_id_or_member_epoch = prepared.generation_id_or_member_epoch();
+        request.member_id = try_string(prepared.member().as_ref())?;
+        request.group_instance_id = prepared
+            .group_instance_id()
+            .map(|identity| try_string(identity.as_ref()))
+            .transpose()?;
+        request.retention_time_ms = -1;
+        request.topics = topics;
+        let retained_bytes = request.retained_size().heap_bytes();
+        Ok(Self {
+            request,
+            retained_bytes,
+        })
     }
 
     pub(crate) fn into_generated_offset_commit_request(self) -> OffsetCommitRequest {

@@ -2,14 +2,19 @@
 
 use std::mem;
 
-use kafka_client_core::{GroupOffsetCommitInput, GroupOffsetCommitPartitionResult, OperationId};
+use kafka_client_core::{GroupOffsetCommitInput, OperationId};
 use kafka_driver::{Call, InvalidationDisposition, RouteFailureToken};
 
 use crate::driver::DriverOwner;
 
+use super::group_offset_commit_retry::{
+    GroupOffsetCommitRefreshPoll, GroupOffsetCommitRetryCandidate, RouteTokenDestination,
+    route_token_destination,
+};
+
 pub(super) struct SettledGroupOffsetCommitCall {
     operation_id: OperationId,
-    input: GroupOffsetCommitInput,
+    fact: GroupOffsetCommitSettlementFact,
     route_token: Option<RouteFailureToken>,
     coordinator_refresh: CoordinatorRefresh,
 }
@@ -28,9 +33,21 @@ impl SettledGroupOffsetCommitCall {
         };
         Self {
             operation_id,
-            input,
+            fact: GroupOffsetCommitSettlementFact::Terminal(input),
             route_token,
             coordinator_refresh,
+        }
+    }
+
+    pub(super) fn new_retry(
+        candidate: GroupOffsetCommitRetryCandidate,
+        route_token: RouteFailureToken,
+    ) -> Self {
+        Self {
+            operation_id: candidate.operation_id(),
+            fact: GroupOffsetCommitSettlementFact::Retry(candidate),
+            route_token: None,
+            coordinator_refresh: CoordinatorRefresh::Queued(route_token),
         }
     }
 
@@ -43,7 +60,7 @@ impl SettledGroupOffsetCommitCall {
         driver: &DriverOwner,
     ) -> GroupOffsetCommitRefreshPoll {
         match mem::replace(&mut self.coordinator_refresh, CoordinatorRefresh::None) {
-            CoordinatorRefresh::None => GroupOffsetCommitRefreshPoll::Ready,
+            CoordinatorRefresh::None => self.ready_poll(),
             CoordinatorRefresh::Queued(route_token) => {
                 match driver.driver.invalidate(route_token) {
                     Ok(call) => {
@@ -62,9 +79,17 @@ impl SettledGroupOffsetCommitCall {
                     self.coordinator_refresh = CoordinatorRefresh::Active(call);
                     GroupOffsetCommitRefreshPoll::Pending
                 } else {
-                    GroupOffsetCommitRefreshPoll::Ready
+                    self.ready_poll()
                 }
             }
+        }
+    }
+
+    fn ready_poll(&self) -> GroupOffsetCommitRefreshPoll {
+        if matches!(self.fact, GroupOffsetCommitSettlementFact::Retry(_)) {
+            GroupOffsetCommitRefreshPoll::ReplacementReady
+        } else {
+            GroupOffsetCommitRefreshPoll::Ready
         }
     }
 
@@ -73,13 +98,40 @@ impl SettledGroupOffsetCommitCall {
             &mut self.coordinator_refresh,
             CoordinatorRefresh::None,
         ));
+        let fact = mem::replace(
+            &mut self.fact,
+            GroupOffsetCommitSettlementFact::Terminal(GroupOffsetCommitInput::InvalidResponse),
+        );
+        self.fact = match fact {
+            GroupOffsetCommitSettlementFact::Retry(candidate) => {
+                GroupOffsetCommitSettlementFact::Terminal(candidate.into_terminal())
+            }
+            GroupOffsetCommitSettlementFact::Terminal(input) => {
+                GroupOffsetCommitSettlementFact::Terminal(input)
+            }
+        };
+    }
+
+    pub(super) fn into_retry_candidate(self) -> Option<GroupOffsetCommitRetryCandidate> {
+        if !matches!(self.coordinator_refresh, CoordinatorRefresh::None) {
+            return None;
+        }
+        match self.fact {
+            GroupOffsetCommitSettlementFact::Retry(candidate) => Some(candidate),
+            GroupOffsetCommitSettlementFact::Terminal(_) => None,
+        }
+    }
+
+    pub(super) fn is_retry_ready(&self) -> bool {
+        matches!(self.coordinator_refresh, CoordinatorRefresh::None)
+            && matches!(self.fact, GroupOffsetCommitSettlementFact::Retry(_))
     }
 
     pub(super) fn into_parts(
         self,
     ) -> (GroupOffsetCommitInput, PendingGroupOffsetCommitConfirmation) {
         (
-            self.input,
+            self.fact.into_terminal(),
             PendingGroupOffsetCommitConfirmation {
                 operation_id: self.operation_id,
                 route_token: self.route_token,
@@ -92,7 +144,21 @@ impl SettledGroupOffsetCommitCall {
     ) -> (OperationId, GroupOffsetCommitInput) {
         drop(self.coordinator_refresh);
         drop(self.route_token);
-        (self.operation_id, self.input)
+        (self.operation_id, self.fact.into_terminal())
+    }
+}
+
+enum GroupOffsetCommitSettlementFact {
+    Terminal(GroupOffsetCommitInput),
+    Retry(GroupOffsetCommitRetryCandidate),
+}
+
+impl GroupOffsetCommitSettlementFact {
+    fn into_terminal(self) -> GroupOffsetCommitInput {
+        match self {
+            Self::Terminal(input) => input,
+            Self::Retry(candidate) => candidate.into_terminal(),
+        }
     }
 }
 
@@ -127,110 +193,4 @@ impl PendingGroupOffsetCommitConfirmation {
         drop(self.route_token);
         self.operation_id
     }
-}
-
-pub(super) fn needs_coordinator_refresh(input: &GroupOffsetCommitInput) -> bool {
-    matches!(
-        input,
-        GroupOffsetCommitInput::BrokerResponded { outcomes, .. }
-            if outcomes.iter().any(|outcome| {
-                matches!(
-                    outcome.result(),
-                    GroupOffsetCommitPartitionResult::Rejected(error)
-                        if matches!(error.code(), 15 | 16)
-                )
-            })
-    )
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum RouteTokenDestination {
-    Confirm,
-    Refresh,
-}
-
-pub(super) fn route_token_destination(input: &GroupOffsetCommitInput) -> RouteTokenDestination {
-    if needs_coordinator_refresh(input) {
-        RouteTokenDestination::Refresh
-    } else {
-        RouteTokenDestination::Confirm
-    }
-}
-
-/// One bounded nonblocking observation without moving terminal ownership.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum GroupOffsetCommitPoll {
-    Idle,
-    TerminalReady { operation_id: OperationId },
-    ConfirmationPending { operation_id: OperationId },
-}
-
-/// State of the causal coordinator-refresh barrier for one settled commit.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum GroupOffsetCommitRefreshPoll {
-    Ready,
-    Submitted,
-    Pending,
-}
-
-/// Why terminal input ownership could not begin core settlement.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum GroupOffsetCommitBeginError {
-    NoSettlement {
-        supplied: OperationId,
-    },
-    ConfirmationPending {
-        pending: OperationId,
-    },
-    OperationMismatch {
-        settled: OperationId,
-        supplied: OperationId,
-    },
-}
-
-/// Why exact route-token confirmation could not finish.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum GroupOffsetCommitConfirmationError {
-    NoPendingConfirmation {
-        supplied: OperationId,
-    },
-    OperationMismatch {
-        pending: OperationId,
-        supplied: OperationId,
-    },
-}
-
-/// Failed restoration still owns the exact normalized input.
-#[must_use = "failed restoration still owns the exact group commit input"]
-pub(crate) struct GroupOffsetCommitRestoreFailure {
-    input: GroupOffsetCommitInput,
-    error: GroupOffsetCommitRestoreError,
-}
-
-impl GroupOffsetCommitRestoreFailure {
-    pub(super) const fn new(
-        input: GroupOffsetCommitInput,
-        error: GroupOffsetCommitRestoreError,
-    ) -> Self {
-        Self { input, error }
-    }
-
-    pub(crate) fn into_parts(self) -> (GroupOffsetCommitInput, GroupOffsetCommitRestoreError) {
-        (self.input, self.error)
-    }
-}
-
-/// Why terminal input could not rejoin its pending route confirmation.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum GroupOffsetCommitRestoreError {
-    SettlementPresent {
-        supplied: OperationId,
-    },
-    NoPendingConfirmation {
-        supplied: OperationId,
-    },
-    OperationMismatch {
-        pending: OperationId,
-        supplied: OperationId,
-    },
 }

@@ -1,8 +1,9 @@
 //! Exact broker-level classification and policy-selected offset reset transitions.
 
 use kafka_client_core::{
-    AssignedConsumerEffect, FetchFailure, GroupPositionMissingOffsetPolicy, Moment, ReadIsolation,
-    StartPosition,
+    AssignedConsumerEffect, AssignmentGeneration, FetchFailure, GroupAssignmentPartition,
+    GroupPositionMissingOffsetPolicy, LiveGroupAssignment, Moment, PartitionIndex, ReadIsolation,
+    StartPosition, TopicId,
 };
 
 use crate::{
@@ -146,6 +147,42 @@ fn error_policy_and_nonmatching_broker_levels_remain_exact_fetch_failures() {
         assert_eq!(owner.fetches.retained(), (0, 0, 0));
         assert!(owner.fault().is_none());
     }
+}
+
+#[test]
+fn accepted_terminal_after_assignment_retirement_drains_without_group_fault() {
+    let (mut owner, proposal) = prepared_terminal(
+        GroupPositionMissingOffsetPolicy::Earliest,
+        FetchTerminalFixture::Success(None),
+    );
+    let fence = position_fence(7);
+    let assignment = LiveGroupAssignment::try_new(
+        fence.group_id(),
+        fence.member_id(),
+        AssignmentGeneration::try_from_raw(7).unwrap_or_else(|| panic!("generation")),
+        vec![GroupAssignmentPartition::new(
+            TopicId::from_raw(1),
+            PartitionIndex::from_raw(0),
+        )],
+    )
+    .unwrap_or_else(|error| panic!("assignment: {error:?}"));
+    owner
+        .retire_for_assignment_loss(&assignment)
+        .unwrap_or_else(|error| panic!("retire assignment: {error:?}"));
+
+    assert!(
+        owner
+            .settle_terminal_proposal(
+                &MonotonicClock::new(),
+                &driver(),
+                Moment::from_tick(50),
+                proposal,
+            )
+            .unwrap_or_else(|error| panic!("discard retired terminal: {error:?}"))
+            .is_none()
+    );
+    assert_eq!(owner.fetches.retained(), (0, 0, 0));
+    assert!(owner.fault().is_none());
 }
 
 fn prepared_terminal(

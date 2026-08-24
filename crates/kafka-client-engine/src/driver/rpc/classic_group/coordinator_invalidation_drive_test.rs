@@ -12,7 +12,7 @@ use super::{
 };
 
 #[test]
-fn applied_and_stale_dispositions_both_permit_the_core_planned_join() {
+fn applied_stale_and_unavailable_dispositions_permit_fresh_discovery() {
     assert_eq!(
         terminal(group(), Ok(InvalidationDisposition::Applied)).result(),
         Ok(ClassicCoordinatorInvalidationPermission::Applied)
@@ -21,14 +21,14 @@ fn applied_and_stale_dispositions_both_permit_the_core_planned_join() {
         terminal(group(), Ok(InvalidationDisposition::IgnoredStale)).result(),
         Ok(ClassicCoordinatorInvalidationPermission::IgnoredStale)
     );
+    assert_eq!(
+        terminal(group(), Ok(InvalidationDisposition::Unavailable)).result(),
+        Ok(ClassicCoordinatorInvalidationPermission::Unavailable)
+    );
 }
 
 #[test]
-fn unavailable_and_capacity_terminals_never_permit_join() {
-    assert_eq!(
-        terminal(group(), Ok(InvalidationDisposition::Unavailable)).result(),
-        Err(ClassicCoordinatorInvalidationTerminalFailure::Unavailable)
-    );
+fn capacity_terminal_never_permits_join() {
     assert_eq!(
         terminal(group(), Ok(InvalidationDisposition::CapacityReached)).result(),
         Err(ClassicCoordinatorInvalidationTerminalFailure::CapacityReached)

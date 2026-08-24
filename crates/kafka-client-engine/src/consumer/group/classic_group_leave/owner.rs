@@ -154,7 +154,8 @@ impl ClassicGroupLeaveOwner {
             ClassicGroupLeaveState::AwaitingInvalidation { deadline, facts } => match result {
                 Ok(
                     ClassicCoordinatorInvalidationPermission::Applied
-                    | ClassicCoordinatorInvalidationPermission::IgnoredStale,
+                    | ClassicCoordinatorInvalidationPermission::IgnoredStale
+                    | ClassicCoordinatorInvalidationPermission::Unavailable,
                 ) => {
                     self.state = ClassicGroupLeaveState::RetryPending { deadline, facts };
                 }

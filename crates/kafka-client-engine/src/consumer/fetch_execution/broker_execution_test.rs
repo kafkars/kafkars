@@ -8,7 +8,9 @@ use kafka_client_core::{
 use super::{
     DirectFetchExecutor, FetchSubmission,
     admission_test::{fetch_fence, offset, owner, prepared, shutdown},
+    broker_execution::RoutedBrokerFetch,
 };
+use crate::driver::BrokerId;
 
 #[test]
 fn later_fetch_is_retained_and_its_original_deadline_wins_retry() {
@@ -68,6 +70,37 @@ fn later_fetch_is_retained_and_its_original_deadline_wins_retry() {
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].fence(), first_fence);
     assert_eq!(completion, None);
+}
+
+#[test]
+fn routed_fetch_retired_before_submission_releases_without_fault() {
+    let (effects, mut machine) = assignment();
+    let mut executor = DirectFetchExecutor::create_unbound(2, 2, 8_192);
+    executor
+        .try_enable_sessions(2)
+        .unwrap_or_else(|()| panic!("reserve broker-routed Fetch state"));
+    let (request, hard_output_bytes) = prepared(effects[0], 100, 4_096).into_parts();
+    executor.routed.push(RoutedBrokerFetch {
+        broker_id: BrokerId::from_raw(1).unwrap_or_else(|error| panic!("broker: {error:?}")),
+        request,
+        hard_output_bytes,
+    });
+    machine
+        .apply(AssignedConsumerInput::RetireAssignment {
+            assignment_epoch: machine.assignment_epoch(),
+        })
+        .unwrap_or_else(|error| panic!("retire assignment: {error}"));
+
+    let (_transition, progressed) = executor
+        .drive_broker_fetches(
+            &owner(),
+            &mut machine,
+            &crate::clock::MonotonicClock::new(),
+            Moment::from_tick(1),
+        )
+        .unwrap_or_else(|error| panic!("discard retired route: {error:?}"));
+    assert!(progressed);
+    assert_eq!(executor.retained(), (0, 0, 0));
 }
 
 fn assignment() -> (Vec<AssignedConsumerEffect>, AssignedConsumerMachine) {

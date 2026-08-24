@@ -82,9 +82,6 @@ impl ClassicGroupMachine {
         now: Moment,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         self.validate_heartbeat_assignment(attempt)?;
-        if self.heartbeat.attempt_deadline_is_elapsed(attempt, now)? {
-            return self.heartbeat_deadline_elapsed(attempt, now);
-        }
         let followup = self.coordinator_loss_followup(attempt, now);
         self.heartbeat.failed(attempt)?;
         let revoke = self.take_stable_revoke()?;

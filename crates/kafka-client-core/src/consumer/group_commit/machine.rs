@@ -154,7 +154,8 @@ impl GroupOffsetCommitMachine {
             )
             | (
                 GroupOffsetCommitState::Submitted,
-                GroupOffsetCommitInput::DeadlineElapsed { .. }
+                GroupOffsetCommitInput::ExecutionUnavailable
+                | GroupOffsetCommitInput::DeadlineElapsed { .. }
                 | GroupOffsetCommitInput::BrokerResponded { .. }
                 | GroupOffsetCommitInput::ProtocolIncompatible { .. }
                 | GroupOffsetCommitInput::ResponseTooLarge

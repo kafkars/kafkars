@@ -1,78 +1,26 @@
 //! Bounded tracked-call ownership and nonblocking group commit polling.
 
+#[cfg(test)]
 use kafka_client_core::GroupOffsetCommitInput;
-use kafka_driver::RoutedCall;
-use kafka_wire::OffsetCommitResponse;
 
-use crate::protocol::consumer::{PreparedGroupOffsetCommit, PreparedGroupOffsetCommitRequest};
+#[cfg(test)]
+use crate::protocol::consumer::PreparedGroupOffsetCommit;
 
 use super::{
     super::DriverOwner,
     group_offset_commit_recovery::{
         GroupOffsetCommitCompletionFailure, GroupOffsetCommitCompletionObservation,
-        GroupOffsetCommitPrebuiltAdmissionFailure, GroupOffsetCommitShutdownRecovery,
-        RecoveredGroupOffsetCommitSettlement,
+        GroupOffsetCommitShutdownRecovery, RecoveredGroupOffsetCommitSettlement,
+    },
+    group_offset_commit_retry::{
+        GroupOffsetCommitPoll, GroupOffsetCommitRefreshPoll,
+        classify_group_offset_commit_settlement,
     },
     group_offset_commit_settlement::{
-        GroupOffsetCommitPoll, GroupOffsetCommitRefreshPoll, PendingGroupOffsetCommitConfirmation,
-        SettledGroupOffsetCommitCall,
+        PendingGroupOffsetCommitConfirmation, SettledGroupOffsetCommitCall,
     },
-    group_offset_commit_terminal::normalize_group_offset_commit_terminal,
+    group_offset_commit_submission::{GroupOffsetCommitCallPermit, TrackedGroupOffsetCommitCall},
 };
-
-pub(super) struct TrackedGroupOffsetCommitCall {
-    prepared: PreparedGroupOffsetCommit,
-    call: RoutedCall<OffsetCommitResponse>,
-}
-
-impl TrackedGroupOffsetCommitCall {
-    pub(super) fn into_prepared(self) -> PreparedGroupOffsetCommit {
-        let Self { prepared, call } = self;
-        drop(call);
-        prepared
-    }
-}
-
-/// Preflighted ownership of exactly one bounded group commit call slot.
-#[must_use = "a reserved group commit call slot must be submitted or released"]
-pub(crate) struct GroupOffsetCommitCallPermit<'a> {
-    calls: &'a mut Vec<TrackedGroupOffsetCommitCall>,
-}
-
-impl GroupOffsetCommitCallPermit<'_> {
-    /// Moves the already-built generated request across the driver boundary.
-    #[allow(
-        clippy::result_large_err,
-        reason = "driver rejection must return both exact prepared owners"
-    )]
-    pub(crate) fn submit_prebuilt(
-        self,
-        driver: &DriverOwner,
-        prepared: PreparedGroupOffsetCommit,
-        request: PreparedGroupOffsetCommitRequest,
-    ) -> Result<GroupOffsetCommitInput, GroupOffsetCommitPrebuiltAdmissionFailure> {
-        let request = request.into_generated_offset_commit_request();
-        let static_membership = request.group_instance_id.is_some();
-        let call = match driver.submit_tracked_group_offset_commit(
-            prepared.group().as_ref(),
-            request,
-            prepared.operation_deadline().transport(),
-            prepared.requires_leader_epoch(),
-            static_membership,
-            prepared.requires_consumer_group_version(),
-        ) {
-            Ok(call) => call,
-            Err(source) => {
-                return Err(GroupOffsetCommitPrebuiltAdmissionFailure::new(
-                    prepared, source,
-                ));
-            }
-        };
-        self.calls
-            .push(TrackedGroupOffsetCommitCall { prepared, call });
-        Ok(GroupOffsetCommitInput::DriverAccepted)
-    }
-}
 
 /// Capacity-bounded registry of active, settled, confirming, and corrupted calls.
 pub(crate) struct TrackedGroupOffsetCommitCalls {
@@ -181,12 +129,12 @@ impl TrackedGroupOffsetCommitCalls {
         };
         let operation_id = tracked.prepared.operation_id();
         let (result, selected_version, route_token) = outcome.into_parts();
-        let input =
-            normalize_group_offset_commit_terminal(tracked.prepared, selected_version, result);
-        self.settled = Some(SettledGroupOffsetCommitCall::new(
-            operation_id,
-            input,
+        self.settled = Some(classify_group_offset_commit_settlement(
+            tracked.prepared,
+            selected_version,
+            result,
             route_token,
+            tracked.replacement_used,
         ));
         Ok(GroupOffsetCommitPoll::TerminalReady { operation_id })
     }
