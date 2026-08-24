@@ -15,7 +15,7 @@ const SIBLINGS: [Sibling; 4] = [
     Sibling {
         name: "kafka-driver",
         path: "../kafka-driver",
-        version: "0.1.0-rc.1",
+        version: "0.1.0-rc.2",
     },
     Sibling {
         name: "kafka-wire",
