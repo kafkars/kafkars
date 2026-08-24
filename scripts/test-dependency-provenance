@@ -102,7 +102,9 @@ wire_runtime_fingerprint() {
 
 expect_success() {
   local scenario=$1
-  if ! bash "$checker" > "$log" 2>&1; then
+  if ! KAFKA_CLIENT_DRIVER_ROOT="$driver_root" \
+    KAFKA_CLIENT_PROTOCOL_ROOT="$protocol_root" \
+    bash "$checker" > "$log" 2>&1; then
     echo "provenance scenario unexpectedly failed: $scenario" >&2
     sed -n '1,120p' "$log" >&2
     exit 1
@@ -112,7 +114,9 @@ expect_success() {
 expect_failure() {
   local scenario=$1
   local evidence=$2
-  if bash "$checker" > "$log" 2>&1; then
+  if KAFKA_CLIENT_DRIVER_ROOT="$driver_root" \
+    KAFKA_CLIENT_PROTOCOL_ROOT="$protocol_root" \
+    bash "$checker" > "$log" 2>&1; then
     echo "provenance scenario unexpectedly passed: $scenario" >&2
     exit 1
   fi
