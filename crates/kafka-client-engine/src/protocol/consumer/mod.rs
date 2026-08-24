@@ -7,13 +7,7 @@ mod consumer_group;
     expect(dead_code, reason = "awaiting classic-group commit executor")
 )]
 pub(crate) mod group_offset_commit;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "awaiting classic-group position bootstrap executor"
-    )
-)]
+#[cfg_attr(not(test), expect(dead_code, reason = "classic position bootstrap"))]
 mod group_offset_fetch;
 mod list_offsets_model;
 mod list_offsets_request;
