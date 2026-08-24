@@ -99,7 +99,7 @@ pub(crate) struct TransactionInitializationHost {
     published_bytes: Vec<(CompletionId, usize)>,
     live_owners: Vec<LiveTransactionalOwner>,
     executions: Vec<TransactionExecutionHost>,
-    execution_limits: TransactionExecutionLimits,
+    pub(super) execution_limits: TransactionExecutionLimits,
     release_sender: SyncSender<TransactionalOwnerId>,
     release_receiver: Receiver<TransactionalOwnerId>,
     owner_loss_sender: SyncSender<TransactionOwnerLossSignal>,

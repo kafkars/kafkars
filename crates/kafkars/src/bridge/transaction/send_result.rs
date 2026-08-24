@@ -1,13 +1,15 @@
 //! Exhaustive facade translation of transactional record-send outcomes.
 
 use kafka_client_engine::{
-    ProducerSendCaptureError, ProducerSendCaptureErrorKind, TransactionSendAdmissionErrorKind,
-    TransactionSendConsequence, TransactionSendDeliveryStatus, TransactionSendFailure,
-    TransactionSendFailureKind, TransactionSendMetadata, TransactionSendObserverError,
-    TransactionSendOutcome,
+    ProducerSendCaptureError, ProducerSendCaptureErrorKind, TransactionBatchSendOutcome,
+    TransactionSendAdmissionErrorKind, TransactionSendConsequence, TransactionSendDeliveryStatus,
+    TransactionSendFailure, TransactionSendFailureKind, TransactionSendMetadata,
+    TransactionSendObserverError, TransactionSendOutcome,
 };
 
-use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata};
+use crate::{
+    DeliveryStatus, ErrorKind, KafkaError, RecordMetadata, transaction::TransactionBatchMetadata,
+};
 
 use super::result::translate_control_kind;
 
@@ -26,11 +28,16 @@ pub(super) fn translate_send_capture(error: ProducerSendCaptureError) -> KafkaEr
 pub(super) fn translate_send_admission(kind: TransactionSendAdmissionErrorKind) -> KafkaError {
     let public = match kind {
         TransactionSendAdmissionErrorKind::InvalidDeadline => ErrorKind::Timeout,
-        TransactionSendAdmissionErrorKind::EmptyTopic
+        TransactionSendAdmissionErrorKind::EmptyBatch
+        | TransactionSendAdmissionErrorKind::EmptyTopic
         | TransactionSendAdmissionErrorKind::NegativeExplicitPartition
+        | TransactionSendAdmissionErrorKind::MissingExplicitPartition
+        | TransactionSendAdmissionErrorKind::MixedBatchTopic
+        | TransactionSendAdmissionErrorKind::MixedBatchPartition
         | TransactionSendAdmissionErrorKind::RetainedSizeOverflow
         | TransactionSendAdmissionErrorKind::InvalidPartition => ErrorKind::InvalidRecord,
         TransactionSendAdmissionErrorKind::Contended
+        | TransactionSendAdmissionErrorKind::BatchRecordCapacity { .. }
         | TransactionSendAdmissionErrorKind::RetainedRecordBytes { .. }
         | TransactionSendAdmissionErrorKind::RetainedTopicCapacity { .. }
         | TransactionSendAdmissionErrorKind::RetainedTopicBytes { .. }
@@ -52,6 +59,26 @@ pub(super) fn translate_send_admission(kind: TransactionSendAdmissionErrorKind) 
         error.with_safe_retry()
     } else {
         error
+    }
+}
+
+pub(super) fn translate_send_batch_observation(
+    result: Result<TransactionBatchSendOutcome, TransactionSendObserverError>,
+) -> Result<TransactionBatchMetadata, KafkaError> {
+    match result {
+        Ok(TransactionBatchSendOutcome::Succeeded(metadata)) => {
+            Ok(TransactionBatchMetadata::from_parts(
+                metadata.topic().to_owned(),
+                metadata.partition(),
+                metadata.base_offset(),
+                metadata.last_offset(),
+                metadata.record_count(),
+                metadata.timestamp(),
+                metadata.leader_epoch(),
+            ))
+        }
+        Ok(TransactionBatchSendOutcome::Failed(failure)) => Err(translate_send_failure(failure)),
+        Err(error) => Err(translate_send_observer_error(error)),
     }
 }
 

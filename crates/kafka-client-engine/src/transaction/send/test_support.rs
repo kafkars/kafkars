@@ -2,7 +2,9 @@
 
 use std::sync::{Arc, Mutex, atomic::AtomicBool, mpsc::sync_channel};
 
-use kafka_client_core::{DeliveryStatus, TransactionEpoch, TransactionalOwnerId};
+use kafka_client_core::{
+    DeliveryStatus, TransactionEpoch, TransactionSendIdentity, TransactionalOwnerId,
+};
 
 use crate::{
     producer::materialization::TransactionalMaterializationBatch,
@@ -22,8 +24,8 @@ mod fixtures;
 mod produce_port;
 
 pub(super) use fixtures::{
-    automatic_request, deadline, driver, later_epoch, local_submit_failure, produce_failure,
-    request, request_with_deadline,
+    automatic_request, batch_request, deadline, driver, later_epoch, local_submit_failure,
+    produce_failure, request, request_with_deadline,
 };
 pub(super) use produce_port::FakeProducePort;
 
@@ -34,6 +36,7 @@ pub(super) struct FakeAggregate {
     terminal: Option<TransactionPartitionEnrollmentTerminal>,
     pub(super) local_enrollment: bool,
     pub(super) log: Arc<Mutex<Vec<&'static str>>>,
+    pub(super) prepared_identities: Vec<TransactionSendIdentity>,
     completion: TransactionCompletionOwner,
 }
 
@@ -84,6 +87,7 @@ impl FakeAggregate {
             terminal: None,
             local_enrollment: false,
             log: Arc::new(Mutex::new(Vec::new())),
+            prepared_identities: Vec::new(),
             completion,
         }
     }

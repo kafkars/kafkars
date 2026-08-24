@@ -45,6 +45,7 @@ pub(crate) enum TransactionSendFailureKind {
     Materialization,
     ProduceSubmission(ProducerAttemptFailureKind),
     Produce(TransactionProduceFailureKind),
+    InvalidResponse,
     Correlation,
     DriverShutdown,
 }
@@ -78,6 +79,7 @@ pub(crate) enum TransactionSendTerminal {
         send_id: TransactionSendId,
         partition: PartitionIndex,
         success: ProducerBatchSuccess,
+        last_offset: i64,
     },
     FailedHealthy {
         epoch: TransactionEpoch,

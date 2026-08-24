@@ -55,6 +55,9 @@ fn failure_kind(
         }
         InternalTransactionSendFailureKind::ProduceSubmission(kind) => attempt_failure_kind(kind),
         InternalTransactionSendFailureKind::Produce(kind) => produce_failure_kind(kind),
+        InternalTransactionSendFailureKind::InvalidResponse => {
+            (TransactionSendFailureKind::InvalidResponse, None)
+        }
         InternalTransactionSendFailureKind::Correlation => {
             (TransactionSendFailureKind::Correlation, None)
         }

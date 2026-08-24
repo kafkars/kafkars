@@ -8,6 +8,7 @@ use super::topic_catalog::TransactionTopicCatalogError;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TransactionExecutionSendAdmissionErrorKind {
     StaleOwner,
+    BatchRecordCapacity { actual: usize, limit: usize },
     RetainedRecordBytes { actual: usize, limit: usize },
     RetainedTopicCapacity { actual: usize, limit: usize },
     RetainedTopicBytes { actual: usize, limit: usize },

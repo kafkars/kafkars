@@ -2,6 +2,9 @@
 
 mod host;
 mod model;
+mod send_admission;
+#[cfg(test)]
+mod send_admission_test;
 mod topic_catalog;
 mod turn;
 

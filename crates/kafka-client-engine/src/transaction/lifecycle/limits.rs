@@ -9,6 +9,7 @@ use crate::transaction::partition_enrollment::TransactionPartitionEnrollmentLimi
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct TransactionExecutionLimits {
     partition_capacity: usize,
+    batch_record_capacity: usize,
     retained_topic_bytes: usize,
     retained_record_bytes: usize,
     max_wire_batch_bytes: usize,
@@ -56,6 +57,7 @@ impl TransactionExecutionLimits {
     }
 
     /// Validates every producer limit and retains the retry policy captured at host start.
+    #[cfg(test)]
     pub(crate) const fn try_new_with_bounds(
         partition_capacity: usize,
         retained_topic_bytes: usize,
@@ -64,8 +66,30 @@ impl TransactionExecutionLimits {
         compression: CompressionPolicy,
         send_retry_policy: ProducerRetryPolicy,
     ) -> Option<Self> {
+        Self::try_new_with_batch_bounds(
+            partition_capacity,
+            partition_capacity,
+            retained_topic_bytes,
+            retained_record_bytes,
+            max_wire_batch_bytes,
+            compression,
+            send_retry_policy,
+        )
+    }
+
+    /// Validates the independent distinct-partition and homogeneous-batch bounds.
+    pub(crate) const fn try_new_with_batch_bounds(
+        partition_capacity: usize,
+        batch_record_capacity: usize,
+        retained_topic_bytes: usize,
+        retained_record_bytes: usize,
+        max_wire_batch_bytes: usize,
+        compression: CompressionPolicy,
+        send_retry_policy: ProducerRetryPolicy,
+    ) -> Option<Self> {
         Self::try_new_with_offset_bounds(
             partition_capacity,
+            batch_record_capacity,
             retained_topic_bytes,
             retained_record_bytes,
             max_wire_batch_bytes,
@@ -83,6 +107,7 @@ impl TransactionExecutionLimits {
     )]
     pub(crate) const fn try_new_with_offset_bounds(
         partition_capacity: usize,
+        batch_record_capacity: usize,
         retained_topic_bytes: usize,
         retained_record_bytes: usize,
         max_wire_batch_bytes: usize,
@@ -92,6 +117,7 @@ impl TransactionExecutionLimits {
         send_retry_policy: ProducerRetryPolicy,
     ) -> Option<Self> {
         if partition_capacity == 0
+            || batch_record_capacity == 0
             || retained_topic_bytes == 0
             || retained_record_bytes == 0
             || max_wire_batch_bytes == 0
@@ -102,6 +128,7 @@ impl TransactionExecutionLimits {
         } else {
             Some(Self {
                 partition_capacity,
+                batch_record_capacity,
                 retained_topic_bytes,
                 retained_record_bytes,
                 max_wire_batch_bytes,
@@ -119,6 +146,10 @@ impl TransactionExecutionLimits {
 
     pub(in crate::transaction) const fn partition_capacity(self) -> usize {
         self.partition_capacity
+    }
+
+    pub(in crate::transaction) const fn batch_record_capacity(self) -> usize {
+        self.batch_record_capacity
     }
 
     pub(in crate::transaction) const fn send_retry_policy(self) -> ProducerRetryPolicy {

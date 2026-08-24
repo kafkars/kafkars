@@ -41,7 +41,7 @@ pub(in crate::transaction::send) fn request_with_deadline(
     deadline: OperationDeadline,
 ) -> TransactionSendRequest {
     let canonical_topic = Arc::<str>::from(topic);
-    let input = TransactionSendInput::new(
+    let input = TransactionSendInput::try_new(
         epoch,
         PublicProducerRecord::to(Arc::clone(&canonical_topic))
             .partition(2)
@@ -52,7 +52,8 @@ pub(in crate::transaction::send) fn request_with_deadline(
         MaterializationRecord::new(1_000, None, Some(Bytes::from_static(b"value")), Vec::new()),
         topic.len() + b"value".len(),
         deadline,
-    );
+    )
+    .unwrap_or_else(|record| panic!("test send input allocates: {record:?}"));
     TransactionSendRequest::try_prepare(input, TopicId::from_raw(9), max_batch_bytes)
         .unwrap_or_else(|error| panic!("test send request resolves: {error:?}"))
 }
@@ -64,7 +65,7 @@ pub(in crate::transaction::send) fn automatic_request(
     max_batch_bytes: usize,
 ) -> TransactionSendRequest {
     let canonical_topic = Arc::<str>::from(topic);
-    let input = TransactionSendInput::new(
+    let input = TransactionSendInput::try_new(
         epoch,
         PublicProducerRecord::to(Arc::clone(&canonical_topic))
             .timestamp_milliseconds(1_000)
@@ -74,9 +75,60 @@ pub(in crate::transaction::send) fn automatic_request(
         MaterializationRecord::new(1_000, key, Some(Bytes::from_static(b"value")), Vec::new()),
         topic.len() + b"value".len(),
         deadline(50),
-    );
+    )
+    .unwrap_or_else(|record| panic!("test automatic input allocates: {record:?}"));
     TransactionSendRequest::try_prepare(input, TopicId::from_raw(9), max_batch_bytes)
         .unwrap_or_else(|error| panic!("test automatic request prepares: {error:?}"))
+}
+
+pub(in crate::transaction::send) fn batch_request(
+    epoch: TransactionEpoch,
+    topic: &str,
+    max_batch_bytes: usize,
+) -> TransactionSendRequest {
+    let canonical_topic = Arc::<str>::from(topic);
+    let values = [
+        b"first".as_slice(),
+        b"second".as_slice(),
+        b"third".as_slice(),
+    ];
+    let original_records = values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let index =
+                i64::try_from(index).unwrap_or_else(|_error| panic!("three-record index fits i64"));
+            PublicProducerRecord::to(Arc::clone(&canonical_topic))
+                .partition(2)
+                .timestamp_milliseconds(1_000 + index)
+                .value(Bytes::copy_from_slice(value))
+        })
+        .collect::<Vec<_>>();
+    let materialization_records = values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let index =
+                i64::try_from(index).unwrap_or_else(|_error| panic!("three-record index fits i64"));
+            MaterializationRecord::new(
+                1_000 + index,
+                None,
+                Some(Bytes::copy_from_slice(value)),
+                Vec::new(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let input = TransactionSendInput::new_batch(
+        epoch,
+        original_records,
+        canonical_topic,
+        PartitionIndex::from_raw(2),
+        materialization_records,
+        topic.len() + values.iter().map(|value| value.len()).sum::<usize>(),
+        deadline(50),
+    );
+    TransactionSendRequest::try_prepare(input, TopicId::from_raw(9), max_batch_bytes)
+        .unwrap_or_else(|error| panic!("test batch request resolves: {error:?}"))
 }
 
 pub(in crate::transaction::send) fn deadline(tick: u64) -> OperationDeadline {

@@ -11,18 +11,26 @@ use super::send_result::{
 };
 use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
+type AdmissionCase = (TransactionSendAdmissionErrorKind, ErrorKind, RetryAdvice);
+
 #[test]
 fn every_send_admission_kind_has_one_stable_facade_category() {
+    assert_send_admission_cases(validation_admission_cases());
+    assert_send_admission_cases(capacity_admission_cases());
+    assert_send_admission_cases(state_admission_cases());
+}
+
+fn validation_admission_cases() -> [AdmissionCase; 9] {
     use TransactionSendAdmissionErrorKind as Kind;
-    let cases = [
+    [
         (
             Kind::InvalidDeadline,
             ErrorKind::Timeout,
             RetryAdvice::DoNotRetry,
         ),
         (
-            Kind::TimestampUnavailable,
-            ErrorKind::Internal,
+            Kind::EmptyBatch,
+            ErrorKind::InvalidRecord,
             RetryAdvice::DoNotRetry,
         ),
         (
@@ -36,8 +44,42 @@ fn every_send_admission_kind_has_one_stable_facade_category() {
             RetryAdvice::DoNotRetry,
         ),
         (
+            Kind::MissingExplicitPartition,
+            ErrorKind::InvalidRecord,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::MixedBatchTopic,
+            ErrorKind::InvalidRecord,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::MixedBatchPartition,
+            ErrorKind::InvalidRecord,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
             Kind::RetainedSizeOverflow,
             ErrorKind::InvalidRecord,
+            RetryAdvice::DoNotRetry,
+        ),
+        (
+            Kind::InvalidPartition,
+            ErrorKind::InvalidRecord,
+            RetryAdvice::DoNotRetry,
+        ),
+    ]
+}
+
+fn capacity_admission_cases() -> [AdmissionCase; 7] {
+    use TransactionSendAdmissionErrorKind as Kind;
+    [
+        (
+            Kind::BatchRecordCapacity {
+                actual: 2,
+                limit: 1,
+            },
+            ErrorKind::Backpressure,
             RetryAdvice::DoNotRetry,
         ),
         (
@@ -45,8 +87,6 @@ fn every_send_admission_kind_has_one_stable_facade_category() {
             ErrorKind::Backpressure,
             RetryAdvice::RetrySafe,
         ),
-        (Kind::Closed, ErrorKind::State, RetryAdvice::DoNotRetry),
-        (Kind::StaleOwner, ErrorKind::State, RetryAdvice::DoNotRetry),
         (
             Kind::RetainedRecordBytes {
                 actual: 2,
@@ -72,6 +112,25 @@ fn every_send_admission_kind_has_one_stable_facade_category() {
             RetryAdvice::DoNotRetry,
         ),
         (
+            Kind::Allocation,
+            ErrorKind::Backpressure,
+            RetryAdvice::DoNotRetry,
+        ),
+        (Kind::Busy, ErrorKind::Backpressure, RetryAdvice::DoNotRetry),
+    ]
+}
+
+fn state_admission_cases() -> [AdmissionCase; 7] {
+    use TransactionSendAdmissionErrorKind as Kind;
+    [
+        (
+            Kind::TimestampUnavailable,
+            ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
+        ),
+        (Kind::Closed, ErrorKind::State, RetryAdvice::DoNotRetry),
+        (Kind::StaleOwner, ErrorKind::State, RetryAdvice::DoNotRetry),
+        (
             Kind::RetainedTopicBytesOverflow,
             ErrorKind::Internal,
             RetryAdvice::DoNotRetry,
@@ -82,19 +141,8 @@ fn every_send_admission_kind_has_one_stable_facade_category() {
             RetryAdvice::DoNotRetry,
         ),
         (
-            Kind::Allocation,
-            ErrorKind::Backpressure,
-            RetryAdvice::DoNotRetry,
-        ),
-        (Kind::Busy, ErrorKind::Backpressure, RetryAdvice::DoNotRetry),
-        (
             Kind::SendIdentityExhausted,
             ErrorKind::Internal,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::InvalidPartition,
-            ErrorKind::InvalidRecord,
             RetryAdvice::DoNotRetry,
         ),
         (
@@ -102,8 +150,10 @@ fn every_send_admission_kind_has_one_stable_facade_category() {
             ErrorKind::Fenced,
             RetryAdvice::DoNotRetry,
         ),
-    ];
+    ]
+}
 
+fn assert_send_admission_cases<const N: usize>(cases: [AdmissionCase; N]) {
     for (kind, expected, expected_retry) in cases {
         let error = translate_send_admission(kind);
         assert_eq!(error.kind(), expected);

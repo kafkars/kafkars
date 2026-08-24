@@ -16,17 +16,11 @@ use crate::{
             TransactionOffsetCommitAdmissionErrorKind, TransactionOffsetCommitOwner,
             TransactionOffsetCommitRequest,
         },
-        send::{
-            TransactionSendAccepted, TransactionSendInput, TransactionSendOwner,
-            TransactionSendRequest,
-        },
+        send::TransactionSendOwner,
     },
 };
 
-use super::{
-    model::{TransactionExecutionSendAdmissionError, TransactionExecutionSendAdmissionErrorKind},
-    topic_catalog::TransactionTopicCatalog,
-};
+use super::topic_catalog::TransactionTopicCatalog;
 
 /// Unique execution owner installed after producer identity initialization.
 pub(crate) struct TransactionExecutionHost {
@@ -34,8 +28,9 @@ pub(crate) struct TransactionExecutionHost {
     pub(super) send: TransactionSendOwner,
     pub(super) offset_commit: TransactionOffsetCommitOwner,
     pub(super) topics: TransactionTopicCatalog,
-    retained_record_byte_limit: usize,
-    max_wire_batch_bytes: usize,
+    pub(super) batch_record_capacity: usize,
+    pub(super) retained_record_byte_limit: usize,
+    pub(super) max_wire_batch_bytes: usize,
     pub(super) owner_loss_pending: Option<OperationDeadline>,
 }
 
@@ -69,6 +64,7 @@ impl TransactionExecutionHost {
                     offset_commit_publisher,
                 ),
                 topics,
+                batch_record_capacity: limits.batch_record_capacity(),
                 retained_record_byte_limit: limits.retained_record_bytes(),
                 max_wire_batch_bytes: limits.max_wire_batch_bytes(),
                 owner_loss_pending: None,
@@ -116,68 +112,6 @@ impl TransactionExecutionHost {
 
     pub(crate) fn idle_owner_lost(&mut self) -> Result<(), TransactionLifecycleHostError> {
         self.lifecycle.idle_owner_lost()
-    }
-
-    #[expect(
-        clippy::result_large_err,
-        reason = "send rejection returns the exact caller-owned transactional record"
-    )]
-    pub(crate) fn try_send(
-        &mut self,
-        owner_id: TransactionalOwnerId,
-        input: TransactionSendInput,
-    ) -> Result<TransactionSendAccepted, TransactionExecutionSendAdmissionError> {
-        if !self.owns(owner_id) {
-            return Err(TransactionExecutionSendAdmissionError::new(
-                TransactionExecutionSendAdmissionErrorKind::StaleOwner,
-                input,
-            ));
-        }
-        let retained_source_bytes = input.retained_source_bytes();
-        if retained_source_bytes > self.retained_record_byte_limit {
-            return Err(TransactionExecutionSendAdmissionError::new(
-                TransactionExecutionSendAdmissionErrorKind::RetainedRecordBytes {
-                    actual: retained_source_bytes,
-                    limit: self.retained_record_byte_limit,
-                },
-                input,
-            ));
-        }
-        let prepared_topic = match self.topics.prepare(input.canonical_topic()) {
-            Ok(prepared) => prepared,
-            Err(error) => {
-                return Err(TransactionExecutionSendAdmissionError::new(
-                    error.into(),
-                    input,
-                ));
-            }
-        };
-        let request = match TransactionSendRequest::try_prepare(
-            input,
-            prepared_topic.topic_id(),
-            self.max_wire_batch_bytes,
-        ) {
-            Ok(request) => request,
-            Err(input) => {
-                return Err(TransactionExecutionSendAdmissionError::new(
-                    TransactionExecutionSendAdmissionErrorKind::Allocation,
-                    input,
-                ));
-            }
-        };
-        match self.send.try_send(&mut self.lifecycle, request) {
-            Ok(accepted) => {
-                self.topics.commit(prepared_topic);
-                Ok(accepted)
-            }
-            Err(failure) => {
-                let kind = TransactionExecutionSendAdmissionErrorKind::Send(failure.kind());
-                Err(TransactionExecutionSendAdmissionError::new(
-                    kind,
-                    failure.into_input(),
-                ))
-            }
-        }
     }
 
     #[expect(

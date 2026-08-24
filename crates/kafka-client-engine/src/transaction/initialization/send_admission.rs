@@ -24,10 +24,25 @@ pub enum TransactionSendAdmissionErrorKind {
     InvalidDeadline,
     /// The boundary Unix timestamp could not be represented.
     TimestampUnavailable,
+    /// A homogeneous batch must contain at least one record.
+    EmptyBatch,
+    /// The batch exceeded the configured per-Produce record count.
+    BatchRecordCapacity {
+        /// Exact records supplied by the rejected batch.
+        actual: usize,
+        /// Configured maximum records in one transactional batch.
+        limit: usize,
+    },
     /// Kafka topic names cannot be empty.
     EmptyTopic,
     /// The explicit partition was negative.
     NegativeExplicitPartition,
+    /// Every record in a homogeneous batch must select an explicit partition.
+    MissingExplicitPartition,
+    /// Every record in a homogeneous batch must use one exact topic spelling.
+    MixedBatchTopic,
+    /// Every record in a homogeneous batch must use one exact partition.
+    MixedBatchPartition,
     /// The public record's retained byte size overflowed.
     RetainedSizeOverflow,
     /// Another caller currently owns the bounded transaction shard.
@@ -165,6 +180,9 @@ const fn execution_error_kind(
     match error {
         TransactionExecutionSendAdmissionErrorKind::StaleOwner => {
             TransactionSendAdmissionErrorKind::StaleOwner
+        }
+        TransactionExecutionSendAdmissionErrorKind::BatchRecordCapacity { actual, limit } => {
+            TransactionSendAdmissionErrorKind::BatchRecordCapacity { actual, limit }
         }
         TransactionExecutionSendAdmissionErrorKind::RetainedRecordBytes { actual, limit } => {
             TransactionSendAdmissionErrorKind::RetainedRecordBytes { actual, limit }

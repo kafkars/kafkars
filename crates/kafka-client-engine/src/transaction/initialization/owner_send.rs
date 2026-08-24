@@ -78,7 +78,7 @@ impl<'owner> TransactionToken<'owner> {
             }
         };
         let observer_topic = Arc::clone(&topic);
-        let input = TransactionSendInput::new(
+        let input = match TransactionSendInput::try_new(
             self.epoch,
             record,
             topic,
@@ -86,7 +86,15 @@ impl<'owner> TransactionToken<'owner> {
             materialization,
             retained_source_bytes,
             deadline.operation_deadline(),
-        );
+        ) {
+            Ok(input) => input,
+            Err(record) => {
+                return Err(TransactionSendAdmissionError::new(
+                    super::TransactionSendAdmissionErrorKind::Allocation,
+                    record,
+                ));
+            }
+        };
         let TransactionLifecycleControlAccepted { value, wake_failed } =
             self.owner.send(input).map_err(|error| {
                 let kind = control_send_error_kind(&error);

@@ -5,8 +5,9 @@ use std::time::Duration;
 use crate::{Checkpoint, GroupMetadata, Record, bridge::transaction::TransactionEngine};
 
 use super::{
-    AbortTransaction, CommitTransaction, SendTransactionOffsets, SendTransactionRecord,
-    TransactionEndAdmissionError, TransactionOffsetsAdmissionError, TransactionSendAdmissionError,
+    AbortTransaction, CommitTransaction, SendTransactionBatch, SendTransactionOffsets,
+    SendTransactionRecord, TransactionBatchSendAdmissionError, TransactionEndAdmissionError,
+    TransactionOffsetsAdmissionError, TransactionSendAdmissionError,
 };
 
 /// Opaque active transaction that exclusively borrows its producer.
@@ -49,6 +50,24 @@ impl<'producer> Transaction<'producer> {
             .send(record, timeout)
             .map(SendTransactionRecord::from_bridge)
             .map_err(|(record, error)| TransactionSendAdmissionError::new(record, error))
+    }
+
+    /// Attempts to admit one homogeneous record batch into this transaction.
+    ///
+    /// The batch must be nonempty and every record must use the same topic and
+    /// same explicit partition. Rejection returns every original record in
+    /// caller order with its shared byte and source ownership intact.
+    /// Acceptance reserves one terminal, one sequence range, and one Produce
+    /// certainty for the whole batch under the deadline captured at this call.
+    pub fn send_batch<'send>(
+        &'send mut self,
+        records: Vec<Record>,
+        timeout: Duration,
+    ) -> Result<SendTransactionBatch<'send, 'producer>, TransactionBatchSendAdmissionError> {
+        self.inner
+            .send_batch(records, timeout)
+            .map(SendTransactionBatch::from_bridge)
+            .map_err(|(records, error)| TransactionBatchSendAdmissionError::new(records, error))
     }
 
     /// Attempts to transfer one assignment-fenced checkpoint into this transaction.

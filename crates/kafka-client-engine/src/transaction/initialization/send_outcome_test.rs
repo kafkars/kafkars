@@ -20,6 +20,7 @@ fn success_translation_retains_route_and_all_broker_metadata() {
             send_id,
             partition: kafka_client_core::PartitionIndex::from_raw(3),
             success: ProducerBatchSuccess::new(41, Some(55), Some(7)),
+            last_offset: 41,
         },
         epoch,
         send_id,
@@ -34,6 +35,7 @@ fn success_translation_retains_route_and_all_broker_metadata() {
     assert_eq!(metadata.topic(), "orders");
     assert_eq!(metadata.partition(), 3);
     assert_eq!(metadata.offset(), 41);
+    assert_eq!(metadata.last_offset(), 41);
     assert_eq!(metadata.timestamp(), Some(55));
     assert_eq!(metadata.leader_epoch(), Some(7));
 }
@@ -48,6 +50,7 @@ fn success_translation_rejects_the_wrong_send_identity() {
                 send_id: TransactionSendId::from_raw(9),
                 partition: kafka_client_core::PartitionIndex::from_raw(3),
                 success: ProducerBatchSuccess::new(41, None, None),
+                last_offset: 41,
             },
             epoch,
             TransactionSendId::from_raw(10),

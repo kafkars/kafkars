@@ -13,9 +13,11 @@ pub(crate) use execution::{
     TransactionExecutionSendAdmissionErrorKind,
 };
 pub use initialization::{
-    TransactionBeginAccepted, TransactionControlError, TransactionControlErrorKind,
-    TransactionEndAccepted, TransactionEndAdmissionError, TransactionEndObserver,
-    TransactionEndObserverError, TransactionEndOutcome, TransactionInitializationAccepted,
+    TransactionBatchSendAccepted, TransactionBatchSendAdmissionError, TransactionBatchSendMetadata,
+    TransactionBatchSendObserver, TransactionBatchSendOutcome, TransactionBeginAccepted,
+    TransactionControlError, TransactionControlErrorKind, TransactionEndAccepted,
+    TransactionEndAdmissionError, TransactionEndObserver, TransactionEndObserverError,
+    TransactionEndOutcome, TransactionInitializationAccepted,
     TransactionInitializationAcceptedFaultKind, TransactionInitializationAdmissionError,
     TransactionInitializationAdmissionErrorKind, TransactionInitializationCapture,
     TransactionInitializationCaptureError, TransactionInitializationDeliveryStatus,

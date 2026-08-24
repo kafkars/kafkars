@@ -80,13 +80,14 @@ pub(super) fn try_initialize_captured(
             ));
         }
     };
+    let batch_record_capacity = host.execution_limits.batch_record_capacity();
     let mut admission = match host.try_admit(
         capture.now(),
         capture.operation_deadline(),
         request,
         plan,
         lifetime,
-        TransactionLifecycleControlPort::new(Arc::clone(shared)),
+        TransactionLifecycleControlPort::new(Arc::clone(shared), batch_record_capacity),
     ) {
         Ok(admission) => admission,
         Err((kind, request)) => {

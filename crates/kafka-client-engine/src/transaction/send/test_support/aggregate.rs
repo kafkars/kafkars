@@ -140,6 +140,7 @@ impl TransactionSendAggregate for FakeAggregate {
         send_id: TransactionSendId,
         identity: TransactionSendIdentity,
     ) -> Result<TransactionSendAttempt, TransactionLifecycleHostError> {
+        self.prepared_identities.push(identity);
         self.host.prepare_send_attempt(epoch, send_id, identity)
     }
 

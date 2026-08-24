@@ -106,6 +106,7 @@ pub struct TransactionSendMetadata {
     topic: Arc<str>,
     partition: i32,
     offset: i64,
+    last_offset: i64,
     timestamp: Option<i64>,
     leader_epoch: Option<i32>,
 }
@@ -124,6 +125,11 @@ impl TransactionSendMetadata {
     /// Returns the record's absolute Kafka offset.
     pub const fn offset(&self) -> i64 {
         self.offset
+    }
+
+    /// Returns the acknowledged offset of the last record in this send.
+    pub const fn last_offset(&self) -> i64 {
+        self.last_offset
     }
 
     /// Returns Kafka's append timestamp when supplied.
@@ -159,6 +165,7 @@ pub(super) fn translate_send_terminal(
             send_id: actual_send_id,
             partition: actual_partition,
             success,
+            last_offset,
         } if actual_epoch == epoch
             && actual_send_id == send_id
             && partition.is_none_or(|partition| {
@@ -167,7 +174,10 @@ pub(super) fn translate_send_terminal(
         {
             let partition = i32::try_from(actual_partition.get()).ok()?;
             Some(TransactionSendOutcome::Succeeded(success_metadata(
-                success, topic, partition,
+                success,
+                last_offset,
+                topic,
+                partition,
             )))
         }
         InternalTerminal::FailedHealthy {
@@ -199,6 +209,7 @@ pub(super) fn translate_send_terminal(
 
 fn success_metadata(
     success: ProducerBatchSuccess,
+    last_offset: i64,
     topic: Arc<str>,
     partition: i32,
 ) -> TransactionSendMetadata {
@@ -206,6 +217,7 @@ fn success_metadata(
         topic,
         partition,
         offset: success.base_offset(),
+        last_offset,
         timestamp: success.append_timestamp(),
         leader_epoch: success.leader_epoch(),
     }

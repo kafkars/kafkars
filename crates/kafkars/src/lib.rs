@@ -158,8 +158,9 @@ pub use record::{Header, Record};
 pub use security::{Sasl, SaslMechanism, Security, Tls};
 pub use shutdown::Shutdown;
 pub use transaction::{
-    AbortTransaction, CommitTransaction, InitializeTransactionalProducer, SendTransactionOffsets,
-    SendTransactionRecord, Transaction, TransactionEndAdmissionError,
+    AbortTransaction, CommitTransaction, InitializeTransactionalProducer, SendTransactionBatch,
+    SendTransactionOffsets, SendTransactionRecord, Transaction, TransactionBatchMetadata,
+    TransactionBatchSendAdmissionError, TransactionEndAdmissionError,
     TransactionOffsetsAdmissionError, TransactionSendAdmissionError, TransactionalProducer,
     TransactionalProducerBuilder, TransactionalProducerIdentity,
 };

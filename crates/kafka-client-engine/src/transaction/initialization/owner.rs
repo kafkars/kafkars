@@ -111,6 +111,10 @@ impl TransactionalOwnerHandle {
         self.control.capture_send(timeout)
     }
 
+    pub(crate) fn transaction_batch_record_capacity(&self) -> usize {
+        self.control.batch_record_capacity()
+    }
+
     pub(in crate::transaction) const fn owner_id(&self) -> TransactionalOwnerId {
         self.owner_id
     }

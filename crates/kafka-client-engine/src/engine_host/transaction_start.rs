@@ -32,8 +32,9 @@ pub(super) fn start(
     ),
     EngineStartError,
 > {
-    let transaction_limits = TransactionExecutionLimits::try_new_with_bounds(
+    let transaction_limits = TransactionExecutionLimits::try_new_with_batch_bounds(
         limits.batch_capacity,
+        limits.batch_policy.max_records(),
         limits.retained_bytes,
         limits.retained_bytes,
         limits.max_wire_batch_bytes,

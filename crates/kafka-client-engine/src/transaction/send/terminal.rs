@@ -26,15 +26,9 @@ pub(super) fn normalized_produce_terminal(
             epoch,
             send_id,
             success,
-        } if epoch == pending.epoch && send_id == pending.send_id => (
-            TransactionSequenceSettlement::Succeeded,
-            TransactionSendTerminal::Succeeded {
-                epoch,
-                send_id,
-                partition: pending.partition.partition(),
-                success,
-            },
-        ),
+        } if epoch == pending.epoch && send_id == pending.send_id => {
+            successful_terminal(pending, epoch, send_id, success)
+        }
         TransactionProduceTerminalFact::AbortRequired {
             epoch,
             send_id,
@@ -61,6 +55,51 @@ pub(super) fn normalized_produce_terminal(
         ),
         _ => correlation_failure(pending),
     }
+}
+
+fn successful_terminal(
+    pending: &PendingTransactionSend,
+    epoch: kafka_client_core::TransactionEpoch,
+    send_id: kafka_client_core::TransactionSendId,
+    success: kafka_client_core::ProducerBatchSuccess,
+) -> (TransactionSequenceSettlement, TransactionSendTerminal) {
+    let Some(offset_delta) = pending
+        .sequence
+        .record_count()
+        .checked_sub(1)
+        .map(i64::from)
+    else {
+        return invalid_success_response(pending);
+    };
+    let Some(last_offset) = success.base_offset().checked_add(offset_delta) else {
+        return invalid_success_response(pending);
+    };
+    (
+        TransactionSequenceSettlement::Succeeded,
+        TransactionSendTerminal::Succeeded {
+            epoch,
+            send_id,
+            partition: pending.partition.partition(),
+            success,
+            last_offset,
+        },
+    )
+}
+
+const fn invalid_success_response(
+    pending: &PendingTransactionSend,
+) -> (TransactionSequenceSettlement, TransactionSendTerminal) {
+    (
+        TransactionSequenceSettlement::Uncertain,
+        TransactionSendTerminal::Fatal {
+            epoch: pending.epoch,
+            send_id: pending.send_id,
+            failure: failure(
+                TransactionSendFailureKind::InvalidResponse,
+                DeliveryStatus::PossiblySent,
+            ),
+        },
+    )
 }
 
 const fn correlation_failure(

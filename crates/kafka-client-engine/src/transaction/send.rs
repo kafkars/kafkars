@@ -6,6 +6,8 @@ mod aggregate;
 mod automatic;
 #[cfg(test)]
 mod automatic_test;
+#[cfg(test)]
+mod batch_test;
 mod completion;
 #[cfg(test)]
 mod failure_test;

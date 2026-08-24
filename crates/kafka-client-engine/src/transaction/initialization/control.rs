@@ -117,11 +117,17 @@ pub(crate) struct TransactionOwnerLossSignal {
 #[derive(Clone)]
 pub(crate) struct TransactionLifecycleControlPort {
     shared: Arc<TransactionInitializationShardState>,
+    batch_record_capacity: usize,
 }
-
 impl TransactionLifecycleControlPort {
-    pub(super) const fn new(shared: Arc<TransactionInitializationShardState>) -> Self {
-        Self { shared }
+    pub(super) const fn new(
+        shared: Arc<TransactionInitializationShardState>,
+        batch_record_capacity: usize,
+    ) -> Self {
+        Self {
+            shared,
+            batch_record_capacity,
+        }
     }
 
     pub(crate) fn begin(
@@ -143,6 +149,10 @@ impl TransactionLifecycleControlPort {
         timeout: Duration,
     ) -> Result<ProducerSendCapture, ProducerSendCaptureError> {
         ProducerSendCapture::capture_transaction(self.shared.clock(), timeout)
+    }
+
+    pub(crate) fn batch_record_capacity(&self) -> usize {
+        self.batch_record_capacity
     }
 
     pub(crate) fn capture_offset_commit(&self, timeout: Duration) -> Option<OperationDeadline> {

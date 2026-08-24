@@ -18,9 +18,13 @@ mod owner_control;
 mod owner_offsets;
 mod owner_parts;
 mod owner_send;
+mod owner_send_batch;
 mod port;
 mod retained_owner;
 mod send_admission;
+mod send_batch_admission;
+mod send_batch_observer;
+mod send_batch_outcome;
 mod send_failure_mapping;
 mod send_observer;
 mod send_outcome;
@@ -66,9 +70,13 @@ pub use owner_control::{TransactionBeginAccepted, TransactionEndAccepted, Transa
 pub use owner_offsets::{TransactionOffsetsAccepted, TransactionOffsetsCapture};
 pub(in crate::transaction) use owner_parts::TransactionalOwnerParts;
 pub use owner_send::TransactionSendAccepted;
+pub use owner_send_batch::TransactionBatchSendAccepted;
 pub(crate) use port::TransactionInitializationAdmissionPort;
 pub(super) use retained_owner::RetainedTransactionInitializationOutcome;
 pub use send_admission::{TransactionSendAdmissionError, TransactionSendAdmissionErrorKind};
+pub use send_batch_admission::TransactionBatchSendAdmissionError;
+pub use send_batch_observer::TransactionBatchSendObserver;
+pub use send_batch_outcome::{TransactionBatchSendMetadata, TransactionBatchSendOutcome};
 pub use send_observer::{TransactionSendObserver, TransactionSendObserverError};
 pub use send_outcome::{
     TransactionSendConsequence, TransactionSendDeliveryStatus, TransactionSendFailure,
@@ -89,6 +97,10 @@ mod outcome_test;
 #[cfg(test)]
 mod owner_control_test;
 #[cfg(test)]
+mod owner_send_batch_lease_test;
+#[cfg(test)]
+mod owner_send_batch_test;
+#[cfg(test)]
 mod owner_send_test;
 #[cfg(test)]
 mod owner_test;
@@ -96,5 +108,11 @@ mod owner_test;
 mod port_test;
 #[cfg(test)]
 mod retained_owner_test;
+#[cfg(test)]
+mod send_batch_admission_test;
+#[cfg(test)]
+mod send_batch_observer_test;
+#[cfg(test)]
+mod send_batch_outcome_test;
 #[cfg(test)]
 mod send_outcome_test;

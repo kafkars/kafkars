@@ -8,6 +8,7 @@ mod operation;
 mod owner;
 mod result;
 mod send;
+mod send_batch;
 mod send_result;
 
 pub(crate) use handle::TransactionalProducerInitializer;
@@ -16,6 +17,7 @@ pub(crate) use offsets::TransactionOffsetsEngine;
 pub(crate) use operation::TransactionInitialization;
 pub(crate) use owner::TransactionalProducerEngine;
 pub(crate) use send::TransactionSendEngine;
+pub(crate) use send_batch::TransactionBatchSendEngine;
 
 #[cfg(test)]
 mod handle_test;
@@ -29,6 +31,8 @@ mod operation_test;
 mod owner_test;
 #[cfg(test)]
 mod result_test;
+#[cfg(test)]
+mod send_batch_test;
 #[cfg(test)]
 mod send_result_test;
 #[cfg(test)]

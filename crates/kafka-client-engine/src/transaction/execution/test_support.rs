@@ -109,7 +109,7 @@ pub(super) fn request(
     retained_source_bytes: usize,
 ) -> TransactionSendInput {
     let canonical_topic = Arc::<str>::from(topic);
-    TransactionSendInput::new(
+    TransactionSendInput::try_new(
         epoch,
         PublicProducerRecord::to(Arc::clone(&canonical_topic))
             .partition(2)
@@ -121,6 +121,7 @@ pub(super) fn request(
         retained_source_bytes,
         deadline,
     )
+    .unwrap_or_else(|record| panic!("test send input allocates: {record:?}"))
 }
 
 pub(super) fn deadline(tick: u64) -> OperationDeadline {
