@@ -176,7 +176,7 @@ impl GroupConsumerRegistry {
         {
             return Ok(GroupConsumerMembershipTurn::Progress);
         }
-        let heartbeat_blocked = match self.submit_one_classic_heartbeat(driver)? {
+        let heartbeat_blocked = match self.submit_one_classic_heartbeat(now, driver)? {
             ClassicHeartbeatSubmissionTurn::Progress => {
                 return Ok(GroupConsumerMembershipTurn::Progress);
             }

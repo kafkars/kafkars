@@ -3,8 +3,8 @@
 use crate::Moment;
 
 use super::{
-    ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupMachine, ClassicGroupPhase,
-    ClassicGroupTransition, ClassicHeartbeatAttempt,
+    ClassicCoordinatorRecovery, ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupMachine,
+    ClassicGroupPhase, ClassicGroupTransition, ClassicHeartbeatAttempt,
     heartbeat_state::{ClassicHeartbeatDue, ClassicHeartbeatSuccess},
 };
 
@@ -33,7 +33,9 @@ impl ClassicGroupMachine {
                     },
                 ))
             }
-            ClassicHeartbeatDue::Lost => self.revoke_stable_assignment(),
+            ClassicHeartbeatDue::Lost => {
+                self.recover_heartbeat_loss(attempt, now, ClassicCoordinatorRecovery::Retain)
+            }
         }
     }
 
@@ -52,17 +54,20 @@ impl ClassicGroupMachine {
             ClassicHeartbeatSuccess::Schedule(schedule) => Ok(ClassicGroupTransition::one(
                 ClassicGroupEffect::ArmHeartbeat { schedule },
             )),
-            ClassicHeartbeatSuccess::Lost => self.revoke_stable_assignment(),
+            ClassicHeartbeatSuccess::Lost => {
+                self.recover_heartbeat_loss(attempt, now, ClassicCoordinatorRecovery::Retain)
+            }
         }
     }
 
     pub(super) fn heartbeat_failed(
         &mut self,
         attempt: ClassicHeartbeatAttempt,
+        now: Moment,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         self.validate_heartbeat_assignment(attempt)?;
         self.heartbeat.failed(attempt)?;
-        self.revoke_stable_assignment()
+        self.recover_heartbeat_loss(attempt, now, ClassicCoordinatorRecovery::Retain)
     }
 
     pub(super) fn heartbeat_deadline_elapsed(
@@ -72,7 +77,7 @@ impl ClassicGroupMachine {
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         self.validate_heartbeat_assignment(attempt)?;
         self.heartbeat.deadline_elapsed(attempt, now)?;
-        self.revoke_stable_assignment()
+        self.recover_heartbeat_loss(attempt, now, ClassicCoordinatorRecovery::Retain)
     }
 
     pub(super) fn validate_heartbeat_assignment(

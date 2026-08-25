@@ -9,12 +9,14 @@ use super::{
         retire_lost_classic_group_reconciliation,
     },
     classic_group_execution::ClassicGroupExecutionError,
+    classic_group_owner::ClassicGroupOwner,
     classic_group_position::{
         ClassicGroupPositionCloseTurn, ClassicGroupPositionExecutionState,
         ClassicGroupPositionPreparation, close_entry_position,
     },
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
+    session_catalog::GroupSessionCatalog,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -29,11 +31,15 @@ pub(super) enum ClassicGroupReconciliationLossTurn {
     reason = "a rejected loss transition returns the exact assignment and generation ownership without boxing or reconstruction"
 )]
 pub(super) fn stage_classic_group_reconciliation_loss(
-    entry: &mut GroupConsumerEntry,
+    classic: &ClassicGroupOwner,
+    catalog: &mut GroupSessionCatalog,
+    pending_reconciliation: &mut Option<
+        super::classic_group_reconciliation::PreparedClassicGroupReconciliation,
+    >,
     assignment: LiveGroupAssignment,
     generation: ClassicGeneration,
 ) -> Result<(), ClassicGroupRevocationFailure> {
-    let Some(pending) = entry.classic_reconciliation.as_ref() else {
+    let Some(pending) = pending_reconciliation.as_ref() else {
         return Err(catalog_failure(
             ClassicGroupAssignmentPreparationFailureKind::AssignmentMismatch,
             assignment,
@@ -47,20 +53,20 @@ pub(super) fn stage_classic_group_reconciliation_loss(
     {
         Err(ClassicGroupAssignmentPreparationFailureKind::AssignmentMismatch)
     } else if reconciliation.replacement_classic_generation() != generation
-        || entry.catalog.classic_generation() != Some(generation.get())
+        || catalog.classic_generation() != Some(generation.get())
     {
         Err(ClassicGroupAssignmentPreparationFailureKind::GenerationMismatch)
     } else if !matches!(
-        entry.classic.machine().phase(),
-        ClassicGroupPhase::Lost | ClassicGroupPhase::Fatal
-    ) || entry.classic.machine().live_assignment().is_some()
-        || entry.classic.machine().live_cycle().is_some()
-        || entry.classic.machine().live_generation().is_some()
+        classic.machine().phase(),
+        ClassicGroupPhase::WaitingToRejoin | ClassicGroupPhase::Lost | ClassicGroupPhase::Fatal
+    ) || classic.machine().live_assignment().is_some()
+        || classic.machine().live_cycle().is_some()
+        || classic.machine().live_generation().is_some()
     {
         Err(ClassicGroupAssignmentPreparationFailureKind::MachinePhase)
-    } else if entry.catalog.live_assignment() != Some(previous) {
+    } else if catalog.live_assignment() != Some(previous) {
         Err(ClassicGroupAssignmentPreparationFailureKind::AssignmentMismatch)
-    } else if entry.catalog.membership_cycle() != Some(reconciliation.previous_cycle()) {
+    } else if catalog.membership_cycle() != Some(reconciliation.previous_cycle()) {
         Err(ClassicGroupAssignmentPreparationFailureKind::CatalogChanged)
     } else {
         Ok(previous.assignment_generation().get())
@@ -69,8 +75,7 @@ pub(super) fn stage_classic_group_reconciliation_loss(
         Ok(epoch) => epoch,
         Err(kind) => return Err(catalog_failure(kind, assignment, generation)),
     };
-    entry
-        .classic_reconciliation
+    pending_reconciliation
         .as_mut()
         .unwrap_or_else(|| unreachable!("validated reconciliation remains installed"))
         .stage_assignment_loss(assignment, generation)
@@ -81,7 +86,7 @@ pub(super) fn stage_classic_group_reconciliation_loss(
                 generation,
             )
         })?;
-    entry.catalog.lose_consumer_group_graceful_revocation(epoch);
+    catalog.lose_consumer_group_graceful_revocation(epoch);
     Ok(())
 }
 

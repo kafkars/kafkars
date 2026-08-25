@@ -22,6 +22,7 @@ use super::{
     classic_group_heartbeat::{
         ClassicHeartbeatExecutionError, ClassicHeartbeatExecutionState, PreparedClassicHeartbeat,
     },
+    classic_group_heartbeat_rejection::install_heartbeat_effects,
     classic_group_reconciliation_loss::stage_classic_group_reconciliation_loss,
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
@@ -78,7 +79,7 @@ impl GroupConsumerRegistry {
             .classic
             .apply(ClassicGroupInput::HeartbeatDeadlineElapsed { attempt, now })
             .map_err(|error| ClassicGroupExecutionError::Core(error.kind()))?;
-        commit_local_loss(entry, transition)?;
+        commit_local_loss(entry, transition, now)?;
         entry.heartbeat.clear_local().map_err(map_heartbeat_state)?;
         Ok(true)
     }
@@ -101,22 +102,25 @@ fn prepare_due_heartbeat(
         })
         .map_err(|error| ClassicGroupExecutionError::Core(error.kind()))?;
     let mut effects = transition.into_effects();
-    match effects.next() {
-        Some(ClassicGroupEffect::SubmitHeartbeat {
-            group_id,
-            attempt,
-            member_id,
-            classic_generation,
-            deadline,
-        }) if effects.next().is_none()
-            && group_id == entry.group_id()
+    let effects = [effects.next(), effects.next()];
+    match effects {
+        [
+            Some(ClassicGroupEffect::SubmitHeartbeat {
+                group_id,
+                attempt,
+                member_id,
+                classic_generation,
+                deadline,
+            }),
+            None,
+        ] if group_id == entry.group_id()
             && attempt == schedule.attempt()
             && entry.catalog.current_member_id() == Some(member_id)
             && entry.catalog.classic_generation() == Some(classic_generation.get()) =>
         {
             let mapped = match clock.operation_deadline(deadline) {
                 Ok(mapped) => mapped,
-                Err(_error) => return fail_prepared_heartbeat(entry, attempt),
+                Err(_error) => return fail_prepared_heartbeat(entry, attempt, now),
             };
             let Some(request) = entry.catalog.current_member().and_then(|member| {
                 classic_heartbeat_request_with_instance(
@@ -127,7 +131,7 @@ fn prepare_due_heartbeat(
                 )
                 .ok()
             }) else {
-                return fail_prepared_heartbeat(entry, attempt);
+                return fail_prepared_heartbeat(entry, attempt, now);
             };
             let key = ClassicHeartbeatCallKey::new(group_id, attempt, mapped);
             entry
@@ -137,52 +141,43 @@ fn prepare_due_heartbeat(
                 ));
             Ok(())
         }
-        Some(ClassicGroupEffect::Revoke {
-            assignment,
-            classic_generation,
-        }) if effects.next().is_none() => {
-            commit_revoke(entry, assignment, classic_generation).map_err(|failure| {
-                let kind = failure.kind;
-                entry.fault = Some(ClassicGroupEntryFault::HeartbeatLocalRevoke { failure });
-                map_revocation_kind(kind)
-            })?;
+        effects => {
+            commit_local_loss_effects(entry, effects, now)?;
             entry.heartbeat.clear_local().map_err(map_heartbeat_state)
         }
-        _ => Err(ClassicGroupExecutionError::HeartbeatTerminal),
     }
 }
 
 fn fail_prepared_heartbeat(
     entry: &mut GroupConsumerEntry,
     attempt: ClassicHeartbeatAttempt,
+    now: Moment,
 ) -> Result<(), ClassicGroupExecutionError> {
     let transition = entry
         .classic
-        .apply(ClassicGroupInput::HeartbeatFailed { attempt })
+        .apply(ClassicGroupInput::HeartbeatFailed { attempt, now })
         .map_err(|error| ClassicGroupExecutionError::Core(error.kind()))?;
-    commit_local_loss(entry, transition)?;
+    commit_local_loss(entry, transition, now)?;
     entry.heartbeat.clear_local().map_err(map_heartbeat_state)
 }
 
 pub(super) fn commit_local_loss(
     entry: &mut GroupConsumerEntry,
     transition: ClassicGroupTransition,
+    now: Moment,
 ) -> Result<(), ClassicGroupExecutionError> {
     let mut effects = transition.into_effects();
-    let Some(ClassicGroupEffect::Revoke {
-        assignment,
-        classic_generation,
-    }) = effects.next()
-    else {
-        return Err(ClassicGroupExecutionError::HeartbeatTerminal);
-    };
-    if effects.next().is_some() {
-        return Err(ClassicGroupExecutionError::HeartbeatTerminal);
-    }
-    commit_revoke(entry, assignment, classic_generation).map_err(|failure| {
-        let kind = failure.kind;
-        entry.fault = Some(ClassicGroupEntryFault::HeartbeatLocalRevoke { failure });
-        map_revocation_kind(kind)
+    commit_local_loss_effects(entry, [effects.next(), effects.next()], now)
+}
+
+fn commit_local_loss_effects(
+    entry: &mut GroupConsumerEntry,
+    effects: [Option<ClassicGroupEffect>; 2],
+    now: Moment,
+) -> Result<(), ClassicGroupExecutionError> {
+    install_heartbeat_effects(entry, effects, now).map_err(|rejection| {
+        entry.fault = Some(ClassicGroupEntryFault::HeartbeatLocalPostCore(rejection));
+        ClassicGroupExecutionError::RejoinPostCore
     })
 }
 
@@ -196,7 +191,13 @@ pub(super) fn commit_revoke(
     generation: ClassicGeneration,
 ) -> Result<(), ClassicGroupRevocationFailure> {
     if entry.classic_reconciliation.is_some() {
-        return stage_classic_group_reconciliation_loss(entry, assignment, generation);
+        return stage_classic_group_reconciliation_loss(
+            &entry.classic,
+            &mut entry.catalog,
+            &mut entry.classic_reconciliation,
+            assignment,
+            generation,
+        );
     }
     retire_and_revoke_classic_group_assignment(
         &entry.classic,

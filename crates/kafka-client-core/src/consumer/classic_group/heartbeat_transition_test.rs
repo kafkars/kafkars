@@ -120,42 +120,6 @@ fn early_deadline_and_stale_attempts_reject_without_mutation() {
 }
 
 #[test]
-fn failure_or_due_attempt_deadline_revokes_the_exact_live_assignment() {
-    let (mut failed, _cycle, effect) = install(heartbeat_policy());
-    let failed_attempt = install_attempt(&effect);
-    submit(&mut failed, failed_attempt, 3);
-    assert_revoke(
-        &mut failed,
-        ClassicGroupInput::HeartbeatFailed {
-            attempt: failed_attempt,
-        },
-    );
-
-    let (mut expired, _cycle, effect) = install(heartbeat_policy());
-    let expired_attempt = install_attempt(&effect);
-    submit(&mut expired, expired_attempt, 3);
-    assert_revoke(
-        &mut expired,
-        ClassicGroupInput::HeartbeatDeadlineElapsed {
-            attempt: expired_attempt,
-            now: Moment::from_tick(23),
-        },
-    );
-
-    let (mut late, _cycle, effect) = install(heartbeat_policy());
-    let late_attempt = install_attempt(&effect);
-    submit(&mut late, late_attempt, 3);
-    assert_revoke(
-        &mut late,
-        ClassicGroupInput::HeartbeatSucceeded {
-            attempt: late_attempt,
-            now: Moment::from_tick(23),
-            throttle_ticks: 0,
-        },
-    );
-}
-
-#[test]
 fn assignment_loss_and_close_disarm_heartbeat_before_late_terminals() {
     let (mut lost, cycle, effect) = install(heartbeat_policy());
     let waiting = install_attempt(&effect);

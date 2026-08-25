@@ -202,6 +202,8 @@ mod classic_group_execution_test;
 #[cfg(test)]
 mod classic_group_heartbeat_interpret_test;
 #[cfg(test)]
+mod classic_group_heartbeat_liveness_test;
+#[cfg(test)]
 mod classic_group_heartbeat_prepare_test;
 #[cfg(test)]
 mod classic_group_heartbeat_recovery_test;

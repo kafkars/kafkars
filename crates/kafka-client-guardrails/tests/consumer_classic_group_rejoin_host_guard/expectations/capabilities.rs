@@ -21,6 +21,7 @@ const HEARTBEAT_REJECTION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection.rs";
 const HEARTBEAT_REJECTION_INSTALL: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection_install.rs";
+const HEARTBEAT_RECOVERY_INSTALL: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection_install/recovery.rs";
 const HEARTBEAT_INTERPRET: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_interpret.rs";
 const JOIN_INTERPRET: &str =
@@ -37,7 +38,7 @@ pub(crate) const METHODS: &[(&str, &[&str])] = &[
     ("prepare_one_classic_rejoin", &[MEMBERSHIP]),
     (
         "prepare_rejoin_install",
-        &[REJECTION_INSTALL, HEARTBEAT_REJECTION_INSTALL],
+        &[REJECTION_INSTALL, HEARTBEAT_RECOVERY_INSTALL],
     ),
     ("clear_rejoin_exact", &[DUE, MEMBERSHIP_LOCAL]),
     (
@@ -49,7 +50,7 @@ pub(crate) const METHODS: &[(&str, &[&str])] = &[
     ),
     (
         "prepare_rediscovery_install",
-        &[REJECTION_INSTALL, HEARTBEAT_REJECTION_INSTALL],
+        &[REJECTION_INSTALL, HEARTBEAT_RECOVERY_INSTALL],
     ),
     (
         "confirm_rediscovery_transfer",
@@ -84,6 +85,7 @@ pub(crate) const CAPABILITIES: &[(&str, &[&str])] = &[
     (MEMBERSHIP_OBSERVATION, DRIVER_NEUTRAL_FORBIDDEN),
     (HEARTBEAT_REJECTION, FAULT_FORBIDDEN),
     (HEARTBEAT_REJECTION_INSTALL, FAULT_FORBIDDEN),
+    (HEARTBEAT_RECOVERY_INSTALL, FAULT_FORBIDDEN),
     (SYNC_REJECTION, REJECTION_INSTALL_FORBIDDEN),
 ];
 

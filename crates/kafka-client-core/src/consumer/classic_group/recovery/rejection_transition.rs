@@ -82,8 +82,17 @@ impl ClassicGroupMachine {
         now: Moment,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         self.validate_heartbeat_assignment(attempt)?;
-        let followup = self.coordinator_loss_followup(attempt, now);
         self.heartbeat.failed(attempt)?;
+        self.recover_heartbeat_loss(attempt, now, super::ClassicCoordinatorRecovery::Rediscover)
+    }
+
+    pub(in crate::consumer::classic_group) fn recover_heartbeat_loss(
+        &mut self,
+        attempt: ClassicHeartbeatAttempt,
+        now: Moment,
+        coordinator: super::ClassicCoordinatorRecovery,
+    ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
+        let followup = self.heartbeat_loss_followup(attempt, now, coordinator);
         let revoke = self.take_stable_revoke()?;
         Ok(match followup {
             RejectionFollowup::Rejoin {
@@ -184,10 +193,11 @@ impl ClassicGroupMachine {
         }
     }
 
-    fn coordinator_loss_followup(
+    fn heartbeat_loss_followup(
         &self,
         attempt: ClassicHeartbeatAttempt,
         now: Moment,
+        coordinator: super::ClassicCoordinatorRecovery,
     ) -> RejectionFollowup {
         let Some(due) = now.checked_deadline_after(self.rejoin_policy().backoff_ticks()) else {
             return RejectionFollowup::Fatal(ClassicGroupFatal::new(
@@ -202,7 +212,7 @@ impl ClassicGroupMachine {
                 Some(attempt.assignment_generation()),
                 due,
             ),
-            coordinator: super::ClassicCoordinatorRecovery::Rediscover,
+            coordinator,
         }
     }
 }

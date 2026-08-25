@@ -14,9 +14,10 @@ use super::{
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_heartbeat::ClassicHeartbeatSuccessor,
     classic_group_heartbeat_prepare::commit_revoke,
-    classic_group_heartbeat_rejection::install_heartbeat_rejection,
+    classic_group_heartbeat_rejection::{install_heartbeat_effects, install_heartbeat_rejection},
     classic_group_rejection_fault::ClassicRejectionPostCore,
-    classic_group_rejection_install::exact_broker_error, registry_entry::GroupConsumerEntry,
+    classic_group_rejection_install::exact_broker_error,
+    registry_entry::GroupConsumerEntry,
 };
 
 #[allow(
@@ -69,7 +70,7 @@ pub(super) fn interpret_heartbeat(
                     error.kind(),
                 ))
             })?;
-        return commit_terminal_loss(entry, transition);
+        return interpret_terminal_transition(entry, key.attempt(), transition, now);
     }
     let outcome = terminal.result().as_ref().ok().and_then(|response| {
         terminal
@@ -122,6 +123,7 @@ pub(super) fn interpret_heartbeat(
             .classic
             .apply(ClassicGroupInput::HeartbeatFailed {
                 attempt: key.attempt(),
+                now,
             })
             .map_err(|error| {
                 ClassicHeartbeatInterpretationFailure::Restorable(ClassicGroupExecutionError::Core(
@@ -129,7 +131,7 @@ pub(super) fn interpret_heartbeat(
                 ))
             })?,
     };
-    interpret_terminal_transition(entry, key.attempt(), transition)
+    interpret_terminal_transition(entry, key.attempt(), transition, now)
 }
 
 #[expect(
@@ -140,12 +142,12 @@ fn interpret_terminal_transition(
     entry: &mut GroupConsumerEntry,
     attempt: kafka_client_core::ClassicHeartbeatAttempt,
     transition: ClassicGroupTransition,
+    now: Moment,
 ) -> Result<ClassicHeartbeatSuccessor, ClassicHeartbeatInterpretationFailure> {
     let mut effects = transition.into_effects().take(2);
-    let first = effects.next();
-    let second = effects.next();
-    match (first, second) {
-        (Some(ClassicGroupEffect::ArmHeartbeat { schedule }), None) => {
+    let effects = [effects.next(), effects.next()];
+    match effects {
+        [Some(ClassicGroupEffect::ArmHeartbeat { schedule }), None] => {
             if successor_matches(attempt, schedule) {
                 Ok(ClassicHeartbeatSuccessor::Waiting(schedule))
             } else {
@@ -154,19 +156,21 @@ fn interpret_terminal_transition(
                 ))
             }
         }
-        (
+        [
             Some(ClassicGroupEffect::Revoke {
                 assignment,
                 classic_generation,
             }),
             None,
-        ) => match commit_revoke(entry, assignment, classic_generation) {
+        ] => match commit_revoke(entry, assignment, classic_generation) {
             Ok(()) => Ok(ClassicHeartbeatSuccessor::Dormant),
             Err(failure) => Err(ClassicHeartbeatInterpretationFailure::Revoke(failure)),
         },
-        _ => Err(ClassicHeartbeatInterpretationFailure::PostCore(
-            ClassicGroupExecutionError::HeartbeatTerminal,
-        )),
+        effects => {
+            install_heartbeat_effects(entry, effects, now)
+                .map_err(ClassicHeartbeatInterpretationFailure::PostCoreRejection)?;
+            Ok(ClassicHeartbeatSuccessor::Dormant)
+        }
     }
 }
 
@@ -185,33 +189,4 @@ fn successor_matches(
             .get()
             .checked_add(1)
             .is_some_and(|next| successor.attempt().sequence().get() == next)
-}
-
-#[expect(
-    clippy::result_large_err,
-    reason = "the error retains exact post-core effects without allocating or erasing recovery state"
-)]
-fn commit_terminal_loss(
-    entry: &mut GroupConsumerEntry,
-    transition: ClassicGroupTransition,
-) -> Result<ClassicHeartbeatSuccessor, ClassicHeartbeatInterpretationFailure> {
-    let mut effects = transition.into_effects();
-    let Some(ClassicGroupEffect::Revoke {
-        assignment,
-        classic_generation,
-    }) = effects.next()
-    else {
-        return Err(ClassicHeartbeatInterpretationFailure::PostCore(
-            ClassicGroupExecutionError::HeartbeatTerminal,
-        ));
-    };
-    if effects.next().is_some() {
-        return Err(ClassicHeartbeatInterpretationFailure::PostCore(
-            ClassicGroupExecutionError::HeartbeatTerminal,
-        ));
-    }
-    match commit_revoke(entry, assignment, classic_generation) {
-        Ok(()) => Ok(ClassicHeartbeatSuccessor::Dormant),
-        Err(failure) => Err(ClassicHeartbeatInterpretationFailure::Revoke(failure)),
-    }
 }

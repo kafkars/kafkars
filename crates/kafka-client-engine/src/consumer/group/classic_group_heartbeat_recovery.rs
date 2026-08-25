@@ -98,10 +98,9 @@ fn apply_recovery_loss(
     entry: &mut GroupConsumerEntry,
     attempt: kafka_client_core::ClassicHeartbeatAttempt,
 ) -> Result<(), ClassicGroupExecutionError> {
-    let transition = match entry
-        .classic
-        .apply(ClassicGroupInput::HeartbeatFailed { attempt })
-    {
+    let transition = match entry.classic.apply(ClassicGroupInput::AssignmentLost {
+        cycle: attempt.cycle(),
+    }) {
         Ok(transition) => transition,
         Err(error) => {
             entry.fault = Some(ClassicGroupEntryFault::HeartbeatRecoverySemantic(attempt));

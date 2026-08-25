@@ -1,4 +1,8 @@
-//! Atomic assignment revocation and recovery installation after Heartbeat rejection.
+//! Heartbeat-loss recovery entry points and exact fatal installation.
+
+mod recovery;
+#[cfg(test)]
+mod recovery_test;
 
 use kafka_client_core::{
     ClassicCoordinatorRecovery, ClassicGeneration, ClassicGroupEffect, ClassicGroupFatal,
@@ -6,12 +10,12 @@ use kafka_client_core::{
 };
 
 use super::{
-    classic_group_assignment::ClassicGroupRevocationFailureKind,
     classic_group_heartbeat_prepare::commit_revoke,
     classic_group_rejection_fault::{ClassicRejectionInstallFailure, ClassicRejectionPostCore},
     registry_entry::GroupConsumerEntry,
-    registry_graceful_revocation::stage_classic_group_revocation,
 };
+
+use self::recovery::{install_recovery, rejection_revocation_kind};
 
 #[expect(
     clippy::result_large_err,
@@ -24,34 +28,14 @@ pub(super) fn install_rejoin(
     schedule: ClassicRejoinSchedule,
     now: Moment,
 ) -> Result<(), ClassicRejectionPostCore> {
-    if !waiting_state_matches(entry, schedule) {
-        return Err(post_rejoin(assignment, generation, schedule, MachineState));
-    }
-    let prepared_rejoin = match entry.rejoin.prepare_rejoin_install(schedule) {
-        Ok(prepared) => prepared,
-        Err(_error) => {
-            return Err(post_rejoin(assignment, generation, schedule, RejoinState));
-        }
-    };
-    if let Err((error, assignment)) = stage_classic_group_revocation(
-        &mut entry.catalog,
-        &entry.fetch,
-        &mut entry.revocation,
+    install_recovery(
+        entry,
         assignment,
         generation,
-        schedule.due(),
+        schedule,
         now,
-    ) {
-        drop(prepared_rejoin);
-        return Err(post_rejoin(
-            assignment,
-            generation,
-            schedule,
-            GracefulRevocation(error),
-        ));
-    }
-    prepared_rejoin.commit();
-    Ok(())
+        ClassicCoordinatorRecovery::Retain,
+    )
 }
 
 #[expect(
@@ -65,57 +49,14 @@ pub(super) fn install_rediscovery(
     schedule: ClassicRejoinSchedule,
     now: Moment,
 ) -> Result<(), ClassicRejectionPostCore> {
-    if !waiting_state_matches(entry, schedule) {
-        return Err(post_rediscovery(
-            assignment,
-            generation,
-            schedule,
-            MachineState,
-        ));
-    }
-    let prepared_rediscovery = match entry.rediscovery.prepare_rediscovery_install() {
-        Ok(prepared) => prepared,
-        Err(_error) => {
-            return Err(post_rediscovery(
-                assignment,
-                generation,
-                schedule,
-                RediscoveryState,
-            ));
-        }
-    };
-    let prepared_rejoin = match entry.rejoin.prepare_rejoin_install(schedule) {
-        Ok(prepared) => prepared,
-        Err(_error) => {
-            return Err(post_rediscovery(
-                assignment,
-                generation,
-                schedule,
-                RejoinState,
-            ));
-        }
-    };
-    if let Err((error, assignment)) = stage_classic_group_revocation(
-        &mut entry.catalog,
-        &entry.fetch,
-        &mut entry.revocation,
+    install_recovery(
+        entry,
         assignment,
         generation,
-        schedule.due(),
+        schedule,
         now,
-    ) {
-        drop(prepared_rejoin);
-        drop(prepared_rediscovery);
-        return Err(post_rediscovery(
-            assignment,
-            generation,
-            schedule,
-            GracefulRevocation(error),
-        ));
-    }
-    prepared_rejoin.commit();
-    prepared_rediscovery.commit();
-    Ok(())
+        ClassicCoordinatorRecovery::Rediscover,
+    )
 }
 
 #[expect(
@@ -145,49 +86,11 @@ pub(super) fn install_fatal(
     }
 }
 
-const fn rejection_revocation_kind(
-    kind: ClassicGroupRevocationFailureKind,
-) -> ClassicRejectionInstallFailure {
-    match kind {
-        ClassicGroupRevocationFailureKind::Catalog(kind) => Assignment(kind),
-        ClassicGroupRevocationFailureKind::ProcessingLeaseCycleUnavailable => {
-            ProcessingLeaseCycleUnavailable
-        }
-        ClassicGroupRevocationFailureKind::ProcessingLease(error) => ProcessingLease(error),
-        ClassicGroupRevocationFailureKind::Fetch(error) => FetchRetirement(error),
-    }
-}
-
-fn waiting_state_matches(entry: &GroupConsumerEntry, schedule: ClassicRejoinSchedule) -> bool {
-    entry.classic.machine().phase() == ClassicGroupPhase::WaitingToRejoin
-        && entry.classic.machine().pending_rejoin() == Some(schedule)
-        && entry.classic.machine().fatal().is_none()
-        && entry.rejoin.is_dormant()
-        && !entry.rediscovery.blocks_join()
-}
-
 fn fatal_state_matches(entry: &GroupConsumerEntry, fatal: ClassicGroupFatal) -> bool {
     entry.classic.machine().phase() == ClassicGroupPhase::Fatal
         && entry.classic.machine().fatal() == Some(fatal)
         && entry.classic.machine().pending_rejoin().is_none()
         && entry.rejoin.is_dormant()
-}
-
-fn post_rejoin(
-    assignment: LiveGroupAssignment,
-    generation: ClassicGeneration,
-    schedule: ClassicRejoinSchedule,
-    failure: ClassicRejectionInstallFailure,
-) -> ClassicRejectionPostCore {
-    ClassicRejectionPostCore::heartbeat(
-        assignment,
-        generation,
-        ClassicGroupEffect::ArmRejoin {
-            schedule,
-            coordinator: ClassicCoordinatorRecovery::Retain,
-        },
-        failure,
-    )
 }
 
 fn post_fatal(
@@ -204,24 +107,4 @@ fn post_fatal(
     )
 }
 
-fn post_rediscovery(
-    assignment: LiveGroupAssignment,
-    generation: ClassicGeneration,
-    schedule: ClassicRejoinSchedule,
-    failure: ClassicRejectionInstallFailure,
-) -> ClassicRejectionPostCore {
-    ClassicRejectionPostCore::heartbeat(
-        assignment,
-        generation,
-        ClassicGroupEffect::ArmRejoin {
-            schedule,
-            coordinator: ClassicCoordinatorRecovery::Rediscover,
-        },
-        failure,
-    )
-}
-
-use ClassicRejectionInstallFailure::{
-    Assignment, FetchRetirement, GracefulRevocation, MachineState, ProcessingLease,
-    ProcessingLeaseCycleUnavailable, RediscoveryState, RejoinState,
-};
+use ClassicRejectionInstallFailure::MachineState;

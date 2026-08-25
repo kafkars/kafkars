@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{ClassicGroupEffect, ClassicGroupInput};
+use kafka_client_core::{ClassicGroupInput, Moment};
 
 use crate::driver::{
     DriverOwner,
@@ -16,7 +16,7 @@ use super::{
         ClassicHeartbeatAcceptanceFailure, ClassicHeartbeatDriverOwner,
         ClassicHeartbeatExecutionState, PreparedClassicHeartbeat,
     },
-    classic_group_heartbeat_prepare::{commit_revoke, map_revocation_kind},
+    classic_group_heartbeat_rejection::install_heartbeat_effects,
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
 };
@@ -31,6 +31,7 @@ pub(super) enum ClassicHeartbeatSubmissionTurn {
 impl GroupConsumerRegistry {
     pub(super) fn submit_one_classic_heartbeat(
         &mut self,
+        now: Moment,
         driver: &DriverOwner,
     ) -> Result<ClassicHeartbeatSubmissionTurn, ClassicGroupExecutionError> {
         let Some(index) = self
@@ -68,7 +69,7 @@ impl GroupConsumerRegistry {
                 Ok(ClassicHeartbeatSubmissionTurn::Progress)
             }
             Err(failure) => {
-                settle_admission_failure(entry, prepared_key, failure)?;
+                settle_admission_failure(entry, prepared_key, failure, now)?;
                 Ok(ClassicHeartbeatSubmissionTurn::Progress)
             }
         }
@@ -126,6 +127,7 @@ fn settle_admission_failure(
     entry: &mut GroupConsumerEntry,
     key: crate::driver::classic_group::ClassicHeartbeatCallKey,
     failure: ClassicHeartbeatAdmissionFailure,
+    now: Moment,
 ) -> Result<(), ClassicGroupExecutionError> {
     if !matches!(
         entry.heartbeat.state(),
@@ -136,6 +138,7 @@ fn settle_admission_failure(
     }
     let transition = match entry.classic.apply(ClassicGroupInput::HeartbeatFailed {
         attempt: key.attempt(),
+        now,
     }) {
         Ok(transition) => transition,
         Err(error) => {
@@ -144,28 +147,12 @@ fn settle_admission_failure(
         }
     };
     let mut effects = transition.into_effects();
-    let Some(ClassicGroupEffect::Revoke {
-        assignment,
-        classic_generation,
-    }) = effects.next()
-    else {
-        entry.fault = Some(ClassicGroupEntryFault::HeartbeatAdmission(failure));
-        return Err(ClassicGroupExecutionError::HeartbeatTerminal);
-    };
-    if effects.next().is_some() {
-        entry.fault = Some(ClassicGroupEntryFault::HeartbeatAdmission(failure));
-        return Err(ClassicGroupExecutionError::HeartbeatTerminal);
-    }
-    match commit_revoke(entry, assignment, classic_generation) {
-        Ok(()) => {}
-        Err(revoke) => {
-            let kind = revoke.kind;
-            entry.fault = Some(ClassicGroupEntryFault::HeartbeatAdmissionRevoke {
-                failure: revoke,
-                admission: failure,
-            });
-            return Err(map_revocation_kind(kind));
-        }
+    if let Err(rejection) = install_heartbeat_effects(entry, [effects.next(), effects.next()], now)
+    {
+        entry.fault = Some(ClassicGroupEntryFault::HeartbeatAdmissionPostCore(
+            rejection, failure,
+        ));
+        return Err(ClassicGroupExecutionError::RejoinPostCore);
     }
     entry.heartbeat.set(ClassicHeartbeatExecutionState::Dormant);
     drop(failure);

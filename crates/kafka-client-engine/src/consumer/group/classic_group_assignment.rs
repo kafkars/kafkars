@@ -198,7 +198,7 @@ impl ClassicGroupOwner {
         }
         if !matches!(
             self.machine().phase(),
-            ClassicGroupPhase::Lost | ClassicGroupPhase::Fatal
+            ClassicGroupPhase::WaitingToRejoin | ClassicGroupPhase::Lost | ClassicGroupPhase::Fatal
         ) || self.machine().live_assignment().is_some()
             || self.machine().live_cycle().is_some()
             || self.machine().live_generation().is_some()

@@ -115,6 +115,8 @@ pub enum ClassicGroupInput {
     HeartbeatFailed {
         /// Exact in-flight heartbeat identity.
         attempt: ClassicHeartbeatAttempt,
+        /// Current monotonic failure observation.
+        now: Moment,
     },
     /// The exact heartbeat attempt deadline elapsed.
     HeartbeatDeadlineElapsed {

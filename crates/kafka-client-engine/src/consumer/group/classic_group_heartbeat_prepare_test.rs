@@ -23,31 +23,6 @@ use super::{
 };
 
 #[test]
-fn late_host_turn_revokes_instead_of_claiming_liveness() {
-    let mut registry = started_registry();
-    let group_id = register(&mut registry, "workers");
-    install_session(&mut registry, group_id);
-    let schedule = schedule(&registry, group_id);
-    let clock = MonotonicClock::new();
-
-    assert_eq!(
-        registry.prepare_one_classic_heartbeat(
-            Moment::from_tick(schedule.liveness_deadline().tick()),
-            &clock,
-        ),
-        Ok(ClassicHeartbeatPreparationTurn::Progress)
-    );
-
-    let entry = registry
-        .entry(group_id)
-        .unwrap_or_else(|| panic!("entry expected"));
-    assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Lost);
-    assert!(entry.catalog.live_assignment().is_none());
-    assert!(entry.heartbeat.is_dormant());
-    stop_registry(&mut registry);
-}
-
-#[test]
 fn prepared_attempt_uses_the_core_deadline_mapped_by_the_shared_epoch() {
     let mut registry = started_registry();
     let group_id = register(&mut registry, "workers");
@@ -81,37 +56,6 @@ fn prepared_attempt_uses_the_core_deadline_mapped_by_the_shared_epoch() {
 }
 
 #[test]
-fn locally_blocked_prepared_attempt_expires_and_revokes() {
-    let mut registry = started_registry();
-    let group_id = register(&mut registry, "workers");
-    install_session(&mut registry, group_id);
-    let schedule = schedule(&registry, group_id);
-    let clock = MonotonicClock::new();
-    registry
-        .prepare_one_classic_heartbeat(Moment::from_tick(schedule.due().tick()), &clock)
-        .unwrap_or_else(|error| panic!("Heartbeat preparation failed: {error:?}"));
-    let deadline = registry
-        .entry(group_id)
-        .and_then(|entry| entry.heartbeat.prepared())
-        .map_or_else(
-            || panic!("prepared deadline expected"),
-            |prepared| prepared.key().deadline().core(),
-        );
-
-    assert_eq!(
-        registry.expire_one_prepared_heartbeat(Moment::from_tick(deadline.tick())),
-        Ok(true)
-    );
-    let entry = registry
-        .entry(group_id)
-        .unwrap_or_else(|| panic!("entry expected"));
-    assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Lost);
-    assert!(entry.catalog.live_assignment().is_none());
-    assert!(entry.heartbeat.is_dormant());
-    stop_registry(&mut registry);
-}
-
-#[test]
 fn cooperative_reconciliation_heartbeat_deadline_retires_the_previous_assignment() {
     let (mut registry, group_id, schedule) = staged_reconciliation_registry();
     let clock = MonotonicClock::new();
@@ -136,7 +80,14 @@ fn cooperative_reconciliation_heartbeat_deadline_retires_the_previous_assignment
     let entry = registry
         .entry(group_id)
         .unwrap_or_else(|| panic!("cooperative entry"));
-    assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Lost);
+    assert_eq!(
+        entry.classic.machine().phase(),
+        ClassicGroupPhase::WaitingToRejoin
+    );
+    assert_eq!(
+        entry.rejoin.schedule(),
+        entry.classic.machine().pending_rejoin()
+    );
     assert!(entry.catalog.live_assignment().is_some());
     assert!(
         entry
@@ -192,9 +143,10 @@ fn observed_partial_revocation_is_followed_by_full_loss_on_heartbeat_failure() {
         .classic
         .apply(ClassicGroupInput::HeartbeatFailed {
             attempt: schedule.attempt(),
+            now: Moment::from_tick(schedule.due().tick()),
         })
         .unwrap_or_else(|error| panic!("replacement heartbeat failure: {error}"));
-    commit_local_loss(entry, transition)
+    commit_local_loss(entry, transition, Moment::from_tick(schedule.due().tick()))
         .unwrap_or_else(|error| panic!("stage reconciliation loss: {error:?}"));
     entry
         .heartbeat
@@ -203,6 +155,17 @@ fn observed_partial_revocation_is_followed_by_full_loss_on_heartbeat_failure() {
 
     drain_reconciliation_loss(&mut registry);
     assert_reconciliation_loss_retired(&mut registry, group_id);
+    let entry = registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("cooperative entry"));
+    assert_eq!(
+        entry.classic.machine().phase(),
+        ClassicGroupPhase::WaitingToRejoin
+    );
+    assert_eq!(
+        entry.rejoin.schedule(),
+        entry.classic.machine().pending_rejoin()
+    );
     let Some(GroupConsumerEvent::PartitionsLost(lost)) = registry
         .entries
         .iter_mut()

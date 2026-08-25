@@ -22,7 +22,18 @@ pub(super) fn install_heartbeat_rejection(
     transition: ClassicGroupTransition,
     now: Moment,
 ) -> Result<(), ClassicRejectionPostCore> {
-    let effects = into_effects(transition);
+    install_heartbeat_effects(entry, into_effects(transition), now)
+}
+
+#[expect(
+    clippy::result_large_err,
+    reason = "the error retains exact post-core effects without allocating or erasing recovery state"
+)]
+pub(super) fn install_heartbeat_effects(
+    entry: &mut GroupConsumerEntry,
+    effects: [Option<ClassicGroupEffect>; 2],
+    now: Moment,
+) -> Result<(), ClassicRejectionPostCore> {
     match effects {
         [
             Some(ClassicGroupEffect::ArmRejoin {

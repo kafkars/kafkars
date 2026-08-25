@@ -46,6 +46,7 @@ pub(crate) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
             "classic_group_heartbeat_prepare.rs",
             "classic_group_heartbeat_recovery.rs",
             "classic_group_heartbeat_rejection_install.rs",
+            "classic_group_heartbeat_rejection_install/recovery.rs",
             "classic_group_heartbeat_submission.rs",
             "classic_group_sync_install.rs",
             "registry_acknowledge.rs",
@@ -62,6 +63,7 @@ pub(crate) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
         &[
             "registry_entry.rs",
             "classic_group_heartbeat_rejection_install.rs",
+            "classic_group_heartbeat_rejection_install/recovery.rs",
             "registry_close.rs",
             "registry_graceful_revocation.rs",
             "classic_group_sync_install.rs",

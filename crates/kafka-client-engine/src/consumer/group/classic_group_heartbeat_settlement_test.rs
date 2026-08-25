@@ -71,7 +71,7 @@ fn success_retains_broker_throttle_in_the_next_exact_cadence() {
 }
 
 #[test]
-fn coordinator_transport_close_without_route_evidence_remains_conservative_loss() {
+fn coordinator_transport_close_without_route_evidence_rejoins_without_rediscovery_claim() {
     let (mut registry, group_id, key) = prepared_heartbeat();
     make_driver_owned(&mut registry, group_id, key);
     install_heartbeat_transport_loss_terminal(heartbeat_calls(&mut registry), key);
@@ -84,8 +84,17 @@ fn coordinator_transport_close_without_route_evidence_remains_conservative_loss(
     let entry = registry
         .entry(group_id)
         .unwrap_or_else(|| panic!("entry expected"));
-    assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Lost);
-    assert!(entry.catalog.live_assignment().is_none());
+    assert_eq!(
+        entry.classic.machine().phase(),
+        ClassicGroupPhase::WaitingToRejoin
+    );
+    let schedule = entry
+        .rejoin
+        .schedule()
+        .unwrap_or_else(|| panic!("retained rejoin schedule expected"));
+    assert_eq!(entry.classic.machine().pending_rejoin(), Some(schedule));
+    assert!(entry.catalog.live_assignment().is_some());
+    assert!(!entry.revocation.is_dormant());
     assert!(!entry.rediscovery.blocks_join());
 
     assert_eq!(
@@ -99,6 +108,7 @@ fn coordinator_transport_close_without_route_evidence_remains_conservative_loss(
             .heartbeat
             .is_dormant()
     );
+
     stop_registry(&mut registry);
 }
 
@@ -252,8 +262,8 @@ pub(super) fn fail_live_attempt(
         .unwrap_or_else(|| panic!("entry expected"));
     let transition = entry
         .classic
-        .apply(ClassicGroupInput::HeartbeatFailed {
-            attempt: key.attempt(),
+        .apply(ClassicGroupInput::AssignmentLost {
+            cycle: key.attempt().cycle(),
         })
         .unwrap_or_else(|error| panic!("failure transition rejected: {error}"));
     let Some(ClassicGroupEffect::Revoke {

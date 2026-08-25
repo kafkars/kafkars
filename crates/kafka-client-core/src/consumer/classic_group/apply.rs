@@ -58,7 +58,9 @@ impl ClassicGroupMachine {
             ClassicGroupInput::HeartbeatCoordinatorLost { attempt, now } => {
                 self.heartbeat_coordinator_lost(attempt, now)
             }
-            ClassicGroupInput::HeartbeatFailed { attempt } => self.heartbeat_failed(attempt),
+            ClassicGroupInput::HeartbeatFailed { attempt, now } => {
+                self.heartbeat_failed(attempt, now)
+            }
             ClassicGroupInput::HeartbeatDeadlineElapsed { attempt, now } => {
                 self.heartbeat_deadline_elapsed(attempt, now)
             }

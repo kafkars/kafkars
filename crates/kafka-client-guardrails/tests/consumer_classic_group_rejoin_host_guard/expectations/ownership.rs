@@ -20,6 +20,7 @@ const HEARTBEAT_REJECTION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection.rs";
 const HEARTBEAT_REJECTION_INSTALL: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection_install.rs";
+const HEARTBEAT_RECOVERY_INSTALL: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection_install/recovery.rs";
 const SYNC_REJECTION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_rejection.rs";
 const MEMBERSHIP_OBSERVATION: &str =
@@ -69,6 +70,10 @@ pub(crate) const MIRRORS: &[(&str, &str)] = &[
     (
         HEARTBEAT_REJECTION_INSTALL,
         "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection_install_test.rs",
+    ),
+    (
+        HEARTBEAT_RECOVERY_INSTALL,
+        "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection_install/recovery_test.rs",
     ),
     (
         SYNC_REJECTION,

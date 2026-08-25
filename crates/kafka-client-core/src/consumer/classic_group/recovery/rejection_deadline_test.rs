@@ -3,10 +3,10 @@
 use crate::{Deadline, GroupId, MemberId, Moment};
 
 use super::{
-    ClassicBrokerError, ClassicGeneration, ClassicGroupEffect, ClassicGroupErrorKind,
-    ClassicGroupFatalReason, ClassicGroupInput, ClassicGroupMachine, ClassicGroupPhase,
-    ClassicGroupTiming, ClassicHeartbeatAttempt, ClassicHeartbeatPolicy, ClassicRejoinPolicy,
-    MembershipCycle,
+    ClassicBrokerError, ClassicCoordinatorRecovery, ClassicGeneration, ClassicGroupEffect,
+    ClassicGroupErrorKind, ClassicGroupFatalReason, ClassicGroupInput, ClassicGroupMachine,
+    ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatAttempt, ClassicHeartbeatPolicy,
+    ClassicRejoinPolicy, MembershipCycle,
 };
 
 #[test]
@@ -53,30 +53,16 @@ fn sync_rejection_uses_policy_before_but_loses_at_the_cycle_deadline() {
 }
 
 #[test]
-fn heartbeat_rejection_stops_at_deadline_while_coordinator_loss_starts_a_fresh_rejoin() {
+fn heartbeat_deadline_retains_the_route_while_exact_route_loss_rediscovers() {
     let (mut early, attempt, deadline) = stable_inflight();
     let transition = reject_heartbeat(&mut early, attempt, deadline.tick() - 1, 15);
-    let mut effects = transition.effects();
-    assert!(matches!(
-        effects.next(),
-        Some(ClassicGroupEffect::Revoke { .. })
-    ));
-    assert!(matches!(
-        effects.next(),
-        Some(ClassicGroupEffect::ArmRejoin { .. })
-    ));
-    assert!(effects.next().is_none());
+    assert_rejoin(transition, ClassicCoordinatorRecovery::Rediscover);
     assert_eq!(early.phase(), ClassicGroupPhase::WaitingToRejoin);
 
     let (mut exact, attempt, deadline) = stable_inflight();
     let transition = reject_heartbeat(&mut exact, attempt, deadline.tick(), 15);
-    let mut effects = transition.effects();
-    assert!(matches!(
-        effects.next(),
-        Some(ClassicGroupEffect::Revoke { .. })
-    ));
-    assert!(effects.next().is_none());
-    assert_lost_without_recovery(&exact);
+    assert_rejoin(transition, ClassicCoordinatorRecovery::Retain);
+    assert_eq!(exact.phase(), ClassicGroupPhase::WaitingToRejoin);
 
     let (mut recovered, attempt, deadline) = stable_inflight();
     let transition = recovered
@@ -85,6 +71,11 @@ fn heartbeat_rejection_stops_at_deadline_while_coordinator_loss_starts_a_fresh_r
             now: Moment::from_tick(deadline.tick() + 1),
         })
         .unwrap_or_else(|error| panic!("expired-attempt coordinator loss: {error}"));
+    assert_rejoin(transition, ClassicCoordinatorRecovery::Rediscover);
+    assert_eq!(recovered.phase(), ClassicGroupPhase::WaitingToRejoin);
+}
+
+fn assert_rejoin(transition: super::ClassicGroupTransition, expected: ClassicCoordinatorRecovery) {
     let mut effects = transition.effects();
     assert!(matches!(
         effects.next(),
@@ -92,10 +83,9 @@ fn heartbeat_rejection_stops_at_deadline_while_coordinator_loss_starts_a_fresh_r
     ));
     assert!(matches!(
         effects.next(),
-        Some(ClassicGroupEffect::ArmRejoin { .. })
+        Some(ClassicGroupEffect::ArmRejoin { coordinator, .. }) if *coordinator == expected
     ));
     assert!(effects.next().is_none());
-    assert_eq!(recovered.phase(), ClassicGroupPhase::WaitingToRejoin);
 }
 
 #[test]

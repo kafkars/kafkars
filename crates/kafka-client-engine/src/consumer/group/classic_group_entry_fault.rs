@@ -117,12 +117,10 @@ pub(super) enum ClassicGroupEntryFault {
         rejection: ClassicRejectionPostCore,
         terminal: ClassicHeartbeatTerminal,
     },
+    HeartbeatLocalPostCore(ClassicRejectionPostCore),
+    HeartbeatAdmissionPostCore(ClassicRejectionPostCore, ClassicHeartbeatAdmissionFailure),
     HeartbeatLocalRevoke {
         failure: ClassicGroupRevocationFailure,
-    },
-    HeartbeatAdmissionRevoke {
-        failure: ClassicGroupRevocationFailure,
-        admission: ClassicHeartbeatAdmissionFailure,
     },
     HeartbeatTerminalRevoke {
         failure: ClassicGroupRevocationFailure,
@@ -231,10 +229,11 @@ impl ClassicGroupEntryFault {
             } => rejection
                 .retained_owner_count()
                 .saturating_add(retained_one(terminal)),
+            Self::HeartbeatLocalPostCore(rejection) => rejection.retained_owner_count(),
+            Self::HeartbeatAdmissionPostCore(rejection, admission) => rejection
+                .retained_owner_count()
+                .saturating_add(retained_one(admission)),
             Self::HeartbeatLocalRevoke { failure } => retained_one(failure),
-            Self::HeartbeatAdmissionRevoke { failure, admission } => {
-                retained_pair(failure, admission)
-            }
             Self::HeartbeatTerminalRevoke { failure, terminal } => retained_pair(failure, terminal),
             Self::HeartbeatRecoverySemantic(attempt) => retained_one(attempt),
             Self::ProcessingSemantic(owner) => retained_one(owner),

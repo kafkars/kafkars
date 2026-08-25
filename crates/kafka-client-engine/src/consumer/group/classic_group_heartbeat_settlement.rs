@@ -18,7 +18,7 @@ use super::{
     classic_group_heartbeat_prepare::map_revocation_kind,
     classic_group_rediscovery_transfer::confirm_heartbeat_rediscovery,
     registry::GroupConsumerRegistry,
-    registry_entry::GroupConsumerEntry,
+    registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -96,6 +96,14 @@ fn settle_terminal(
     terminal: ClassicHeartbeatTerminal,
     coordinator_route_evidence: bool,
 ) -> Result<(), ClassicGroupExecutionError> {
+    if entry.state == GroupConsumerEntryState::Closing {
+        if let Err(kind) = stage_confirmation(entry, ClassicHeartbeatSuccessor::Dormant) {
+            entry.fault = Some(ClassicGroupEntryFault::HeartbeatPostCore(terminal));
+            return Err(kind);
+        }
+        drop(terminal);
+        return Ok(());
+    }
     match interpret_heartbeat(entry, now, &terminal, coordinator_route_evidence) {
         Ok(successor) => {
             if let Err(kind) = stage_confirmation(entry, successor) {

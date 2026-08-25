@@ -37,6 +37,8 @@ mod effect_test;
 #[cfg(test)]
 mod error_test;
 #[cfg(test)]
+mod heartbeat_rejoin_test;
+#[cfg(test)]
 mod heartbeat_state_test;
 #[cfg(test)]
 mod heartbeat_test;

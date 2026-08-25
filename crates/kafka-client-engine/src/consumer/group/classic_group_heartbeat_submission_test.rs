@@ -46,7 +46,7 @@ fn saturated_call_capacity_retains_the_exact_prepared_heartbeat() {
     ]))
     .unwrap_or_else(|error| panic!("driver build failed: {error}"));
     assert_eq!(
-        registry.submit_one_classic_heartbeat(&driver),
+        registry.submit_one_classic_heartbeat(Moment::from_tick(schedule.due().tick()), &driver),
         Ok(super::classic_group_heartbeat_submission::ClassicHeartbeatSubmissionTurn::Blocked)
     );
     assert_eq!(
@@ -133,7 +133,7 @@ fn mismatched_accepted_receipt_is_retained_in_the_entry_fault() {
 }
 
 #[test]
-fn driver_admission_rejection_conservatively_revokes_the_assignment() {
+fn driver_admission_rejection_revokes_then_arms_a_retained_rejoin() {
     let mut registry = started_registry();
     let group_id = register(&mut registry, "workers");
     install_session(&mut registry, group_id);
@@ -162,14 +162,23 @@ fn driver_admission_rejection_conservatively_revokes_the_assignment() {
         .unwrap_or_else(|error| panic!("driver close turn failed: {error}"));
 
     assert_eq!(
-        registry.submit_one_classic_heartbeat(&driver),
+        registry.submit_one_classic_heartbeat(Moment::from_tick(schedule.due().tick()), &driver),
         Ok(ClassicHeartbeatSubmissionTurn::Progress)
     );
     let entry = registry
         .entry(group_id)
         .unwrap_or_else(|| panic!("entry expected"));
-    assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Lost);
+    assert_eq!(
+        entry.classic.machine().phase(),
+        ClassicGroupPhase::WaitingToRejoin
+    );
+    assert_eq!(
+        entry.rejoin.schedule(),
+        entry.classic.machine().pending_rejoin()
+    );
     assert!(entry.catalog.live_assignment().is_none());
+    assert!(entry.revocation.is_dormant());
+    assert!(entry.processing_lease.active_schedule().is_none());
     assert!(entry.heartbeat.is_dormant());
     assert!(entry.fault.is_none());
     assert_eq!(
