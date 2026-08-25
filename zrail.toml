@@ -1,0 +1,52 @@
+adapters = ["rust"]
+schema = 2
+
+[dependencies]
+cycles = "deny"
+mode = "locked"
+unassigned_packages = "allow"
+
+[repository]
+exclude = ["crates/kafka-client-guardrails/tests/fixtures/**"]
+nested_git = "deny"
+roots = [
+    "crates/kafka-client-core",
+    "crates/kafka-client-engine",
+    "crates/kafka-client-guardrails",
+    "crates/kafka-client-sim",
+    "crates/kafkars",
+]
+submodules = "deny"
+symlinks = "inside"
+workspace_members = "exact"
+
+[source.rust]
+entrypoints = "declarative"
+facades = "declarative"
+module_docs = "required"
+tests = "sibling"
+
+[source.rust.hygiene]
+deny_macros = []
+deny_methods = []
+lint_suppressions = "reasoned"
+unsafe = "deny"
+
+[source.rust.macros]
+mode = "deny-unreviewed"
+
+[source.rust.size.auxiliary]
+hard = 300
+target = 300
+
+[source.rust.size.facade]
+hard = 300
+target = 300
+
+[source.rust.size.implementation]
+hard = 300
+target = 300
+
+[source.rust.size.test]
+hard = 300
+target = 300
