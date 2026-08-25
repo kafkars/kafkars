@@ -18,7 +18,10 @@ use crate::{
 use super::operation::AdminListOffsetsResult;
 
 pub(super) fn translate_admission_error(error: AdminListOffsetsAdmissionError) -> KafkaError {
-    let kind = error.kind();
+    translate_admission_kind(error.kind())
+}
+
+pub(super) fn translate_admission_kind(kind: AdminListOffsetsAdmissionErrorKind) -> KafkaError {
     let public = match kind {
         AdminListOffsetsAdmissionErrorKind::InvalidRequest
         | AdminListOffsetsAdmissionErrorKind::InvalidDeadline => ErrorKind::Configuration,
@@ -29,8 +32,18 @@ pub(super) fn translate_admission_error(error: AdminListOffsetsAdmissionError) -
         AdminListOffsetsAdmissionErrorKind::IdentityExhausted
         | AdminListOffsetsAdmissionErrorKind::HostUnavailable => ErrorKind::Internal,
     };
-    KafkaError::new(public, format!("ListOffsets admission failed: {kind:?}"))
-        .with_delivery_status(DeliveryStatus::NotSent)
+    let error = KafkaError::new(public, format!("ListOffsets admission failed: {kind:?}"))
+        .with_delivery_status(DeliveryStatus::NotSent);
+    match kind {
+        AdminListOffsetsAdmissionErrorKind::Contended
+        | AdminListOffsetsAdmissionErrorKind::Capacity
+        | AdminListOffsetsAdmissionErrorKind::RetainedBytes => error.with_safe_retry(),
+        AdminListOffsetsAdmissionErrorKind::InvalidRequest
+        | AdminListOffsetsAdmissionErrorKind::InvalidDeadline
+        | AdminListOffsetsAdmissionErrorKind::Closed
+        | AdminListOffsetsAdmissionErrorKind::IdentityExhausted
+        | AdminListOffsetsAdmissionErrorKind::HostUnavailable => error,
+    }
 }
 
 pub(super) fn translate_accepted_fault(fault: AdminListOffsetsAcceptedFaultKind) -> KafkaError {

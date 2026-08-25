@@ -10,3 +10,5 @@ pub(crate) use request::ListOffsetsAdminRequest;
 
 #[cfg(test)]
 mod request_test;
+#[cfg(test)]
+mod result_test;

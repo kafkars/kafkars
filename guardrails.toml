@@ -18662,6 +18662,10 @@ test = "crates/kafkars/src/admin/list_offsets/value_test.rs"
 production = "crates/kafkars/src/bridge/admin_list_offsets/request.rs"
 test = "crates/kafkars/src/bridge/admin_list_offsets/request_test.rs"
 
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/admin_list_offsets/result.rs"
+test = "crates/kafkars/src/bridge/admin_list_offsets/result_test.rs"
+
 [[linear_owners]]
 owner_type = "ListOffsetsAdminRequest"
 path = "crates/kafkars/src/bridge/admin_list_offsets/request.rs"
