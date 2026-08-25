@@ -1,6 +1,7 @@
 //! Atomic join between prepared producer ownership and tracked driver calls.
 
 mod partitioning;
+mod retry_identity;
 
 use kafka_client_core::{Moment, ProducerInput};
 
@@ -17,8 +18,11 @@ pub(super) use partitioning::{
     ProducerPartitioningCall, admit as admit_partitioning, apply_ready as apply_partitioning_ready,
     discard_after_driver_shutdown as discard_partitioning_after_driver_shutdown,
 };
+pub(super) use retry_identity::{
+    ProducerRetryIdentityCall, apply_ready as apply_retry_identity_ready,
+    discard_after_driver_shutdown as discard_retry_identity,
+};
 
-/// Attempts the one lazy nontransactional identity acquisition.
 pub(super) fn admit_identity(
     driver: &DriverOwner,
     calls: &mut TrackedProducerIdentityCalls,
@@ -49,13 +53,20 @@ pub(super) fn admit_identity(
     }
 }
 
-/// Attempts one prepared admission under the producer shard's existing guard.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one guarded transition owns rollback"
+)]
 pub(super) fn admit_one(
     driver: &DriverOwner,
     calls: &mut TrackedProduceCalls,
+    retry_identity: &mut Option<ProducerRetryIdentityCall>,
     data: &mut ProducerShardData,
     now: Moment,
 ) -> Result<bool, EngineHostError> {
+    if let Some(progress) = retry_identity::admit(driver, calls, retry_identity, data, now)? {
+        return Ok(progress);
+    }
     if !calls.broker_admission_available(None) {
         return Ok(false);
     }
@@ -115,6 +126,18 @@ pub(super) fn admit_one(
     let submission = submissions
         .pop()
         .unwrap_or_else(|| unreachable!("nonempty single Produce handoff"));
+    if submission.retry_topic_identity().is_some() {
+        match ProducerRetryIdentityCall::submit(driver, submission) {
+            Ok(call) => *retry_identity = Some(call),
+            Err(submission) => reject_execution(
+                data,
+                submission.execution(),
+                now,
+                kafka_client_core::ProducerAttemptFailureKind::RouteUnavailable,
+            )?,
+        }
+        return Ok(true);
+    }
     let (execution, deadline, materialized) = submission.into_parts();
     match permit.submit(driver, execution, deadline, materialized, now) {
         Ok(accepted) => {
@@ -151,6 +174,23 @@ pub(super) fn admit_one(
     Ok(true)
 }
 
+pub(super) fn reject_execution(
+    data: &mut ProducerShardData,
+    execution: kafka_client_core::BatchExecutionId,
+    now: Moment,
+    failure: kafka_client_core::ProducerAttemptFailureKind,
+) -> Result<(), EngineHostError> {
+    data.apply_produce_driver_input(
+        now,
+        ProducerInput::DriverRejected {
+            execution,
+            now,
+            failure,
+        },
+    )
+    .map_err(EngineHostError::Producer)
+}
+
 /// Applies at most `budget` terminal driver facts under the shard guard.
 pub(super) fn apply_ready(
     driver: &DriverOwner,
@@ -183,7 +223,6 @@ pub(super) fn apply_ready(
     Ok(progress)
 }
 
-/// Applies at most one terminal identity fact under the producer shard guard.
 pub(super) fn apply_identity_ready(
     calls: &mut TrackedProducerIdentityCalls,
     data: &mut ProducerShardData,

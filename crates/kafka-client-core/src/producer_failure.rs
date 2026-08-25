@@ -13,6 +13,8 @@ pub enum ProducerFailureKind {
     MaterializationFailed,
     /// Routing metadata or leadership changed.
     Routing,
+    /// Broker-issued topic identity did not match the caller expectation.
+    Identity,
     /// Kafka asked the client to retry later without a routing change.
     BrokerRetriable,
     /// Authentication or authorization permanently rejected the operation.
@@ -97,6 +99,9 @@ impl ProducerFailure {
             crate::ProducerAttemptFailureKind::InvalidResponse => {
                 Self::new(ProducerFailureKind::InvalidResponse, delivery)
             }
+            crate::ProducerAttemptFailureKind::Identity => {
+                Self::new(ProducerFailureKind::Identity, delivery)
+            }
             crate::ProducerAttemptFailureKind::LocalCapacity
             | crate::ProducerAttemptFailureKind::RouteUnavailable
             | crate::ProducerAttemptFailureKind::NameResolutionUnavailable
@@ -151,6 +156,11 @@ impl ProducerFailure {
             delivery: DeliveryStatus::NotSent,
             broker_code,
         }
+    }
+
+    /// Creates a definitely-unsent terminal for a mismatched topic UUID.
+    pub const fn topic_identity_mismatch() -> Self {
+        Self::new(ProducerFailureKind::Identity, DeliveryStatus::NotSent)
     }
 
     /// Returns the core-owned semantic classification.

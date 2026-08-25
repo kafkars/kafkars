@@ -141,6 +141,7 @@ const fn attempt_failure_kind(
         }
         ProducerAttemptFailureKind::InvalidResponse => TransactionSendFailureKind::InvalidResponse,
         ProducerAttemptFailureKind::Compatibility => TransactionSendFailureKind::Compatibility,
+        ProducerAttemptFailureKind::Identity => TransactionSendFailureKind::Identity,
         ProducerAttemptFailureKind::Permanent => TransactionSendFailureKind::Permanent,
     };
     (kind, None)

@@ -25,6 +25,8 @@ fn client_bridge_retains_validated_endpoints_and_builds_a_producer() {
         None,
         ConsumerFetchConfig::default(),
         ConsumerLimits::default(),
+        None,
+        None,
     );
     let Ok(client) = result else {
         panic!("valid local engine configuration should start")
@@ -54,6 +56,8 @@ fn client_bridge_carries_disabled_and_configured_producer_retry_exactly() {
             None,
             ConsumerFetchConfig::default(),
             ConsumerLimits::default(),
+            None,
+            None,
         )
         .unwrap_or_else(|error| panic!("valid retry configuration must start: {error}"));
 
@@ -120,6 +124,8 @@ fn invalid_custom_tls_roots_are_configuration_errors_without_material_disclosure
         None,
         ConsumerFetchConfig::default(),
         ConsumerLimits::default(),
+        None,
+        None,
     );
     let Err(error) = result else {
         panic!("invalid custom TLS roots must be rejected");
@@ -141,6 +147,8 @@ fn rejected_security_diagnostics_do_not_expose_credentials() {
         None,
         ConsumerFetchConfig::default(),
         ConsumerLimits::default(),
+        None,
+        None,
     );
     let Err(error) = result else {
         panic!("NUL-containing SASL credentials must be rejected");

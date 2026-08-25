@@ -13,6 +13,8 @@ fn bridge_claims_once_and_observes_real_close() {
         None,
         ConsumerFetchConfig::default(),
         ConsumerLimits::default(),
+        None,
+        None,
     )
     .unwrap_or_else(|error| panic!("start engine: {error}"));
     let mut consumer = engine

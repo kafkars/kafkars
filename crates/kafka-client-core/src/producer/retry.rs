@@ -14,13 +14,18 @@ impl ProducerMachine {
         now: Moment,
         failure: ProducerAttemptFailureKind,
     ) -> Result<ProducerTransition, ProducerMachineError> {
+        let terminal = if failure == ProducerAttemptFailureKind::Identity {
+            ProducerFailure::topic_identity_mismatch()
+        } else {
+            ProducerFailure::driver_rejected()
+        };
         self.attempt_failed(
             execution,
             now,
             failure,
             DeliveryStatus::NotSent,
             BatchState::AwaitingDriver,
-            ProducerFailure::driver_rejected(),
+            terminal,
         )
     }
 

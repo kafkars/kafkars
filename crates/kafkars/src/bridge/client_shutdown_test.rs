@@ -15,6 +15,8 @@ fn concurrent_bridge_observers_receive_one_retained_shutdown_report() {
         None,
         ConsumerFetchConfig::default(),
         ConsumerLimits::default(),
+        None,
+        None,
     )
     .unwrap_or_else(|error| panic!("start client bridge: {error}"));
     let first = client.shutdown();

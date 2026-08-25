@@ -182,7 +182,7 @@ impl ProducerBatchAdmissionPermit<'_> {
         let mut accepted = Vec::new();
         let mut rejection = None;
         while let Some(record) = records.next() {
-            let admission = if record.needs_partition() {
+            let admission = if record.needs_partition() || record.needs_topic_uuid_validation() {
                 classify_waiting_admission(self.data.host.try_admit_waiting(
                     attempted_at,
                     deadline,

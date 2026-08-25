@@ -5,6 +5,7 @@ use std::time::Instant;
 use bytes::Bytes;
 use kafka_client_core::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, Deadline, OperationId,
+    partitioning::TopicMetadataGeneration,
 };
 
 use super::{
@@ -41,6 +42,38 @@ fn handoff_preserves_exact_execution_deadline_and_encoded_owner() {
     assert_eq!(actual_deadline, deadline);
     assert_eq!(materialized.encoded_records().as_ptr(), encoded_address);
     assert_eq!(materialized.encoded_records().len(), encoded_length);
+}
+
+#[test]
+fn replacement_submission_requires_newer_metadata_for_expected_uuid() {
+    let replacement = BatchExecutionId::new(
+        BatchId::from_raw(7),
+        BatchExecutionGeneration::try_from_raw(2)
+            .unwrap_or_else(|| panic!("replacement generation")),
+    );
+    let materialized =
+        MaterializedProduce::from_encoded_test_parts("orders", 0, Bytes::from_static(b"encoded"))
+            .with_expected_topic_identity(
+                Some([7; 16]),
+                Some(TopicMetadataGeneration::from_raw(11)),
+            );
+    let mut submission =
+        super::PreparedProduceSubmission::from_test_parts(replacement, deadline(41), materialized);
+
+    assert_eq!(
+        submission.retry_topic_identity(),
+        Some(([7; 16], TopicMetadataGeneration::from_raw(11)))
+    );
+    assert!(
+        submission.record_retry_topic_identity([7; 16], TopicMetadataGeneration::from_raw(12),)
+    );
+    assert_eq!(
+        submission.retry_topic_identity(),
+        Some(([7; 16], TopicMetadataGeneration::from_raw(12)))
+    );
+    assert!(
+        !submission.record_retry_topic_identity([7; 16], TopicMetadataGeneration::from_raw(12),)
+    );
 }
 
 #[test]

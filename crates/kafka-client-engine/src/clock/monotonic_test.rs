@@ -52,6 +52,26 @@ fn deadline_capture_uses_one_boundary_observation() {
 }
 
 #[test]
+fn captured_absolute_deadline_keeps_the_exact_transport_instant() {
+    let epoch = Instant::now();
+    let clock = MonotonicClock::from_epoch(epoch);
+    let boundary = epoch
+        .checked_add(Duration::from_nanos(23))
+        .unwrap_or_else(|| panic!("small admission instant should be representable"));
+    let deadline = epoch
+        .checked_add(Duration::from_nanos(71))
+        .unwrap_or_else(|| panic!("small absolute deadline should be representable"));
+
+    let capture = clock
+        .capture_deadline_until_at(boundary, deadline)
+        .unwrap_or_else(|error| panic!("map absolute deadline: {error}"));
+
+    assert_eq!(capture.now(), Moment::from_tick(23));
+    assert_eq!(capture.deadline(), Deadline::from_tick(71));
+    assert_eq!(capture.operation_deadline().transport(), deadline);
+}
+
+#[test]
 fn existing_core_deadline_maps_directly_through_the_fixed_epoch() {
     let epoch = Instant::now();
     let clock = MonotonicClock::from_epoch(epoch);

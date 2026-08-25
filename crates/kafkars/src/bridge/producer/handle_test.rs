@@ -134,6 +134,18 @@ fn rejected_record_reuses_nonempty_payload_storage() {
     );
 }
 
+#[test]
+fn expected_topic_uuid_crosses_and_returns_through_engine_conversion() {
+    let topic_uuid =
+        crate::TopicUuid::try_from_bytes([7; 16]).unwrap_or_else(|| panic!("nonzero topic UUID"));
+    let original = Record::to("orders").expected_topic_uuid(topic_uuid);
+
+    let engine = into_engine_record(original);
+    assert_eq!(engine.expected_topic_uuid_value(), Some([7; 16]));
+    let restored = restore_rejected_record(engine);
+    assert_eq!(restored.expected_topic_uuid_value(), Some(topic_uuid));
+}
+
 fn start_engine() -> Engine {
     let result = Engine::start(EngineConfig::new(vec!["127.0.0.1:1".to_owned()]));
     let Ok(engine) = result else {

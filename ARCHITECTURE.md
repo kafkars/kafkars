@@ -113,6 +113,26 @@ logical partition domain. Null keys use bounded sticky state. Explicit
 partitions bypass lookup. Idempotence and `acks=all` are guarantees, not
 downgrade switches.
 
+### Identity proofs and deletion fences
+
+An optional expected cluster ID is a client-lifetime requirement. Construction
+must complete one exact `DescribeCluster` check before returning the client,
+and every later explicit readiness probe repeats that check under a new
+deadline. This is point-in-time evidence: Kafkars does not claim continuous
+cluster-identity monitoring between readiness probes.
+
+An expected topic UUID is likewise a point-in-time identity proof. Ordinary
+explicit and automatically partitioned records validate an immutable driver
+topic view before Produce admission. A replacement Produce execution must
+validate the same UUID from a strictly newer metadata generation under the
+original operation deadline. The successful receipt reports that proven UUID;
+Kafka's name-routed Produce request and response do not carry an atomic topic
+UUID binding.
+
+Deployments using expected topic UUIDs therefore own a no-delete/recreate
+fence. For an ordinary record, the topic name must not be deleted and recreated
+between its final UUID validation and terminal Produce result. For a
+
 ### Consumer
 
 Direct assignment and hosted group membership reuse mechanisms but not policy.
@@ -144,6 +164,7 @@ linear lifecycle and consequence of every accepted operation. The engine owns
 the concrete `InitProducerId`, `AddPartitionsToTxn`, Produce,
 `AddOffsetsToTxn`, `TxnOffsetCommit`, and `EndTxn` executions. Uncertain
 delivery fences later admission rather than manufacturing success.
+
 
 ## Threads and callbacks
 

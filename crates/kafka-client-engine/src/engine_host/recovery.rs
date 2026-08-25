@@ -4,7 +4,6 @@ use super::{
     group_consumer_shutdown, notifier_shutdown::NotifierShutdownOwner, transaction_shutdown,
 };
 use kafka_client_core::Moment;
-
 impl EngineHostResources {
     fn discard_driver_after_shutdown(&mut self) {
         drop(self.driver.take());
@@ -95,6 +94,7 @@ pub(crate) fn recover(
     super::produce::discard_partitioning_after_driver_shutdown(
         &mut resources.producer_partitioning_call,
     );
+    super::produce::discard_retry_identity(&mut resources.producer_retry_identity_call);
     resources
         .create_topics_calls
         .discard_after_driver_shutdown();

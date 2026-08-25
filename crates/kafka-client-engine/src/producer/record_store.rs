@@ -150,7 +150,7 @@ impl RecordStore {
             ));
         };
         let topic = std::sync::Arc::clone(record.topic());
-        let topic_id = match self.topics.acquire(topic) {
+        let topic_id = match self.topics.acquire(topic, record.expected_topic_uuid()) {
             Ok(id) => id,
             Err(error) => return Err(ProducerAdmissionError::new(error, record)),
         };

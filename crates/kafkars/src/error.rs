@@ -41,6 +41,8 @@ pub enum ErrorKind {
     Compatibility,
     /// Kafka fenced the producer or transaction identity.
     Fenced,
+    /// Broker-issued cluster or topic identity did not match caller expectations.
+    Identity,
     /// Kafka rejected record or batch content.
     InvalidRecord,
     /// Cluster metadata or leadership could not route the operation.

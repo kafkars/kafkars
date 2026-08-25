@@ -17,6 +17,10 @@ impl ProducerPartitionSource for TopicRouteView {
     fn leader_broker_id(&self, partition: kafka_client_core::PartitionIndex) -> Option<i32> {
         self.leader_broker_id(partition)
     }
+
+    fn kafka_topic_uuid(&self) -> Option<[u8; 16]> {
+        self.kafka_topic_id()
+    }
 }
 
 /// Exact waiting and driver ownership retained until metadata settles.

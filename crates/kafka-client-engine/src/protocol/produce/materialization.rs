@@ -29,6 +29,8 @@ pub(crate) fn materialize_explicit_produce_batch_with_compression(
     input: MaterializationBatch,
     compression: CompressionPolicy,
 ) -> Result<MaterializedProduce, ProduceMaterializationError> {
+    let expected_topic_uuid = input.expected_topic_uuid();
+    let validated_topic_generation = input.validated_topic_generation();
     let (topic, partition, _leader_broker_id, records, max_batch_bytes, identity, sequence) =
         input.into_idempotent_parts();
     let record_count = sequence.record_count();
@@ -43,12 +45,10 @@ pub(crate) fn materialize_explicit_produce_batch_with_compression(
         false,
     )?;
 
-    Ok(MaterializedProduce::new(
-        topic,
-        partition,
-        record_count,
-        records,
-    ))
+    Ok(
+        MaterializedProduce::new(topic, partition, record_count, records)
+            .with_expected_topic_identity(expected_topic_uuid, validated_topic_generation),
+    )
 }
 
 /// Encodes one transaction-fenced batch without adding coordinator or retry policy.

@@ -1,13 +1,13 @@
 //! Admission handoff for public Admin `DescribeCluster`.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::AdminEngine;
 use crate::bridge::admin_describe_operation::AdminDescribeCluster;
 
 impl AdminEngine {
-    pub(crate) fn submit_describe_cluster(&self, timeout: Duration) -> AdminDescribeCluster {
-        self.submit_describe_cluster_with_options(false, false, timeout)
+    pub(crate) fn submit_describe_cluster_until(&self, deadline: Instant) -> AdminDescribeCluster {
+        AdminDescribeCluster::from_admission(self.handle.try_describe_cluster_until(deadline))
     }
 
     pub(crate) fn submit_describe_cluster_with_options(

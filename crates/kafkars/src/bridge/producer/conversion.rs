@@ -29,6 +29,7 @@ pub(crate) fn validate_batch_records(
 pub(crate) fn into_engine_record(record: Record) -> EngineProducerRecord {
     let RecordTransferParts {
         topic,
+        expected_topic_uuid,
         partition,
         timestamp_milliseconds,
         key,
@@ -37,6 +38,10 @@ pub(crate) fn into_engine_record(record: Record) -> EngineProducerRecord {
         source_owner,
     } = record.into_transfer_parts();
     let record = EngineProducerRecord::to(topic);
+    let record = match expected_topic_uuid {
+        Some(topic_uuid) => record.expected_topic_uuid(topic_uuid.into_bytes()),
+        None => record,
+    };
     let record = match partition {
         Some(partition) => record.partition(partition),
         None => record,
@@ -63,8 +68,16 @@ pub(crate) fn into_engine_record(record: Record) -> EngineProducerRecord {
 }
 
 pub(crate) fn restore_rejected_record(record: EngineProducerRecord) -> Record {
-    let (topic, partition, timestamp_milliseconds, key, value, headers, source_owner) =
-        record.into_shared_parts();
+    let (
+        topic,
+        expected_topic_uuid,
+        partition,
+        timestamp_milliseconds,
+        key,
+        value,
+        headers,
+        source_owner,
+    ) = record.into_shared_parts();
     let headers = headers
         .into_iter()
         .map(|header| {
@@ -74,6 +87,7 @@ pub(crate) fn restore_rejected_record(record: EngineProducerRecord) -> Record {
         .collect();
     Record::from_transfer_parts(RecordTransferParts {
         topic,
+        expected_topic_uuid: expected_topic_uuid.and_then(crate::TopicUuid::try_from_bytes),
         partition,
         timestamp_milliseconds,
         key,

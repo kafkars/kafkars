@@ -15,6 +15,8 @@ use crate::producer::{ProducerHost, ProducerHostInvariantError};
 pub(crate) trait ProducerPartitionSource: TopicPartitionSource {
     /// Returns the validated broker currently leading one selected partition.
     fn leader_broker_id(&self, partition: PartitionIndex) -> Option<i32>;
+    /// Returns the exact broker-issued UUID in this immutable topic view.
+    fn kafka_topic_uuid(&self) -> Option<[u8; 16]>;
 }
 
 /// Exact waiting identity transferred to one driver topic-view lookup.
@@ -60,7 +62,9 @@ impl ProducerHost {
         if entry.id != id {
             return Err(self.poison(ProducerHostInvariantError::WaitingOwnership));
         }
-        if !entry.record.needs_partition() || entry.partitioning {
+        if (!entry.record.needs_partition() && !entry.record.needs_topic_uuid_validation())
+            || entry.partitioning
+        {
             return Ok(None);
         }
         let operation_id = entry.operation_id;
@@ -117,6 +121,30 @@ impl ProducerHost {
             return Ok(false);
         };
         self.correlate_partitioning(index, &request)?;
+        if self.waiting.entries[index]
+            .record
+            .needs_topic_uuid_validation()
+            && !self.waiting.entries[index]
+                .record
+                .validate_topic_uuid_at(source.kafka_topic_uuid(), source.generation())
+        {
+            self.settle_waiter(
+                request.waiter_id,
+                ProducerWaitingTerminal::TopicIdentityMismatch,
+            )?;
+            return Ok(true);
+        }
+        if !self.waiting.entries[index].record.needs_partition() {
+            let partition = self.waiting.entries[index]
+                .record
+                .selected_partition()
+                .ok_or_else(|| self.poison(ProducerHostInvariantError::WaitingOwnership))?;
+            self.waiting.entries[index]
+                .record
+                .update_partition_leader(source.leader_broker_id(partition));
+            self.waiting.entries[index].partitioning = false;
+            return Ok(true);
+        }
         let facts = TopicPartitionFacts::new(source);
         let key = self.waiting.entries[index].record.key_bytes().cloned();
         let selection = match key {
@@ -184,7 +212,7 @@ impl ProducerHost {
             && entry.topic_id == request.topic_id
             && entry.record.topic().as_ref() == request.topic.as_ref()
             && entry.partitioning
-            && entry.record.needs_partition()
+            && (entry.record.needs_partition() || entry.record.needs_topic_uuid_validation())
             && self.bindings.deadline(entry.operation_id) == Some(request.deadline);
         if correlated {
             Ok(())
@@ -205,6 +233,6 @@ impl super::model::ProducerWaitingStore {
         if entry.id != id {
             return Err(ProducerHostInvariantError::WaitingOwnership);
         }
-        Ok(entry.record.needs_partition())
+        Ok(entry.record.needs_partition() || entry.record.needs_topic_uuid_validation())
     }
 }

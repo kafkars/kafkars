@@ -14,6 +14,9 @@ use crate::security::Security;
 use crate::shutdown::Shutdown;
 use crate::transaction::TransactionalProducerBuilder;
 
+const CLUSTER_IDENTITY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+const MAX_EXPECTED_CLUSTER_ID_BYTES: usize = 1_024;
+
 mod configuration;
 #[cfg(test)]
 mod configuration_test;
@@ -23,6 +26,7 @@ mod configuration_test;
 pub struct ClientBuilder {
     bootstrap_servers: Vec<String>,
     client_id: Option<String>,
+    expected_cluster_id: Option<String>,
     security: Security,
     producer: ProducerConfig,
     assigned_consumer_read_isolation: Option<ReadIsolation>,
@@ -44,6 +48,18 @@ impl ClientBuilder {
     /// Sets the client identifier encoded in Kafka request headers.
     pub fn client_id(mut self, client_id: impl Into<String>) -> Self {
         self.client_id = Some(client_id.into());
+        self
+    }
+
+    /// Requires startup and every readiness probe to observe this exact cluster ID.
+    ///
+    /// Construction performs the first bounded `DescribeCluster` check before
+    /// returning a usable client and shuts the started engine down if that
+    /// proof fails. Later [`Client::ready`] calls repeat the point-in-time
+    /// check; this option does not continuously monitor broker identity.
+    #[must_use]
+    pub fn expected_cluster_id(mut self, cluster_id: impl Into<String>) -> Self {
+        self.expected_cluster_id = Some(cluster_id.into());
         self
     }
 
@@ -77,10 +93,35 @@ impl ClientBuilder {
 
     /// Validates local configuration and starts the default host.
     pub fn build(self) -> Result<Client, KafkaError> {
+        let identity_deadline = self.expected_cluster_id.as_ref().map(|_| {
+            cluster_identity_deadline_at(std::time::Instant::now()).ok_or_else(|| {
+                KafkaError::new(
+                    ErrorKind::Configuration,
+                    "cluster identity deadline cannot be represented",
+                )
+            })
+        });
+        let identity_deadline = identity_deadline.transpose()?;
         if self.bootstrap_servers.is_empty() {
             return Err(KafkaError::new(
                 ErrorKind::Configuration,
                 "at least one bootstrap server is required",
+            ));
+        }
+        if self.expected_cluster_id.as_deref() == Some("") {
+            return Err(KafkaError::new(
+                ErrorKind::Configuration,
+                "expected cluster ID must not be empty",
+            ));
+        }
+        if self
+            .expected_cluster_id
+            .as_ref()
+            .is_some_and(|cluster_id| cluster_id.len() > MAX_EXPECTED_CLUSTER_ID_BYTES)
+        {
+            return Err(KafkaError::new(
+                ErrorKind::Configuration,
+                "expected cluster ID exceeds the 1024-byte limit",
             ));
         }
 
@@ -92,6 +133,8 @@ impl ClientBuilder {
             self.assigned_consumer_read_isolation,
             self.assigned_consumer_fetch,
             self.assigned_consumer_limits,
+            self.expected_cluster_id,
+            identity_deadline,
         )?;
         Ok(Client { engine })
     }
@@ -114,15 +157,25 @@ impl Client {
         self.engine.client_id()
     }
 
+    /// Returns the exact broker-issued cluster ID required by this client.
+    pub fn expected_cluster_id(&self) -> Option<&str> {
+        self.engine.expected_cluster_id()
+    }
+
     /// Returns validated bootstrap endpoints.
     pub fn bootstrap_servers(&self) -> &[String] {
         self.engine.bootstrap_servers()
     }
 
     /// Probes broker readiness lazily through one bounded network operation.
-    /// The independent probe's deadline starts at this call boundary.
+    ///
+    /// The independent probe's deadline starts at this call boundary. When an
+    /// expected cluster ID is configured, success also proves that exact ID at
+    /// this point in time.
     pub fn ready(&self) -> Ready {
-        Ready::from_bridge(self.engine.ready())
+        let now = std::time::Instant::now();
+        let deadline = cluster_identity_deadline_at(now).unwrap_or(now);
+        Ready::from_bridge(self.engine.ready(deadline))
     }
 
     /// Requests one bounded operational metrics snapshot.
@@ -173,4 +226,10 @@ impl Client {
     pub fn shutdown(&self) -> Shutdown {
         self.engine.shutdown()
     }
+}
+
+pub(super) fn cluster_identity_deadline_at(
+    boundary: std::time::Instant,
+) -> Option<std::time::Instant> {
+    boundary.checked_add(CLUSTER_IDENTITY_TIMEOUT)
 }

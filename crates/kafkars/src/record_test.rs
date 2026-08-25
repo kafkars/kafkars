@@ -5,6 +5,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 
 use super::{Header, Record};
+use crate::TopicUuid;
 
 #[test]
 fn shared_topic_owner_crosses_record_construction_without_reallocation() {
@@ -40,4 +41,13 @@ fn header_is_nonnull_prebuilt_header_shorthand() {
     let prebuilt = Record::to("orders").with_header(Header::new("trace", value));
 
     assert_eq!(shorthand, prebuilt);
+}
+
+#[test]
+fn record_retains_nominal_expected_topic_uuid() {
+    let topic_uuid =
+        TopicUuid::try_from_bytes([7; 16]).unwrap_or_else(|| panic!("nonzero topic UUID"));
+    let record = Record::to("orders").expected_topic_uuid(topic_uuid);
+
+    assert_eq!(record.expected_topic_uuid_value(), Some(topic_uuid));
 }

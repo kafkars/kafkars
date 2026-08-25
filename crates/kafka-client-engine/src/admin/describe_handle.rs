@@ -1,11 +1,15 @@
 //! Runtime-neutral admission of concrete `DescribeCluster` work.
 
-use std::{fmt, time::Duration};
+use std::{
+    fmt,
+    time::{Duration, Instant},
+};
 
 use super::{
     AdminHandle, DescribeClusterAdmissionError, DescribeClusterAdmissionErrorKind,
     DescribeClusterHostError, DescribeClusterObserver,
 };
+use crate::clock::DeadlineCapture;
 
 impl AdminHandle {
     /// Attempts immediate bounded admission at one public call boundary.
@@ -14,6 +18,23 @@ impl AdminHandle {
         timeout: Duration,
     ) -> Result<DescribeClusterAccepted, DescribeClusterAdmissionError> {
         self.try_describe_cluster_with_options(false, false, timeout)
+    }
+
+    /// Attempts one cluster description under an already-captured deadline.
+    ///
+    /// This is a narrow cross-crate seam for a facade that owns the public
+    /// timing boundary. The ordinary duration API remains the supported
+    /// application-facing entry point.
+    #[doc(hidden)]
+    pub fn try_describe_cluster_until(
+        &self,
+        deadline: Instant,
+    ) -> Result<DescribeClusterAccepted, DescribeClusterAdmissionError> {
+        let capture = self
+            .clock
+            .capture_deadline_until(deadline)
+            .map_err(|_error| invalid_deadline())?;
+        self.try_describe_cluster_with_capture(false, false, capture)
     }
 
     /// Attempts one cluster description with explicit fenced-broker visibility.
@@ -35,15 +56,25 @@ impl AdminHandle {
         let capture = self
             .clock
             .capture_deadline_after(timeout)
-            .map_err(|_error| {
-                DescribeClusterAdmissionError::new(
-                    DescribeClusterAdmissionErrorKind::InvalidDeadline,
-                )
-            })?;
+            .map_err(|_error| invalid_deadline())?;
         if timeout.is_zero() {
-            return Err(DescribeClusterAdmissionError::new(
-                DescribeClusterAdmissionErrorKind::InvalidDeadline,
-            ));
+            return Err(invalid_deadline());
+        }
+        self.try_describe_cluster_with_capture(
+            include_fenced_brokers,
+            include_authorized_operations,
+            capture,
+        )
+    }
+
+    fn try_describe_cluster_with_capture(
+        &self,
+        include_fenced_brokers: bool,
+        include_authorized_operations: bool,
+        capture: DeadlineCapture,
+    ) -> Result<DescribeClusterAccepted, DescribeClusterAdmissionError> {
+        if capture.deadline().is_elapsed_at(capture.now()) {
+            return Err(invalid_deadline());
         }
         let admission = self
             .describe_cluster
@@ -59,6 +90,10 @@ impl AdminHandle {
             fault: admission.fault.map(accepted_fault_kind),
         })
     }
+}
+
+fn invalid_deadline() -> DescribeClusterAdmissionError {
+    DescribeClusterAdmissionError::new(DescribeClusterAdmissionErrorKind::InvalidDeadline)
 }
 
 pub(super) const fn accepted_fault_kind(

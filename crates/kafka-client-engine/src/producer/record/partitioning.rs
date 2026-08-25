@@ -35,6 +35,11 @@ impl ProducerRecord {
         self.leader_broker_id
     }
 
+    pub(in crate::producer) fn update_partition_leader(&mut self, leader_broker_id: Option<i32>) {
+        debug_assert!(self.partition.is_some());
+        self.leader_broker_id = leader_broker_id;
+    }
+
     pub(in crate::producer) const fn is_automatic_unkeyed(&self) -> bool {
         self.automatic_partition && self.key.is_none()
     }
@@ -42,6 +47,7 @@ impl ProducerRecord {
     pub(in crate::producer) fn into_public_parts(self) -> ProducerRecordParts {
         ProducerRecordParts {
             topic: self.topic,
+            expected_topic_uuid: self.expected_topic_uuid,
             partition: if self.automatic_partition {
                 None
             } else {

@@ -136,6 +136,7 @@ pub(super) fn record_from_shared_delivery_parts(
         .collect();
     Record::from_transfer_parts(RecordTransferParts {
         topic: target_topic,
+        expected_topic_uuid: None,
         partition: None,
         timestamp_milliseconds: timestamp,
         key,

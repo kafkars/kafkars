@@ -1,5 +1,7 @@
 //! Atomic transfer from the single prepared owner into one driver submission.
 
+mod identity;
+
 use std::{error::Error, fmt};
 
 use kafka_client_core::BatchExecutionId;

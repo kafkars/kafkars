@@ -10,13 +10,14 @@ use super::delivery::{
     delivery_status, failure_error, failure_kind, metadata_parts, translate_delivery_error,
     translate_delivery_result,
 };
-use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata, RetryAdvice};
+use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata, RetryAdvice, TopicUuid};
 
 #[test]
 fn future_delivery_bridge_surface_remains_type_checked() {
     let _ = translate_delivery_result
         as fn(
             std::sync::Arc<str>,
+            Option<TopicUuid>,
             i64,
             Option<usize>,
             Option<usize>,
@@ -84,6 +85,7 @@ fn terminal_failure_preserves_exact_delivery_status_and_broker_code() {
     assert_eq!(error.kind(), ErrorKind::Broker);
     assert_eq!(error.delivery_status(), Some(DeliveryStatus::PossiblySent));
     assert_eq!(error.broker_code(), Some(-123));
+    assert!(error.is_fatal());
 }
 
 #[test]
@@ -158,12 +160,21 @@ fn terminal_advice_is_fatal_or_permanent_only_from_exact_engine_facts() {
         assert!(!error.is_fatal(), "{kind:?}");
         assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry, "{kind:?}");
     }
+
+    let uncertain_unknown = failure_error(
+        EngineFailureKind::UnknownBroker,
+        EngineDeliveryStatus::PossiblySent,
+        Some(-123),
+    );
+    assert_eq!(uncertain_unknown.kind(), ErrorKind::Broker);
+    assert!(uncertain_unknown.is_fatal());
 }
 
 #[test]
 fn engine_metadata_preserves_facade_topic_and_acknowledgement_fields() {
     let result = metadata_parts(
         "orders".to_owned(),
+        None,
         7,
         4_294_967_296,
         Some(1_725_000_000_000),
@@ -186,7 +197,16 @@ fn engine_metadata_preserves_facade_topic_and_acknowledgement_fields() {
 
 #[test]
 fn out_of_range_engine_partition_is_an_internal_translation_failure() {
-    let result = metadata_parts("orders".to_owned(), u32::MAX, 0, None, None, None, Some(0));
+    let result = metadata_parts(
+        "orders".to_owned(),
+        None,
+        u32::MAX,
+        0,
+        None,
+        None,
+        None,
+        Some(0),
+    );
     let Err(error) = result else {
         panic!("unsigned partition outside Kafka's domain must fail")
     };

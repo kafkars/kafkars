@@ -8,7 +8,7 @@ mod partitioning;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use kafka_client_core::PartitionIndex;
+use kafka_client_core::{PartitionIndex, partitioning::TopicMetadataGeneration};
 
 use super::ProducerStoreError;
 use super::materialization::MaterializationRecord;
@@ -22,6 +22,9 @@ pub(in crate::producer) use header::{ProducerHeader, ProducerSourceOwner};
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ProducerRecord {
     topic: Arc<str>,
+    expected_topic_uuid: Option<[u8; 16]>,
+    validated_topic_uuid: Option<[u8; 16]>,
+    validated_topic_generation: Option<TopicMetadataGeneration>,
     partition: Option<PartitionIndex>,
     leader_broker_id: Option<i32>,
     automatic_partition: bool,
@@ -35,6 +38,7 @@ pub(crate) struct ProducerRecord {
 
 pub(super) struct ProducerRecordParts {
     pub(super) topic: Arc<str>,
+    pub(super) expected_topic_uuid: Option<[u8; 16]>,
     pub(super) partition: Option<PartitionIndex>,
     pub(super) timestamp_ms: i64,
     pub(super) defaulted_timestamp: bool,
@@ -55,6 +59,9 @@ impl ProducerRecord {
     ) -> Self {
         Self {
             topic,
+            expected_topic_uuid: None,
+            validated_topic_uuid: None,
+            validated_topic_generation: None,
             partition: Some(partition),
             leader_broker_id: None,
             automatic_partition: false,
@@ -71,6 +78,9 @@ impl ProducerRecord {
         let automatic_partition = parts.partition.is_none();
         Self {
             topic: parts.topic,
+            expected_topic_uuid: parts.expected_topic_uuid,
+            validated_topic_uuid: None,
+            validated_topic_generation: None,
             partition: parts.partition,
             leader_broker_id: None,
             automatic_partition,
@@ -108,6 +118,38 @@ impl ProducerRecord {
 
     pub(super) fn topic(&self) -> &Arc<str> {
         &self.topic
+    }
+
+    pub(super) const fn expected_topic_uuid(&self) -> Option<[u8; 16]> {
+        self.expected_topic_uuid
+    }
+
+    pub(in crate::producer) fn needs_topic_uuid_validation(&self) -> bool {
+        self.expected_topic_uuid.is_some() && self.expected_topic_uuid != self.validated_topic_uuid
+    }
+
+    pub(in crate::producer) fn validate_topic_uuid(&mut self, observed: Option<[u8; 16]>) -> bool {
+        if self.expected_topic_uuid.is_none() || self.expected_topic_uuid != observed {
+            return false;
+        }
+        self.validated_topic_uuid = observed;
+        true
+    }
+
+    pub(in crate::producer) fn validate_topic_uuid_at(
+        &mut self,
+        observed: Option<[u8; 16]>,
+        generation: TopicMetadataGeneration,
+    ) -> bool {
+        if !self.validate_topic_uuid(observed) {
+            return false;
+        }
+        self.validated_topic_generation = Some(generation);
+        true
+    }
+
+    pub(super) const fn validated_topic_generation(&self) -> Option<TopicMetadataGeneration> {
+        self.validated_topic_generation
     }
 
     pub(super) fn materialization_view(&self) -> MaterializationRecord {

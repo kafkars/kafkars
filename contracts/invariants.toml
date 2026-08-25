@@ -1503,6 +1503,24 @@ evidence = [
 ]
 
 [[invariant]]
+id = "IDN-01"
+title = "Expected cluster and ordinary topic identities fail closed"
+statement = "A configured expected cluster ID is a nonempty bounded client-lifetime requirement rather than a discovery hint. ClientBuilder::build captures one fixed absolute identity deadline at its public boundary, starts the engine, and returns a usable client only after one exact DescribeCluster result matches; any failed initial proof synchronously drives the shared engine shutdown before the original error returns. The exact expectation remains retained by the client, and every explicit Client::ready call captures an independent boundary deadline and repeats the exact check; no continuous identity monitoring between probes is claimed. A public nonzero TopicUuid may bind an ordinary Record's topic name. Both explicit and automatically partitioned bound records retain their existing terminal-completion, source-byte, cancellation, and original-deadline ownership in the waiting producer path until one immutable driver TopicView proves the exact UUID before promotion and route selection. A missing or different UUID settles fatal public Identity with authoritative NotSent certainty, and one producer lifetime rejects conflicting nonzero UUID expectations for the same name. Materialization carries the expected UUID and exact validated metadata generation beside the already bounded encoded Bytes. Whenever core authorizes a replacement execution, one singular engine owner retains those bytes, completion, and unchanged deadline while requesting a TopicView strictly newer than the most recently validated generation; Produce submission remains blocked until the same UUID is proven and the retained generation advances monotonically. A mismatch fails Identity, while unavailable or non-newer metadata cannot become proof. Successful RecordMetadata reports the UUID proven before its name-routed Produce attempt. Kafka Produce neither carries that UUID in the request nor returns it in the response, so this is point-in-time client evidence rather than an atomic broker binding: the deployment must prevent deletion and recreation of the topic name from the final validation through the terminal Produce result."
+status = "enforced"
+evidence = [
+  "crates/kafkars/src/client_test.rs::empty_expected_cluster_id_is_rejected_before_startup",
+  "crates/kafkars/src/client_test.rs::oversized_expected_cluster_id_is_rejected_before_startup",
+  "crates/kafkars/src/bridge/admin_describe_operation_test.rs::expected_cluster_identity_is_checked_for_wait_and_future",
+  "crates/kafkars/src/record_test.rs::record_retains_nominal_expected_topic_uuid",
+  "crates/kafkars/src/bridge/producer/handle_test.rs::expected_topic_uuid_crosses_and_returns_through_engine_conversion",
+  "crates/kafka-client-engine/src/producer/waiting/partitioning_identity_test.rs::explicit_expected_uuid_validates_before_waiting_promotion",
+  "crates/kafka-client-engine/src/producer/waiting/partitioning_identity_test.rs::expected_uuid_mismatch_is_fatal_and_definitely_unsent",
+  "crates/kafka-client-engine/src/producer/topic_catalog_test.rs::first_expected_uuid_binds_the_name_for_the_producer_lifetime",
+  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::replacement_submission_requires_newer_metadata_for_expected_uuid",
+  "crates/kafkars/src/producer/metadata_test.rs::receipt_retains_the_topic_uuid_proven_before_produce",
+]
+
+[[invariant]]
 id = "MAT-01"
 title = "Materialization retains canonical records without changing semantics"
 statement = "Materialization preserves record order and nullable fields, creates a separately bounded encoded representation from shared canonical record handles, delegates every codec, RecordBatch layout, and CRC to kafka-wire-records, and retains canonical or worker-reserved accounting until ordered core release effects execute. Producer and transactional views reuse the exact shared validated header-name allocation, preserve ordered duplicates and nullable values, and do not recreate a per-record name owner."

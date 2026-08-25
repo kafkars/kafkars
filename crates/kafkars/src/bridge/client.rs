@@ -1,38 +1,43 @@
 //! Facade-owned engine lifetime and private child-handle construction.
 
+mod configuration;
+mod identity;
 pub(crate) mod metrics;
 mod share_consumer;
 
-use kafka_client_engine::{
-    Engine, EngineConfig, EngineProducerLimits, EngineSasl, EngineSecurity, EngineStartErrorKind,
-    EngineTls, GroupConsumerStartCapture, ProducerCompression as EngineCompression,
-};
+use std::sync::Arc;
+
+use kafka_client_engine::{Engine, EngineConfig, EngineStartErrorKind, GroupConsumerStartCapture};
 
 use crate::consumer::{
     ClassicGroupAssignor, ClassicGroupConfig, ConsumerFetchConfig, ConsumerGroupProtocol,
     ConsumerLimits, GroupConsumerOperationConfig, OffsetReset, ReadIsolation,
 };
 use crate::error::{ErrorKind, KafkaError};
-use crate::producer::{Compression, ProducerConfig, ProducerLimits};
-use crate::security::{Sasl, SaslMechanism, Security};
+use crate::producer::ProducerConfig;
+use crate::security::Security;
 use crate::shutdown::Shutdown;
 
 use super::consumer_configuration::{
     engine_consumer_fetch, engine_consumer_limits, engine_read_isolation,
 };
+pub(super) use configuration::engine_security;
+use configuration::{engine_compression, engine_producer_limits};
 
 /// Facade-owned handle that hides engine types from public modules.
 #[derive(Debug, Clone)]
 pub(crate) struct ClientEngine {
     inner: Engine,
     shutdown: super::client_shutdown::ClientShutdownOwner,
+    expected_cluster_id: Option<Arc<str>>,
 }
 
 impl ClientEngine {
     /// Starts the engine from facade-owned configuration values.
     #[expect(
         clippy::needless_pass_by_value,
-        reason = "the consuming client-builder boundary transfers its exact security owner"
+        clippy::too_many_arguments,
+        reason = "the consuming builder transfers every explicit policy and its exact security owner"
     )]
     pub(crate) fn start_with_consumer_fetch(
         bootstrap_servers: Vec<String>,
@@ -42,6 +47,8 @@ impl ClientEngine {
         assigned_consumer_read_isolation: Option<ReadIsolation>,
         assigned_consumer_fetch: ConsumerFetchConfig,
         assigned_consumer_limits: ConsumerLimits,
+        expected_cluster_id: Option<String>,
+        identity_deadline: Option<std::time::Instant>,
     ) -> Result<Self, KafkaError> {
         let (delivery_timeout, compression, retry, producer_limits) = producer.into_parts();
         let config = EngineConfig::new(bootstrap_servers)
@@ -72,7 +79,12 @@ impl ClientEngine {
             KafkaError::new(kind, error.to_string())
         })?;
         let shutdown = super::client_shutdown::ClientShutdownOwner::try_new(inner.clone())?;
-        Ok(Self { inner, shutdown })
+        let client = Self {
+            inner,
+            shutdown,
+            expected_cluster_id: expected_cluster_id.map(Arc::from),
+        };
+        identity::verify_startup(client, identity_deadline)
     }
 
     /// Returns the validated logical bootstrap endpoints.
@@ -102,12 +114,6 @@ impl ClientEngine {
     /// Returns an admin bridge with the engine-owned default timeout.
     pub(crate) fn admin(&self) -> super::admin::AdminEngine {
         super::admin::AdminEngine::new(self.inner.admin(), self.inner.config().admin_timeout())
-    }
-
-    /// Immediately admits one bounded point-in-time readiness probe.
-    pub(crate) fn ready(&self) -> super::admin_describe_operation::AdminDescribeCluster {
-        self.admin()
-            .submit_describe_cluster(self.inner.config().admin_timeout())
     }
 
     /// Starts or observes the one clone-shared terminal engine shutdown.
@@ -176,67 +182,5 @@ impl ClientEngine {
             fetch,
             limits,
         )
-    }
-}
-
-pub(super) fn engine_security(security: &Security) -> EngineSecurity {
-    match security {
-        Security::Plaintext => EngineSecurity::plaintext(),
-        Security::Tls(tls) => EngineSecurity::tls(engine_tls(tls)),
-        Security::SaslPlaintext(sasl) => EngineSecurity::sasl_plaintext(engine_sasl(sasl)),
-        Security::SaslTls { tls, sasl } => {
-            EngineSecurity::sasl_tls(engine_tls(tls), engine_sasl(sasl))
-        }
-    }
-}
-
-fn engine_tls(tls: &crate::Tls) -> EngineTls {
-    tls.custom_roots_pem_bytes()
-        .map_or_else(EngineTls::system_roots, |pem| {
-            EngineTls::custom_roots_pem(pem.to_vec())
-        })
-}
-
-fn engine_sasl(sasl: &Sasl) -> EngineSasl {
-    let (username, password) = sasl.credentials();
-    match sasl.mechanism() {
-        SaslMechanism::Plain => EngineSasl::plain(username, password),
-        SaslMechanism::ScramSha256 => EngineSasl::scram_sha_256(username, password),
-        SaslMechanism::ScramSha512 => EngineSasl::scram_sha_512(username, password),
-    }
-}
-
-fn engine_producer_limits(limits: ProducerLimits) -> EngineProducerLimits {
-    let (
-        retained,
-        active,
-        waiting,
-        waiting_bytes,
-        batch,
-        batch_bytes,
-        request_bytes,
-        max_in_flight_requests_per_broker,
-        linger,
-    ) = limits.into_parts();
-    EngineProducerLimits::new(
-        retained,
-        active,
-        waiting,
-        waiting_bytes,
-        batch,
-        batch_bytes,
-        linger,
-    )
-    .with_request_bytes(request_bytes)
-    .with_max_in_flight_requests_per_broker(max_in_flight_requests_per_broker)
-}
-
-const fn engine_compression(compression: Compression) -> EngineCompression {
-    match compression {
-        Compression::None => EngineCompression::None,
-        Compression::Gzip => EngineCompression::Gzip,
-        Compression::Snappy => EngineCompression::Snappy,
-        Compression::Lz4 => EngineCompression::Lz4,
-        Compression::Zstd => EngineCompression::Zstd,
     }
 }

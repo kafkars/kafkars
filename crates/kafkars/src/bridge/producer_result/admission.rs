@@ -92,6 +92,7 @@ pub(super) fn admission_error(kind: EngineTrySendErrorKind, detail: Option<&str>
         | EngineTrySendErrorKind::AccumulatorPending => error.with_safe_retry(),
         EngineTrySendErrorKind::TimestampUnrepresentable
         | EngineTrySendErrorKind::LocalIdentityExhausted
+        | EngineTrySendErrorKind::TopicIdentityConflict
         | EngineTrySendErrorKind::HostPoisoned
         | EngineTrySendErrorKind::InternalInvariant => error.with_fatal_disposition(),
         EngineTrySendErrorKind::EmptyTopic
@@ -119,6 +120,7 @@ pub(super) const fn admission_kind(kind: EngineTrySendErrorKind) -> ErrorKind {
         | EngineTrySendErrorKind::BatchCapacity
         | EngineTrySendErrorKind::AccumulatorPending => ErrorKind::Backpressure,
         EngineTrySendErrorKind::Closed => ErrorKind::State,
+        EngineTrySendErrorKind::TopicIdentityConflict => ErrorKind::Identity,
         EngineTrySendErrorKind::TimestampUnrepresentable
         | EngineTrySendErrorKind::LocalIdentityExhausted
         | EngineTrySendErrorKind::HostPoisoned
@@ -156,6 +158,9 @@ const fn admission_message(kind: EngineTrySendErrorKind) -> &'static str {
         EngineTrySendErrorKind::Closed => "producer admission is closed",
         EngineTrySendErrorKind::LocalIdentityExhausted => {
             "producer local identity space is exhausted"
+        }
+        EngineTrySendErrorKind::TopicIdentityConflict => {
+            "producer topic UUID conflicts with its retained topic identity"
         }
         EngineTrySendErrorKind::HostPoisoned => "producer host is unavailable",
         EngineTrySendErrorKind::InternalInvariant => {

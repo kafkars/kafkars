@@ -104,10 +104,11 @@ impl ProducerHandle {
         record: ProducerRecord,
     ) -> Result<ProducerTrySendAccepted, ProducerTrySendError> {
         let explicit = record.explicit_partition().is_some();
-        let prepared = if explicit {
-            prepare_explicit(capture, record)
-        } else {
+        let waiting = !explicit || record.expected_topic_uuid_value().is_some();
+        let prepared = if waiting {
             prepare_waiting(capture, record)
+        } else {
+            prepare_explicit(capture, record)
         }?;
         let (_boundary_at, deadline, stored) = prepared.into_parts();
         let attempted_at = match self.clock.now() {
@@ -119,10 +120,10 @@ impl ProducerHandle {
                 ));
             }
         };
-        let admission = if explicit {
-            self.port.try_admit_explicit(attempted_at, deadline, stored)
-        } else {
+        let admission = if waiting {
             self.port.try_admit_waiting(attempted_at, deadline, stored)
+        } else {
+            self.port.try_admit_explicit(attempted_at, deadline, stored)
         };
         match admission {
             Ok(accepted) => Ok(ProducerTrySendAccepted::from_port(accepted)),

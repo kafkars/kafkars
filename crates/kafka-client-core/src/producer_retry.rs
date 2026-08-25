@@ -17,6 +17,8 @@ pub enum ProducerAttemptFailureKind {
     Compatibility,
     /// Kafka returned a response that could not be correlated as valid success.
     InvalidResponse,
+    /// Broker-issued topic identity did not match the caller expectation.
+    Identity,
     /// Retrying cannot repair the structural failure or is not yet supported.
     Permanent,
 }

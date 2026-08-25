@@ -4,6 +4,8 @@ mod admission;
 pub(super) mod model;
 mod partitioning;
 #[cfg(test)]
+mod partitioning_identity_test;
+#[cfg(test)]
 mod partitioning_recovery_test;
 #[cfg(test)]
 mod partitioning_test;

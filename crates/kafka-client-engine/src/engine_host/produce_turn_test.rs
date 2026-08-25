@@ -30,6 +30,7 @@ fn matching_retained_partition_lookup_blocks_produce_until_it_settles() {
     let (producer, observer) = super::produce_test::prepared_producer();
     let mut driver = driver();
     let mut calls = TrackedProduceCalls::new(1);
+    let mut retry_identity = None;
     let mut data = producer
         .try_data()
         .unwrap_or_else(|error| panic!("lock prepared producer: {error:?}"));
@@ -41,6 +42,7 @@ fn matching_retained_partition_lookup_blocks_produce_until_it_settles() {
         !admit_after_partitioning(
             &driver,
             &mut calls,
+            &mut retry_identity,
             &mut data,
             Moment::from_tick(2),
             Some(exact_deadline),
@@ -54,6 +56,7 @@ fn matching_retained_partition_lookup_blocks_produce_until_it_settles() {
         !admit_after_partitioning(
             &driver,
             &mut calls,
+            &mut retry_identity,
             &mut data,
             Moment::from_tick(3),
             Some(exact_deadline),
@@ -63,8 +66,15 @@ fn matching_retained_partition_lookup_blocks_produce_until_it_settles() {
     assert_eq!(calls.retained_count(), 0);
 
     assert!(
-        admit_after_partitioning(&driver, &mut calls, &mut data, Moment::from_tick(4), None,)
-            .unwrap_or_else(|error| panic!("admit after lookup settlement: {error}"))
+        admit_after_partitioning(
+            &driver,
+            &mut calls,
+            &mut retry_identity,
+            &mut data,
+            Moment::from_tick(4),
+            None,
+        )
+        .unwrap_or_else(|error| panic!("admit after lookup settlement: {error}"))
     );
     assert_eq!(calls.retained_count(), 1);
     drop((data, observer, calls));
@@ -78,6 +88,7 @@ fn different_deadline_partition_lookup_does_not_block_ready_produce() {
     let (producer, observer) = super::produce_test::prepared_producer();
     let mut driver = driver();
     let mut calls = TrackedProduceCalls::new(1);
+    let mut retry_identity = None;
     let mut data = producer
         .try_data()
         .unwrap_or_else(|error| panic!("lock prepared producer: {error:?}"));
@@ -92,6 +103,7 @@ fn different_deadline_partition_lookup_does_not_block_ready_produce() {
         admit_after_partitioning(
             &driver,
             &mut calls,
+            &mut retry_identity,
             &mut data,
             Moment::from_tick(2),
             Some(unrelated_deadline),
@@ -137,11 +149,13 @@ fn completion_polling_waits_without_consuming_when_the_shard_is_contended() {
 
     let mut identity_calls = crate::driver::TrackedProducerIdentityCalls::new();
     let mut partitioning_call = None;
+    let mut retry_identity_call = None;
     let progress = apply_completions(
         &driver,
         &producer,
         &mut identity_calls,
         &mut partitioning_call,
+        &mut retry_identity_call,
         &mut calls,
         Moment::from_tick(1),
     )
@@ -166,12 +180,19 @@ fn terminal_fact_is_applied_before_the_tracked_slot_is_released() {
     let (producer, observer) = super::produce_test::prepared_producer();
     let mut driver = driver();
     let mut calls = TrackedProduceCalls::new(1);
+    let mut retry_identity = None;
     {
         let mut data = producer
             .try_data()
             .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
-        admit_one(&driver, &mut calls, &mut data, Moment::from_tick(2))
-            .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"));
+        admit_one(
+            &driver,
+            &mut calls,
+            &mut retry_identity,
+            &mut data,
+            Moment::from_tick(2),
+        )
+        .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"));
     }
 
     let mut settled = false;

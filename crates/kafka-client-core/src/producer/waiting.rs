@@ -76,6 +76,8 @@ pub enum ProducerWaitingTerminal {
         /// Exact signed broker code when metadata supplied one.
         broker_code: Option<i16>,
     },
+    /// The broker-issued topic UUID did not match the caller's expectation.
+    TopicIdentityMismatch,
 }
 
 /// Sole deterministic owner of waiting order, deadlines, count, and bytes.

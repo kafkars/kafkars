@@ -74,6 +74,7 @@ fn source_owned_record(value: &'static str, dropped: Arc<AtomicBool>) -> Record 
     let source_owner: Arc<dyn Send + Sync> = Arc::new(DropSentinel(dropped));
     Record::from_transfer_parts(RecordTransferParts {
         topic: Arc::from("orders"),
+        expected_topic_uuid: None,
         partition: Some(2),
         timestamp_milliseconds: None,
         key: None,

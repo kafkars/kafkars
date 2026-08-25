@@ -19,6 +19,7 @@ pub use header::ProducerHeader;
 #[derive(Debug, Eq, PartialEq)]
 pub struct ProducerRecord {
     pub(super) topic: Arc<str>,
+    pub(super) expected_topic_uuid: Option<[u8; 16]>,
     pub(super) partition: Option<i32>,
     pub(super) timestamp_ms: Option<i64>,
     pub(super) key: Option<Bytes>,
@@ -32,6 +33,7 @@ impl ProducerRecord {
     pub fn to(topic: impl Into<Arc<str>>) -> Self {
         Self {
             topic: topic.into(),
+            expected_topic_uuid: None,
             partition: None,
             timestamp_ms: None,
             key: None,
@@ -44,6 +46,12 @@ impl ProducerRecord {
     /// Selects an explicit zero-based partition.
     pub const fn partition(mut self, partition: i32) -> Self {
         self.partition = Some(partition);
+        self
+    }
+
+    /// Requires the named topic to retain this exact broker-issued UUID.
+    pub const fn expected_topic_uuid(mut self, topic_uuid: [u8; 16]) -> Self {
+        self.expected_topic_uuid = Some(topic_uuid);
         self
     }
 
@@ -79,6 +87,11 @@ impl ProducerRecord {
     /// Returns the explicit partition, when supplied.
     pub const fn explicit_partition(&self) -> Option<i32> {
         self.partition
+    }
+
+    /// Returns the required broker-issued topic UUID, when supplied.
+    pub const fn expected_topic_uuid_value(&self) -> Option<[u8; 16]> {
+        self.expected_topic_uuid
     }
 
     /// Returns the caller-supplied timestamp, when supplied.
@@ -118,6 +131,7 @@ impl ProducerRecord {
         self,
     ) -> (
         Arc<str>,
+        Option<[u8; 16]>,
         Option<i32>,
         Option<i64>,
         Option<Bytes>,
@@ -127,6 +141,7 @@ impl ProducerRecord {
     ) {
         (
             self.topic,
+            self.expected_topic_uuid,
             self.partition,
             self.timestamp_ms,
             self.key,
@@ -155,6 +170,7 @@ impl ProducerRecord {
             .collect();
         StoredProducerRecord::from_public(ProducerRecordParts {
             topic: self.topic,
+            expected_topic_uuid: self.expected_topic_uuid,
             partition,
             timestamp_ms,
             defaulted_timestamp,
@@ -168,6 +184,7 @@ impl ProducerRecord {
     pub(super) fn from_stored(record: StoredProducerRecord) -> Self {
         let ProducerRecordParts {
             topic,
+            expected_topic_uuid,
             partition,
             timestamp_ms,
             defaulted_timestamp,
@@ -182,6 +199,7 @@ impl ProducerRecord {
             .collect();
         Self {
             topic,
+            expected_topic_uuid,
             partition: partition.and_then(|partition| i32::try_from(partition.get()).ok()),
             timestamp_ms: (!defaulted_timestamp).then_some(timestamp_ms),
             key,

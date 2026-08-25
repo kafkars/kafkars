@@ -4,12 +4,15 @@
 //! disposable view adds only bounded `Vec` and shared-handle control metadata;
 //! encoded `RecordBatch` bytes are charged separately by prepared execution.
 
+mod batch;
+mod transactional_batch;
+
 use std::sync::Arc;
 
 use bytes::Bytes;
 use kafka_client_core::{
     ProducerIdentity, ProducerSequenceLease, TransactionSequenceLease,
-    TransactionalProducerIdentity,
+    TransactionalProducerIdentity, partitioning::TopicMetadataGeneration,
 };
 
 /// One header transferred from engine retention to protocol materialization.
@@ -84,6 +87,8 @@ impl MaterializationRecord {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct MaterializationBatch {
     topic: Arc<str>,
+    expected_topic_uuid: Option<[u8; 16]>,
+    validated_topic_generation: Option<TopicMetadataGeneration>,
     partition: i32,
     leader_broker_id: Option<i32>,
     records: Vec<MaterializationRecord>,
@@ -102,151 +107,4 @@ pub(crate) struct TransactionalMaterializationBatch {
     max_batch_bytes: usize,
     identity: TransactionalProducerIdentity,
     sequence: TransactionSequenceLease,
-}
-
-impl TransactionalMaterializationBatch {
-    pub(crate) fn new(
-        topic: impl Into<Arc<str>>,
-        partition: i32,
-        records: Vec<MaterializationRecord>,
-        max_batch_bytes: usize,
-        identity: TransactionalProducerIdentity,
-        sequence: TransactionSequenceLease,
-    ) -> Self {
-        Self {
-            topic: topic.into(),
-            partition,
-            records,
-            max_batch_bytes,
-            identity,
-            sequence,
-        }
-    }
-
-    /// Borrows the exact name used by partition enrollment and Produce routing.
-    pub(crate) fn topic(&self) -> &Arc<str> {
-        &self.topic
-    }
-
-    /// Returns the exact partition used by enrollment, sequencing, and Produce.
-    pub(crate) const fn partition(&self) -> i32 {
-        self.partition
-    }
-
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        Arc<str>,
-        i32,
-        Vec<MaterializationRecord>,
-        usize,
-        TransactionalProducerIdentity,
-        TransactionSequenceLease,
-    ) {
-        (
-            self.topic,
-            self.partition,
-            self.records,
-            self.max_batch_bytes,
-            self.identity,
-            self.sequence,
-        )
-    }
-
-    pub(crate) const fn identity(&self) -> TransactionalProducerIdentity {
-        self.identity
-    }
-}
-
-impl MaterializationBatch {
-    #[cfg(test)]
-    pub(crate) fn try_for_test(
-        topic: impl Into<Arc<str>>,
-        partition: i32,
-        records: Vec<MaterializationRecord>,
-        max_batch_bytes: usize,
-    ) -> Option<Self> {
-        let identity = ProducerIdentity::try_new(1, 0)?;
-        let count = u32::try_from(records.len().max(1)).ok()?;
-        let sequence = ProducerSequenceLease::try_new(0, count)?;
-        Some(Self::idempotent(
-            topic,
-            partition,
-            None,
-            records,
-            max_batch_bytes,
-            max_batch_bytes,
-            identity,
-            sequence,
-        ))
-    }
-
-    #[allow(
-        clippy::too_many_arguments,
-        reason = "construction names the exact record bytes, byte limits, identity, and sequence authorities"
-    )]
-    pub(crate) fn idempotent(
-        topic: impl Into<Arc<str>>,
-        partition: i32,
-        leader_broker_id: Option<i32>,
-        records: Vec<MaterializationRecord>,
-        max_batch_bytes: usize,
-        source_retained_bytes: usize,
-        identity: ProducerIdentity,
-        sequence: ProducerSequenceLease,
-    ) -> Self {
-        Self {
-            topic: topic.into(),
-            partition,
-            leader_broker_id,
-            records,
-            max_batch_bytes,
-            source_retained_bytes,
-            identity,
-            sequence,
-        }
-    }
-
-    /// Consumes the batch into the existing protocol materializer's fields.
-    pub(crate) fn into_idempotent_parts(
-        self,
-    ) -> (
-        Arc<str>,
-        i32,
-        Option<i32>,
-        Vec<MaterializationRecord>,
-        usize,
-        ProducerIdentity,
-        ProducerSequenceLease,
-    ) {
-        (
-            self.topic,
-            self.partition,
-            self.leader_broker_id,
-            self.records,
-            self.max_batch_bytes,
-            self.identity,
-            self.sequence,
-        )
-    }
-
-    /// Returns the canonical source bytes fenced while a worker owns shared views.
-    pub(crate) const fn source_retained_bytes(&self) -> usize {
-        self.source_retained_bytes
-    }
-
-    /// Returns the maximum encoded output retained by this exact job.
-    pub(crate) const fn max_batch_bytes(&self) -> usize {
-        self.max_batch_bytes
-    }
-
-    #[cfg(test)]
-    pub(crate) fn into_parts(self) -> (Arc<str>, i32, Vec<MaterializationRecord>, usize) {
-        (
-            self.topic,
-            self.partition,
-            self.records,
-            self.max_batch_bytes,
-        )
-    }
 }

@@ -1,11 +1,25 @@
 //! Tests for facade-owned client construction and configuration views.
 
-use std::{future::Future, time::Duration};
+use std::{
+    future::Future,
+    time::{Duration, Instant},
+};
 
+use crate::client::cluster_identity_deadline_at;
 use crate::{
     Client, Compression, ConsumerFetchConfig, ConsumerLimits, DeliveryStatus, ErrorKind,
     KafkaError, ProducerLimits, ReadIsolation, Ready,
 };
+
+#[test]
+fn cluster_identity_deadline_starts_at_the_public_client_boundary() {
+    let boundary = Instant::now();
+    let expected = boundary
+        .checked_add(Duration::from_secs(30))
+        .unwrap_or_else(|| panic!("short cluster identity deadline should be representable"));
+
+    assert_eq!(cluster_identity_deadline_at(boundary), Some(expected));
+}
 
 #[test]
 fn readiness_is_a_named_send_future_without_an_async_runtime() {
@@ -137,6 +151,32 @@ fn empty_bootstrap_set_is_rejected_in_the_facade() {
     let result = Client::builder().build();
     let Err(error) = result else {
         panic!("an empty bootstrap set should be rejected");
+    };
+
+    assert_eq!(error.kind(), ErrorKind::Configuration);
+}
+
+#[test]
+fn empty_expected_cluster_id_is_rejected_before_startup() {
+    let result = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .expected_cluster_id("")
+        .build();
+    let Err(error) = result else {
+        panic!("empty broker-issued cluster identity must reject");
+    };
+
+    assert_eq!(error.kind(), ErrorKind::Configuration);
+}
+
+#[test]
+fn oversized_expected_cluster_id_is_rejected_before_startup() {
+    let result = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .expected_cluster_id("x".repeat(1_025))
+        .build();
+    let Err(error) = result else {
+        panic!("oversized broker-issued cluster identity must reject");
     };
 
     assert_eq!(error.kind(), ErrorKind::Configuration);

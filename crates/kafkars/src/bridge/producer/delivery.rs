@@ -11,7 +11,7 @@ use std::{
 use kafka_client_engine::ProducerDeliveryObserver as EngineDeliveryObserver;
 
 use crate::{
-    CancellationOutcome, ErrorKind, KafkaError, RecordMetadata,
+    CancellationOutcome, ErrorKind, KafkaError, RecordMetadata, TopicUuid,
     bridge::producer_result::{
         cancellation::{
             translate_cancellation_error, translate_cancellation_fault,
@@ -25,6 +25,7 @@ use crate::{
 #[must_use = "dropping abandons observation without cancelling accepted producer work"]
 pub(crate) struct ProducerDelivery {
     topic: Option<Arc<str>>,
+    topic_uuid: Option<TopicUuid>,
     create_timestamp: i64,
     serialized_key_size: Option<usize>,
     serialized_value_size: Option<usize>,
@@ -44,6 +45,7 @@ pub(crate) struct ProducerDelivery {
 impl ProducerDelivery {
     pub(crate) const fn new(
         topic: Arc<str>,
+        topic_uuid: Option<TopicUuid>,
         create_timestamp: i64,
         serialized_key_size: Option<usize>,
         serialized_value_size: Option<usize>,
@@ -52,6 +54,7 @@ impl ProducerDelivery {
     ) -> Self {
         Self {
             topic: Some(topic),
+            topic_uuid,
             create_timestamp,
             serialized_key_size,
             serialized_value_size,
@@ -79,6 +82,7 @@ impl ProducerDelivery {
         };
         translate_delivery_result(
             topic,
+            self.topic_uuid,
             self.create_timestamp,
             self.serialized_key_size,
             self.serialized_value_size,
@@ -97,6 +101,7 @@ impl Future for ProducerDelivery {
             Poll::Ready(result) => match this.topic.take() {
                 Some(topic) => Poll::Ready(translate_delivery_result(
                     topic,
+                    this.topic_uuid,
                     this.create_timestamp,
                     this.serialized_key_size,
                     this.serialized_value_size,
@@ -117,6 +122,7 @@ impl fmt::Debug for ProducerDelivery {
         formatter
             .debug_struct("ProducerDelivery")
             .field("topic", &self.topic)
+            .field("topic_uuid", &self.topic_uuid)
             .field("create_timestamp", &self.create_timestamp)
             .field("serialized_key_size", &self.serialized_key_size)
             .field("serialized_value_size", &self.serialized_value_size)

@@ -9,10 +9,11 @@ use kafka_client_engine::{
     ProducerObserverError as EngineObserverError, ProducerRecordMetadata as EngineRecordMetadata,
 };
 
-use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata};
+use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata, TopicUuid};
 
 pub(crate) fn translate_delivery_result(
     topic: Arc<str>,
+    topic_uuid: Option<TopicUuid>,
     create_timestamp: i64,
     serialized_key_size: Option<usize>,
     serialized_value_size: Option<usize>,
@@ -21,6 +22,7 @@ pub(crate) fn translate_delivery_result(
     match result {
         Ok(metadata) => translate_metadata(
             topic,
+            topic_uuid,
             create_timestamp,
             serialized_key_size,
             serialized_value_size,
@@ -70,7 +72,12 @@ fn terminal_disposition(
             EngineDeliveryStatus::NotSent => error.with_safe_retry(),
             EngineDeliveryStatus::PossiblySent => error.with_duplicate_risk(),
         },
+        EngineFailureKind::UnknownBroker => match status {
+            EngineDeliveryStatus::NotSent => error,
+            EngineDeliveryStatus::PossiblySent => error.with_fatal_disposition(),
+        },
         EngineFailureKind::ProducerFenced
+        | EngineFailureKind::Identity
         | EngineFailureKind::ProducerIdentity
         | EngineFailureKind::InvalidResponse
         | EngineFailureKind::ExecutionUnavailable => error.with_fatal_disposition(),
@@ -80,8 +87,7 @@ fn terminal_disposition(
         | EngineFailureKind::InvalidRecord
         | EngineFailureKind::Compatibility
         | EngineFailureKind::Transport
-        | EngineFailureKind::DeadlineElapsed
-        | EngineFailureKind::UnknownBroker => error,
+        | EngineFailureKind::DeadlineElapsed => error,
     }
 }
 
@@ -93,6 +99,7 @@ pub(super) const fn failure_kind(kind: EngineFailureKind) -> ErrorKind {
             ErrorKind::Internal
         }
         EngineFailureKind::Routing => ErrorKind::Routing,
+        EngineFailureKind::Identity => ErrorKind::Identity,
         EngineFailureKind::BrokerRetriable
         | EngineFailureKind::InvalidResponse
         | EngineFailureKind::UnknownBroker => ErrorKind::Broker,
@@ -114,6 +121,7 @@ const fn failure_message(kind: EngineFailureKind) -> &'static str {
         EngineFailureKind::DriverRejected => "driver rejected producer delivery",
         EngineFailureKind::MaterializationFailed => "producer record batch materialization failed",
         EngineFailureKind::Routing => "producer route is no longer valid",
+        EngineFailureKind::Identity => "broker topic UUID does not match the producer expectation",
         EngineFailureKind::BrokerRetriable => "Kafka returned a retryable producer failure",
         EngineFailureKind::AccessRejected => "Kafka rejected producer access",
         EngineFailureKind::InvalidRecord => "Kafka rejected producer record content",
@@ -145,6 +153,7 @@ fn translate_observer_error(error: EngineObserverError) -> KafkaError {
 
 fn translate_metadata(
     topic: Arc<str>,
+    topic_uuid: Option<TopicUuid>,
     create_timestamp: i64,
     serialized_key_size: Option<usize>,
     serialized_value_size: Option<usize>,
@@ -152,6 +161,7 @@ fn translate_metadata(
 ) -> Result<RecordMetadata, KafkaError> {
     metadata_parts(
         topic,
+        topic_uuid,
         metadata.partition(),
         metadata.offset(),
         metadata.append_timestamp().or(Some(create_timestamp)),
@@ -161,8 +171,13 @@ fn translate_metadata(
     )
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the lossless translation boundary names every broker and serialized-record fact"
+)]
 pub(super) fn metadata_parts(
     topic: impl Into<Arc<str>>,
+    topic_uuid: Option<TopicUuid>,
     partition: u32,
     offset: i64,
     append_timestamp: Option<i64>,
@@ -176,8 +191,9 @@ pub(super) fn metadata_parts(
             "engine returned a producer partition outside Kafka's signed range",
         ));
     };
-    Ok(RecordMetadata::from_parts(
+    Ok(RecordMetadata::from_parts_with_topic_uuid(
         topic,
+        topic_uuid,
         partition,
         offset,
         append_timestamp,

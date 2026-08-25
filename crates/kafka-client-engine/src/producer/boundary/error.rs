@@ -42,6 +42,8 @@ pub enum ProducerTrySendErrorKind {
     Closed,
     /// A bounded monotonic identity domain is exhausted.
     LocalIdentityExhausted,
+    /// The topic name is already bound to a different expected broker UUID.
+    TopicIdentityConflict,
     /// The producer shard has stopped after an internal invariant failure.
     HostPoisoned,
     /// A non-semantic engine mechanism violated its internal contract.
@@ -193,6 +195,9 @@ fn map_host_rejection(reason: ProducerRejectionReason) -> ProducerTrySendErrorKi
             ProducerStoreError::PayloadIdentityExhausted
             | ProducerStoreError::TopicIdentityExhausted,
         ) => ProducerTrySendErrorKind::LocalIdentityExhausted,
+        ProducerRejectionReason::Store(ProducerStoreError::TopicIdentityMismatch) => {
+            ProducerTrySendErrorKind::TopicIdentityConflict
+        }
         ProducerRejectionReason::Completion(_)
         | ProducerRejectionReason::Store(_)
         | ProducerRejectionReason::Core(_) => ProducerTrySendErrorKind::InternalInvariant,

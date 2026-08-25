@@ -140,6 +140,7 @@ fn commit_releases_source_owner_only_after_retained_bytes_are_charged() {
     let reservation = records
         .reserve(ProducerRecord::from_public(ProducerRecordParts {
             topic: Arc::from("orders"),
+            expected_topic_uuid: None,
             partition: Some(PartitionIndex::from_raw(0)),
             timestamp_ms: 10,
             defaulted_timestamp: false,

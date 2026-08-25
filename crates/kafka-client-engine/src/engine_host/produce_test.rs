@@ -59,13 +59,20 @@ fn accepted_call_is_retained_before_core_reports_submitted() {
     let (producer, observer) = prepared_producer();
     let mut driver = driver();
     let mut calls = TrackedProduceCalls::new(1);
+    let mut retry_identity = None;
     {
         let mut data = producer
             .try_data()
             .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
         assert!(
-            admit_one(&driver, &mut calls, &mut data, Moment::from_tick(2))
-                .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"))
+            admit_one(
+                &driver,
+                &mut calls,
+                &mut retry_identity,
+                &mut data,
+                Moment::from_tick(2),
+            )
+            .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"))
         );
         assert!(calls.try_reserve().is_none());
     }
@@ -85,13 +92,20 @@ fn immediate_driver_rejection_applies_not_sent_before_unlock() {
     let mut driver = driver();
     shutdown(&mut driver);
     let mut calls = TrackedProduceCalls::new(1);
+    let mut retry_identity = None;
     let mut data = producer
         .try_data()
         .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
 
     assert!(
-        admit_one(&driver, &mut calls, &mut data, Moment::from_tick(2))
-            .unwrap_or_else(|error| panic!("driver rejection application: {error}"))
+        admit_one(
+            &driver,
+            &mut calls,
+            &mut retry_identity,
+            &mut data,
+            Moment::from_tick(2),
+        )
+        .unwrap_or_else(|error| panic!("driver rejection application: {error}"))
     );
     assert!(calls.try_reserve().is_some());
     drop(data);
@@ -138,12 +152,19 @@ fn full_call_capacity_preserves_the_next_prepared_owner() {
     let (producer, first) = prepared_producer();
     let mut driver = driver();
     let mut calls = TrackedProduceCalls::new(1);
+    let mut retry_identity = None;
     {
         let mut data = producer
             .try_data()
             .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
-        admit_one(&driver, &mut calls, &mut data, Moment::from_tick(2))
-            .unwrap_or_else(|error| panic!("first tracked admission: {error}"));
+        admit_one(
+            &driver,
+            &mut calls,
+            &mut retry_identity,
+            &mut data,
+            Moment::from_tick(2),
+        )
+        .unwrap_or_else(|error| panic!("first tracked admission: {error}"));
     }
     let second = admit_prepared(&producer, "payments");
     let mut data = producer
@@ -152,8 +173,14 @@ fn full_call_capacity_preserves_the_next_prepared_owner() {
     let before = data.shard_stats().host;
 
     assert!(
-        !admit_one(&driver, &mut calls, &mut data, Moment::from_tick(4))
-            .unwrap_or_else(|error| panic!("bounded admission preflight: {error}"))
+        !admit_one(
+            &driver,
+            &mut calls,
+            &mut retry_identity,
+            &mut data,
+            Moment::from_tick(4),
+        )
+        .unwrap_or_else(|error| panic!("bounded admission preflight: {error}"))
     );
 
     let after = data.shard_stats().host;

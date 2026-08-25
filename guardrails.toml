@@ -64,10 +64,8 @@ baseline = [
   { path = "crates/kafkars/src/admin/mod.rs", lines = 156, reason = "the declarative Admin facade explicitly names the complete Rust source-preview module and sibling-test surface" },
   { path = "crates/kafkars/src/admin/public_api.rs", lines = 255, reason = "the curated generated-free Admin reexport table keeps the complete Rust source-preview vocabulary explicit without globbing protocol or engine internals" },
   { path = "crates/kafkars/src/bridge/admin.rs", lines = 404, reason = "the private Admin bridge retains common capture-first submissions after grouped and DescribeCluster handoffs moved into focused child seams" },
-  { path = "crates/kafkars/src/bridge/client.rs", lines = 242, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafkars/src/bridge/describe_streams_group/result.rs", lines = 327, reason = "the API 89 bridge result translator exhaustively maps the complete generated-free topology, member, task, exact broker rejection, and delivery vocabulary into the curated public surface" },
   { path = "crates/kafkars/src/bridge/mod.rs", lines = 138, reason = "the declarative bridge facade explicitly names every private Rust source-preview adapter including share-consumer ownership" },
-  { path = "crates/kafkars/src/bridge/producer/handle.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafkars/src/lib.rs", lines = 180, reason = "the crate facade explicitly reexports the complete curated Rust source-preview surface, preview limitation, and required trademark notice" },
   { path = "crates/kafka-client-core/src/admin/alter_share_group_offsets/outcome.rs", lines = 268, reason = "the bounded API 91 outcome seam keeps caller-ordered partition identities, nonzero topic IDs, exact group and partition errors, delivery certainty, and terminal variants in one deterministic vocabulary" },
   { path = "crates/kafka-client-core/src/admin/delete_share_group_offsets/outcome.rs", lines = 245, reason = "the bounded API 92 outcome seam keeps exact signed top-level and per-topic broker failures, nonzero topic identities, delivery certainty, and retained-byte accounting together" },
@@ -175,7 +173,6 @@ baseline = [
   { path = "crates/kafka-client-engine/src/engine_host/recovery.rs", lines = 244, reason = "the top-level recovery dispatcher keeps exact producer, consumer, transaction, and Admin ownership routing exhaustive" },
   { path = "crates/kafka-client-engine/src/engine_host/start.rs", lines = 505, reason = "host startup explicitly constructs every bounded source-preview operation owner and transfers its exact admission port" },
   { path = "crates/kafka-client-engine/src/producer/host.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/producer/materialization.rs", lines = 252, reason = "ordinary and transactional Produce share one bounded materialization owner for exact record bytes, compression, identity, and sequence facts" },
   { path = "crates/kafka-client-engine/src/producer/mod.rs", lines = 85, reason = "the declarative producer host facade names bounded waiting, automatic partition resolution, and their evidence surface" },
   { path = "crates/kafka-client-engine/src/protocol/admin/alter_replica_log_dirs/request.rs", lines = 286, reason = "the destructive request seam validates bounded assignments and groups caller intent into generated directory and topic ownership without transport policy" },
   { path = "crates/kafka-client-engine/src/protocol/admin/alter_replica_log_dirs/response.rs", lines = 330, reason = "the destructive response seam validates shape, exact caller correlation, signed broker errors, and retained bytes before core settlement" },
@@ -4064,6 +4061,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/transaction/send/owner.rs",
   "crates/kafka-client-engine/src/transaction/send/produce_settlement.rs",
   "crates/kafka-client-engine/src/transaction/send/recovery.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
   "crates/kafka-client-engine/src/transaction/send/settlement.rs",
   "crates/kafka-client-engine/src/transaction/send/turn.rs",
   "crates/kafka-client-engine/src/transaction/send/turn/execution.rs",
@@ -5716,6 +5714,7 @@ root = "crates/kafka-client-engine/src"
 method = "apply_produce_driver_input"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/produce.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
 ]
 
 [[method_capabilities]]
@@ -5756,11 +5755,13 @@ allowed_paths = [
   "crates/kafka-client-engine/src/protocol/admin/list_share_group_offsets/request.rs",
   "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/request.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/broker_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_invalidation.rs",
   "crates/kafka-client-engine/src/protocol/fetch/request_broker.rs",
   "crates/kafka-client-engine/src/protocol/produce_response_batch.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
 ]
 
 [[method_capabilities]]
@@ -5869,6 +5870,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/incremental_alter_configs.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
 ]
 
 [[method_capabilities]]
@@ -5892,6 +5894,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/incremental_alter_configs.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
 ]
 
 [[method_capabilities]]
@@ -6255,6 +6258,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/produce/partitioning.rs",
   "crates/kafka-client-engine/src/engine_host/recovery.rs",
   "crates/kafka-client-engine/src/transaction/send/recovery.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
   "crates/kafka-client-engine/src/transaction/lifecycle/driver_port.rs",
   "crates/kafka-client-engine/src/transaction/lifecycle/recovery.rs",
   "crates/kafka-client-engine/src/transaction/partition_enrollment/driver_port.rs",
@@ -24894,4 +24898,138 @@ forbidden = [
   "Retry",
   "Transport",
   "async",
+]
+
+# Expected broker identity proof has one explicit ordinary producer ownership path.
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/waiting/partitioning.rs"
+test = "crates/kafka-client-engine/src/producer/waiting/partitioning_identity_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/record.rs"
+test = "crates/kafkars/src/record_test.rs"
+
+[[linear_owners]]
+owner_type = "ProducerRetryIdentityCall"
+path = "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs"
+
+[[mutation_owners]]
+owner_type = "ProducerRetryIdentityCall"
+field = "call"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerRetryIdentityCall"
+field = "validated"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "EngineHostResources"
+field = "producer_retry_identity_call"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce_turn.rs",
+  "crates/kafka-client-engine/src/engine_host/recovery.rs",
+  "crates/kafka-client-engine/src/engine_host/runner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerRecord"
+field = "validated_topic_uuid"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/record.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerRecord"
+field = "validated_topic_generation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/record.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TopicEntry"
+field = "expected_topic_uuid"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/topic_catalog.rs",
+]
+
+[[mutation_owners]]
+owner_type = "MaterializedProduce"
+field = "expected_topic_uuid"
+allowed_paths = [
+  "crates/kafka-client-engine/src/protocol/produce/request/identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "MaterializedProduce"
+field = "validated_topic_generation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/protocol/produce/request/identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "MaterializationBatch"
+field = "expected_topic_uuid"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/materialization/batch.rs",
+]
+
+[[mutation_owners]]
+owner_type = "MaterializationBatch"
+field = "validated_topic_generation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/materialization/batch.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "with_expected_cluster_id"
+allowed_paths = [
+  "crates/kafkars/src/bridge/client/identity.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "validate_topic_uuid_at"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/waiting/partitioning.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "record_topic_identity_revalidation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution/handoff/identity.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "record_retry_topic_identity"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "capture_deadline_until"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/describe_handle.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "try_describe_cluster_until"
+allowed_paths = [
+  "crates/kafkars/src/bridge/admin/describe_cluster_submit.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "submit_describe_cluster_until"
+allowed_paths = [
+  "crates/kafkars/src/bridge/client/identity.rs",
 ]

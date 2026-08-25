@@ -13,7 +13,26 @@ use super::ProducerStoreError;
 struct TopicEntry {
     id: TopicId,
     references: usize,
+    expected_topic_uuid: Option<[u8; 16]>,
     sticky: StickyPartitioner,
+}
+
+impl TopicEntry {
+    fn bind_expected_topic_uuid(
+        &mut self,
+        expected_topic_uuid: Option<[u8; 16]>,
+    ) -> Result<(), ProducerStoreError> {
+        if self.expected_topic_uuid.is_some()
+            && expected_topic_uuid.is_some()
+            && self.expected_topic_uuid != expected_topic_uuid
+        {
+            return Err(ProducerStoreError::TopicIdentityMismatch);
+        }
+        if self.expected_topic_uuid.is_none() {
+            self.expected_topic_uuid = expected_topic_uuid;
+        }
+        Ok(())
+    }
 }
 
 /// Stable identity owner for names observed during one producer lifetime.
@@ -39,8 +58,13 @@ impl TopicCatalog {
         }
     }
 
-    pub(super) fn acquire(&mut self, name: Arc<str>) -> Result<TopicId, ProducerStoreError> {
+    pub(super) fn acquire(
+        &mut self,
+        name: Arc<str>,
+        expected_topic_uuid: Option<[u8; 16]>,
+    ) -> Result<TopicId, ProducerStoreError> {
         if let Some(entry) = self.by_name.get_mut(&name) {
+            entry.bind_expected_topic_uuid(expected_topic_uuid)?;
             let Some(references) = entry.references.checked_add(1) else {
                 return Err(ProducerStoreError::RetainedSizeOverflow);
             };
@@ -70,6 +94,7 @@ impl TopicCatalog {
             TopicEntry {
                 id,
                 references: 1,
+                expected_topic_uuid,
                 sticky: StickyPartitioner::new(id.get().saturating_sub(1)),
             },
         );

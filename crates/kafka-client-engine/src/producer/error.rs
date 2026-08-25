@@ -21,6 +21,8 @@ pub(crate) enum ProducerStoreError {
     PayloadIdentityExhausted,
     /// The monotonic topic identity space is exhausted.
     TopicIdentityExhausted,
+    /// One producer lifetime observed conflicting UUID expectations for a topic name.
+    TopicIdentityMismatch,
     /// A retained payload referenced an unknown topic catalog entry.
     UnknownTopic,
     /// The payload identity is unknown, stale, or already released.
@@ -65,6 +67,9 @@ impl fmt::Display for ProducerStoreError {
             }
             Self::PayloadIdentityExhausted => "producer payload identity space is exhausted",
             Self::TopicIdentityExhausted => "producer topic identity space is exhausted",
+            Self::TopicIdentityMismatch => {
+                "producer topic UUID expectation conflicts with its retained identity"
+            }
             Self::UnknownTopic => "producer topic identity is stale",
             Self::UnknownPayload => "producer payload identity is stale",
             Self::InvalidPayloadState => "producer payload is in the wrong lifecycle state",

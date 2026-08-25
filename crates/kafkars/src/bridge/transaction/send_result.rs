@@ -123,8 +123,9 @@ pub(super) fn translate_send_metadata_parts(
     serialized_key_size: Option<usize>,
     serialized_value_size: Option<usize>,
 ) -> RecordMetadata {
-    RecordMetadata::from_parts(
+    RecordMetadata::from_parts_with_topic_uuid(
         topic,
+        None,
         partition,
         offset,
         timestamp,
@@ -180,6 +181,7 @@ pub(super) const fn translate_send_failure_kind(kind: TransactionSendFailureKind
         TransactionSendFailureKind::InvalidResponse | TransactionSendFailureKind::Broker => {
             ErrorKind::Broker
         }
+        TransactionSendFailureKind::Identity => ErrorKind::Identity,
         TransactionSendFailureKind::Routing => ErrorKind::Routing,
         TransactionSendFailureKind::DriverClosed
         | TransactionSendFailureKind::Materialization

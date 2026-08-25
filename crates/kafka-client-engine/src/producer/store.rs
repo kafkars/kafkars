@@ -145,7 +145,7 @@ impl ProducerStore {
         &mut self,
         topic: std::sync::Arc<str>,
     ) -> Result<kafka_client_core::TopicId, ProducerStoreError> {
-        self.records.topics.acquire(topic)
+        self.records.topics.acquire(topic, None)
     }
 
     pub(super) fn release_waiting_topic(

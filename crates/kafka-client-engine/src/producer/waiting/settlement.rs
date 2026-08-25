@@ -64,6 +64,7 @@ impl ProducerHost {
             },
             ProducerWaitingTerminal::DeadlineElapsed
             | ProducerWaitingTerminal::Closed
+            | ProducerWaitingTerminal::TopicIdentityMismatch
             | ProducerWaitingTerminal::MetadataUnavailable { .. } => {
                 ProducerInput::WaitingTerminal {
                     operation_id: entry.operation_id,

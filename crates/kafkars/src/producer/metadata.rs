@@ -2,10 +2,13 @@
 
 use std::sync::Arc;
 
+use crate::TopicUuid;
+
 /// Metadata for one acknowledged record.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordMetadata {
     topic: Arc<str>,
+    topic_uuid: Option<TopicUuid>,
     partition: i32,
     offset: i64,
     timestamp_milliseconds: Option<i64>,
@@ -15,6 +18,7 @@ pub struct RecordMetadata {
 }
 
 impl RecordMetadata {
+    #[cfg(test)]
     pub(crate) fn from_parts(
         topic: impl Into<Arc<str>>,
         partition: i32,
@@ -24,8 +28,35 @@ impl RecordMetadata {
         serialized_key_size: Option<usize>,
         serialized_value_size: Option<usize>,
     ) -> Self {
+        Self::from_parts_with_topic_uuid(
+            topic,
+            None,
+            partition,
+            offset,
+            timestamp_milliseconds,
+            leader_epoch,
+            serialized_key_size,
+            serialized_value_size,
+        )
+    }
+
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the receipt retains each independent broker and serialization fact"
+    )]
+    pub(crate) fn from_parts_with_topic_uuid(
+        topic: impl Into<Arc<str>>,
+        topic_uuid: Option<TopicUuid>,
+        partition: i32,
+        offset: i64,
+        timestamp_milliseconds: Option<i64>,
+        leader_epoch: Option<i32>,
+        serialized_key_size: Option<usize>,
+        serialized_value_size: Option<usize>,
+    ) -> Self {
         Self {
             topic: topic.into(),
+            topic_uuid,
             partition,
             offset,
             timestamp_milliseconds,
@@ -38,6 +69,14 @@ impl RecordMetadata {
     /// Returns the topic name.
     pub fn topic(&self) -> &str {
         &self.topic
+    }
+
+    /// Returns the topic UUID proven before this name-routed Produce attempt.
+    ///
+    /// This is client-observed pre-attempt evidence, not a UUID returned by the
+    /// Produce response and not an atomic Kafka topic-identity binding.
+    pub const fn topic_uuid(&self) -> Option<TopicUuid> {
+        self.topic_uuid
     }
 
     /// Returns the acknowledged partition.

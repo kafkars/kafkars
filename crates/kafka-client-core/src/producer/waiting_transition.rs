@@ -61,6 +61,10 @@ impl ProducerMachine {
                 Settlement::Failed(DeliveryStatus::NotSent),
                 ProducerFailure::metadata_unavailable(broker_code),
             ),
+            ProducerWaitingTerminal::TopicIdentityMismatch => (
+                Settlement::Failed(DeliveryStatus::NotSent),
+                ProducerFailure::topic_identity_mismatch(),
+            ),
         };
         Ok(ProducerTransition::from_effects(
             self.settle_waiting_operation(operation_id, settlement, failure)?,

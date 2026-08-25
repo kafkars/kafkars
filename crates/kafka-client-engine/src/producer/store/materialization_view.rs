@@ -30,6 +30,10 @@ impl ProducerStore {
             let partition = i32::try_from(plan.route.partition.get())
                 .map_err(|_| ProducerStoreError::PartitionOutOfRange)?;
             let mut expected_topic: Option<Arc<str>> = None;
+            let mut expected_topic_uuid = None;
+            let mut validated_topic_generation: Option<
+                kafka_client_core::partitioning::TopicMetadataGeneration,
+            > = None;
             let mut leader_broker_id = None;
             for member in &plan.members {
                 let record = self.records.record(member.payload_id)?;
@@ -42,6 +46,22 @@ impl ProducerStore {
                     }
                     None => expected_topic = Some(Arc::clone(record.topic())),
                     _ => {}
+                }
+                match (expected_topic_uuid, record.expected_topic_uuid()) {
+                    (Some(expected), Some(candidate)) if expected != candidate => {
+                        return Err(ProducerStoreError::TopicIdentityMismatch);
+                    }
+                    (None, Some(candidate)) => expected_topic_uuid = Some(candidate),
+                    _ => {}
+                }
+                if record.expected_topic_uuid().is_some() {
+                    let generation = record
+                        .validated_topic_generation()
+                        .ok_or(ProducerStoreError::InvalidPayloadState)?;
+                    validated_topic_generation = Some(
+                        validated_topic_generation
+                            .map_or(generation, |current| current.max(generation)),
+                    );
                 }
                 leader_broker_id = match leader_broker_id {
                     None => Some(record.leader_broker_id()),
@@ -77,7 +97,8 @@ impl ProducerStore {
                 source_retained_bytes,
                 identity,
                 sequence,
-            ))
+            )
+            .with_expected_topic_identity(expected_topic_uuid, validated_topic_generation))
         })();
         match view {
             Ok(batch) => Ok((attempt, batch)),

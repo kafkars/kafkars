@@ -1,9 +1,11 @@
 //! Timeout-free encoded bytes and late-bound generated Produce requests.
 
+mod identity;
+
 use std::sync::Arc;
 
 use bytes::Bytes;
-use kafka_client_core::Moment;
+use kafka_client_core::{Moment, partitioning::TopicMetadataGeneration};
 use kafka_wire::{
     ProduceRequest,
     produce_request::{PartitionProduceData, TopicProduceData},
@@ -23,6 +25,8 @@ const NANOSECONDS_PER_MILLISECOND: u64 = 1_000_000;
 #[derive(Debug)]
 pub(crate) struct MaterializedProduce {
     topic: Arc<str>,
+    expected_topic_uuid: Option<[u8; 16]>,
+    validated_topic_generation: Option<TopicMetadataGeneration>,
     partition: i32,
     record_count: u32,
     records: Bytes,
@@ -37,6 +41,8 @@ impl MaterializedProduce {
     ) -> Self {
         Self {
             topic,
+            expected_topic_uuid: None,
+            validated_topic_generation: None,
             partition,
             record_count,
             records,

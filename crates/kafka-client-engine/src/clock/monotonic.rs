@@ -56,6 +56,18 @@ impl MonotonicClock {
         self.capture_deadline_at(boundary, timeout)
     }
 
+    /// Maps one already-captured absolute deadline through this clock's fixed epoch.
+    ///
+    /// This observes ambient time only for the admission `now`; the supplied
+    /// transport deadline is retained byte-for-byte rather than reconstructed
+    /// from a remaining duration.
+    pub(crate) fn capture_deadline_until(
+        &self,
+        deadline: Instant,
+    ) -> Result<DeadlineCapture, ClockError> {
+        self.capture_deadline_until_at(Instant::now(), deadline)
+    }
+
     /// Maps an existing core deadline through this clock's fixed epoch.
     ///
     /// This does not observe ambient time or reconstruct a relative timeout.
@@ -93,6 +105,22 @@ impl MonotonicClock {
         Ok(DeadlineCapture {
             now,
             deadline: OperationDeadline::from_boundary_parts(deadline, absolute_instant),
+        })
+    }
+
+    pub(super) fn capture_deadline_until_at(
+        &self,
+        boundary: Instant,
+        deadline: Instant,
+    ) -> Result<DeadlineCapture, ClockError> {
+        let now = self.moment_at(boundary)?;
+        let deadline_moment = self.moment_at(deadline)?;
+        Ok(DeadlineCapture {
+            now,
+            deadline: OperationDeadline::from_boundary_parts(
+                Deadline::from_tick(deadline_moment.tick()),
+                deadline,
+            ),
         })
     }
 }

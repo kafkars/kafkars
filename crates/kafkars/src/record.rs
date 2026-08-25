@@ -1,33 +1,19 @@
 //! Bytes-native producer records and ordered duplicate-preserving headers.
 
+mod transfer;
+
 use std::sync::Arc;
 
 use bytes::Bytes;
 
-use crate::header_name::{HeaderName, SourceOwner};
+use crate::{
+    TopicUuid,
+    header_name::{HeaderName, SourceOwner},
+};
 
-/// Crate-private ownership transfer for the engine bridge.
 #[cfg(test)]
-#[derive(Debug)]
-pub(crate) struct RecordParts {
-    pub(crate) topic: Arc<str>,
-    pub(crate) partition: Option<i32>,
-    pub(crate) timestamp_milliseconds: Option<i64>,
-    pub(crate) key: Option<Bytes>,
-    pub(crate) value: Option<Bytes>,
-    pub(crate) headers: Vec<Header>,
-}
-
-/// Crate-private exact transfer retaining any upstream consumer byte lease.
-pub(crate) struct RecordTransferParts {
-    pub(crate) topic: Arc<str>,
-    pub(crate) partition: Option<i32>,
-    pub(crate) timestamp_milliseconds: Option<i64>,
-    pub(crate) key: Option<Bytes>,
-    pub(crate) value: Option<Bytes>,
-    pub(crate) headers: Vec<Header>,
-    pub(crate) source_owner: SourceOwner,
-}
+pub(crate) use transfer::RecordParts;
+pub(crate) use transfer::RecordTransferParts;
 
 /// One Kafka record header.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,6 +82,7 @@ impl Header {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Record {
     topic: Arc<str>,
+    expected_topic_uuid: Option<TopicUuid>,
     partition: Option<i32>,
     timestamp_milliseconds: Option<i64>,
     key: Option<Bytes>,
@@ -112,6 +99,7 @@ impl Record {
     pub fn to(topic: impl Into<Arc<str>>) -> Self {
         Self {
             topic: topic.into(),
+            expected_topic_uuid: None,
             partition: None,
             timestamp_milliseconds: None,
             key: None,
@@ -124,6 +112,19 @@ impl Record {
     /// Creates an explicit tombstone record.
     pub fn tombstone(topic: impl Into<Arc<str>>) -> Self {
         Self::to(topic)
+    }
+
+    /// Requires the named topic to retain this exact broker-issued UUID.
+    ///
+    /// Kafkars validates a broker topic view before a name-routed Produce
+    /// attempt and before each replacement attempt. Kafka Produce does not
+    /// atomically carry or return this UUID, so the deployment must prevent
+    /// deletion and recreation from the final proof through the terminal
+    /// result.
+    #[must_use]
+    pub const fn expected_topic_uuid(mut self, topic_uuid: TopicUuid) -> Self {
+        self.expected_topic_uuid = Some(topic_uuid);
+        self
     }
 
     /// Selects an explicit partition instead of automatic partitioning.
@@ -170,6 +171,11 @@ impl Record {
         &self.topic
     }
 
+    /// Returns the exact broker-issued topic UUID required before admission.
+    pub const fn expected_topic_uuid_value(&self) -> Option<TopicUuid> {
+        self.expected_topic_uuid
+    }
+
     /// Returns the explicit partition, when configured.
     pub const fn explicit_partition(&self) -> Option<i32> {
         self.partition
@@ -193,42 +199,5 @@ impl Record {
     /// Returns ordered headers, including duplicate names.
     pub fn headers(&self) -> &[Header] {
         &self.headers
-    }
-
-    #[cfg(test)]
-    pub(crate) fn from_parts(parts: RecordParts) -> Self {
-        Self {
-            topic: parts.topic,
-            partition: parts.partition,
-            timestamp_milliseconds: parts.timestamp_milliseconds,
-            key: parts.key,
-            value: parts.value,
-            headers: parts.headers,
-            source_owner: SourceOwner::none(),
-        }
-    }
-
-    pub(crate) fn from_transfer_parts(parts: RecordTransferParts) -> Self {
-        Self {
-            topic: parts.topic,
-            partition: parts.partition,
-            timestamp_milliseconds: parts.timestamp_milliseconds,
-            key: parts.key,
-            value: parts.value,
-            headers: parts.headers,
-            source_owner: parts.source_owner,
-        }
-    }
-
-    pub(crate) fn into_transfer_parts(self) -> RecordTransferParts {
-        RecordTransferParts {
-            topic: self.topic,
-            partition: self.partition,
-            timestamp_milliseconds: self.timestamp_milliseconds,
-            key: self.key,
-            value: self.value,
-            headers: self.headers,
-            source_owner: self.source_owner,
-        }
     }
 }

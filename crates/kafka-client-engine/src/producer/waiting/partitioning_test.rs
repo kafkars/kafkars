@@ -197,6 +197,7 @@ fn promote_and_materialize(host: &mut ProducerHost, now: u64) -> i32 {
 fn automatic_record(key: Option<Bytes>) -> ProducerRecord {
     ProducerRecord::from_public(ProducerRecordParts {
         topic: Arc::from("orders"),
+        expected_topic_uuid: None,
         partition: None,
         timestamp_ms: 10,
         defaulted_timestamp: false,
@@ -218,7 +219,12 @@ fn explicit_record() -> ProducerRecord {
 }
 
 pub(super) fn topic_view() -> TestTopicSource {
+    topic_view_with_uuid([7; 16])
+}
+
+pub(super) fn topic_view_with_uuid(topic_uuid: [u8; 16]) -> TestTopicSource {
     TestTopicSource {
+        topic_uuid,
         available: vec![
             AvailablePartition::new(PartitionIndex::from_raw(0), None),
             AvailablePartition::new(PartitionIndex::from_raw(1), None),
@@ -228,6 +234,7 @@ pub(super) fn topic_view() -> TestTopicSource {
 }
 
 pub(super) struct TestTopicSource {
+    topic_uuid: [u8; 16],
     available: Vec<AvailablePartition>,
 }
 
@@ -253,6 +260,10 @@ impl ProducerPartitionSource for TestTopicSource {
     fn leader_broker_id(&self, partition: PartitionIndex) -> Option<i32> {
         (partition.get() < 3).then_some(1)
     }
+
+    fn kafka_topic_uuid(&self) -> Option<[u8; 16]> {
+        Some(self.topic_uuid)
+    }
 }
 
 pub(super) fn partitioning_limits() -> super::super::ProducerHostLimits {
@@ -269,7 +280,7 @@ pub(super) fn partitioning_limits() -> super::super::ProducerHostLimits {
     limits
 }
 
-fn deadline(tick: u64) -> OperationDeadline {
+pub(super) fn deadline(tick: u64) -> OperationDeadline {
     OperationDeadline::from_parts_for_test(Deadline::from_tick(tick), Instant::now())
 }
 

@@ -5,7 +5,6 @@ mod consumer_registries;
 mod list_offsets;
 mod list_partition_reassignments;
 mod share_group_offsets;
-
 use super::{
     EngineHostControl, EngineHostResources, EngineLifecycle, EngineStartError,
     alter_consumer_group_offsets_start, assigned_consumer_start, describe_configs_start,
@@ -413,6 +412,7 @@ pub(crate) fn start(
         produce_calls,
         producer_identity_calls: crate::driver::TrackedProducerIdentityCalls::new(),
         producer_partitioning_call: None,
+        producer_retry_identity_call: None,
         create_topics_calls: crate::driver::TrackedCreateTopicsCalls::new(
             crate::admin::CREATE_TOPICS_CAPACITY,
         ),

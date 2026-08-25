@@ -95,6 +95,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
             &resources.producer,
             &mut resources.producer_identity_calls,
             &mut resources.producer_partitioning_call,
+            &mut resources.producer_retry_identity_call,
             &mut resources.produce_calls,
             completion_now,
         )?;

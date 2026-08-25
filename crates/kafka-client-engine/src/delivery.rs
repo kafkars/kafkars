@@ -74,6 +74,8 @@ pub enum ProducerDeliveryFailureKind {
     MaterializationFailed,
     /// Routing metadata or leadership changed.
     Routing,
+    /// Broker-issued topic identity did not match the caller expectation.
+    Identity,
     /// Kafka reported a retryable failure without a routing change.
     BrokerRetriable,
     /// Authentication or authorization rejected the operation.
@@ -105,6 +107,7 @@ impl ProducerDeliveryFailureKind {
             CoreProducerFailureKind::DriverRejected => Self::DriverRejected,
             CoreProducerFailureKind::MaterializationFailed => Self::MaterializationFailed,
             CoreProducerFailureKind::Routing => Self::Routing,
+            CoreProducerFailureKind::Identity => Self::Identity,
             CoreProducerFailureKind::BrokerRetriable => Self::BrokerRetriable,
             CoreProducerFailureKind::AccessRejected => Self::AccessRejected,
             CoreProducerFailureKind::InvalidRecord => Self::InvalidRecord,
