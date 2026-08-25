@@ -6,16 +6,18 @@ repository.
 
 ## Release status
 
-- Workspace version: `0.0.1`
+- Workspace version: `0.0.2-rc.1`
 - Publication: enabled for `kafkars`, `kafka-client-core`, and
   `kafka-client-engine`; disabled for simulation and guardrails
 - Stability: no semantic-versioning or source-compatibility promise
-- Supported releases: no production release; `0.0.1` is a source preview
-- Intended audience: design review, source evaluation, and contribution
+- Supported releases: no production release; `0.0.2-rc.1` is a
+  release-candidate source preview
+- Intended audience: design review, source and registry integration evaluation,
+  and contribution
 
-The current source is not a public beta and is not recommended for production
-traffic. A supported release requires complete passing archived real-broker
-evidence and separate release authorization.
+This release candidate is not production-supported and is not recommended for
+production traffic. A supported release requires complete passing archived
+real-broker evidence and separate release authorization.
 
 ## Runtime surface
 

@@ -1,5 +1,5 @@
 //! Experimental, runtime-neutral Rust client with bounded deterministic operations.
-//! Version 0.0.1 is an API preview, not a broker-compatibility claim.
+//! Version 0.0.2-rc.1 is a release-candidate preview, not a production or broker-support claim.
 //! Apache Kafka and the Kafka logo are trademarks of The Apache Software Foundation.
 //! kafkars has no affiliation with or endorsement from the Foundation.
 #![forbid(unsafe_code)]

@@ -11,8 +11,9 @@ behavior.
 
 ## Status
 
-Version `0.0.1` is a source preview for API evaluation. It is not a beta,
-production release, or general broker-compatibility claim.
+Version `0.0.2-rc.1` is a release-candidate source preview for API and registry
+integration evaluation. It is not a production-supported release or general
+broker-compatibility claim.
 
 The source includes concrete producer, direct, group, and share-group consumer,
 admin, transaction, metrics, security, and shutdown APIs. There is no stable
@@ -28,7 +29,7 @@ See [support and compatibility](SUPPORT.md) for the exact boundary.
 
 ```toml
 [dependencies]
-kafkars = "0.0.1"
+kafkars = "=0.0.2-rc.1"
 ```
 
 ```rust

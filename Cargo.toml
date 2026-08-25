@@ -16,7 +16,7 @@ default-members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.0.1"
+version = "0.0.2-rc.1"
 edition = "2024"
 rust-version = "1.88"
 license = "Apache-2.0"
@@ -25,8 +25,8 @@ repository = "https://github.com/kafkars/kafkars"
 [workspace.dependencies]
 bytebudget = "=0.0.1-rc.1"
 bytes = "1.10"
-kafka-client-core = { path = "crates/kafka-client-core", version = "0.0.1" }
-kafka-client-engine = { path = "crates/kafka-client-engine", version = "0.0.1" }
+kafka-client-core = { path = "crates/kafka-client-core", version = "=0.0.2-rc.1" }
+kafka-client-engine = { path = "crates/kafka-client-engine", version = "=0.0.2-rc.1" }
 kafka-client-sim = { path = "crates/kafka-client-sim" }
 kafka-driver = "=0.1.0-rc.2"
 kafka-wire = "=0.1.0-rc.3"

@@ -51,7 +51,7 @@ pub enum ConsumerGroupHeartbeatErrorKind {
     InitialAssignmentMissing,
     /// The broker returned a zero heartbeat interval.
     ZeroHeartbeatInterval,
-    /// The assignment exceeded the reviewed first-beta partition bound.
+    /// The assignment exceeded the reviewed KIP-848 partition bound.
     AssignmentTooLarge,
     /// The normalized assignment was not ordered and unique.
     Assignment(LiveGroupAssignmentError),

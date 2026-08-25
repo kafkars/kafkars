@@ -2,7 +2,7 @@
 
 use super::ConsumerGroupHeartbeatAttempt;
 
-/// Maximum partitions retained for one first-beta KIP-848 member assignment.
+/// Maximum partitions retained for one reviewed KIP-848 member assignment.
 pub const CONSUMER_GROUP_HEARTBEAT_MAX_PARTITIONS: usize = 64;
 
 /// Lifecycle phase of one deterministic KIP-848 member.

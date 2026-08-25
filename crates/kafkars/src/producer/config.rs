@@ -6,7 +6,7 @@ use super::{Compression, ProducerLimits, ProducerRetryConfig};
 
 /// Complete configurable policy for the client's shared producer owner.
 ///
-/// The beta producer is always idempotent and always sends with `acks=all`;
+/// The release-candidate producer is always idempotent and sends with `acks=all`;
 /// those durability guarantees cannot be silently weakened through this type.
 /// Automatic topic creation is never requested. Compression, resource
 /// ownership, and retry policy are fixed before the client host starts and are
