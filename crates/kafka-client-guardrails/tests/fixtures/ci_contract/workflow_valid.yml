@@ -19,8 +19,6 @@ jobs:
           persist-credentials: false
       - name: Install pinned Rust toolchain
         uses: ./kafka-client/.github/actions/setup-rust
-      - name: Check out reviewed sibling dependencies
-        uses: ./kafka-client/.github/actions/checkout-siblings
       - name: Validate architecture
         run: scripts/check-architecture
   rust-lint:
@@ -36,8 +34,6 @@ jobs:
           persist-credentials: false
       - name: Install pinned Rust toolchain
         uses: ./kafka-client/.github/actions/setup-rust
-      - name: Check out reviewed sibling dependencies
-        uses: ./kafka-client/.github/actions/checkout-siblings
       - name: Validate Rust style and documentation
         run: scripts/check-rust-lint
   rust-test:
@@ -53,8 +49,6 @@ jobs:
           persist-credentials: false
       - name: Install pinned Rust toolchain
         uses: ./kafka-client/.github/actions/setup-rust
-      - name: Check out reviewed sibling dependencies
-        uses: ./kafka-client/.github/actions/checkout-siblings
       - name: Run Rust tests
         run: scripts/check-rust-test
   quality-gate:

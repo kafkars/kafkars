@@ -3551,8 +3551,8 @@ allowed_internal = ["kafka-client-core"]
 # kafka-wire-core is an exact normal edge because the engine exhaustively
 # classifies wire encode/decode failures carried by kafka-driver. Ring is the
 # sole PBKDF2 and secure-random owner for password-based SCRAM administration;
-# plaintext derivation finishes before reactor admission. The sibling manifest
-# guard rejects dev/build/target redeclarations and aliases.
+# plaintext derivation finishes before reactor admission. The published-package
+# manifest guard rejects dev/build/target redeclarations and aliases.
 allowed_external = [
   "bytes",
   "kafka-driver",

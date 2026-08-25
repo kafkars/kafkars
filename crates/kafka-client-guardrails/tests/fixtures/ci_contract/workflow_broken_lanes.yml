@@ -20,9 +20,14 @@ jobs:
       run:
         working-directory: kafka-client
     steps:
-      - name: Siblings
-        uses: ./kafka-client/.github/actions/checkout-siblings
-      - name: Lint
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        uses: ./kafka-client/.github/actions/setup-rust
+      - name: Lint directly
         run: cargo clippy
   rust-test:
     runs-on: ubuntu-latest
@@ -30,8 +35,13 @@ jobs:
       run:
         working-directory: kafka-client
     steps:
-      - name: Test
-        run: scripts/check-rust-test
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        uses: ./kafka-client/.github/actions/setup-rust
   quality-gate:
     if: ${{ always() }}
     needs: [architecture, rust-lint, rust-test]

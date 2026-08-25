@@ -3,11 +3,8 @@
 use crate::support::{YamlNode, yaml_entry};
 
 use super::shared::{
-    Mapping, exact_scalar, find_unique_step, reject_bypass, reject_run_bypass,
-    reject_unexpected_keys, scalar,
+    Mapping, exact_scalar, reject_bypass, reject_run_bypass, reject_unexpected_keys, scalar,
 };
-
-const SIBLING_ACTION: &str = "./kafka-client/.github/actions/checkout-siblings";
 
 pub(super) fn inspect_rust(
     steps: &[YamlNode],
@@ -15,46 +12,21 @@ pub(super) fn inspect_rust(
     script: &str,
     violations: &mut Vec<String>,
 ) {
-    inspect_named_evidence(steps, job_name, script, violations);
-    if steps.len() != 4 {
+    if steps.len() != 3 {
         violations.push(format!(
-            "{job_name} must contain exactly four reviewed steps"
+            "{job_name} must contain exactly three reviewed steps"
         ));
     }
     inspect_client_checkout(steps, 0, job_name, violations);
     inspect_rust_setup(steps, 1, job_name, violations);
-    inspect_siblings(steps, 2, job_name, violations);
     inspect_script(
         steps,
-        3,
+        2,
         job_name,
         script,
         rust_script_name(job_name),
         violations,
     );
-}
-
-fn inspect_named_evidence(
-    steps: &[YamlNode],
-    job_name: &str,
-    script: &str,
-    violations: &mut Vec<String>,
-) {
-    let sibling_label = format!("{job_name} sibling checkout");
-    if let Some((_index, step)) = find_unique_step(steps, &sibling_label, violations, |step| {
-        exact_scalar(step, "uses", SIBLING_ACTION)
-    }) {
-        reject_bypass(step, &sibling_label, violations);
-        if yaml_entry(step, "env").is_some() {
-            violations.push(format!("{sibling_label} may not override its environment"));
-        }
-    }
-    let script_label = format!("{job_name} promised script");
-    if let Some((_index, step)) = find_unique_step(steps, &script_label, violations, |step| {
-        exact_scalar(step, "run", script)
-    }) {
-        reject_run_bypass(step, &script_label, violations);
-    }
 }
 
 fn inspect_client_checkout(
@@ -87,28 +59,6 @@ fn inspect_client_checkout(
         &label,
         violations,
     );
-}
-
-fn inspect_siblings(
-    steps: &[YamlNode],
-    index: usize,
-    job_name: &str,
-    violations: &mut Vec<String>,
-) {
-    let label = format!("{job_name} sibling checkout");
-    let Some(step) = step(steps, index, &label, violations) else {
-        return;
-    };
-    reject_unexpected_keys(step, &["name", "uses"], &label, violations);
-    reject_bypass(step, &label, violations);
-    if yaml_entry(step, "env").is_some() {
-        violations.push(format!("{label} may not override its environment"));
-    }
-    if !exact_scalar(step, "name", "Check out reviewed sibling dependencies")
-        || !exact_scalar(step, "uses", SIBLING_ACTION)
-    {
-        violations.push(format!("{label} must retain its exact action identity"));
-    }
 }
 
 fn inspect_rust_setup(

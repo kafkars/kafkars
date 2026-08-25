@@ -1,4 +1,4 @@
-//! Rust evidence commands cannot mutate siblings after their last attestation.
+//! Rust evidence commands remain provenance-free and exact.
 
 #[path = "support/ci_contract/rust_entrypoint.rs"]
 mod rust_entrypoint;
@@ -10,21 +10,21 @@ use rust_entrypoint::{lint_violations, test_violations};
 use support::{read, workspace_root};
 
 #[test]
-fn live_rust_entrypoints_reattest_immediately_before_reviewed_commands() {
+fn live_rust_entrypoints_contain_only_reviewed_local_commands() {
     let workspace = workspace_root();
     assert!(lint_violations(&read(&workspace.join("scripts/check-rust-lint"))).is_empty());
     assert!(test_violations(&read(&workspace.join("scripts/check-rust-test"))).is_empty());
 }
 
 #[test]
-fn job_selective_post_attestation_mutations_are_rejected() {
+fn extra_dependency_commands_are_rejected() {
     assert_eq!(
-        lint_violations(&fixture("rust_lint_job_mutation.sh")),
-        ["check-rust-lint must attest exact siblings before its reviewed commands"]
+        lint_violations(&fixture("rust_lint_extra_command.sh")),
+        ["check-rust-lint must remain provenance-free and contain only its reviewed commands"]
     );
     assert_eq!(
-        test_violations(&fixture("rust_test_job_mutation.sh")),
-        ["check-rust-test must attest exact siblings before its reviewed commands"]
+        test_violations(&fixture("rust_test_extra_command.sh")),
+        ["check-rust-test must remain provenance-free and contain only its reviewed commands"]
     );
 }
 

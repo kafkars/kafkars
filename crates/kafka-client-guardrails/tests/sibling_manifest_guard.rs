@@ -1,4 +1,4 @@
-//! Reviewed sibling crates retain exact local paths and registry fallbacks.
+//! Published Kafka crates retain exact registry requirements and locked artifacts.
 
 #[path = "support/sibling_manifest.rs"]
 mod sibling_manifest;
@@ -6,11 +6,11 @@ mod support;
 
 use std::path::{Path, PathBuf};
 
-use sibling_manifest::violations;
+use sibling_manifest::{lock_violations, violations};
 use support::{read, workspace_root};
 
 #[test]
-fn live_sibling_dependency_specs_have_exact_paths_and_versions() {
+fn live_published_dependency_specs_have_exact_registry_versions() {
     let workspace = workspace_root();
     let violations = violations(
         &read(&workspace.join("Cargo.toml")),
@@ -19,40 +19,88 @@ fn live_sibling_dependency_specs_have_exact_paths_and_versions() {
 
     assert!(
         violations.is_empty(),
-        "sibling manifest violations:\n{}",
+        "published dependency manifest violations:\n{}",
         violations.join("\n")
     );
 }
 
 #[test]
-fn git_and_alternate_path_specs_are_rejected() {
+fn live_lock_binds_exact_published_artifacts() {
+    let source = read(&workspace_root().join("Cargo.lock"));
+    let violations = lock_violations(&source);
+
+    assert!(
+        violations.is_empty(),
+        "published dependency lock violations:\n{}",
+        violations.join("\n")
+    );
+}
+
+#[test]
+fn alternate_sources_checksums_and_duplicate_versions_are_rejected() {
+    let source = read(&workspace_root().join("Cargo.lock"));
+    let alternate_source = source.replace(
+        "registry+https://github.com/rust-lang/crates.io-index",
+        "git+https://example.invalid/kafka-driver",
+    );
+    assert!(!lock_violations(&alternate_source).is_empty());
+
+    let alternate_checksum = source.replace(
+        "8a962da0606402a732e7e494f4292f2197ed58604a77df8c5bf6b9119a72eb39",
+        "0000000000000000000000000000000000000000000000000000000000000000",
+    );
+    assert!(
+        lock_violations(&alternate_checksum)
+            .iter()
+            .any(|violation| {
+                violation
+                    == "lockfile must bind kafka-driver 0.1.0-rc.2 to its exact crates.io checksum"
+            })
+    );
+
+    let duplicate_wire = format!(
+        "{source}\n[[package]]\nname = \"kafka-wire\"\nversion = \"0.1.0-rc.2\"\n\
+         source = \"registry+https://github.com/rust-lang/crates.io-index\"\n\
+         checksum = \"0000000000000000000000000000000000000000000000000000000000000000\"\n"
+    );
+    assert!(lock_violations(&duplicate_wire).iter().any(|violation| {
+        violation == "lockfile must bind kafka-wire 0.1.0-rc.3 to its exact crates.io checksum"
+    }));
+}
+
+#[test]
+fn git_path_and_alternate_registry_specs_are_rejected() {
     let engine = fixture("engine_valid.toml");
     for root in [
         "root_git.toml",
         "root_branch.toml",
         "root_rev.toml",
         "root_tag.toml",
-        "root_registry.toml",
         "root_alternate_path.toml",
+        "root_path_only.toml",
+        "root_registry.toml",
     ] {
         let violations = violations(&fixture(root), &engine);
         assert!(
-            violations.len() == 1 && violations[0].contains("workspace dependency kafka-driver"),
-            "sibling manifest guard accepted {root}: {violations:?}"
+            violations
+                .iter()
+                .any(|violation| violation.contains("workspace dependency kafka-driver")),
+            "published dependency manifest guard accepted {root}: {violations:?}"
         );
     }
 }
 
 #[test]
-fn missing_and_wrong_registry_fallbacks_are_rejected() {
+fn wrong_registry_versions_are_rejected() {
     let engine = fixture("engine_valid.toml");
-    for root in ["root_path_only.toml", "root_wrong_version.toml"] {
-        let violations = violations(&fixture(root), &engine);
-        assert!(
-            violations.len() == 1 && violations[0].contains("workspace dependency kafka-driver"),
-            "sibling manifest guard accepted {root}: {violations:?}"
-        );
-    }
+    let violations = violations(&fixture("root_wrong_version.toml"), &engine);
+
+    assert!(
+        violations
+            .iter()
+            .any(|violation| violation.contains("workspace dependency kafka-driver")),
+        "published dependency manifest guard accepted a wrong version: {violations:?}"
+    );
 }
 
 #[test]
@@ -68,7 +116,7 @@ fn aliases_and_cargo_source_overrides_are_rejected() {
             violations
                 .iter()
                 .any(|violation| violation.contains(expected)),
-            "sibling manifest guard accepted {root}: {violations:?}"
+            "published dependency manifest guard accepted {root}: {violations:?}"
         );
     }
 }
@@ -84,7 +132,7 @@ fn target_specific_root_specs_are_rejected() {
                  kafka-driver",
             )
         }),
-        "sibling manifest guard accepted a root target override: {violations:?}"
+        "published dependency manifest guard accepted a root target override: {violations:?}"
     );
 }
 
@@ -115,7 +163,7 @@ fn direct_aliased_target_development_and_build_engine_specs_are_rejected() {
             violations
                 .iter()
                 .any(|violation| violation.contains(expected)),
-            "sibling manifest guard accepted {engine}: {violations:?}"
+            "published dependency manifest guard accepted {engine}: {violations:?}"
         );
     }
 }
@@ -126,7 +174,7 @@ fn wire_core_is_exactly_normal_and_cannot_be_aliased_or_redeclared() {
     let normal = violations(&root, &fixture("engine_wire_core_normal.toml"));
     assert!(
         normal.is_empty(),
-        "sibling manifest guard rejected exact normal wire-core: {normal:?}"
+        "published dependency manifest guard rejected exact normal wire-core: {normal:?}"
     );
 
     let development = violations(&root, &fixture("engine_wire_core_dev.toml"));
@@ -135,7 +183,7 @@ fn wire_core_is_exactly_normal_and_cannot_be_aliased_or_redeclared() {
             violation
                 .contains("engine dev-dependencies redeclares reviewed package kafka-wire-core")
         }),
-        "sibling manifest guard accepted dev-only wire-core: {development:?}"
+        "published dependency manifest guard accepted dev-only wire-core: {development:?}"
     );
 
     let aliased = violations(&root, &fixture("engine_wire_core_alias.toml"));
@@ -143,7 +191,7 @@ fn wire_core_is_exactly_normal_and_cannot_be_aliased_or_redeclared() {
         aliased
             .iter()
             .any(|violation| violation.contains("aliases reviewed package kafka-wire-core")),
-        "sibling manifest guard accepted aliased wire-core: {aliased:?}"
+        "published dependency manifest guard accepted aliased wire-core: {aliased:?}"
     );
 }
 

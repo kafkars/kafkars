@@ -23,7 +23,7 @@ deadline, but reports will be acknowledged and triaged as capacity permits.
 
 Include, where possible:
 
-- the exact client, driver, and wire commit IDs;
+- the exact client commit and resolved driver and wire package versions;
 - the affected operation and security mode;
 - a minimal reproduction using synthetic data;
 - the confidentiality, integrity, or availability impact; and
@@ -31,10 +31,10 @@ Include, where possible:
 
 ## Scope
 
-Security reports may cover the Rust workspace, the exact sibling revisions in
-`dependencies/sibling-revisions.env`, credential retention and redaction,
-protocol validation, memory or completion bounds, deadline and cancellation
-behavior, and release or provenance tooling.
+Security reports may cover the Rust workspace, the exact registry packages in
+`Cargo.lock`, credential retention and redaction, protocol validation, memory
+or completion bounds, deadline and cancellation behavior, and release or
+provenance tooling.
 
 The absence of a C ABI or foreign binding is deliberate. Hypothetical foreign
 interfaces and unrelated Kafka deployments are outside this repository's

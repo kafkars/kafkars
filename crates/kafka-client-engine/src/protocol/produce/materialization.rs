@@ -17,14 +17,14 @@ use super::MaterializedProduce;
 
 const NO_LEADER_EPOCH: i32 = -1;
 
-/// Uses the sibling wire crates to materialize one uncompressed Produce batch.
+/// Uses the published wire crates to materialize one uncompressed Produce batch.
 pub(crate) fn materialize_explicit_produce_batch(
     input: MaterializationBatch,
 ) -> Result<MaterializedProduce, ProduceMaterializationError> {
     materialize_explicit_produce_batch_with_compression(input, CompressionPolicy::None)
 }
 
-/// Uses the sibling wire crates for the complete `RecordBatch` codec operation.
+/// Uses the published wire crates for the complete `RecordBatch` codec operation.
 pub(crate) fn materialize_explicit_produce_batch_with_compression(
     input: MaterializationBatch,
     compression: CompressionPolicy,

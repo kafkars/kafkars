@@ -1,37 +1,66 @@
-//! Exact Cargo manifest contracts for reviewed sibling path dependencies with registry fallbacks.
+//! Exact Cargo manifest and lock contracts for published Kafka dependencies.
 
 use toml::Value;
 
 const DEPENDENCY_SECTIONS: [&str; 3] = ["dependencies", "dev-dependencies", "build-dependencies"];
+const CRATES_IO: &str = "registry+https://github.com/rust-lang/crates.io-index";
 
 #[derive(Clone, Copy)]
-struct Sibling {
+struct PublishedDependency {
     name: &'static str,
-    path: &'static str,
     version: &'static str,
 }
 
-const SIBLINGS: [Sibling; 4] = [
-    Sibling {
+const PUBLISHED_DEPENDENCIES: [PublishedDependency; 4] = [
+    PublishedDependency {
         name: "kafka-driver",
-        path: "../kafka-driver",
-        version: "0.1.0-rc.2",
+        version: "=0.1.0-rc.2",
     },
-    Sibling {
+    PublishedDependency {
         name: "kafka-wire",
-        path: "../kafka-protocol/crates/kafka-wire",
-        version: "0.1.0-rc.2",
+        version: "=0.1.0-rc.3",
     },
-    Sibling {
+    PublishedDependency {
         name: "kafka-wire-records",
-        path: "../kafka-protocol/crates/kafka-wire-records",
-        version: "0.1.0-rc.2",
+        version: "=0.1.0-rc.3",
     },
-    Sibling {
+    PublishedDependency {
         name: "kafka-wire-core",
-        path: "../kafka-protocol/crates/kafka-wire-core",
-        version: "0.1.0-rc.2",
+        version: "=0.1.0-rc.3",
     },
+];
+
+const PUBLISHED: [(&str, &str, &str); 6] = [
+    (
+        "kafka-driver",
+        "0.1.0-rc.2",
+        "8a962da0606402a732e7e494f4292f2197ed58604a77df8c5bf6b9119a72eb39",
+    ),
+    (
+        "kafka-driver-core",
+        "0.1.0-rc.2",
+        "125e43672215082e343a497fa231fbcdd49e3de3fc108f80a03cb0fdaae70c32",
+    ),
+    (
+        "kafka-driver-transport",
+        "0.1.0-rc.2",
+        "23367257c55e9564b87974068f6f979f5af817a08972ab6eab929701ea512560",
+    ),
+    (
+        "kafka-wire",
+        "0.1.0-rc.3",
+        "ef04e07a7f2f73a4d00e3341b60504e0f2baf91491ce55e023f2bdfa5ea60b32",
+    ),
+    (
+        "kafka-wire-core",
+        "0.1.0-rc.3",
+        "ac4f6d455c6371e95044818fbbdc816d35fa0fff3f5bbc7669ce8c83ccf1c6a4",
+    ),
+    (
+        "kafka-wire-records",
+        "0.1.0-rc.3",
+        "442e451f90cdcfb7d97570b6ee030b52776a20a62a7c60ac50e0521ce8794905",
+    ),
 ];
 
 pub(crate) fn violations(root_source: &str, engine_source: &str) -> Vec<String> {
@@ -43,6 +72,33 @@ pub(crate) fn violations(root_source: &str, engine_source: &str) -> Vec<String> 
     }
     if let Some(engine) = engine {
         inspect_engine(&engine, &mut violations);
+    }
+    violations
+}
+
+pub(crate) fn lock_violations(source: &str) -> Vec<String> {
+    let mut violations = Vec::new();
+    let Some(lock) = parse("lockfile", source, &mut violations) else {
+        return violations;
+    };
+    let Some(packages) = lock.get("package").and_then(Value::as_array) else {
+        violations.push("lockfile must contain a package array".to_owned());
+        return violations;
+    };
+    for (name, version, checksum) in PUBLISHED {
+        let matching = packages
+            .iter()
+            .filter(|package| package.get("name").and_then(Value::as_str) == Some(name))
+            .collect::<Vec<_>>();
+        let exact = matching.len() == 1
+            && matching[0].get("version").and_then(Value::as_str) == Some(version)
+            && matching[0].get("source").and_then(Value::as_str) == Some(CRATES_IO)
+            && matching[0].get("checksum").and_then(Value::as_str) == Some(checksum);
+        if !exact {
+            violations.push(format!(
+                "lockfile must bind {name} {version} to its exact crates.io checksum"
+            ));
+        }
     }
     violations
 }
@@ -64,32 +120,32 @@ fn inspect_root(root: &Value, violations: &mut Vec<String>) {
         .and_then(|workspace| workspace.get("dependencies"))
         .and_then(Value::as_table);
 
-    for sibling in SIBLINGS {
+    for dependency in PUBLISHED_DEPENDENCIES {
         let specification =
-            workspace_dependencies.and_then(|dependencies| dependencies.get(sibling.name));
-        if !is_exact_path_and_version(specification, sibling.path, sibling.version) {
+            workspace_dependencies.and_then(|dependencies| dependencies.get(dependency.name));
+        if !is_exact_registry_version(specification, dependency.version) {
             violations.push(format!(
-                "workspace dependency {} must be exactly {{ path = \"{}\", version = \"{}\" }}",
-                sibling.name, sibling.path, sibling.version
+                "workspace dependency {} must be exact registry requirement \"{}\"",
+                dependency.name, dependency.version
             ));
         }
     }
     if let Some(dependencies) = workspace_dependencies {
         reject_aliases("workspace dependencies", dependencies, violations);
     }
-    reject_top_level_siblings("workspace root", root, violations);
-    reject_target_siblings("workspace root", root, violations);
+    reject_top_level_published("workspace root", root, violations);
+    reject_target_published("workspace root", root, violations);
 }
 
 fn inspect_engine(engine: &Value, violations: &mut Vec<String>) {
     reject_overrides("engine", engine, violations);
     let dependencies = engine.get("dependencies").and_then(Value::as_table);
-    for sibling in SIBLINGS {
-        let specification = dependencies.and_then(|values| values.get(sibling.name));
+    for dependency in PUBLISHED_DEPENDENCIES {
+        let specification = dependencies.and_then(|values| values.get(dependency.name));
         if !is_exact_workspace(specification) {
             violations.push(format!(
                 "engine dependency {} must be exactly {{ workspace = true }}",
-                sibling.name
+                dependency.name
             ));
         }
     }
@@ -97,12 +153,12 @@ fn inspect_engine(engine: &Value, violations: &mut Vec<String>) {
         reject_aliases("engine dependencies", dependencies, violations);
     }
     if let Some(dependencies) = engine.get("dev-dependencies").and_then(Value::as_table) {
-        reject_siblings("engine dev-dependencies", dependencies, violations);
+        reject_published("engine dev-dependencies", dependencies, violations);
     }
     if let Some(dependencies) = engine.get("build-dependencies").and_then(Value::as_table) {
-        reject_siblings("engine build-dependencies", dependencies, violations);
+        reject_published("engine build-dependencies", dependencies, violations);
     }
-    reject_target_siblings("engine", engine, violations);
+    reject_target_published("engine", engine, violations);
 }
 
 fn reject_overrides(label: &str, manifest: &Value, violations: &mut Vec<String>) {
@@ -113,22 +169,22 @@ fn reject_overrides(label: &str, manifest: &Value, violations: &mut Vec<String>)
     }
 }
 
-fn reject_top_level_siblings(label: &str, manifest: &Value, violations: &mut Vec<String>) {
+fn reject_top_level_published(label: &str, manifest: &Value, violations: &mut Vec<String>) {
     for section in DEPENDENCY_SECTIONS {
         if let Some(dependencies) = manifest.get(section).and_then(Value::as_table) {
-            reject_siblings(&format!("{label} {section}"), dependencies, violations);
+            reject_published(&format!("{label} {section}"), dependencies, violations);
         }
     }
 }
 
-fn reject_target_siblings(label: &str, manifest: &Value, violations: &mut Vec<String>) {
+fn reject_target_published(label: &str, manifest: &Value, violations: &mut Vec<String>) {
     let Some(targets) = manifest.get("target").and_then(Value::as_table) else {
         return;
     };
     for (selector, target) in targets {
         for section in DEPENDENCY_SECTIONS {
             if let Some(dependencies) = target.get(section).and_then(Value::as_table) {
-                reject_siblings(
+                reject_published(
                     &format!("{label} target {selector} {section}"),
                     dependencies,
                     violations,
@@ -145,7 +201,7 @@ fn reject_aliases(
 ) {
     for (declared, specification) in dependencies {
         let package = package_name(declared, specification);
-        if is_sibling(package) && declared != package {
+        if is_published(package) && declared != package {
             violations.push(format!(
                 "{label} aliases reviewed package {package} as {declared}"
             ));
@@ -153,14 +209,14 @@ fn reject_aliases(
     }
 }
 
-fn reject_siblings(
+fn reject_published(
     label: &str,
     dependencies: &toml::map::Map<String, Value>,
     violations: &mut Vec<String>,
 ) {
     for (declared, specification) in dependencies {
         let package = package_name(declared, specification);
-        if is_sibling(package) {
+        if is_published(package) {
             violations.push(format!(
                 "{label} redeclares reviewed package {package} as {declared}"
             ));
@@ -175,22 +231,14 @@ fn package_name<'a>(declared: &'a str, specification: &'a Value) -> &'a str {
         .unwrap_or(declared)
 }
 
-fn is_sibling(name: &str) -> bool {
-    SIBLINGS.iter().any(|sibling| sibling.name == name)
+fn is_published(name: &str) -> bool {
+    PUBLISHED_DEPENDENCIES
+        .iter()
+        .any(|dependency| dependency.name == name)
 }
 
-fn is_exact_path_and_version(
-    specification: Option<&Value>,
-    expected_path: &str,
-    expected_version: &str,
-) -> bool {
-    specification
-        .and_then(Value::as_table)
-        .is_some_and(|table| {
-            table.len() == 2
-                && table.get("path").and_then(Value::as_str) == Some(expected_path)
-                && table.get("version").and_then(Value::as_str) == Some(expected_version)
-        })
+fn is_exact_registry_version(specification: Option<&Value>, expected_version: &str) -> bool {
+    specification.and_then(Value::as_str) == Some(expected_version)
 }
 
 fn is_exact_workspace(specification: Option<&Value>) -> bool {

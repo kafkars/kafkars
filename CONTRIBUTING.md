@@ -8,16 +8,16 @@ in it.
 ## Set up the workspace
 
 Install Git, Bash, and the Rust toolchain declared in `rust-toolchain.toml`,
-then run:
+then fetch the locked published dependencies:
 
 ```sh
-./scripts/bootstrap-siblings
-./scripts/check-dependency-provenance
+cargo fetch --locked
 ```
 
-The bootstrap helper installs the exact reviewed `kafka-driver` and
-`kafka-wire` commits beside this repository. It does not modify an existing
-sibling checkout.
+The workspace uses exact crates.io release candidates for `kafka-driver` and
+the `kafka-wire` crates. `Cargo.lock` records their registry sources and
+checksums; local paths, Git dependencies, alternate registries, aliases, and
+Cargo source overrides are rejected by the guardrail suite.
 
 ## Before changing code
 
@@ -72,5 +72,5 @@ OpenPGP and do not add co-author trailers. The maintainer may curate accepted
 changes into signed reference-history checkpoints.
 
 Never include credentials, private endpoints, broker data, generated build
-artifacts, or local sibling changes in a contribution. Security findings
+artifacts, or local dependency overrides in a contribution. Security findings
 belong in the private process described in `SECURITY.md`.

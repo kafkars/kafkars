@@ -1,10 +1,9 @@
-//! Rust evidence entrypoints reattest siblings before any tool can use them.
+//! Rust evidence entrypoints contain only their reviewed local commands.
 
 pub(crate) fn lint_violations(source: &str) -> Vec<String> {
     violations(
         source,
         &[
-            "\"$repo_root/scripts/check-dependency-provenance\"",
             "cargo fmt --all -- --check",
             "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings",
             "RUSTDOCFLAGS=\"-D warnings\" cargo doc --locked --workspace --all-features --no-deps",
@@ -16,10 +15,7 @@ pub(crate) fn lint_violations(source: &str) -> Vec<String> {
 pub(crate) fn test_violations(source: &str) -> Vec<String> {
     violations(
         source,
-        &[
-            "\"$repo_root/scripts/check-dependency-provenance\"",
-            "cargo test --locked --workspace --all-features",
-        ],
+        &["cargo test --locked --workspace --all-features"],
         "check-rust-test",
     )
 }
@@ -40,7 +36,7 @@ fn violations(source: &str, commands: &[&str], label: &str) -> Vec<String> {
         Vec::new()
     } else {
         vec![format!(
-            "{label} must attest exact siblings before its reviewed commands"
+            "{label} must remain provenance-free and contain only its reviewed commands"
         )]
     }
 }

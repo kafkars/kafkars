@@ -13,10 +13,15 @@ jobs:
       run:
         working-directory: kafka-client
     steps:
-      - name: Siblings
+      - name: Check out client
         continue-on-error: true
-        uses: ./kafka-client/.github/actions/checkout-siblings
-      - name: Architecture
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        uses: ./kafka-client/.github/actions/setup-rust
+      - name: Validate architecture
         run: scripts/check-architecture
   rust-lint:
     runs-on: ubuntu-latest
@@ -24,9 +29,14 @@ jobs:
       run:
         working-directory: kafka-client
     steps:
-      - name: Siblings
-        uses: ./kafka-client/.github/actions/checkout-siblings
-      - name: Lint
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        uses: ./kafka-client/.github/actions/setup-rust
+      - name: Validate Rust style and documentation
         continue-on-error: true
         run: scripts/check-rust-lint
   rust-test:
@@ -35,9 +45,14 @@ jobs:
       run:
         working-directory: kafka-client
     steps:
-      - name: Siblings
-        uses: ./kafka-client/.github/actions/checkout-siblings
-      - name: Test
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        uses: ./kafka-client/.github/actions/setup-rust
+      - name: Run Rust tests
         shell: "true {0}"
         env:
           BASH_ENV: scripts/bypass.sh

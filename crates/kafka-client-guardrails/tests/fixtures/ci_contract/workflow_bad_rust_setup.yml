@@ -1,4 +1,4 @@
-name: bypassed sibling invocation
+name: wrong Rust setup
 on: push
 env:
   CARGO_TERM_COLOR: always
@@ -15,13 +15,9 @@ jobs:
         with:
           path: kafka-client
           persist-credentials: false
-      - name: Install pinned Rust toolchain
-        uses: ./kafka-client/.github/actions/setup-rust
-      - name: Check out reviewed sibling dependencies
-        uses: ./kafka-client/.github/actions/checkout-siblings
+      - name: Install floating Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         env:
-          GIT_CONFIG_GLOBAL: /tmp/bypass
-        with:
-          token: ${{ github.token }}
+          RUSTUP_TOOLCHAIN: stable
       - name: Validate Rust style and documentation
         run: scripts/check-rust-lint

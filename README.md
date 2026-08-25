@@ -72,13 +72,13 @@ applications should depend only on `kafkars`.
 Rust `1.88.0`, Git, and Bash are required. From a clean clone:
 
 ```sh
-./scripts/bootstrap-siblings
 ./scripts/check
 ```
 
-The bootstrap script checks out the exact reviewed `kafka-driver` and
-`kafka-wire` revisions. The gate fails closed if either sibling differs from
-that provenance.
+Cargo resolves exact published `kafka-driver 0.1.0-rc.2` and `kafka-wire
+0.1.0-rc.3` packages from crates.io. `Cargo.lock` binds their registry sources
+and checksums, and the guardrails reject local paths, Git dependencies,
+alternate registries, aliases, and Cargo source overrides.
 
 ## Known limitations
 
