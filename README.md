@@ -78,8 +78,9 @@ Rust `1.88.0`, Git, and Bash are required. From a clean clone:
 
 Cargo resolves exact published `kafka-driver 0.1.0-rc.2` and `kafka-wire
 0.1.0-rc.3` packages from crates.io. `Cargo.lock` binds their registry sources
-and checksums, and the guardrails reject local paths, Git dependencies,
-alternate registries, aliases, and Cargo source overrides.
+and checksums. For the root and engine manifest edges, the guardrails reject
+local paths, Git dependencies, alternate registries, aliases, and manifest
+`[patch]` or `[replace]` overrides.
 
 ## Known limitations
 

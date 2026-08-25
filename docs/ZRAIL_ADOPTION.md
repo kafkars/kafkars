@@ -33,12 +33,12 @@ Kafkars has no FFI package and forbids unsafe throughout the repository, so no
 unsafe ratchet or package exception is part of this contract.
 
 No `zrail.lock` exists and no grants have been accepted. The first baseline
-dry-run fails closed because analysis is incomplete: 1,227
+dry-run fails closed because analysis is incomplete: 1,228
 `RUST-INCLUDE-002` ordinary path-binding issues and two `RUST-GRAPH-003`
 item-position `impl_partition_view!` macro issues in
 `crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_view.rs`.
-Coverage refuses to report partial success and records 1,229 unresolved issues.
-`zrail doctor` reports five packages, 6,271 Rust files, and
+Coverage refuses to report partial success and records 1,230 unresolved issues.
+`zrail doctor` reports five packages, 6,276 Rust files, and
 `analysis-incomplete`.
 
 This is an analyzer-completeness blocker, not Cargo discovery. Do not baseline,
@@ -193,7 +193,7 @@ Migration proceeds in this order:
 ## Known RC4 gaps for this repository
 
 Initialization is complete after the RC dependency cut, but baseline and
-coverage remain blocked by 1,229 fail-closed incomplete-analysis findings.
+coverage remain blocked by 1,230 fail-closed incomplete-analysis findings.
 This is not the only reason the legacy crate remains:
 
 - RC4 has no linear-type or consume/return-signature rail for single-owner

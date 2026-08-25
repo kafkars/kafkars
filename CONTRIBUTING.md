@@ -16,8 +16,9 @@ cargo fetch --locked
 
 The workspace uses exact crates.io release candidates for `kafka-driver` and
 the `kafka-wire` crates. `Cargo.lock` records their registry sources and
-checksums; local paths, Git dependencies, alternate registries, aliases, and
-Cargo source overrides are rejected by the guardrail suite.
+checksums. For the root and engine manifest edges, the guardrail suite rejects
+local paths, Git dependencies, alternate registries, aliases, and manifest
+`[patch]` or `[replace]` overrides.
 
 ## Before changing code
 
