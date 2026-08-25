@@ -100,6 +100,7 @@ fn pending_recv_is_woken_by_a_new_retained_fetch_terminal() {
     );
     let lifetime: Arc<dyn Send + Sync> = Arc::new(());
     let mut handle = GroupConsumerHandle::from_registered_for_test(port, lifetime, group_id);
+    let mut registry = owner.lock_registry_for_test();
     let wake = Arc::new(WakeProbe::new());
     let waker = Waker::from(Arc::clone(&wake));
     let mut context = Context::from_waker(&waker);
@@ -107,15 +108,13 @@ fn pending_recv_is_woken_by_a_new_retained_fetch_terminal() {
 
     assert!(matches!(recv.as_mut().poll(&mut context), Poll::Pending));
     assert_eq!(wake.count(), 0);
-    {
-        let mut registry = owner.lock_registry_for_test();
-        install_retained_transport_failure(&mut registry, group_id);
-    }
+    install_retained_transport_failure(&mut registry, group_id);
     owner.notify_recv_change();
     assert!(
         wake.wait_for(Duration::from_secs(2)),
         "retained Fetch terminal did not wake the armed receive"
     );
+    drop(registry);
     assert!(matches!(
         recv.as_mut().poll(&mut context),
         Poll::Ready(Err(error))
