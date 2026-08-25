@@ -38,6 +38,8 @@ fn success_and_signed_rejections_preserve_throttle_and_fencing_category() {
 
     for (code, category) in [
         (-31_000, TransactionBrokerCategory::Rejected),
+        (14, TransactionBrokerCategory::Coordinator),
+        (53, TransactionBrokerCategory::Access),
         (47, TransactionBrokerCategory::Fenced),
         (90, TransactionBrokerCategory::Fenced),
     ] {

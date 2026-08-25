@@ -4,6 +4,7 @@ mod batch_metadata;
 mod builder;
 mod end;
 mod end_error;
+mod end_intent;
 mod identity;
 mod initialization;
 mod offsets;
@@ -23,6 +24,7 @@ pub use batch_metadata::TransactionBatchMetadata;
 pub use builder::TransactionalProducerBuilder;
 pub use end::{AbortTransaction, CommitTransaction};
 pub use end_error::TransactionEndAdmissionError;
+pub use end_intent::TransactionEndIntent;
 pub use identity::TransactionalProducerIdentity;
 pub use initialization::InitializeTransactionalProducer;
 pub use offsets::SendTransactionOffsets;
@@ -40,6 +42,8 @@ mod batch_metadata_test;
 mod builder_test;
 #[cfg(test)]
 mod end_error_test;
+#[cfg(test)]
+mod end_intent_test;
 #[cfg(test)]
 mod end_test;
 #[cfg(test)]

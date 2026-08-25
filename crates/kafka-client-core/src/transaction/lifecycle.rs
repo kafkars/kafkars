@@ -1,6 +1,7 @@
 //! Declarative facade for one deterministic transactional-producer lifecycle.
 
 mod effect;
+mod end_failure;
 mod ending;
 mod input;
 mod machine;
@@ -11,6 +12,9 @@ mod state;
 mod transition;
 
 pub use effect::{TransactionLifecycleEffect, TransactionLifecycleTransition};
+pub use end_failure::{
+    TransactionEndBrokerFailureKind, TransactionEndFailure, TransactionEndFailureKind,
+};
 pub use input::TransactionLifecycleInput;
 pub use machine::{TransactionLifecycleMachine, TransactionLifecycleMachineError};
 pub use model::{
@@ -20,6 +24,8 @@ pub use model::{
 };
 pub use state::TransactionLifecycleState;
 
+#[cfg(test)]
+mod end_failure_test;
 #[cfg(test)]
 mod ending_test;
 #[cfg(test)]

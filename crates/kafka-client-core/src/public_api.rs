@@ -4,7 +4,6 @@ mod admin_describe_log_dirs;
 pub(crate) mod admin_raft;
 pub(crate) mod admin_transactions;
 pub(crate) mod consumer_group;
-
 pub use crate::admin::{
     ABORT_PARTITION_TRANSACTION_MAX_TOPIC_NAME_BYTES, ALTER_CLIENT_QUOTAS_DIAGNOSTIC_BYTES,
     ALTER_CLIENT_QUOTAS_MAX_COMPONENTS_PER_ENTITY, ALTER_CLIENT_QUOTAS_MAX_ENTRIES,
@@ -466,6 +465,7 @@ pub use crate::producer_retry::{
 };
 pub use crate::producer_transition_result::ProducerTransition;
 pub use crate::transaction::{
+    TransactionEndBrokerFailureKind, TransactionEndFailure, TransactionEndFailureKind,
     TransactionEndMode, TransactionEndObservation, TransactionEndOutcome, TransactionEpoch,
     TransactionInitializationBrokerCategory, TransactionInitializationBrokerFailure,
     TransactionInitializationEffect, TransactionInitializationFailure,

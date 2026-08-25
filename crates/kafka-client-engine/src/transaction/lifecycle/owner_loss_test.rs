@@ -4,7 +4,7 @@ use kafka_client_core::{TransactionEndMode, TransactionLifecycleState};
 
 use super::{
     host::TransactionLifecycleTurn,
-    host_test::{FakePort, assert_released, deadline, host},
+    host_support_test::{FakePort, assert_released, deadline, host},
 };
 
 #[test]

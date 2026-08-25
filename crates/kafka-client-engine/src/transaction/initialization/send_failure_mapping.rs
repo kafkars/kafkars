@@ -1,6 +1,6 @@
 //! Exhaustive private-to-public transactional send failure translation.
 
-use kafka_client_core::{DeliveryStatus, ProducerAttemptFailureKind};
+use kafka_client_core::{DeliveryStatus, ProducerAttemptFailureKind, ProducerBrokerFailureKind};
 
 use crate::{
     driver::transaction_produce::TransactionProduceFailureKind,
@@ -103,8 +103,8 @@ fn enrollment_failure_kind(
         TransactionPartitionEnrollmentFailureKind::DriverClosed => {
             (TransactionSendFailureKind::DriverClosed, None)
         }
-        TransactionPartitionEnrollmentFailureKind::Broker { code, .. } => {
-            (TransactionSendFailureKind::Broker, Some(code))
+        TransactionPartitionEnrollmentFailureKind::Broker { code, fenced } => {
+            (enrollment_broker_kind(code, fenced), Some(code))
         }
     }
 }
@@ -113,9 +113,10 @@ fn produce_failure_kind(
     kind: TransactionProduceFailureKind,
 ) -> (TransactionSendFailureKind, Option<i16>) {
     match kind {
-        TransactionProduceFailureKind::Broker(failure) => {
-            (TransactionSendFailureKind::Broker, Some(failure.code()))
-        }
+        TransactionProduceFailureKind::Broker(failure) => (
+            produce_broker_kind(failure.kind(), failure.code()),
+            Some(failure.code()),
+        ),
         TransactionProduceFailureKind::Protocol(_) => {
             (TransactionSendFailureKind::InvalidResponse, None)
         }
@@ -124,6 +125,40 @@ fn produce_failure_kind(
         | TransactionProduceFailureKind::DriverShutdown => {
             (TransactionSendFailureKind::DriverClosed, None)
         }
+    }
+}
+
+const fn enrollment_broker_kind(code: i16, fenced: bool) -> TransactionSendFailureKind {
+    if fenced && matches!(code, 47 | 90) {
+        return TransactionSendFailureKind::Fenced;
+    }
+    match code {
+        14..=16 => TransactionSendFailureKind::Coordinator,
+        31 | 53 | 58 => TransactionSendFailureKind::Access,
+        _ => TransactionSendFailureKind::Broker,
+    }
+}
+
+const fn produce_broker_kind(
+    kind: ProducerBrokerFailureKind,
+    code: i16,
+) -> TransactionSendFailureKind {
+    match kind {
+        ProducerBrokerFailureKind::Routing => TransactionSendFailureKind::Routing,
+        ProducerBrokerFailureKind::Retriable | ProducerBrokerFailureKind::Unknown => {
+            TransactionSendFailureKind::Broker
+        }
+        ProducerBrokerFailureKind::AccessRejected => TransactionSendFailureKind::Access,
+        ProducerBrokerFailureKind::InvalidRecord => TransactionSendFailureKind::InvalidRecord,
+        ProducerBrokerFailureKind::Compatibility => TransactionSendFailureKind::Compatibility,
+        ProducerBrokerFailureKind::ProducerIdentity if code == 47 => {
+            TransactionSendFailureKind::Fenced
+        }
+        ProducerBrokerFailureKind::ProducerIdentity => TransactionSendFailureKind::ProducerIdentity,
+        ProducerBrokerFailureKind::ProducerFenced if code == 90 => {
+            TransactionSendFailureKind::Fenced
+        }
+        ProducerBrokerFailureKind::ProducerFenced => TransactionSendFailureKind::Broker,
     }
 }
 

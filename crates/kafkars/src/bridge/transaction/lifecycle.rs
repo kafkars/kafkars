@@ -5,16 +5,19 @@ use std::{
     marker::PhantomData,
     pin::Pin,
     task::{Context, Poll},
-    time::Duration,
+    time::Instant,
 };
 
 use kafka_client_engine::{
     TransactionEndObserver as EngineEndObserver, TransactionToken as EngineTransactionToken,
 };
 
-use crate::{KafkaError, bridge::transaction::result::translate_control_kind};
+use crate::{ErrorKind, KafkaError, TransactionEndIntent};
 
-use super::{TransactionalProducerEngine, result::translate_end_observation};
+use super::{
+    TransactionalProducerEngine,
+    result::{translate_control_kind, translate_end_observation},
+};
 
 /// Private active transaction retaining the mutable engine-owner borrow.
 pub(crate) struct TransactionEngine<'producer> {
@@ -41,23 +44,47 @@ impl<'producer> TransactionEngine<'producer> {
         self.begin_wake_failed
     }
 
+    #[expect(
+        clippy::result_large_err,
+        reason = "end rejection returns the exact active transaction owner for retry or abort"
+    )]
     pub(crate) fn commit(
         self,
-        timeout: Duration,
+        deadline: Option<Instant>,
     ) -> Result<TransactionEndEngine<'producer>, (Self, KafkaError)> {
-        self.end(timeout, TransactionEndIntent::Commit)
+        let Some(deadline) = deadline else {
+            return Err((self, invalid_end_deadline(TransactionEndIntent::Commit)));
+        };
+        if deadline <= Instant::now() {
+            return Err((self, invalid_end_deadline(TransactionEndIntent::Commit)));
+        }
+        self.end(deadline, TransactionEndIntent::Commit)
     }
 
+    #[expect(
+        clippy::result_large_err,
+        reason = "end rejection returns the exact active transaction owner for another abort"
+    )]
     pub(crate) fn abort(
         self,
-        timeout: Duration,
+        deadline: Option<Instant>,
     ) -> Result<TransactionEndEngine<'producer>, (Self, KafkaError)> {
-        self.end(timeout, TransactionEndIntent::Abort)
+        let Some(deadline) = deadline else {
+            return Err((self, invalid_end_deadline(TransactionEndIntent::Abort)));
+        };
+        if deadline <= Instant::now() {
+            return Err((self, invalid_end_deadline(TransactionEndIntent::Abort)));
+        }
+        self.end(deadline, TransactionEndIntent::Abort)
     }
 
+    #[expect(
+        clippy::result_large_err,
+        reason = "private end admission reconstructs and returns the exact active owner on rejection"
+    )]
     fn end(
         self,
-        timeout: Duration,
+        deadline: Instant,
         intent: TransactionEndIntent,
     ) -> Result<TransactionEndEngine<'producer>, (Self, KafkaError)> {
         let Self {
@@ -65,8 +92,8 @@ impl<'producer> TransactionEngine<'producer> {
             begin_wake_failed,
         } = self;
         let accepted = match intent {
-            TransactionEndIntent::Commit => inner.commit(timeout),
-            TransactionEndIntent::Abort => inner.abort(timeout),
+            TransactionEndIntent::Commit => inner.commit_until(deadline),
+            TransactionEndIntent::Abort => inner.abort_until(deadline),
         };
         match accepted {
             Ok(accepted) => {
@@ -80,7 +107,8 @@ impl<'producer> TransactionEngine<'producer> {
                 })
             }
             Err(error) => {
-                let semantic = translate_control_kind(error.kind());
+                let semantic =
+                    translate_control_kind(error.kind()).with_transaction_end_intent(intent);
                 Err((
                     Self {
                         inner: error.into_transaction(),
@@ -91,6 +119,18 @@ impl<'producer> TransactionEngine<'producer> {
             }
         }
     }
+}
+
+fn invalid_end_deadline(intent: TransactionEndIntent) -> KafkaError {
+    let message = match intent {
+        TransactionEndIntent::Commit => {
+            "transaction commit deadline cannot be represented or has elapsed"
+        }
+        TransactionEndIntent::Abort => {
+            "transaction abort deadline cannot be represented or has elapsed"
+        }
+    };
+    KafkaError::new(ErrorKind::Configuration, message).with_transaction_end_intent(intent)
 }
 
 impl core::fmt::Debug for TransactionEngine<'_> {
@@ -147,10 +187,4 @@ impl core::fmt::Debug for TransactionEndEngine<'_> {
             .field("end_wake_failed", &self.end_wake_failed)
             .finish()
     }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum TransactionEndIntent {
-    Commit,
-    Abort,
 }

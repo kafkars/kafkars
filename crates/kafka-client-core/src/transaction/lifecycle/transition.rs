@@ -106,12 +106,22 @@ impl TransactionLifecycleMachine {
     }
 
     pub(super) fn enter_fatal(&mut self) -> TransactionLifecycleTransition {
+        self.enter_fatal_with_terminal(None)
+    }
+
+    pub(super) fn enter_fatal_with_terminal(
+        &mut self,
+        end_terminal: Option<super::TransactionLifecycleTerminal>,
+    ) -> TransactionLifecycleTransition {
         let operation_id = self.pending_end.take().and_then(|end| end.operation_id);
+        let terminal = operation_id
+            .map(|_| end_terminal.unwrap_or(super::TransactionLifecycleTerminal::Fatal));
         self.state = TransactionLifecycleState::Fatal;
         TransactionLifecycleTransition::one(TransactionLifecycleEffect::EnterFatal {
             owner_id: self.owner_id,
             epoch: self.current_epoch(),
             operation_id,
+            terminal,
             owner_lost: self.owner_lost,
         })
     }

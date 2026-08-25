@@ -111,6 +111,7 @@ const fn core_error_kind(error: TransactionLifecycleMachineError) -> Transaction
         | TransactionLifecycleMachineError::SendNotPrepared { .. }
         | TransactionLifecycleMachineError::SendAttemptMismatch { .. }
         | TransactionLifecycleMachineError::SendAttemptExhausted
+        | TransactionLifecycleMachineError::EndModeMismatch { .. }
         | TransactionLifecycleMachineError::UnknownSend { .. } => {
             TransactionControlErrorKind::HostUnavailable
         }

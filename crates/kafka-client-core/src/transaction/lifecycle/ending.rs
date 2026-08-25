@@ -139,8 +139,20 @@ impl TransactionLifecycleMachine {
         ) {
             return Err(self.invalid_state());
         }
-        if outcome == TransactionEndOutcome::Fatal {
-            return Ok(self.enter_fatal());
+        if let TransactionEndOutcome::Failed(failure) = outcome {
+            let pending = self
+                .pending_end
+                .as_ref()
+                .unwrap_or_else(|| unreachable!("ending state retains end intent"));
+            if failure.mode() != pending.mode {
+                return Err(TransactionLifecycleMachineError::EndModeMismatch {
+                    expected: pending.mode,
+                    supplied: failure.mode(),
+                });
+            }
+            return Ok(
+                self.enter_fatal_with_terminal(Some(TransactionLifecycleTerminal::Failed(failure)))
+            );
         }
         let pending = self
             .pending_end

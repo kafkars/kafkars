@@ -69,6 +69,7 @@ pub struct KafkaError {
     internal_topic: Option<bool>,
     diagnostic_truncated: bool,
     transaction_abort_required: bool,
+    transaction_end_intent: Option<crate::transaction::TransactionEndIntent>,
     retry_advice: RetryAdvice,
     fatal: bool,
 }
@@ -84,6 +85,7 @@ impl KafkaError {
             internal_topic: None,
             diagnostic_truncated: false,
             transaction_abort_required: false,
+            transaction_end_intent: None,
             retry_advice: RetryAdvice::DoNotRetry,
             fatal: false,
         }
@@ -112,6 +114,14 @@ impl KafkaError {
 
     pub(crate) const fn with_transaction_abort_required(mut self) -> Self {
         self.transaction_abort_required = true;
+        self
+    }
+
+    pub(crate) const fn with_transaction_end_intent(
+        mut self,
+        intent: crate::transaction::TransactionEndIntent,
+    ) -> Self {
+        self.transaction_end_intent = Some(intent);
         self
     }
 
@@ -186,6 +196,11 @@ impl KafkaError {
     /// Returns whether the active transaction must now be aborted.
     pub const fn requires_transaction_abort(&self) -> bool {
         self.transaction_abort_required
+    }
+
+    /// Returns whether the failed transaction-end operation requested commit or abort.
+    pub const fn transaction_end_intent(&self) -> Option<crate::transaction::TransactionEndIntent> {
+        self.transaction_end_intent
     }
 }
 

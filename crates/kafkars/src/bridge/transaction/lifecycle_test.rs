@@ -1,10 +1,13 @@
 //! Private transaction lifecycle threading, linearity, and signature contracts.
 
-use std::{future::Future, time::Duration};
+use std::{future::Future, time::Instant};
 
 use crate::KafkaError;
 
 use super::{TransactionEndEngine, TransactionEngine, TransactionalProducerEngine};
+
+type TransactionEndAdmission<'owner> =
+    Result<TransactionEndEngine<'owner>, (TransactionEngine<'owner>, KafkaError)>;
 
 macro_rules! assert_not_impl {
     ($type:ty: $trait:path) => {
@@ -30,19 +33,17 @@ fn private_begin_and_end_types_preserve_the_owner_borrow() {
     }
     fn require_end_future<F: Future<Output = Result<(), KafkaError>>>() {}
     fn require_commit<'owner>(
-        _method: fn(
-            TransactionEngine<'owner>,
-            Duration,
-        ) -> Result<
-            TransactionEndEngine<'owner>,
-            (TransactionEngine<'owner>, KafkaError),
-        >,
+        _method: fn(TransactionEngine<'owner>, Option<Instant>) -> TransactionEndAdmission<'owner>,
+    ) {
+    }
+    fn require_abort<'owner>(
+        _method: fn(TransactionEngine<'owner>, Option<Instant>) -> TransactionEndAdmission<'owner>,
     ) {
     }
 
     require_begin(TransactionalProducerEngine::begin);
     require_commit(TransactionEngine::commit);
-    require_commit(TransactionEngine::abort);
+    require_abort(TransactionEngine::abort);
     require_end_future::<TransactionEndEngine<'static>>();
     assert_not_impl!(TransactionEngine<'static>: Clone);
     assert_not_impl!(TransactionEngine<'static>: Copy);

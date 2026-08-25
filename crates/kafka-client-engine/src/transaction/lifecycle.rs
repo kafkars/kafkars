@@ -21,6 +21,8 @@ pub(crate) use limits::TransactionExecutionLimits;
 pub(in crate::transaction) use sequencing::TransactionSendReplacement;
 
 #[cfg(test)]
+mod host_support_test;
+#[cfg(test)]
 mod host_test;
 #[cfg(test)]
 mod owner_loss_test;

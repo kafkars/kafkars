@@ -1,26 +1,24 @@
 //! Linear tracked `EndTxn` v3 call and causal coordinator invalidation.
 
-use std::{error::Error, fmt, mem, time::Instant};
+mod terminal;
 
-use kafka_client_core::DeliveryStatus;
-use kafka_driver::{
-    ApiVersion, Call, CompletionError, Driver, InvalidationDisposition, RequestError,
-    RouteFailureToken, RouteKind, RoutedCall,
-};
+use std::{mem, time::Instant};
+
+use kafka_driver::{Call, Driver, InvalidationDisposition, RouteFailureToken, RoutedCall};
 use kafka_wire::EndTxnResponse;
 
-use crate::protocol::transaction::{
-    EndTxnDisposition, EndTxnOutcome, EndTxnResponseFailure, end_txn_v3_request,
-    normalize_end_txn_v3_response,
-};
+use crate::protocol::transaction::{EndTxnDisposition, end_txn_v3_request};
 
 use super::super::super::DriverOwner;
 use super::{
-    TransactionControlDriverFailureKind, failure::transaction_control_driver_failure,
-    submission::TransactionControlSubmitError,
+    TransactionEndCallAdmissionFailure, TransactionEndCompletionFailureKind,
+    failure::transaction_end_completion_failure,
 };
 
-const VERSION: i16 = 3;
+pub(super) use terminal::TransactionEndTerminal;
+pub(crate) use terminal::TransactionEndTerminalFact;
+#[cfg(test)]
+pub(super) use terminal::is_transaction_coordinator_route;
 
 /// One accepted generated request retained until exactly one terminal.
 #[must_use = "an accepted EndTxn call requires terminal settlement"]
@@ -51,7 +49,7 @@ impl TransactionEndCall {
 
     pub(crate) fn try_terminal(
         &mut self,
-    ) -> Option<Result<TransactionEndTerminal, CompletionError>> {
+    ) -> Option<Result<TransactionEndTerminal, TransactionEndCompletionFailureKind>> {
         let state = mem::replace(&mut self.state, TransactionEndState::Consumed);
         match state {
             TransactionEndState::Calling(call) => {
@@ -62,7 +60,7 @@ impl TransactionEndCall {
                 drop(call);
                 let outcome = match result {
                     Ok(outcome) => outcome,
-                    Err(error) => return Some(Err(error)),
+                    Err(error) => return Some(Err(transaction_end_completion_failure(error))),
                 };
                 let (result, selected_version, route_token) = outcome.into_parts();
                 let mut terminal =
@@ -102,7 +100,7 @@ impl TransactionEndCall {
         &mut self,
         mut terminal: TransactionEndTerminal,
         invalidation: TransactionEndInvalidation,
-    ) -> Option<Result<TransactionEndTerminal, CompletionError>> {
+    ) -> Option<Result<TransactionEndTerminal, TransactionEndCompletionFailureKind>> {
         let invalidation = match invalidation {
             TransactionEndInvalidation::Queued(route_token) => {
                 match self.driver.invalidate(route_token) {
@@ -156,125 +154,4 @@ enum TransactionEndState {
 enum TransactionEndInvalidation {
     Queued(RouteFailureToken),
     Active(Call<InvalidationDisposition>),
-}
-
-/// Definitely-unsent coordinator-key or driver-admission failure.
-#[derive(Debug)]
-pub(crate) enum TransactionEndCallAdmissionFailure {
-    Driver(TransactionControlSubmitError),
-}
-
-impl fmt::Display for TransactionEndCallAdmissionFailure {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Driver(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl Error for TransactionEndCallAdmissionFailure {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            Self::Driver(source) => Some(source),
-        }
-    }
-}
-
-/// Terminal protocol facts or driver-authoritative failure.
-pub(crate) enum TransactionEndTerminalFact {
-    Response(Result<EndTxnOutcome, EndTxnResponseFailure>),
-    Failed {
-        kind: TransactionControlDriverFailureKind,
-        delivery: DeliveryStatus,
-    },
-}
-
-/// Raw response and route evidence retained through protocol normalization.
-#[must_use = "a transaction-end terminal owns unsettled route evidence"]
-pub(crate) struct TransactionEndTerminal {
-    selected_version: Option<i16>,
-    result: Result<EndTxnResponse, RequestError>,
-    route_token: Option<RouteFailureToken>,
-    coordinator_refresh_completed: bool,
-}
-
-impl TransactionEndTerminal {
-    pub(super) fn new(
-        selected_version: Option<ApiVersion>,
-        result: Result<EndTxnResponse, RequestError>,
-        route_token: Option<RouteFailureToken>,
-    ) -> Self {
-        Self {
-            selected_version: selected_version.map(ApiVersion::value),
-            result,
-            route_token,
-            coordinator_refresh_completed: false,
-        }
-    }
-
-    pub(crate) fn fact(&self) -> TransactionEndTerminalFact {
-        match &self.result {
-            Ok(_) if self.selected_version != Some(VERSION) => TransactionEndTerminalFact::Failed {
-                kind: selected_version_failure(self.selected_version),
-                delivery: DeliveryStatus::PossiblySent,
-            },
-            Ok(response) => {
-                TransactionEndTerminalFact::Response(normalize_end_txn_v3_response(response))
-            }
-            Err(error) => {
-                let (kind, delivery) = transaction_control_driver_failure(error);
-                TransactionEndTerminalFact::Failed { kind, delivery }
-            }
-        }
-    }
-
-    fn take_failed_transaction_coordinator_route_token(&mut self) -> Option<RouteFailureToken> {
-        if !self.requires_refresh_before_settlement()
-            || !is_transaction_coordinator_route(
-                self.route_token.as_ref().map(RouteFailureToken::kind),
-            )
-        {
-            return None;
-        }
-        self.route_token.take()
-    }
-
-    pub(super) fn requires_refresh_before_settlement(&self) -> bool {
-        !matches!(
-            self.fact(),
-            TransactionEndTerminalFact::Response(Ok(EndTxnOutcome::Succeeded { .. }))
-        )
-    }
-
-    pub(super) fn mark_coordinator_refresh_completed(&mut self) {
-        self.coordinator_refresh_completed = true;
-    }
-
-    pub(crate) fn retry_safe_after_refresh(&self) -> bool {
-        self.coordinator_refresh_completed
-            && matches!(
-                self.fact(),
-                TransactionEndTerminalFact::Response(Ok(EndTxnOutcome::Rejected {
-                    error,
-                    ..
-                })) if matches!(error.code().get(), 14..=16)
-            )
-    }
-
-    pub(crate) fn discard(self) {
-        drop(self.route_token);
-    }
-}
-
-pub(super) const fn is_transaction_coordinator_route(kind: Option<RouteKind>) -> bool {
-    matches!(kind, Some(RouteKind::Coordinator))
-}
-
-const fn selected_version_failure(
-    selected_version: Option<i16>,
-) -> TransactionControlDriverFailureKind {
-    match selected_version {
-        None => TransactionControlDriverFailureKind::InvalidResponse,
-        Some(_) => TransactionControlDriverFailureKind::Compatibility,
-    }
 }

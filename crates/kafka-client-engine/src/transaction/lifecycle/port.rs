@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use kafka_client_core::TransactionEndMode;
+use kafka_client_core::{TransactionEndFailure, TransactionEndMode};
 
 /// Exact immutable facts needed to submit one `EndTxn`.
 pub(super) struct TransactionEndRequest<'a> {
@@ -17,8 +17,8 @@ pub(super) struct TransactionEndRequest<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum TransactionEndPortTerminal {
     Succeeded,
-    RetryableCoordinatorLoss,
-    Fatal,
+    RetryableCoordinatorLoss(TransactionEndFailure),
+    Failed(TransactionEndFailure),
 }
 
 /// Linear driver evidence retained until deterministic settlement accepts it.
@@ -39,7 +39,7 @@ pub(super) enum TransactionEndPortCallPoll {
 pub(super) trait TransactionEndPortCall: Send {
     fn poll(&mut self, deadline_elapsed: bool) -> TransactionEndPortCallPoll;
 
-    fn discard_after_driver_shutdown(self: Box<Self>);
+    fn recover_after_driver_shutdown(self: Box<Self>) -> TransactionEndFailure;
 }
 
 /// Private fakeable boundary around concrete routed transaction calls.
@@ -47,5 +47,5 @@ pub(super) trait TransactionEndPort {
     fn submit(
         &mut self,
         request: TransactionEndRequest<'_>,
-    ) -> Result<Box<dyn TransactionEndPortCall>, ()>;
+    ) -> Result<Box<dyn TransactionEndPortCall>, TransactionEndFailure>;
 }

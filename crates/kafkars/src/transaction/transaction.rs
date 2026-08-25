@@ -96,12 +96,17 @@ impl<'producer> Transaction<'producer> {
     ///
     /// Rejection returns [`TransactionEndAdmissionError`] containing this same
     /// transaction for retry or abort.
+    #[expect(
+        clippy::result_large_err,
+        reason = "commit rejection returns the exact active transaction owner for retry or abort"
+    )]
     pub fn commit(
         self,
         timeout: Duration,
     ) -> Result<CommitTransaction<'producer>, TransactionEndAdmissionError<'producer>> {
+        let deadline = end_deadline_at(std::time::Instant::now(), timeout);
         self.inner
-            .commit(timeout)
+            .commit(deadline)
             .map(CommitTransaction::from_bridge)
             .map_err(|(transaction, error)| {
                 TransactionEndAdmissionError::new(Self::from_bridge(transaction), error)
@@ -112,15 +117,31 @@ impl<'producer> Transaction<'producer> {
     ///
     /// Rejection returns [`TransactionEndAdmissionError`] containing this same
     /// transaction for retry or another abort attempt.
+    #[expect(
+        clippy::result_large_err,
+        reason = "abort rejection returns the exact active transaction owner for another attempt"
+    )]
     pub fn abort(
         self,
         timeout: Duration,
     ) -> Result<AbortTransaction<'producer>, TransactionEndAdmissionError<'producer>> {
+        let deadline = end_deadline_at(std::time::Instant::now(), timeout);
         self.inner
-            .abort(timeout)
+            .abort(deadline)
             .map(AbortTransaction::from_bridge)
             .map_err(|(transaction, error)| {
                 TransactionEndAdmissionError::new(Self::from_bridge(transaction), error)
             })
+    }
+}
+
+pub(super) fn end_deadline_at(
+    boundary: std::time::Instant,
+    timeout: Duration,
+) -> Option<std::time::Instant> {
+    if timeout.is_zero() {
+        None
+    } else {
+        boundary.checked_add(timeout)
     }
 }

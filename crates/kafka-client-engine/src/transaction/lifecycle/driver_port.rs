@@ -1,7 +1,5 @@
 //! Concrete `kafka-driver` adapter for private transaction lifecycle execution.
 
-use kafka_client_core::{Moment, TransactionEndMode};
-
 use crate::{
     driver::{
         DriverOwner,
@@ -9,6 +7,13 @@ use crate::{
     },
     protocol::transaction::{EndTxnDisposition, EndTxnOutcome},
 };
+use kafka_client_core::{
+    DeliveryStatus, Moment, TransactionEndFailure, TransactionEndFailureKind, TransactionEndMode,
+};
+
+mod failure;
+
+use failure::{broker_failure, completion_failure, driver_failure_kind, submit_failure};
 
 use super::{
     host::{TransactionLifecycleHost, TransactionLifecycleHostError, TransactionLifecycleTurn},
@@ -45,7 +50,7 @@ impl TransactionEndPort for DriverTransactionEndPort<'_> {
     fn submit(
         &mut self,
         request: TransactionEndRequest<'_>,
-    ) -> Result<Box<dyn TransactionEndPortCall>, ()> {
+    ) -> Result<Box<dyn TransactionEndPortCall>, TransactionEndFailure> {
         let disposition = match request.mode {
             TransactionEndMode::Commit => EndTxnDisposition::Commit,
             TransactionEndMode::Abort => EndTxnDisposition::Abort,
@@ -58,13 +63,19 @@ impl TransactionEndPort for DriverTransactionEndPort<'_> {
             disposition,
             request.deadline,
         )
-        .map(|call| Box::new(DriverTransactionEndCall { call }) as Box<_>)
-        .map_err(|_error| ())
+        .map(|call| {
+            Box::new(DriverTransactionEndCall {
+                call,
+                mode: request.mode,
+            }) as Box<_>
+        })
+        .map_err(|error| submit_failure(request.mode, &error))
     }
 }
 
 struct DriverTransactionEndCall {
     call: TransactionEndCall,
+    mode: TransactionEndMode,
 }
 
 impl TransactionEndPortCall for DriverTransactionEndCall {
@@ -74,6 +85,7 @@ impl TransactionEndPortCall for DriverTransactionEndCall {
                 let normalized = normalize_driver_terminal(
                     &terminal.fact(),
                     terminal.retry_safe_after_refresh(),
+                    self.mode,
                 );
                 return TransactionEndPortCallPoll::DeadlineElapsed(driver_evidence(
                     normalized,
@@ -86,21 +98,34 @@ impl TransactionEndPortCall for DriverTransactionEndCall {
         };
         let terminal = match result {
             Ok(terminal) => terminal,
-            Err(_completion_error) => {
+            Err(completion_error) => {
                 return TransactionEndPortCallPoll::Terminal(Box::new(
-                    TerminalWithoutRouteEvidence,
+                    TerminalWithoutRouteEvidence {
+                        terminal: TransactionEndPortTerminal::Failed(completion_failure(
+                            self.mode,
+                            completion_error,
+                        )),
+                    },
                 ));
             }
         };
-        let normalized =
-            normalize_driver_terminal(&terminal.fact(), terminal.retry_safe_after_refresh());
+        let normalized = normalize_driver_terminal(
+            &terminal.fact(),
+            terminal.retry_safe_after_refresh(),
+            self.mode,
+        );
         TransactionEndPortCallPoll::Terminal(driver_evidence(normalized, move || {
             terminal.discard();
         }))
     }
 
-    fn discard_after_driver_shutdown(self: Box<Self>) {
+    fn recover_after_driver_shutdown(self: Box<Self>) -> TransactionEndFailure {
         self.call.discard_after_driver_shutdown();
+        TransactionEndFailure::local(
+            self.mode,
+            TransactionEndFailureKind::DriverClosed,
+            DeliveryStatus::PossiblySent,
+        )
     }
 }
 
@@ -134,29 +159,44 @@ fn driver_evidence(
 fn normalize_driver_terminal(
     fact: &TransactionEndTerminalFact,
     retry_safe_after_refresh: bool,
+    mode: TransactionEndMode,
 ) -> TransactionEndPortTerminal {
     match fact {
         TransactionEndTerminalFact::Response(Ok(EndTxnOutcome::Succeeded { .. })) => {
             TransactionEndPortTerminal::Succeeded
         }
-        _ if retry_safe_after_refresh => TransactionEndPortTerminal::RetryableCoordinatorLoss,
-        TransactionEndTerminalFact::Response(Ok(EndTxnOutcome::Rejected { error, .. })) => {
-            let _category = error.category();
-            TransactionEndPortTerminal::Fatal
+        TransactionEndTerminalFact::Response(Ok(EndTxnOutcome::Rejected { error, .. }))
+            if retry_safe_after_refresh =>
+        {
+            TransactionEndPortTerminal::RetryableCoordinatorLoss(broker_failure(mode, *error))
         }
-        TransactionEndTerminalFact::Response(Err(_)) => TransactionEndPortTerminal::Fatal,
+        TransactionEndTerminalFact::Response(Ok(EndTxnOutcome::Rejected { error, .. })) => {
+            TransactionEndPortTerminal::Failed(broker_failure(mode, *error))
+        }
+        TransactionEndTerminalFact::Response(Err(_)) => {
+            TransactionEndPortTerminal::Failed(TransactionEndFailure::local(
+                mode,
+                TransactionEndFailureKind::InvalidResponse,
+                DeliveryStatus::PossiblySent,
+            ))
+        }
         TransactionEndTerminalFact::Failed { kind, delivery } => {
-            let _ = (kind, delivery);
-            TransactionEndPortTerminal::Fatal
+            TransactionEndPortTerminal::Failed(TransactionEndFailure::local(
+                mode,
+                driver_failure_kind(*kind),
+                *delivery,
+            ))
         }
     }
 }
 
-struct TerminalWithoutRouteEvidence;
+struct TerminalWithoutRouteEvidence {
+    terminal: TransactionEndPortTerminal,
+}
 
 impl TransactionEndPortTerminalEvidence for TerminalWithoutRouteEvidence {
     fn terminal(&self) -> TransactionEndPortTerminal {
-        TransactionEndPortTerminal::Fatal
+        self.terminal
     }
 
     fn discard(self: Box<Self>) {

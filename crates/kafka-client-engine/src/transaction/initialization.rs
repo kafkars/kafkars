@@ -41,7 +41,9 @@ pub use control_error::{
     TransactionControlError, TransactionControlErrorKind, TransactionEndAdmissionError,
 };
 pub use end_observer::{
-    TransactionEndObserver, TransactionEndObserverError, TransactionEndOutcome,
+    TransactionEndDeliveryStatus, TransactionEndFailure, TransactionEndFailureKind,
+    TransactionEndIntent, TransactionEndObserver, TransactionEndObserverError,
+    TransactionEndOutcome,
 };
 pub(crate) use error::TransactionInitializationHostError;
 pub use error::{
@@ -88,6 +90,8 @@ pub(crate) use shard::{
 
 #[cfg(test)]
 mod capture_test;
+#[cfg(test)]
+mod end_observer_test;
 #[cfg(test)]
 mod host_test;
 #[cfg(test)]

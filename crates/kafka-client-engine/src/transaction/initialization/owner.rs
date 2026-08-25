@@ -1,5 +1,7 @@
 //! Public transactional-owner token backed by shard-owned execution.
 
+mod end;
+
 use std::{
     cell::Cell,
     marker::PhantomData,
@@ -10,12 +12,9 @@ use std::{
     time::Duration,
 };
 
-use kafka_client_core::{
-    TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal, TransactionalOwnerId,
-};
+use kafka_client_core::{TransactionEpoch, TransactionalOwnerId};
 
 use crate::{
-    completion::CompletionObserver,
     producer::{ProducerSendCapture, ProducerSendCaptureError},
     transaction::initialization::{
         TransactionLifecycleControlAccepted, TransactionLifecycleControlError,
@@ -152,30 +151,6 @@ impl TransactionalOwnerHandle {
         TransactionOffsetCommitControlError,
     > {
         self.control.send_offsets(self.owner_id, input)
-    }
-
-    pub(crate) fn commit(
-        &self,
-        epoch: TransactionEpoch,
-        timeout: Duration,
-    ) -> Result<
-        TransactionLifecycleControlAccepted<CompletionObserver<TransactionLifecycleTerminal>>,
-        TransactionLifecycleControlError,
-    > {
-        self.control
-            .end(self.owner_id, epoch, TransactionEndMode::Commit, timeout)
-    }
-
-    pub(crate) fn abort(
-        &self,
-        epoch: TransactionEpoch,
-        timeout: Duration,
-    ) -> Result<
-        TransactionLifecycleControlAccepted<CompletionObserver<TransactionLifecycleTerminal>>,
-        TransactionLifecycleControlError,
-    > {
-        self.control
-            .end(self.owner_id, epoch, TransactionEndMode::Abort, timeout)
     }
 
     pub(super) fn lose_owner(&mut self) {

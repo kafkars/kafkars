@@ -1,31 +1,15 @@
 //! Private transaction lifecycle execution and completion scenarios.
 
-use std::{
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
-        mpsc::{Receiver, sync_channel},
-    },
-    time::{Duration, Instant},
-};
-
 use kafka_client_core::{
-    Deadline, Moment, ProducerRetryPolicy, TransactionEndMode, TransactionLifecycleTerminal,
-    TransactionalOwnerId,
-};
-
-use crate::{
-    clock::OperationDeadline,
-    transaction::{
-        completion::TransactionCompletionOwner, initialization::TransactionalOwnerParts,
-    },
+    DeliveryStatus, Moment, ProducerRetryPolicy, TransactionEndBrokerFailureKind,
+    TransactionEndFailure, TransactionEndFailureKind, TransactionEndMode,
+    TransactionLifecycleTerminal,
 };
 
 use super::{
     host::{TransactionLifecycleHost, TransactionLifecycleTurn},
-    port::{
-        TransactionEndPort, TransactionEndPortCall, TransactionEndPortCallPoll,
-        TransactionEndPortTerminal, TransactionEndPortTerminalEvidence, TransactionEndRequest,
+    host_support_test::{
+        FakePort, RecordedRequest, assert_released, deadline, host, host_with_policy,
     },
 };
 
@@ -111,66 +95,76 @@ fn refreshed_coordinator_rejection_retries_under_the_original_deadline() {
     );
 }
 
-pub(super) fn deadline(tick: u64) -> OperationDeadline {
-    OperationDeadline::from_parts_for_test(
-        Deadline::from_tick(tick),
-        Instant::now() + Duration::from_secs(tick),
-    )
-}
+#[test]
+fn deadline_during_end_retry_preserves_possible_delivery() {
+    let (mut host, mut port, observer, _completion) = retrying_commit(FakePort::retrying_once());
 
-pub(super) fn host() -> (
-    TransactionLifecycleHost,
-    Arc<AtomicBool>,
-    Receiver<TransactionalOwnerId>,
-    TransactionCompletionOwner,
-) {
-    host_with_policy(ProducerRetryPolicy::none())
-}
-
-fn host_with_policy(
-    retry_policy: ProducerRetryPolicy,
-) -> (
-    TransactionLifecycleHost,
-    Arc<AtomicBool>,
-    Receiver<TransactionalOwnerId>,
-    TransactionCompletionOwner,
-) {
-    let (sender, receiver) = sync_channel(1);
-    let active = Arc::new(AtomicBool::new(true));
-    let completion = TransactionCompletionOwner::start()
-        .unwrap_or_else(|error| panic!("transaction completion owner starts: {error:?}"));
-    let parts = TransactionalOwnerParts::new(
-        TransactionalOwnerId::from_raw(7),
-        Arc::<str>::from("writer"),
-        41,
-        3,
-        Arc::clone(&active),
-        sender,
-        completion
-            .lifecycle_publisher()
-            .unwrap_or_else(|error| panic!("publisher remains active: {error:?}")),
-        completion
-            .send_publisher()
-            .unwrap_or_else(|error| panic!("send publisher remains active: {error:?}")),
-        completion
-            .offset_commit_publisher()
-            .unwrap_or_else(|error| panic!("offset publisher remains active: {error:?}")),
+    schedule_first_retry(&mut host, &mut port);
+    assert_eq!(
+        host.turn_with_at(Moment::from_tick(31), &mut port),
+        Ok(TransactionLifecycleTurn::Progress)
     );
-    let limits = super::TransactionExecutionLimits::try_new_with_retry_policy(
-        8,
-        1024,
-        kafka_client_core::CompressionPolicy::None,
-        retry_policy,
-    )
-    .unwrap_or_else(|| panic!("limits"));
-    let host = TransactionLifecycleHost::try_new(parts, limits)
-        .unwrap_or_else(|(error, _parts)| panic!("transaction lifecycle starts: {error:?}"));
-    (host, active, receiver, completion)
+    publish_terminal(&mut host, &mut port, 31);
+
+    assert_uncertain_failure(observer.wait(), TransactionEndFailureKind::DeadlineElapsed);
 }
 
-pub(super) fn assert_released(active: &Arc<AtomicBool>, release: &Receiver<TransactionalOwnerId>) {
-    assert!(!active.load(Ordering::Acquire));
-    assert_eq!(release.try_recv().map(TransactionalOwnerId::get), Ok(7));
+#[test]
+fn replacement_rejection_preserves_possible_delivery() {
+    let (mut host, mut port, observer, _completion) =
+        retrying_commit(FakePort::retrying_then_rejecting());
+
+    schedule_first_retry(&mut host, &mut port);
+    assert_eq!(
+        host.turn_with_at(Moment::from_tick(1), &mut port),
+        Ok(TransactionLifecycleTurn::Progress)
+    );
+    publish_terminal(&mut host, &mut port, 1);
+
+    assert_uncertain_failure(observer.wait(), TransactionEndFailureKind::DriverRejected);
+}
+
+#[test]
+fn shutdown_during_end_retry_preserves_possible_delivery() {
+    let (mut host, mut port, observer, _completion) = retrying_commit(FakePort::retrying_once());
+
+    schedule_first_retry(&mut host, &mut port);
+    host.recover_end_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("shutdown recovery: {error:?}"));
+    publish_terminal(&mut host, &mut port, 0);
+
+    assert_uncertain_failure(observer.wait(), TransactionEndFailureKind::DriverClosed);
+}
+
+#[test]
+fn failed_end_preserves_exact_intent_cause_delivery_and_signed_code() {
+    let (mut host, _active, _release, _completion) = host();
+    let epoch = host
+        .begin()
+        .unwrap_or_else(|error| panic!("transaction begins: {error:?}"));
+    let deadline = deadline(31);
+    let observer = host
+        .abort(epoch, deadline)
+        .unwrap_or_else(|error| panic!("abort is admitted: {error:?}"));
+    let code =
+        core::num::NonZeroI16::new(-731).unwrap_or_else(|| panic!("signed test code is nonzero"));
+    let failure = TransactionEndFailure::broker(
+        TransactionEndMode::Abort,
+        TransactionEndBrokerFailureKind::Rejected,
+        DeliveryStatus::PossiblySent,
+        code,
+    );
+    let mut port = FakePort::failed(failure);
+
+    drive_three(&mut host, &mut port);
+    assert_eq!(
+        observer.wait(),
+        Ok(TransactionLifecycleTerminal::Failed(failure))
+    );
+    assert_eq!(
+        host.machine.state(),
+        kafka_client_core::TransactionLifecycleState::Fatal
+    );
 }
 
 fn drive_three(host: &mut TransactionLifecycleHost, port: &mut FakePort) {
@@ -180,96 +174,53 @@ fn drive_three(host: &mut TransactionLifecycleHost, port: &mut FakePort) {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct RecordedRequest {
-    transactional_id: String,
-    producer_id: i64,
-    producer_epoch: i16,
-    mode: TransactionEndMode,
-    deadline: Instant,
+fn retrying_commit(
+    port: FakePort,
+) -> (
+    TransactionLifecycleHost,
+    FakePort,
+    crate::completion::CompletionObserver<TransactionLifecycleTerminal>,
+    crate::transaction::completion::TransactionCompletionOwner,
+) {
+    let retry_policy = ProducerRetryPolicy::try_fixed(1, 1)
+        .unwrap_or_else(|_| panic!("one bounded retry with positive backoff"));
+    let (mut host, _active, _release, completion) = host_with_policy(retry_policy);
+    let epoch = host
+        .begin()
+        .unwrap_or_else(|error| panic!("transaction begins: {error:?}"));
+    let observer = host
+        .commit(epoch, deadline(31))
+        .unwrap_or_else(|error| panic!("commit is admitted: {error:?}"));
+    (host, port, observer, completion)
 }
 
-pub(super) struct FakePort {
-    requests: Arc<Mutex<Vec<RecordedRequest>>>,
-    terminals: Vec<TransactionEndPortTerminal>,
-}
-
-impl FakePort {
-    pub(super) fn succeeding() -> Self {
-        Self {
-            requests: Arc::new(Mutex::new(Vec::new())),
-            terminals: vec![TransactionEndPortTerminal::Succeeded],
-        }
-    }
-
-    fn retrying_once() -> Self {
-        Self {
-            requests: Arc::new(Mutex::new(Vec::new())),
-            terminals: vec![
-                TransactionEndPortTerminal::RetryableCoordinatorLoss,
-                TransactionEndPortTerminal::Succeeded,
-            ],
-        }
-    }
-
-    pub(super) fn first_mode(&self) -> TransactionEndMode {
-        self.requests
-            .lock()
-            .unwrap_or_else(|error| panic!("request lock: {error:?}"))[0]
-            .mode
+fn schedule_first_retry(host: &mut TransactionLifecycleHost, port: &mut FakePort) {
+    for _ in 0..2 {
+        assert_eq!(
+            host.turn_with_at(Moment::from_tick(0), port),
+            Ok(TransactionLifecycleTurn::Progress)
+        );
     }
 }
 
-impl TransactionEndPort for FakePort {
-    fn submit(
-        &mut self,
-        request: TransactionEndRequest<'_>,
-    ) -> Result<Box<dyn TransactionEndPortCall>, ()> {
-        self.requests
-            .lock()
-            .unwrap_or_else(|error| panic!("request lock: {error:?}"))
-            .push(RecordedRequest {
-                transactional_id: request.transactional_id.to_owned(),
-                producer_id: request.producer_id,
-                producer_epoch: request.producer_epoch,
-                mode: request.mode,
-                deadline: request.deadline,
-            });
-        if self.terminals.is_empty() {
-            return Err(());
-        }
-        Ok(Box::new(FakeCall {
-            terminal: Some(self.terminals.remove(0)),
-        }))
-    }
+fn publish_terminal(host: &mut TransactionLifecycleHost, port: &mut FakePort, tick: u64) {
+    assert_eq!(
+        host.turn_with_at(Moment::from_tick(tick), port),
+        Ok(TransactionLifecycleTurn::Progress)
+    );
 }
 
-struct FakeCall {
-    terminal: Option<TransactionEndPortTerminal>,
-}
-
-impl TransactionEndPortCall for FakeCall {
-    fn poll(&mut self, _deadline_elapsed: bool) -> TransactionEndPortCallPoll {
-        self.terminal
-            .take()
-            .map_or(TransactionEndPortCallPoll::Pending, |terminal| {
-                TransactionEndPortCallPoll::Terminal(Box::new(FakeEvidence(terminal)))
-            })
-    }
-
-    fn discard_after_driver_shutdown(self: Box<Self>) {
-        drop(self);
-    }
-}
-
-struct FakeEvidence(TransactionEndPortTerminal);
-
-impl TransactionEndPortTerminalEvidence for FakeEvidence {
-    fn terminal(&self) -> TransactionEndPortTerminal {
-        self.0
-    }
-
-    fn discard(self: Box<Self>) {
-        drop(self);
-    }
+fn assert_uncertain_failure(
+    terminal: Result<TransactionLifecycleTerminal, crate::completion::CompletionObserverError>,
+    expected_kind: TransactionEndFailureKind,
+) {
+    let TransactionLifecycleTerminal::Failed(failure) =
+        terminal.unwrap_or_else(|error| panic!("terminal wait: {error:?}"))
+    else {
+        panic!("end must fail");
+    };
+    assert_eq!(failure.mode(), TransactionEndMode::Commit);
+    assert_eq!(failure.kind(), expected_kind);
+    assert_eq!(failure.delivery(), DeliveryStatus::PossiblySent);
+    assert_eq!(failure.broker_code(), None);
 }

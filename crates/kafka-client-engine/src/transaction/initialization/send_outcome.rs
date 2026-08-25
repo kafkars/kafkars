@@ -55,8 +55,18 @@ pub enum TransactionSendFailureKind {
     DriverClosed,
     /// Kafka returned an exact signed broker rejection.
     Broker,
-    /// A broker topic identity proof was missing or mismatched.
+    /// Authentication or authorization rejected the operation.
+    Access,
+    /// The transaction coordinator could not serve enrollment.
+    Coordinator,
+    /// Kafka explicitly fenced the transactional producer identity.
+    Fenced,
+    /// Kafka rejected record or batch content.
+    InvalidRecord,
+    /// Broker-issued topic identity did not match the caller expectation.
     Identity,
+    /// Idempotent producer identity or sequence state became unusable.
+    ProducerIdentity,
     /// Record-batch materialization failed before Produce ownership.
     Materialization,
     /// No usable broker route was available.

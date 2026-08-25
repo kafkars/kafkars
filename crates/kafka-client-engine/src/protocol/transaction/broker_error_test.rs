@@ -22,3 +22,17 @@ fn only_producer_identity_fencing_codes_are_categorized_as_fenced() {
         assert_eq!(error.category(), TransactionBrokerCategory::Fenced);
     }
 }
+
+#[test]
+fn coordinator_and_access_rejections_remain_distinct_from_fencing() {
+    for code in [14, 15, 16] {
+        let error =
+            transaction_broker_error(code).unwrap_or_else(|| panic!("{code} must be nonzero"));
+        assert_eq!(error.category(), TransactionBrokerCategory::Coordinator);
+    }
+    for code in [31, 53, 58] {
+        let error =
+            transaction_broker_error(code).unwrap_or_else(|| panic!("{code} must be nonzero"));
+        assert_eq!(error.category(), TransactionBrokerCategory::Access);
+    }
+}

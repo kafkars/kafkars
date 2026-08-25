@@ -188,8 +188,8 @@ pub enum TransactionEndObservation {
 pub enum TransactionEndOutcome {
     /// Kafka accepted the requested commit or abort.
     Succeeded,
-    /// Settlement irrecoverably fenced the transactional owner.
-    Fatal,
+    /// Settlement failed with exact cause and irrecoverably fenced the owner.
+    Failed(super::TransactionEndFailure),
 }
 
 /// Publicly observable terminal for an explicit commit or abort operation.
@@ -199,6 +199,8 @@ pub enum TransactionLifecycleTerminal {
     Committed,
     /// Explicit abort completed successfully.
     Aborted,
-    /// The owner became permanently unusable.
+    /// A non-`EndTxn` lifecycle failure made the owner permanently unusable.
     Fatal,
+    /// The accepted `EndTxn` failed with its exact terminal facts.
+    Failed(super::TransactionEndFailure),
 }

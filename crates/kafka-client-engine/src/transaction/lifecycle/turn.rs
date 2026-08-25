@@ -1,16 +1,26 @@
 //! Non-blocking driver handoff and linear terminal-evidence settlement.
 
 use kafka_client_core::{
-    Moment, TransactionEndOutcome, TransactionLifecycleEffect, TransactionLifecycleInput,
+    DeliveryStatus, Moment, TransactionEndFailure, TransactionEndFailureKind, TransactionEndMode,
+    TransactionEndOutcome, TransactionLifecycleEffect, TransactionLifecycleInput,
 };
 
 use super::{
-    host::{TransactionLifecycleHost, TransactionLifecycleHostError, TransactionLifecycleTurn},
+    host::{
+        PendingEndOperation, TransactionLifecycleHost, TransactionLifecycleHostError,
+        TransactionLifecycleTurn,
+    },
     port::{
         TransactionEndPort, TransactionEndPortCallPoll, TransactionEndPortTerminal,
         TransactionEndRequest,
     },
 };
+
+impl PendingEndOperation {
+    fn weaken_delivery_floor(&mut self, delivery: DeliveryStatus) {
+        self.delivery_floor = weaken_delivery(self.delivery_floor, delivery);
+    }
+}
 
 impl TransactionLifecycleHost {
     #[cfg(test)]
@@ -37,7 +47,11 @@ impl TransactionLifecycleHost {
         }
         if pending.call.is_none() {
             if pending.deadline.core().is_elapsed_at(now) {
-                self.settle_end(TransactionEndOutcome::Fatal)?;
+                let mode = pending.mode;
+                self.settle_end(TransactionEndOutcome::Failed(deadline_failure(
+                    mode,
+                    DeliveryStatus::NotSent,
+                )))?;
                 return Ok(TransactionLifecycleTurn::Progress);
             }
             if pending
@@ -60,7 +74,7 @@ impl TransactionLifecycleHost {
             };
             match port.submit(request) {
                 Ok(call) => pending.call = Some(call),
-                Err(()) => self.settle_end(TransactionEndOutcome::Fatal)?,
+                Err(failure) => self.settle_end(TransactionEndOutcome::Failed(failure))?,
             }
             return Ok(TransactionLifecycleTurn::Progress);
         }
@@ -76,18 +90,27 @@ impl TransactionLifecycleHost {
         };
         let outcome = match (deadline_elapsed, evidence.terminal()) {
             (false, TransactionEndPortTerminal::Succeeded) => TransactionEndOutcome::Succeeded,
-            (false, TransactionEndPortTerminal::RetryableCoordinatorLoss)
-                if self.schedule_end_retry(now)? =>
+            (false, TransactionEndPortTerminal::RetryableCoordinatorLoss(failure))
+                if self.schedule_end_retry(now, failure.delivery())? =>
             {
                 evidence.discard();
                 return Ok(TransactionLifecycleTurn::Progress);
             }
-            (true, _)
-            | (
+            (
+                true,
+                TransactionEndPortTerminal::RetryableCoordinatorLoss(failure)
+                | TransactionEndPortTerminal::Failed(failure),
+            ) => {
+                TransactionEndOutcome::Failed(deadline_failure(failure.mode(), failure.delivery()))
+            }
+            (true, TransactionEndPortTerminal::Succeeded) => {
+                return Err(TransactionLifecycleHostError::UnexpectedEffect);
+            }
+            (
                 false,
-                TransactionEndPortTerminal::RetryableCoordinatorLoss
-                | TransactionEndPortTerminal::Fatal,
-            ) => TransactionEndOutcome::Fatal,
+                TransactionEndPortTerminal::RetryableCoordinatorLoss(failure)
+                | TransactionEndPortTerminal::Failed(failure),
+            ) => TransactionEndOutcome::Failed(failure),
         };
         let settlement = self.settle_end(outcome);
         evidence.discard();
@@ -95,7 +118,11 @@ impl TransactionLifecycleHost {
         Ok(TransactionLifecycleTurn::Progress)
     }
 
-    fn schedule_end_retry(&mut self, now: Moment) -> Result<bool, TransactionLifecycleHostError> {
+    fn schedule_end_retry(
+        &mut self,
+        now: Moment,
+        delivery: DeliveryStatus,
+    ) -> Result<bool, TransactionLifecycleHostError> {
         let pending = self
             .pending_end
             .as_ref()
@@ -140,6 +167,7 @@ impl TransactionLifecycleHost {
         drop(pending.call.take());
         pending.retry_not_before = Some(not_before);
         pending.retries_started = retries_started;
+        pending.weaken_delivery_floor(delivery);
         Ok(true)
     }
 
@@ -147,11 +175,17 @@ impl TransactionLifecycleHost {
         &mut self,
         outcome: TransactionEndOutcome,
     ) -> Result<(), TransactionLifecycleHostError> {
-        let epoch = self
+        let (epoch, delivery_floor) = self
             .pending_end
             .as_ref()
-            .map(|pending| pending.epoch)
+            .map(|pending| (pending.epoch, pending.delivery_floor))
             .ok_or(TransactionLifecycleHostError::MissingEndOperation)?;
+        let outcome = match outcome {
+            TransactionEndOutcome::Failed(failure) => {
+                TransactionEndOutcome::Failed(failure.with_delivery_floor(delivery_floor))
+            }
+            TransactionEndOutcome::Succeeded => TransactionEndOutcome::Succeeded,
+        };
         if outcome == TransactionEndOutcome::Succeeded {
             self.preflight_epoch_release(epoch)?;
         }
@@ -164,4 +198,20 @@ impl TransactionLifecycleHost {
         }
         self.interpret(transition.into_effect(), None)
     }
+}
+
+const fn weaken_delivery(left: DeliveryStatus, right: DeliveryStatus) -> DeliveryStatus {
+    if matches!(left, DeliveryStatus::PossiblySent) || matches!(right, DeliveryStatus::PossiblySent)
+    {
+        DeliveryStatus::PossiblySent
+    } else {
+        DeliveryStatus::NotSent
+    }
+}
+
+const fn deadline_failure(
+    mode: TransactionEndMode,
+    delivery: DeliveryStatus,
+) -> TransactionEndFailure {
+    TransactionEndFailure::local(mode, TransactionEndFailureKind::DeadlineElapsed, delivery)
 }

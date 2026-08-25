@@ -1,11 +1,12 @@
 //! Explicit and best-effort transaction-end settlement scenarios.
 
 use super::{
-    TransactionEndMode, TransactionEndObservation, TransactionEndOutcome,
-    TransactionLifecycleEffect, TransactionLifecycleInput, TransactionLifecycleMachine,
-    TransactionLifecycleState, TransactionLifecycleTerminal,
+    TransactionEndFailure, TransactionEndFailureKind, TransactionEndMode,
+    TransactionEndObservation, TransactionEndOutcome, TransactionLifecycleEffect,
+    TransactionLifecycleInput, TransactionLifecycleMachine, TransactionLifecycleState,
+    TransactionLifecycleTerminal,
 };
-use crate::{OperationId, TransactionalOwnerId};
+use crate::{DeliveryStatus, OperationId, TransactionalOwnerId};
 
 #[test]
 fn explicit_commit_success_returns_idle_and_publishes_one_terminal() {
@@ -93,7 +94,7 @@ fn active_owner_loss_emits_unobserved_abort_and_never_success() {
 }
 
 #[test]
-fn fatal_end_fences_the_epoch_and_public_operation() {
+fn failed_end_fences_the_epoch_and_preserves_the_exact_public_terminal() {
     let owner = TransactionalOwnerId::from_raw(6);
     let mut machine = TransactionLifecycleMachine::new(owner);
     let epoch = machine
@@ -115,12 +116,17 @@ fn fatal_end_fences_the_epoch_and_public_operation() {
             },
         )
         .unwrap_or_else(|error| panic!("abort: {error}"));
+    let failure = TransactionEndFailure::local(
+        TransactionEndMode::Abort,
+        TransactionEndFailureKind::Transport,
+        DeliveryStatus::PossiblySent,
+    );
     let fatal = machine
         .apply(
             owner,
             TransactionLifecycleInput::EndSettled {
                 epoch,
-                outcome: TransactionEndOutcome::Fatal,
+                outcome: TransactionEndOutcome::Failed(failure),
             },
         )
         .unwrap_or_else(|error| panic!("fatal: {error}"));
@@ -129,8 +135,53 @@ fn fatal_end_fences_the_epoch_and_public_operation() {
         fatal.into_effect(),
         Some(TransactionLifecycleEffect::EnterFatal {
             operation_id: Some(actual),
+            terminal: Some(TransactionLifecycleTerminal::Failed(actual_failure)),
             owner_lost: false,
             ..
-        }) if actual == operation_id
+        }) if actual == operation_id && actual_failure == failure
     ));
+}
+
+#[test]
+fn end_failure_for_the_other_intent_is_rejected_without_mutation() {
+    let owner = TransactionalOwnerId::from_raw(7);
+    let mut machine = TransactionLifecycleMachine::new(owner);
+    let epoch = machine
+        .apply(owner, TransactionLifecycleInput::Begin)
+        .unwrap_or_else(|error| panic!("begin: {error}"))
+        .into_effect()
+        .and_then(|effect| match effect {
+            TransactionLifecycleEffect::Began { epoch, .. } => Some(epoch),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("epoch"));
+    machine
+        .apply(
+            owner,
+            TransactionLifecycleInput::Commit {
+                epoch,
+                operation_id: OperationId::from_raw(4),
+            },
+        )
+        .unwrap_or_else(|error| panic!("commit: {error}"));
+    let failure = TransactionEndFailure::local(
+        TransactionEndMode::Abort,
+        TransactionEndFailureKind::Transport,
+        DeliveryStatus::PossiblySent,
+    );
+
+    assert!(matches!(
+        machine.apply(
+            owner,
+            TransactionLifecycleInput::EndSettled {
+                epoch,
+                outcome: TransactionEndOutcome::Failed(failure),
+            },
+        ),
+        Err(super::TransactionLifecycleMachineError::EndModeMismatch {
+            expected: TransactionEndMode::Commit,
+            supplied: TransactionEndMode::Abort,
+        })
+    ));
+    assert_eq!(machine.state(), TransactionLifecycleState::EndingCommit);
 }

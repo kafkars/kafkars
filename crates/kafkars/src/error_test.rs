@@ -1,6 +1,6 @@
 //! Tests for the facade-owned stable error vocabulary.
 
-use crate::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice};
+use crate::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice, TransactionEndIntent};
 
 #[test]
 fn producer_delivery_certainty_round_trips_through_public_error() {
@@ -21,6 +21,7 @@ fn non_producer_error_has_no_delivery_certainty() {
     assert_eq!(error.is_internal_topic(), None);
     assert!(!error.diagnostic_truncated());
     assert!(!error.requires_transaction_abort());
+    assert_eq!(error.transaction_end_intent(), None);
     assert!(!error.is_retriable());
     assert!(!error.is_fatal());
     assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry);
@@ -92,4 +93,17 @@ fn transaction_abort_requirement_is_explicit_and_opt_in() {
         .with_transaction_abort_required();
 
     assert!(error.requires_transaction_abort());
+}
+
+#[test]
+fn transaction_end_intent_is_explicit_and_independent_of_fatality() {
+    for intent in [TransactionEndIntent::Commit, TransactionEndIntent::Abort] {
+        let error = KafkaError::new(ErrorKind::Transport, "end failed")
+            .with_transaction_end_intent(intent)
+            .with_fatal_disposition();
+
+        assert_eq!(error.transaction_end_intent(), Some(intent));
+        assert!(error.is_fatal());
+        assert_ne!(error.kind(), ErrorKind::Fenced);
+    }
 }

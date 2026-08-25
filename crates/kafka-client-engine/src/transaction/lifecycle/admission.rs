@@ -1,7 +1,7 @@
 //! Begin, send, explicit end, and owner-loss admission transitions.
 
 use kafka_client_core::{
-    OperationId, TransactionEndMode, TransactionEpoch, TransactionLifecycleEffect,
+    DeliveryStatus, OperationId, TransactionEndMode, TransactionEpoch, TransactionLifecycleEffect,
     TransactionLifecycleInput, TransactionLifecycleTerminal, TransactionSendId,
     TransactionSendOutcome,
 };
@@ -107,6 +107,7 @@ impl TransactionLifecycleHost {
                 terminal: None,
                 retry_not_before: None,
                 retries_started: 0,
+                delivery_floor: DeliveryStatus::NotSent,
             });
             return Ok(());
         }
@@ -166,6 +167,7 @@ impl TransactionLifecycleHost {
             terminal: None,
             retry_not_before: None,
             retries_started: 0,
+            delivery_floor: DeliveryStatus::NotSent,
         });
         self.interpret(transition.into_effect(), None)?;
         Ok(observer)

@@ -1,6 +1,6 @@
 //! Public opaque transaction-token admission and cleanup scenarios.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::{TransactionControlErrorKind, TransactionToken, host_test::Fixture};
 
@@ -53,6 +53,33 @@ fn rejected_end_retains_the_exact_token_for_an_abort_retry() {
         .abort(Duration::from_secs(4))
         .unwrap_or_else(|error| panic!("same token remains available for abort: {error:?}"));
     assert!(!accepted.wake_failed());
+    drop(accepted.into_observer());
+}
+
+#[test]
+fn elapsed_outer_deadline_rejects_without_consuming_the_transaction_token() {
+    let fixture = Fixture::new();
+    let mut owner = fixture.initialize(43);
+    let transaction = owner
+        .begin_transaction()
+        .unwrap_or_else(|error| panic!("begin transaction: {error:?}"))
+        .into_transaction();
+
+    let Err(rejection) = transaction.commit_until(Instant::now()) else {
+        panic!("elapsed outer deadline was unexpectedly admitted");
+    };
+    assert_eq!(
+        rejection.kind(),
+        TransactionControlErrorKind::InvalidDeadline
+    );
+    let accepted = rejection
+        .into_transaction()
+        .abort_until(
+            Instant::now()
+                .checked_add(Duration::from_secs(4))
+                .unwrap_or_else(|| panic!("short abort deadline should be representable")),
+        )
+        .unwrap_or_else(|error| panic!("same token remains available for abort: {error:?}"));
     drop(accepted.into_observer());
 }
 

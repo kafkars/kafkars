@@ -1,18 +1,24 @@
 //! Exhaustive stable translation of transaction initialization outcomes.
 
 use kafka_client_engine::{
-    TransactionControlErrorKind, TransactionEndObserverError, TransactionEndOutcome,
-    TransactionInitializationAcceptedFaultKind, TransactionInitializationAdmissionError,
-    TransactionInitializationAdmissionErrorKind, TransactionInitializationCaptureError,
-    TransactionInitializationDeliveryStatus, TransactionInitializationFailure,
-    TransactionInitializationFailureKind, TransactionInitializationObserverError,
-    TransactionInitializationOutcome,
+    TransactionControlErrorKind, TransactionInitializationAcceptedFaultKind,
+    TransactionInitializationAdmissionError, TransactionInitializationAdmissionErrorKind,
+    TransactionInitializationCaptureError, TransactionInitializationDeliveryStatus,
+    TransactionInitializationFailure, TransactionInitializationFailureKind,
+    TransactionInitializationObserverError, TransactionInitializationOutcome,
 };
 
 use crate::{DeliveryStatus, ErrorKind, KafkaError};
 
-use super::lifecycle::TransactionEndIntent;
 use super::{TransactionalProducerEngine, operation::TransactionInitializationResult};
+
+mod end;
+#[cfg(test)]
+mod end_test;
+
+#[cfg(test)]
+pub(super) use end::translate_end_failure_parts;
+pub(super) use end::translate_end_observation;
 
 pub(super) fn translate_control_kind(kind: TransactionControlErrorKind) -> KafkaError {
     let public = match kind {
@@ -20,6 +26,9 @@ pub(super) fn translate_control_kind(kind: TransactionControlErrorKind) -> Kafka
         TransactionControlErrorKind::Contended | TransactionControlErrorKind::Backpressure => {
             ErrorKind::Backpressure
         }
+        // A local lifecycle fence has no signed broker code to prove which
+        // broker fact caused it. Keep that state distinct from the public
+        // broker-fencing category.
         TransactionControlErrorKind::Closed
         | TransactionControlErrorKind::StaleOwner
         | TransactionControlErrorKind::AlreadyActive
@@ -27,8 +36,8 @@ pub(super) fn translate_control_kind(kind: TransactionControlErrorKind) -> Kafka
         | TransactionControlErrorKind::StaleTransaction
         | TransactionControlErrorKind::OutstandingOperations
         | TransactionControlErrorKind::AbortRequired
-        | TransactionControlErrorKind::EndInProgress => ErrorKind::State,
-        TransactionControlErrorKind::Fenced => ErrorKind::Fenced,
+        | TransactionControlErrorKind::EndInProgress
+        | TransactionControlErrorKind::Fenced => ErrorKind::State,
         TransactionControlErrorKind::IdentityExhausted
         | TransactionControlErrorKind::HostUnavailable => ErrorKind::Internal,
     };
@@ -49,34 +58,6 @@ pub(super) fn translate_control_kind(kind: TransactionControlErrorKind) -> Kafka
         | TransactionControlErrorKind::Fenced
         | TransactionControlErrorKind::IdentityExhausted
         | TransactionControlErrorKind::HostUnavailable => error,
-    }
-}
-
-pub(super) fn translate_end_observation(
-    intent: TransactionEndIntent,
-    result: Result<TransactionEndOutcome, TransactionEndObserverError>,
-) -> Result<(), KafkaError> {
-    match result {
-        Ok(TransactionEndOutcome::Fatal) => Err(KafkaError::new(
-            ErrorKind::Fenced,
-            "transaction execution became permanently fenced",
-        )),
-        Ok(TransactionEndOutcome::Committed) if intent == TransactionEndIntent::Commit => Ok(()),
-        Ok(TransactionEndOutcome::Aborted) if intent == TransactionEndIntent::Abort => Ok(()),
-        Ok(TransactionEndOutcome::Committed | TransactionEndOutcome::Aborted) => {
-            Err(KafkaError::new(
-                ErrorKind::Internal,
-                "transaction end disposition mismatched",
-            ))
-        }
-        Err(TransactionEndObserverError::AlreadyObserved) => Err(KafkaError::new(
-            ErrorKind::State,
-            "transaction end was already observed",
-        )),
-        Err(TransactionEndObserverError::Stale) => Err(KafkaError::new(
-            ErrorKind::Internal,
-            "transaction end observer became stale",
-        )),
     }
 }
 
@@ -163,7 +144,7 @@ pub(super) fn translate_failure_parts(
         TransactionInitializationFailureKind::DriverRejected => (ErrorKind::Backpressure, None),
         TransactionInitializationFailureKind::Transport => (ErrorKind::Transport, None),
         TransactionInitializationFailureKind::Broker { code, fenced } => (
-            if fenced {
+            if fenced && matches!(code, 47 | 90) {
                 ErrorKind::Fenced
             } else {
                 ErrorKind::Broker

@@ -1,17 +1,12 @@
 //! Transaction lifecycle scalar and terminal shape evidence.
 
 use super::{
-    TransactionEndMode, TransactionEndOutcome, TransactionLifecycleTerminal, TransactionSendId,
-    TransactionSequenceLease,
+    TransactionEndMode, TransactionLifecycleTerminal, TransactionSendId, TransactionSequenceLease,
 };
 
 #[test]
-fn lifecycle_models_keep_commit_abort_success_and_fatal_distinct() {
+fn lifecycle_models_keep_commit_abort_and_success_terminals_distinct() {
     assert_ne!(TransactionEndMode::Commit, TransactionEndMode::Abort);
-    assert_ne!(
-        TransactionEndOutcome::Succeeded,
-        TransactionEndOutcome::Fatal
-    );
     assert_ne!(
         TransactionLifecycleTerminal::Committed,
         TransactionLifecycleTerminal::Aborted

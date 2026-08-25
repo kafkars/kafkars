@@ -179,6 +179,12 @@ fn every_terminal_failure_kind_has_one_stable_facade_category() {
         (Kind::InvalidResponse, ErrorKind::Broker),
         (Kind::DriverClosed, ErrorKind::Internal),
         (Kind::Broker, ErrorKind::Broker),
+        (Kind::Access, ErrorKind::Access),
+        (Kind::Coordinator, ErrorKind::Routing),
+        (Kind::Fenced, ErrorKind::Broker),
+        (Kind::InvalidRecord, ErrorKind::InvalidRecord),
+        (Kind::Identity, ErrorKind::Identity),
+        (Kind::ProducerIdentity, ErrorKind::State),
         (Kind::Materialization, ErrorKind::Internal),
         (Kind::Routing, ErrorKind::Routing),
         (Kind::NameResolution, ErrorKind::Transport),
@@ -209,23 +215,69 @@ fn consequence_delivery_and_broker_code_remain_lossless() {
     assert!(!healthy.requires_transaction_abort());
 
     let abort_required = translate_send_failure_parts(
-        TransactionSendFailureKind::Transport,
+        TransactionSendFailureKind::Identity,
         TransactionSendDeliveryStatus::NotSent,
         None,
         TransactionSendConsequence::AbortRequired,
     );
-    assert_eq!(abort_required.kind(), ErrorKind::Transport);
+    assert_eq!(abort_required.kind(), ErrorKind::Identity);
+    assert_eq!(
+        abort_required.delivery_status(),
+        Some(DeliveryStatus::NotSent)
+    );
     assert!(abort_required.requires_transaction_abort());
+    assert!(!abort_required.is_fatal());
 
-    let fatal = translate_send_failure_parts(
-        TransactionSendFailureKind::Broker,
+    let fenced = translate_send_failure_parts(
+        TransactionSendFailureKind::Fenced,
         TransactionSendDeliveryStatus::PossiblySent,
         Some(90),
         TransactionSendConsequence::Fatal,
     );
-    assert_eq!(fatal.kind(), ErrorKind::Fenced);
-    assert_eq!(fatal.broker_code(), Some(90));
-    assert!(!fatal.requires_transaction_abort());
+    assert_eq!(fenced.kind(), ErrorKind::Fenced);
+    assert_eq!(fenced.broker_code(), Some(90));
+    assert!(fenced.is_fatal());
+    assert!(!fenced.requires_transaction_abort());
+
+    for (kind, code, expected) in [
+        (
+            TransactionSendFailureKind::Broker,
+            Some(-123),
+            ErrorKind::Broker,
+        ),
+        (
+            TransactionSendFailureKind::Fenced,
+            Some(91),
+            ErrorKind::Broker,
+        ),
+        (TransactionSendFailureKind::Fenced, None, ErrorKind::Broker),
+        (
+            TransactionSendFailureKind::Transport,
+            None,
+            ErrorKind::Transport,
+        ),
+        (
+            TransactionSendFailureKind::Access,
+            Some(53),
+            ErrorKind::Access,
+        ),
+        (
+            TransactionSendFailureKind::Coordinator,
+            Some(16),
+            ErrorKind::Routing,
+        ),
+    ] {
+        let error = translate_send_failure_parts(
+            kind,
+            TransactionSendDeliveryStatus::PossiblySent,
+            code,
+            TransactionSendConsequence::Fatal,
+        );
+        assert_eq!(error.kind(), expected, "{kind:?}");
+        assert_eq!(error.broker_code(), code);
+        assert!(error.is_fatal());
+        assert_ne!(error.kind(), ErrorKind::Fenced);
+    }
 }
 
 #[test]

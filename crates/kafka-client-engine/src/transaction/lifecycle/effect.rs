@@ -1,8 +1,7 @@
 //! Ordered interpretation of deterministic lifecycle effects.
 
 use kafka_client_core::{
-    TransactionEndMode, TransactionLifecycleEffect, TransactionLifecycleInput,
-    TransactionLifecycleTerminal,
+    DeliveryStatus, TransactionEndMode, TransactionLifecycleEffect, TransactionLifecycleInput,
 };
 
 use crate::clock::OperationDeadline;
@@ -47,6 +46,7 @@ impl TransactionLifecycleHost {
             }
             Some(TransactionLifecycleEffect::EnterFatal {
                 operation_id,
+                terminal,
                 owner_lost,
                 ..
             }) => {
@@ -56,7 +56,10 @@ impl TransactionLifecycleHost {
                     if pending.operation_id != Some(operation_id) {
                         return Err(TransactionLifecycleHostError::UnexpectedEffect);
                     }
-                    pending.terminal = Some(TransactionLifecycleTerminal::Fatal);
+                    pending.terminal =
+                        Some(terminal.ok_or(TransactionLifecycleHostError::UnexpectedEffect)?);
+                } else if terminal.is_some() {
+                    return Err(TransactionLifecycleHostError::UnexpectedEffect);
                 }
                 if owner_lost {
                     let transition = self
@@ -105,6 +108,7 @@ impl TransactionLifecycleHost {
             terminal: None,
             retry_not_before: None,
             retries_started: 0,
+            delivery_floor: DeliveryStatus::NotSent,
         });
         Ok(())
     }

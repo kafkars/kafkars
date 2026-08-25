@@ -1,17 +1,15 @@
 //! Exhaustive stable transaction initialization result translation.
 
 use kafka_client_engine::{
-    TransactionControlErrorKind, TransactionEndObserverError, TransactionEndOutcome,
-    TransactionInitializationAcceptedFaultKind, TransactionInitializationAdmissionErrorKind,
-    TransactionInitializationCaptureError, TransactionInitializationDeliveryStatus,
-    TransactionInitializationFailureKind, TransactionInitializationObserverError,
+    TransactionControlErrorKind, TransactionInitializationAcceptedFaultKind,
+    TransactionInitializationAdmissionErrorKind, TransactionInitializationCaptureError,
+    TransactionInitializationDeliveryStatus, TransactionInitializationFailureKind,
+    TransactionInitializationObserverError,
 };
 
-use super::lifecycle::TransactionEndIntent;
 use super::result::{
     translate_accepted_fault, translate_admission_kind, translate_capture_error,
-    translate_control_kind, translate_end_observation, translate_failure_parts,
-    translate_observer_error,
+    translate_control_kind, translate_failure_parts, translate_observer_error,
 };
 use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
@@ -95,11 +93,27 @@ fn terminal_failures_preserve_certainty_fencing_and_exact_broker_code() {
         ),
         (
             TransactionInitializationFailureKind::Broker {
+                code: 47,
+                fenced: true,
+            },
+            ErrorKind::Fenced,
+            Some(47),
+        ),
+        (
+            TransactionInitializationFailureKind::Broker {
                 code: 90,
                 fenced: true,
             },
             ErrorKind::Fenced,
             Some(90),
+        ),
+        (
+            TransactionInitializationFailureKind::Broker {
+                code: 91,
+                fenced: true,
+            },
+            ErrorKind::Broker,
+            Some(91),
         ),
         (
             TransactionInitializationFailureKind::InvalidResponse,
@@ -181,7 +195,7 @@ fn lifecycle_control_categories_translate_exhaustively() {
             ErrorKind::State,
             RetryAdvice::DoNotRetry,
         ),
-        (Kind::Fenced, ErrorKind::Fenced, RetryAdvice::DoNotRetry),
+        (Kind::Fenced, ErrorKind::State, RetryAdvice::DoNotRetry),
         (
             Kind::Backpressure,
             ErrorKind::Backpressure,
@@ -202,49 +216,5 @@ fn lifecycle_control_categories_translate_exhaustively() {
         let error = translate_control_kind(input);
         assert_eq!(error.kind(), expected_kind);
         assert_eq!(error.retry_advice(), expected_retry);
-    }
-}
-
-#[test]
-fn end_observation_preserves_disposition_and_fencing() {
-    for (intent, outcome) in [
-        (
-            TransactionEndIntent::Commit,
-            TransactionEndOutcome::Committed,
-        ),
-        (TransactionEndIntent::Abort, TransactionEndOutcome::Aborted),
-    ] {
-        assert_eq!(translate_end_observation(intent, Ok(outcome)), Ok(()));
-    }
-    for (intent, outcome) in [
-        (TransactionEndIntent::Commit, TransactionEndOutcome::Aborted),
-        (
-            TransactionEndIntent::Abort,
-            TransactionEndOutcome::Committed,
-        ),
-    ] {
-        let Err(error) = translate_end_observation(intent, Ok(outcome)) else {
-            panic!("mismatched transaction disposition must fail")
-        };
-        assert_eq!(error.kind(), ErrorKind::Internal);
-    }
-    let Err(fatal) = translate_end_observation(
-        TransactionEndIntent::Commit,
-        Ok(TransactionEndOutcome::Fatal),
-    ) else {
-        panic!("fatal transaction disposition must fail")
-    };
-    assert_eq!(fatal.kind(), ErrorKind::Fenced);
-    for (input, expected) in [
-        (
-            TransactionEndObserverError::AlreadyObserved,
-            ErrorKind::State,
-        ),
-        (TransactionEndObserverError::Stale, ErrorKind::Internal),
-    ] {
-        let Err(error) = translate_end_observation(TransactionEndIntent::Commit, Err(input)) else {
-            panic!("observer failure must remain an error")
-        };
-        assert_eq!(error.kind(), expected);
     }
 }

@@ -93,6 +93,8 @@ pub enum TransactionLifecycleEffect {
         epoch: TransactionEpoch,
         /// Public end operation requiring fatal completion, when present.
         operation_id: Option<OperationId>,
+        /// Exact public terminal, present with an explicit end operation.
+        terminal: Option<TransactionLifecycleTerminal>,
         /// Whether the public owner was already lost.
         owner_lost: bool,
     },

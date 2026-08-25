@@ -1,14 +1,19 @@
 //! Linear public begin, commit, and abort ownership over one initialized owner.
 
-use std::{fmt, time::Duration};
+use std::{
+    fmt,
+    time::{Duration, Instant},
+};
 
-use kafka_client_core::TransactionEpoch;
+use kafka_client_core::{TransactionEpoch, TransactionLifecycleTerminal};
 
 use super::{
     TransactionControlError, TransactionEndAdmissionError, TransactionEndObserver,
-    TransactionLifecycleControlAccepted, TransactionalOwnerHandle,
+    TransactionLifecycleControlAccepted, TransactionLifecycleControlError,
+    TransactionalOwnerHandle,
     control_error_mapping::{control_error, control_error_kind},
 };
+use crate::completion::CompletionObserver;
 
 impl TransactionalOwnerHandle {
     /// Begins one transaction and returns its opaque linear token.
@@ -76,6 +81,15 @@ impl<'owner> TransactionToken<'owner> {
         self.end(timeout, TransactionEndIntent::Commit)
     }
 
+    /// Attempts to commit under an absolute deadline captured by an outer facade.
+    #[doc(hidden)]
+    pub fn commit_until(
+        self,
+        deadline: Instant,
+    ) -> Result<TransactionEndAccepted, TransactionEndAdmissionError<'owner>> {
+        self.end_until(deadline, TransactionEndIntent::Commit)
+    }
+
     /// Attempts to abort this exact transaction.
     pub fn abort(
         self,
@@ -84,26 +98,61 @@ impl<'owner> TransactionToken<'owner> {
         self.end(timeout, TransactionEndIntent::Abort)
     }
 
+    /// Attempts to abort under an absolute deadline captured by an outer facade.
+    #[doc(hidden)]
+    pub fn abort_until(
+        self,
+        deadline: Instant,
+    ) -> Result<TransactionEndAccepted, TransactionEndAdmissionError<'owner>> {
+        self.end_until(deadline, TransactionEndIntent::Abort)
+    }
+
     #[cfg(test)]
     pub(in crate::transaction) const fn epoch(&self) -> TransactionEpoch {
         self.epoch
     }
 
     fn end(
-        mut self,
+        self,
         timeout: Duration,
         intent: TransactionEndIntent,
     ) -> Result<TransactionEndAccepted, TransactionEndAdmissionError<'owner>> {
-        let lifetime = self.owner.lifetime();
         let result = match intent {
             TransactionEndIntent::Commit => self.owner.commit(self.epoch, timeout),
             TransactionEndIntent::Abort => self.owner.abort(self.epoch, timeout),
         };
+        self.finish_end(result, intent)
+    }
+
+    fn end_until(
+        self,
+        deadline: Instant,
+        intent: TransactionEndIntent,
+    ) -> Result<TransactionEndAccepted, TransactionEndAdmissionError<'owner>> {
+        let result = match intent {
+            TransactionEndIntent::Commit => self.owner.commit_until(self.epoch, deadline),
+            TransactionEndIntent::Abort => self.owner.abort_until(self.epoch, deadline),
+        };
+        self.finish_end(result, intent)
+    }
+
+    fn finish_end(
+        mut self,
+        result: Result<
+            TransactionLifecycleControlAccepted<CompletionObserver<TransactionLifecycleTerminal>>,
+            TransactionLifecycleControlError,
+        >,
+        intent: TransactionEndIntent,
+    ) -> Result<TransactionEndAccepted, TransactionEndAdmissionError<'owner>> {
         match result {
             Ok(TransactionLifecycleControlAccepted { value, wake_failed }) => {
                 self.armed = false;
                 Ok(TransactionEndAccepted {
-                    observer: TransactionEndObserver::new(value, lifetime),
+                    observer: TransactionEndObserver::new(
+                        value,
+                        intent.public(),
+                        self.owner.lifetime(),
+                    ),
                     wake_failed,
                 })
             }
@@ -166,4 +215,13 @@ impl fmt::Debug for TransactionEndAccepted {
 enum TransactionEndIntent {
     Commit,
     Abort,
+}
+
+impl TransactionEndIntent {
+    const fn public(self) -> super::TransactionEndIntent {
+        match self {
+            Self::Commit => super::TransactionEndIntent::Commit,
+            Self::Abort => super::TransactionEndIntent::Abort,
+        }
+    }
 }

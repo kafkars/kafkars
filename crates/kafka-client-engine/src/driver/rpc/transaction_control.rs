@@ -22,5 +22,8 @@ pub(crate) use add_partitions::{
 };
 pub(crate) use add_partitions_refresh::TransactionAddPartitionsPoll;
 pub(crate) use end::{TransactionEndCall, TransactionEndTerminalFact};
-pub(crate) use failure::TransactionControlDriverFailureKind;
+pub(crate) use failure::{
+    TransactionControlDriverFailureKind, TransactionEndCallAdmissionFailure,
+    TransactionEndCallAdmissionFailureKind, TransactionEndCompletionFailureKind,
+};
 pub(in crate::driver::rpc) use submission::transaction_control_route;

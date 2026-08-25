@@ -150,6 +150,7 @@ fn fatal_send_fences_while_later_send_terminals_can_still_drain() {
             owner_id,
             epoch,
             operation_id: None,
+            terminal: None,
             owner_lost: false,
         }
     );

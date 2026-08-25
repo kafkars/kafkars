@@ -1,9 +1,10 @@
 //! Active transaction lifetime, linearity, and end-admission signatures.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::{Checkpoint, GroupMetadata, Record};
 
+use super::transaction::end_deadline_at;
 use super::{
     AbortTransaction, CommitTransaction, SendTransactionBatch, SendTransactionOffsets,
     SendTransactionRecord, Transaction, TransactionBatchSendAdmissionError,
@@ -88,4 +89,16 @@ fn active_transaction_is_linear_and_end_rejection_retains_it() {
     require_abort(Transaction::abort);
     assert_not_impl!(Transaction<'static>: Clone);
     assert_not_impl!(Transaction<'static>: Copy);
+}
+
+#[test]
+fn commit_and_abort_deadlines_start_at_the_public_end_boundary() {
+    let boundary = Instant::now();
+    let timeout = Duration::from_nanos(37);
+    let expected = boundary
+        .checked_add(timeout)
+        .unwrap_or_else(|| panic!("small end deadline should be representable"));
+
+    assert_eq!(end_deadline_at(boundary, timeout), Some(expected));
+    assert_eq!(end_deadline_at(boundary, Duration::ZERO), None);
 }

@@ -183,6 +183,13 @@ pub enum TransactionLifecycleMachineError {
     },
     /// Abort-required state rejects commit and new send admission.
     AbortRequired,
+    /// One end terminal described the other commit-or-abort intent.
+    EndModeMismatch {
+        /// Mode retained by the active end operation.
+        expected: TransactionEndMode,
+        /// Mode supplied by the terminal failure.
+        supplied: TransactionEndMode,
+    },
     /// The core-owned transaction epoch domain is exhausted.
     EpochExhausted,
 }

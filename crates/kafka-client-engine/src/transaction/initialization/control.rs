@@ -1,14 +1,13 @@
 //! Bounded shard control for one initialized transactional lifecycle.
 
+mod end;
+
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{
-    TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal, TransactionalOwnerId,
-};
+use kafka_client_core::{TransactionEpoch, TransactionalOwnerId};
 
 use crate::{
     clock::OperationDeadline,
-    completion::CompletionObserver,
     producer::{ProducerSendCapture, ProducerSendCaptureError},
     transaction::{
         TransactionExecutionSendAdmissionError, TransactionExecutionSendAdmissionErrorKind,
@@ -198,31 +197,6 @@ impl TransactionLifecycleControlPort {
         let accepted = self.shared.try_offset_commit(owner_id, input)?;
         Ok(TransactionLifecycleControlAccepted {
             value: accepted,
-            wake_failed: self.shared.wake().request().is_err(),
-        })
-    }
-
-    pub(crate) fn end(
-        &self,
-        owner_id: TransactionalOwnerId,
-        epoch: TransactionEpoch,
-        mode: TransactionEndMode,
-        timeout: Duration,
-    ) -> Result<
-        TransactionLifecycleControlAccepted<CompletionObserver<TransactionLifecycleTerminal>>,
-        TransactionLifecycleControlError,
-    > {
-        let deadline = self
-            .shared
-            .clock()
-            .capture_deadline_after(timeout)
-            .ok()
-            .filter(|_| !timeout.is_zero())
-            .map(crate::clock::DeadlineCapture::operation_deadline)
-            .ok_or(TransactionLifecycleControlError::InvalidDeadline)?;
-        let observer = self.shared.try_end(owner_id, epoch, mode, deadline)?;
-        Ok(TransactionLifecycleControlAccepted {
-            value: observer,
             wake_failed: self.shared.wake().request().is_err(),
         })
     }

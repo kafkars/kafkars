@@ -1,7 +1,7 @@
 //! Bounded engine ownership of one initialized transactional lifecycle.
 
 use kafka_client_core::{
-    OperationId, ProducerRetryPolicy, TransactionEndMode, TransactionEpoch,
+    DeliveryStatus, OperationId, ProducerRetryPolicy, TransactionEndMode, TransactionEpoch,
     TransactionLifecycleMachine, TransactionLifecycleMachineError, TransactionLifecycleTerminal,
     TransactionOffsetCommitMachineError, TransactionSequenceMachine,
     TransactionSequenceMachineError, TransactionSequenceState, TransactionalProducerIdentity,
@@ -59,6 +59,7 @@ pub(super) struct PendingEndOperation {
     pub(super) terminal: Option<TransactionLifecycleTerminal>,
     pub(super) retry_not_before: Option<kafka_client_core::Deadline>,
     pub(super) retries_started: u32,
+    pub(super) delivery_floor: DeliveryStatus,
 }
 
 pub(crate) struct TransactionLifecycleHost {

@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::DeliveryStatus;
-use kafka_driver::{ApiVersion, CallFailure, CompletionError, Delivery, RequestError, RouteKind};
+use kafka_driver::{ApiVersion, CallFailure, Delivery, RequestError, RouteKind};
 use kafka_wire::EndTxnResponse;
 
 use crate::{
@@ -34,7 +34,7 @@ fn accepted_call_yields_one_closed_completion_after_driver_shutdown() {
 
     assert!(matches!(
         call.try_terminal(),
-        Some(Err(CompletionError::Closed))
+        Some(Err(super::TransactionEndCompletionFailureKind::Closed))
     ));
     assert!(call.try_terminal().is_none());
     call.discard_after_driver_shutdown();

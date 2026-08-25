@@ -1,10 +1,11 @@
 //! Exhaustive facade translation of transactional record-send outcomes.
 
+mod failure;
+
 use kafka_client_engine::{
     ProducerSendCaptureError, ProducerSendCaptureErrorKind, TransactionBatchSendOutcome,
-    TransactionSendAdmissionErrorKind, TransactionSendConsequence, TransactionSendDeliveryStatus,
-    TransactionSendFailure, TransactionSendFailureKind, TransactionSendMetadata,
-    TransactionSendObserverError, TransactionSendOutcome,
+    TransactionSendAdmissionErrorKind, TransactionSendMetadata, TransactionSendObserverError,
+    TransactionSendOutcome,
 };
 
 use crate::{
@@ -12,6 +13,9 @@ use crate::{
 };
 
 use super::result::translate_control_kind;
+use failure::translate_send_failure;
+#[cfg(test)]
+pub(super) use failure::{translate_send_failure_kind, translate_send_failure_parts};
 
 pub(super) fn translate_send_capture(error: ProducerSendCaptureError) -> KafkaError {
     let kind = match error.kind() {
@@ -133,68 +137,6 @@ pub(super) fn translate_send_metadata_parts(
         serialized_key_size,
         serialized_value_size,
     )
-}
-
-fn translate_send_failure(failure: TransactionSendFailure) -> KafkaError {
-    translate_send_failure_parts(
-        failure.kind(),
-        failure.delivery(),
-        failure.broker_code(),
-        failure.consequence(),
-    )
-}
-
-pub(super) fn translate_send_failure_parts(
-    kind: TransactionSendFailureKind,
-    delivery: TransactionSendDeliveryStatus,
-    broker_code: Option<i16>,
-    consequence: TransactionSendConsequence,
-) -> KafkaError {
-    let public = if consequence == TransactionSendConsequence::Fatal {
-        ErrorKind::Fenced
-    } else {
-        translate_send_failure_kind(kind)
-    };
-    let error = KafkaError::new(public, format!("transactional send failed: {kind:?}"))
-        .with_delivery_status(translate_send_delivery(delivery))
-        .with_broker_code(broker_code);
-    if consequence == TransactionSendConsequence::AbortRequired {
-        error.with_transaction_abort_required()
-    } else {
-        error
-    }
-}
-
-pub(super) const fn translate_send_failure_kind(kind: TransactionSendFailureKind) -> ErrorKind {
-    match kind {
-        TransactionSendFailureKind::Busy
-        | TransactionSendFailureKind::Backpressure
-        | TransactionSendFailureKind::DriverRejected => ErrorKind::Backpressure,
-        TransactionSendFailureKind::StaleTransaction
-        | TransactionSendFailureKind::OwnerUnavailable => ErrorKind::State,
-        TransactionSendFailureKind::InvalidTarget => ErrorKind::InvalidRecord,
-        TransactionSendFailureKind::DeadlineElapsed => ErrorKind::Timeout,
-        TransactionSendFailureKind::Transport
-        | TransactionSendFailureKind::NameResolution
-        | TransactionSendFailureKind::ConnectionUnavailable => ErrorKind::Transport,
-        TransactionSendFailureKind::Compatibility => ErrorKind::Compatibility,
-        TransactionSendFailureKind::InvalidResponse | TransactionSendFailureKind::Broker => {
-            ErrorKind::Broker
-        }
-        TransactionSendFailureKind::Identity => ErrorKind::Identity,
-        TransactionSendFailureKind::Routing => ErrorKind::Routing,
-        TransactionSendFailureKind::DriverClosed
-        | TransactionSendFailureKind::Materialization
-        | TransactionSendFailureKind::Permanent
-        | TransactionSendFailureKind::Correlation => ErrorKind::Internal,
-    }
-}
-
-const fn translate_send_delivery(delivery: TransactionSendDeliveryStatus) -> DeliveryStatus {
-    match delivery {
-        TransactionSendDeliveryStatus::NotSent => DeliveryStatus::NotSent,
-        TransactionSendDeliveryStatus::PossiblySent => DeliveryStatus::PossiblySent,
-    }
 }
 
 fn translate_send_observer_error(error: TransactionSendObserverError) -> KafkaError {
