@@ -28,46 +28,52 @@ impl fmt::Display for CapacityError {
 impl std::error::Error for CapacityError {}
 
 /// Deterministic retained-byte budget.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub struct ByteBudget {
-    limit: ByteCount,
-    used: ByteCount,
+    accounting: bytebudget::ByteBudget,
+}
+
+impl fmt::Debug for ByteBudget {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ByteBudget")
+            .field("limit", &self.limit())
+            .field("used", &self.used())
+            .finish()
+    }
 }
 
 impl ByteBudget {
     /// Creates an empty budget with the supplied hard limit.
     pub const fn new(limit: ByteCount) -> Self {
         Self {
-            limit,
-            used: ByteCount::new(0),
+            accounting: bytebudget::ByteBudget::new(bytebudget::ByteCount::new(limit.get())),
         }
     }
 
     /// Returns the hard limit.
     pub const fn limit(&self) -> ByteCount {
-        self.limit
+        ByteCount::new(self.accounting.limit().get())
     }
 
     /// Returns bytes currently retained.
     pub const fn used(&self) -> ByteCount {
-        self.used
+        ByteCount::new(self.accounting.used().get())
     }
 
     /// Returns bytes still available.
     pub const fn available(&self) -> ByteCount {
-        ByteCount::new(self.limit.get() - self.used.get())
+        ByteCount::new(self.accounting.available().get())
     }
 
     /// Reserves bytes atomically or leaves the budget unchanged.
     pub fn try_reserve(&mut self, bytes: ByteCount) -> Result<(), CapacityError> {
-        let Some(next) = self.used.checked_add(bytes) else {
+        if self.used().checked_add(bytes).is_none() {
             return Err(CapacityError::Overflow);
-        };
-        if next > self.limit {
-            return Err(CapacityError::Exhausted);
         }
-        self.used = next;
-        Ok(())
+        self.accounting
+            .try_reserve(bytebudget::ByteCount::new(bytes.get()))
+            .map_err(|_| CapacityError::Exhausted)
     }
 
     /// Releases bytes previously reserved.
@@ -78,10 +84,21 @@ impl ByteBudget {
     }
 
     pub(crate) fn plan_release(&self, bytes: ByteCount) -> Result<ByteReleasePlan, CapacityError> {
-        let Some(next_used) = self.used.checked_sub(bytes) else {
+        let expected_used = self.used();
+        let Some(next_used) = expected_used.checked_sub(bytes) else {
             return Err(CapacityError::OverRelease);
         };
-        Ok(ByteReleasePlan { next_used })
+        let mut next_accounting = bytebudget::ByteBudget::new(self.accounting.limit());
+        if next_accounting
+            .try_reserve(bytebudget::ByteCount::new(next_used.get()))
+            .is_err()
+        {
+            return Err(CapacityError::Overflow);
+        }
+        Ok(ByteReleasePlan {
+            expected_used,
+            next_accounting,
+        })
     }
 
     #[allow(
@@ -89,13 +106,18 @@ impl ByteBudget {
         reason = "the preflight plan is a linear commit capability"
     )]
     pub(crate) fn commit_release(&mut self, plan: ByteReleasePlan) {
-        let ByteReleasePlan { next_used } = plan;
-        self.used = next_used;
+        let ByteReleasePlan {
+            expected_used,
+            next_accounting,
+        } = plan;
+        debug_assert_eq!(self.used(), expected_used);
+        self.accounting = next_accounting;
     }
 }
 
 /// Preflighted retained-byte release consumed by its mutation owner.
 #[derive(Debug)]
 pub(crate) struct ByteReleasePlan {
-    next_used: ByteCount,
+    expected_used: ByteCount,
+    next_accounting: bytebudget::ByteBudget,
 }

@@ -442,6 +442,8 @@ title = "Retained producer bytes are bounded"
 statement = "Active and waiting application records, compression jobs, compression results, and encoded batches have explicit count and byte limits; admission preserves provenance and releases each reservation exactly once. An opaque upstream delivery owner remains attached through ordinary producer preparation, stored-record conversion, and every pre-admission rejection; RecordStore commit releases it only after the exact retained-byte charge and deterministic acceptance are established. Shared validated header names retain one Bytes owner without the removed Arc-name control charge."
 status = "enforced"
 evidence = [
+  "crates/kafka-client-core/src/capacity_test.rs::release_plan_is_inert_until_consumed_by_commit",
+  "crates/kafka-client-core/src/producer/execution_stop_capacity_test.rs::execution_stop_preflight_failure_leaves_lifecycle_and_capacity_unchanged",
   "crates/kafka-client-engine/src/producer/record_store_test.rs::count_and_bytes_are_reserved_before_core_admission",
   "crates/kafka-client-engine/src/producer/record_store_test.rs::commit_releases_source_owner_only_after_retained_bytes_are_charged",
   "crates/kafka-client-engine/src/producer/record_store_test.rs::release_checks_provenance_and_happens_exactly_once",

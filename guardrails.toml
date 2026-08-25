@@ -3522,7 +3522,9 @@ allowed_internal = []
 # API-38 delegation-token results cross deterministic terminal ownership with
 # uniquely owned HMAC bytes. Zeroize is the sole release barrier for that
 # secret; it adds no runtime, I/O, cryptography, or callback authority.
-allowed_external = ["zeroize"]
+# Bytebudget is the sole aggregate retained-byte mechanism used behind the
+# core's compatibility-preserving accounting adapter.
+allowed_external = ["bytebudget", "zeroize"]
 
 [[dependency_rules]]
 package = "kafka-client-engine"
@@ -3579,10 +3581,15 @@ forbidden = [
   "std::thread",
   "std::time",
   "async_std",
+  "bytebudget",
   "kafka_driver",
   "kafka_wire",
   "smol",
   "tokio",
+]
+allow = [
+  { path = "crates/kafka-client-core/src/capacity.rs", capability = "bytebudget", reason = "The compatibility adapter preserves Kafkars errors and two-phase settlement while delegating aggregate byte accounting." },
+  { path = "crates/kafka-client-core/src/types.rs", capability = "bytebudget", reason = "The nominal public byte count delegates exact checked arithmetic without changing type identity or traits." },
 ]
 
 # Admin state owns only normalized policy facts, never sibling-domain policy.
@@ -8309,7 +8316,7 @@ allowed_paths = ["crates/kafka-client-core/src/producer/batch_transition.rs"]
 
 [[mutation_owners]]
 owner_type = "ByteBudget"
-field = "used"
+field = "accounting"
 allowed_paths = ["crates/kafka-client-core/src/capacity.rs"]
 
 [[mutation_owners]]
@@ -10058,6 +10065,10 @@ path = "crates/kafka-client-core/src/producer/flush.rs"
 
 [[linear_owners]]
 owner_type = "ByteBudget"
+path = "crates/kafka-client-core/src/capacity.rs"
+
+[[linear_owners]]
+owner_type = "ByteReleasePlan"
 path = "crates/kafka-client-core/src/capacity.rs"
 
 [[linear_owners]]

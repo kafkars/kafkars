@@ -17,4 +17,5 @@ publish = ["crates-io"]
 workspace = true
 
 [dependencies]
+bytebudget.workspace = true
 zeroize.workspace = true

@@ -1,5 +1,7 @@
 //! Small deterministic value types shared by semantic machines.
 
+use core::fmt;
+
 /// Stable identity for one public client operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OperationId(u64);
@@ -70,18 +72,18 @@ impl Deadline {
 }
 
 /// Count of bytes retained on behalf of client work.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ByteCount(u64);
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ByteCount(bytebudget::ByteCount);
 
 impl ByteCount {
     /// Creates a byte count.
     pub const fn new(value: u64) -> Self {
-        Self(value)
+        Self(bytebudget::ByteCount::new(value))
     }
 
     /// Returns the number of bytes.
     pub const fn get(self) -> u64 {
-        self.0
+        self.0.get()
     }
 
     /// Adds two counts when the result is representable.
@@ -98,5 +100,14 @@ impl ByteCount {
             Some(value) => Some(Self(value)),
             None => None,
         }
+    }
+}
+
+impl fmt::Debug for ByteCount {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_tuple("ByteCount")
+            .field(&self.get())
+            .finish()
     }
 }

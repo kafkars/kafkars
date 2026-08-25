@@ -21,6 +21,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
 
 [[package]]
+name = "bytebudget"
+version = "0.0.1-rc.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a333b10952faa5bba198eae85398341c643ed4bce31ae9efb3d8feb22979d25"
+
+[[package]]
 name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -168,6 +174,7 @@ dependencies = [
 name = "kafka-client-core"
 version = "0.0.1"
 dependencies = [
+ "bytebudget",
  "zeroize",
 ]
 
