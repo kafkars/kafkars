@@ -5,14 +5,16 @@ use std::sync::Arc;
 use bytes::Bytes;
 use kafka_client_engine::{
     AssignedConsumerHeader as EngineHeader, AssignedConsumerOwnedBatch as EngineBatch,
-    AssignedConsumerOwnedHeader as EngineOwnedHeader, AssignedConsumerOwnedRecord as EngineRecord,
-    AssignedConsumerOwnedRecords as EngineRecords,
+    AssignedConsumerOwnedRecord as EngineRecord, AssignedConsumerOwnedRecords as EngineRecords,
 };
 
 use crate::{
     header_name::SourceOwner,
     record::{Header, Record, RecordTransferParts},
 };
+
+type ReservedTransfer<T> = (T, Arc<str>, Vec<Header>);
+type RejectedTransfer<T> = (T, Arc<str>);
 
 /// Private linear owned batch retaining one exact engine delivery lease.
 #[derive(Debug)]
@@ -105,35 +107,54 @@ impl AssignedConsumerOwnedRecord {
             .map(|inner| AssignedConsumerOwnedHeader { inner })
     }
 
-    pub(crate) fn into_record(self, target_topic: Arc<str>) -> Record {
-        let parts = self.inner.into_shared_parts();
-        record_from_shared_delivery_parts(
+    pub(crate) fn try_into_record(
+        self,
+        target_topic: Arc<str>,
+    ) -> Result<(Record, Self), (Self, Arc<str>)> {
+        let header_count = self.headers().len();
+        let (source, target_topic, headers) =
+            reserve_transfer_headers(self, target_topic, header_count)?;
+        let source_owner = SourceOwner::new(source.inner.shared_source_owner());
+        let record = record_from_reserved_shared_delivery_parts(
             target_topic,
-            parts.timestamp_millis,
-            parts.key,
-            parts.value,
-            parts
-                .headers
-                .into_iter()
-                .map(EngineOwnedHeader::into_shared_parts),
-            parts.source_owner,
-        )
+            source.timestamp_millis(),
+            source.inner.shared_key(),
+            source.inner.shared_value(),
+            source
+                .headers()
+                .map(AssignedConsumerOwnedHeader::into_shared_parts),
+            source_owner,
+            headers,
+        );
+        Ok((record, source))
     }
 }
 
-pub(super) fn record_from_shared_delivery_parts(
+pub(super) fn reserve_transfer_headers<T>(
+    source: T,
+    target_topic: Arc<str>,
+    header_count: usize,
+) -> Result<ReservedTransfer<T>, RejectedTransfer<T>> {
+    let mut headers = Vec::new();
+    if headers.try_reserve_exact(header_count).is_err() {
+        return Err((source, target_topic));
+    }
+    Ok((source, target_topic, headers))
+}
+
+pub(super) fn record_from_reserved_shared_delivery_parts(
     target_topic: Arc<str>,
     timestamp: Option<i64>,
     key: Option<Bytes>,
     value: Option<Bytes>,
-    headers: impl IntoIterator<Item = (Bytes, Option<Bytes>)>,
-    source_owner: Arc<dyn Send + Sync>,
+    source_headers: impl ExactSizeIterator<Item = (Bytes, Option<Bytes>)>,
+    source_owner: SourceOwner,
+    mut headers: Vec<Header>,
 ) -> Record {
-    let source_owner = SourceOwner::new(source_owner);
-    let headers = headers
-        .into_iter()
-        .map(|(name, value)| Header::from_shared_parts(name, value, source_owner.clone()))
-        .collect();
+    debug_assert!(headers.capacity() >= source_headers.len());
+    for (name, value) in source_headers {
+        headers.push(Header::from_shared_parts(name, value, source_owner.clone()));
+    }
     Record::from_transfer_parts(RecordTransferParts {
         topic: target_topic,
         expected_topic_uuid: None,
@@ -159,5 +180,9 @@ impl AssignedConsumerOwnedHeader<'_> {
 
     pub(crate) fn value(&self) -> Option<&[u8]> {
         self.inner.value()
+    }
+
+    fn into_shared_parts(self) -> (Bytes, Option<Bytes>) {
+        self.inner.into_shared_parts()
     }
 }

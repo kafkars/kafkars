@@ -2,7 +2,10 @@
 
 use std::sync::Arc;
 
-use super::{OwnedConsumerHeader, OwnedConsumerRecord, OwnedConsumerRecords};
+use super::{
+    OwnedConsumerHeader, OwnedConsumerRecord, OwnedConsumerRecords, RetainedSourceRecord,
+    TransferRejection,
+};
 use crate::Record;
 
 macro_rules! assert_not_impl {
@@ -20,8 +23,9 @@ macro_rules! assert_not_impl {
 }
 
 #[test]
-fn owned_record_path_is_send_linear_and_exposes_only_borrowed_bytes() {
+fn owned_record_path_is_fallible_send_linear_and_exposes_only_borrowed_bytes() {
     fn require_send<T: Send>() {}
+    fn require_error<T: std::error::Error + Send>() {}
     fn record_contract(record: &OwnedConsumerRecord) {
         let _: &str = record.topic();
         let _: i32 = record.partition();
@@ -31,15 +35,44 @@ fn owned_record_path_is_send_linear_and_exposes_only_borrowed_bytes() {
         let _: Option<&[u8]> = record.value();
         let _: Option<OwnedConsumerHeader<'_>> = record.headers().next();
     }
-    fn conversion(record: OwnedConsumerRecord) -> Record {
-        record.into_record(Arc::<str>::from("destination"))
+    fn retained_contract(record: &RetainedSourceRecord) {
+        let _: &str = record.topic();
+        let _: i32 = record.partition();
+        let _: i64 = record.offset();
+        let _: Option<i64> = record.timestamp_millis();
+        let _: Option<&[u8]> = record.key();
+        let _: Option<&[u8]> = record.value();
+        let _: Option<OwnedConsumerHeader<'_>> = record.headers().next();
+    }
+    fn conversion(
+        record: OwnedConsumerRecord,
+        target: Arc<str>,
+    ) -> Result<(Record, RetainedSourceRecord), TransferRejection> {
+        record.try_into_record(target)
+    }
+    fn rejection_contract(rejection: TransferRejection) {
+        let _: &OwnedConsumerRecord = rejection.record();
+        let _: &str = rejection.target_topic();
+        let _: (OwnedConsumerRecord, Arc<str>) = rejection.into_parts();
     }
 
     require_send::<OwnedConsumerRecords>();
     require_send::<OwnedConsumerRecord>();
+    require_send::<RetainedSourceRecord>();
+    require_error::<TransferRejection>();
     assert_not_impl!(OwnedConsumerRecords: Clone);
     assert_not_impl!(OwnedConsumerRecord: Clone);
     assert_not_impl!(OwnedConsumerRecord: Copy);
+    assert_not_impl!(RetainedSourceRecord: Clone);
+    assert_not_impl!(RetainedSourceRecord: Copy);
+    assert_not_impl!(TransferRejection: Clone);
+    assert_not_impl!(TransferRejection: Copy);
     let _ = record_contract as fn(&OwnedConsumerRecord);
-    let _ = conversion as fn(OwnedConsumerRecord) -> Record;
+    let _ = retained_contract as fn(&RetainedSourceRecord);
+    let _ = conversion
+        as fn(
+            OwnedConsumerRecord,
+            Arc<str>,
+        ) -> Result<(Record, RetainedSourceRecord), TransferRejection>;
+    let _ = rejection_contract as fn(TransferRejection);
 }

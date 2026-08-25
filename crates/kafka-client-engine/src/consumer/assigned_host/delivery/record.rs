@@ -1,5 +1,7 @@
 //! Borrowed flattened views over normalized application record descriptors.
 
+use bytes::Bytes;
+
 use crate::protocol::fetch::{FetchBatch, FetchHeader, FetchRecord};
 
 use super::AssignedConsumerDelivery;
@@ -128,5 +130,14 @@ impl AssignedConsumerHeader<'_> {
     /// Returns the nullable header value bytes.
     pub fn value(&self) -> Option<&[u8]> {
         self.header.value.as_deref()
+    }
+
+    /// Clones shared header handles without copying their byte contents.
+    ///
+    /// This is an adapter seam for the curated facade. Any public owner built
+    /// from these handles must retain the source delivery owner separately.
+    #[doc(hidden)]
+    pub fn into_shared_parts(self) -> (Bytes, Option<Bytes>) {
+        (self.header.key.clone(), self.header.value.clone())
     }
 }

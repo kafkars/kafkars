@@ -66,35 +66,6 @@ pub struct AssignedConsumerOwnedRecord {
     record_index: usize,
 }
 
-/// Shared record fields transferred together with their exact delivery owner.
-#[doc(hidden)]
-#[must_use = "dropping the parts releases the transferred delivery lease"]
-pub struct AssignedConsumerOwnedRecordParts {
-    /// Kafka timestamp in milliseconds when present.
-    pub timestamp_millis: Option<i64>,
-    /// Nullable shared key bytes.
-    pub key: Option<Bytes>,
-    /// Nullable shared value bytes.
-    pub value: Option<Bytes>,
-    /// Ordered, duplicate-preserving shared headers.
-    pub headers: Vec<AssignedConsumerOwnedHeader>,
-    /// Opaque owner that returns the exact delivery lease on its final drop.
-    pub source_owner: Arc<dyn Send + Sync>,
-}
-
-impl std::fmt::Debug for AssignedConsumerOwnedRecordParts {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AssignedConsumerOwnedRecordParts")
-            .field("timestamp_millis", &self.timestamp_millis)
-            .field("key", &self.key)
-            .field("value", &self.value)
-            .field("headers", &self.headers)
-            .field("source_owner", &"<retained>")
-            .finish()
-    }
-}
-
 impl AssignedConsumerOwnedRecord {
     /// Returns the retained Kafka topic name.
     pub fn topic(&self) -> &str {
@@ -134,32 +105,25 @@ impl AssignedConsumerOwnedRecord {
             .map(AssignedConsumerHeader::from_fetch)
     }
 
-    /// Transfers shared byte handles together with the exact delivery owner.
-    ///
-    /// This is an adapter seam for the curated facade. The returned owner must
-    /// remain attached to any record built from the byte handles.
+    /// Clones the nullable key's shared byte handle without copying its contents.
     #[doc(hidden)]
-    pub fn into_shared_parts(self) -> AssignedConsumerOwnedRecordParts {
-        let record = self.record();
-        let timestamp_millis = record.timestamp;
-        let key = record.key.clone();
-        let value = record.value.clone();
-        let headers = record
-            .headers
-            .iter()
-            .map(|header| AssignedConsumerOwnedHeader {
-                key: header.key.clone(),
-                value: header.value.clone(),
-            })
-            .collect();
-        let source_owner: Arc<dyn Send + Sync> = self.delivery;
-        AssignedConsumerOwnedRecordParts {
-            timestamp_millis,
-            key,
-            value,
-            headers,
-            source_owner,
-        }
+    pub fn shared_key(&self) -> Option<Bytes> {
+        self.record().key.clone()
+    }
+
+    /// Clones the nullable value's shared byte handle without copying its contents.
+    #[doc(hidden)]
+    pub fn shared_value(&self) -> Option<Bytes> {
+        self.record().value.clone()
+    }
+
+    /// Clones the exact delivery owner for a facade record built from shared bytes.
+    ///
+    /// The facade must attach this owner to every public byte owner derived from
+    /// this record until it has committed replacement retained-byte accounting.
+    #[doc(hidden)]
+    pub fn shared_source_owner(&self) -> Arc<dyn Send + Sync> {
+        Arc::clone(&self.delivery) as Arc<dyn Send + Sync>
     }
 
     fn record(&self) -> &FetchRecord {
@@ -177,22 +141,6 @@ impl std::fmt::Debug for AssignedConsumerOwnedRecord {
             .field("timestamp_millis", &self.timestamp_millis())
             .field("header_count", &self.record().headers.len())
             .finish_non_exhaustive()
-    }
-}
-
-/// One header transferred together with an owned record's source lease.
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct AssignedConsumerOwnedHeader {
-    key: Bytes,
-    value: Option<Bytes>,
-}
-
-impl AssignedConsumerOwnedHeader {
-    /// Moves the validated key bytes and nullable value into a facade record.
-    #[doc(hidden)]
-    pub fn into_shared_parts(self) -> (Bytes, Option<Bytes>) {
-        (self.key, self.value)
     }
 }
 

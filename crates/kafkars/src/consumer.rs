@@ -80,7 +80,10 @@ pub use group_seek::Seek;
 pub use limits::ConsumerLimits;
 pub use offset_reset::OffsetReset;
 pub use owned_batch::OwnedConsumerBatch;
-pub use owned_record::{OwnedConsumerHeader, OwnedConsumerRecord, OwnedConsumerRecords};
+pub use owned_record::{
+    OwnedConsumerHeader, OwnedConsumerRecord, OwnedConsumerRecords, RetainedSourceRecord,
+    TransferRejection,
+};
 pub use read_isolation::ReadIsolation;
 pub use record::{ConsumerHeader, ConsumerRecord, ConsumerRecords};
 pub use record_batch::RecordBatch;

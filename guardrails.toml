@@ -24749,10 +24749,6 @@ owner_type = "AssignedConsumerOwnedRecord"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_record.rs"
 
 [[linear_owners]]
-owner_type = "AssignedConsumerOwnedHeader"
-path = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owned_record.rs"
-
-[[linear_owners]]
 owner_type = "ProducerSourceOwner"
 path = "crates/kafka-client-engine/src/producer/record/header.rs"
 
@@ -24782,6 +24778,14 @@ path = "crates/kafkars/src/consumer/owned_record.rs"
 
 [[linear_owners]]
 owner_type = "OwnedConsumerRecord"
+path = "crates/kafkars/src/consumer/owned_record.rs"
+
+[[linear_owners]]
+owner_type = "RetainedSourceRecord"
+path = "crates/kafkars/src/consumer/owned_record.rs"
+
+[[linear_owners]]
+owner_type = "TransferRejection"
 path = "crates/kafkars/src/consumer/owned_record.rs"
 
 [[capability_rules]]

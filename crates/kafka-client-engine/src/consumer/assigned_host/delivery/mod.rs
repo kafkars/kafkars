@@ -27,8 +27,6 @@ pub use batch::AssignedConsumerBatch;
 pub use error::{AssignedConsumerTryTakeBatchError, AssignedConsumerTryTakeBatchErrorKind};
 pub use evidence::AssignedConsumerFetchEvidence;
 pub use owned_batch::AssignedConsumerOwnedBatch;
-pub use owned_record::{
-    AssignedConsumerOwnedHeader, AssignedConsumerOwnedRecord, AssignedConsumerOwnedRecords,
-};
+pub use owned_record::{AssignedConsumerOwnedRecord, AssignedConsumerOwnedRecords};
 pub(crate) use owner::AssignedConsumerDelivery;
 pub use record::{AssignedConsumerHeader, AssignedConsumerRecord, AssignedConsumerRecords};

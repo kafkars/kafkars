@@ -3,7 +3,7 @@
 use std::{sync::Arc, time::Duration};
 
 use super::{
-    AssignedConsumerOwnedBatch, AssignedConsumerOwnedHeader, AssignedConsumerOwnedRecord,
+    AssignedConsumerHeader, AssignedConsumerOwnedBatch, AssignedConsumerOwnedRecord,
     AssignedConsumerOwnedRecords,
 };
 use crate::{
@@ -45,7 +45,7 @@ fn owned_records_are_send_linear_capabilities() {
 }
 
 #[test]
-fn owned_record_transfer_keeps_close_pending_until_its_final_owner_drops() {
+fn shared_source_owner_keeps_close_pending_after_the_original_record_drops() {
     let (owner, port, _wake) = setup();
     let (slot, _closer) = AssignedConsumerClaimSlot::create_for_engine(port);
     let lifetime: Arc<dyn Send + Sync> = Arc::new(());
@@ -78,6 +78,9 @@ fn owned_record_transfer_keeps_close_pending_until_its_final_owner_drops() {
     let record = records.next().unwrap_or_else(|| panic!("first record"));
     drop(records);
 
+    let abandoned_owner = record.shared_source_owner();
+    drop(abandoned_owner);
+
     let _close = handle
         .try_close()
         .unwrap_or_else(|error| panic!("accept close: {error}"));
@@ -91,14 +94,12 @@ fn owned_record_transfer_keeps_close_pending_until_its_final_owner_drops() {
         })
         .unwrap_or_else(|error| panic!("inspect leased close: {error:?}"));
 
-    let parts = record.into_shared_parts();
-    drop(parts.key);
-    drop(parts.value);
-    drop(parts.headers);
+    let source_owner = record.shared_source_owner();
+    drop(record);
     owner
         .try_with_owner(|assigned| assert!(!assigned.progress_close()))
         .unwrap_or_else(|error| panic!("inspect transferred close: {error:?}"));
-    drop(parts.source_owner);
+    drop(source_owner);
 
     owner
         .try_with_owner(|assigned| {
@@ -109,7 +110,7 @@ fn owned_record_transfer_keeps_close_pending_until_its_final_owner_drops() {
 }
 
 #[test]
-fn last_owned_record_owner_reclaims_the_exact_delivery_lease() {
+fn shared_handles_preserve_pointers_while_original_record_retains_the_lease() {
     let (owner, port, _wake) = setup();
     let (slot, _closer) = AssignedConsumerClaimSlot::create_for_engine(port);
     let lifetime: Arc<dyn Send + Sync> = Arc::new(());
@@ -138,35 +139,58 @@ fn last_owned_record_owner_reclaims_the_exact_delivery_lease() {
     let first_value_pointer = first
         .value()
         .map_or_else(|| panic!("empty non-null first value"), <[u8]>::as_ptr);
+    let first_header_pointers: Vec<_> = first
+        .headers()
+        .map(|header| header.key().as_ptr())
+        .collect();
     let second = records.next().unwrap_or_else(|| panic!("second record"));
     let third = records.next().unwrap_or_else(|| panic!("third record"));
+    let third_key_pointer = third
+        .key()
+        .map_or_else(|| panic!("non-null third key"), <[u8]>::as_ptr);
+    let third_value_pointer = third
+        .value()
+        .map_or_else(|| panic!("non-null third value"), <[u8]>::as_ptr);
     assert!(records.next().is_none());
 
+    let first_value = first.shared_value();
+    let headers: Vec<_> = first
+        .headers()
+        .map(AssignedConsumerHeader::into_shared_parts)
+        .collect();
+    let third_key = third.shared_key();
+    let third_value = third.shared_value();
     drop(second);
     drop(third);
-    let parts = first.into_shared_parts();
-    assert_eq!(parts.timestamp_millis, Some(20));
-    assert_eq!(parts.key, None);
+    assert_eq!(first.timestamp_millis(), Some(20));
+    assert_eq!(first.shared_key(), None);
     assert_eq!(
-        parts.value.as_ref().map(|value| value.as_ptr()),
+        first_value.as_ref().map(|value| value.as_ptr()),
         Some(first_value_pointer)
     );
-    let headers: Vec<_> = parts
-        .headers
-        .into_iter()
-        .map(AssignedConsumerOwnedHeader::into_shared_parts)
-        .collect();
     assert_eq!(headers.len(), 2);
     assert_eq!(headers[0].0.as_ref(), b"trace");
+    assert_eq!(headers[0].0.as_ptr(), first_header_pointers[0]);
     assert_eq!(headers[0].1, None);
     assert_eq!(headers[1].0.as_ref(), b"trace");
+    assert_eq!(headers[1].0.as_ptr(), first_header_pointers[1]);
     assert_eq!(headers[1].1.as_ref().map(bytes::Bytes::len), Some(0));
+    assert_eq!(
+        third_key.as_ref().map(|key| key.as_ptr()),
+        Some(third_key_pointer)
+    );
+    assert_eq!(
+        third_value.as_ref().map(|value| value.as_ptr()),
+        Some(third_value_pointer)
+    );
 
     assert_eq!(retained_count(&owner), 1);
     drop(headers);
-    drop(parts.value);
+    drop(first_value);
+    drop(third_key);
+    drop(third_value);
     assert_eq!(retained_count(&owner), 1);
-    drop(parts.source_owner);
+    drop(first);
     assert_eq!(retained_count(&owner), 0);
 }
 
