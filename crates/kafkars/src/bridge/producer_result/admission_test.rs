@@ -9,16 +9,28 @@ use kafka_client_engine::{
 
 use super::admission::{
     ProducerAdmissionRejection, accepted_fault_error, accepted_fault_kind, admission_error,
-    admission_kind, capture_error_kind, translate_accepted_fault, translate_admission_error,
+    admission_kind, capture_error_kind, conversion_allocation_error, translate_accepted_fault,
+    translate_admission_error,
 };
 use crate::{DeliveryStatus, ErrorKind, KafkaError, Record, RetryAdvice};
 
 #[test]
 fn future_admission_bridge_surface_remains_type_checked() {
-    let _ = translate_admission_error as fn(EngineTrySendError) -> ProducerAdmissionRejection;
+    let _ =
+        translate_admission_error as fn(Record, EngineTrySendError) -> ProducerAdmissionRejection;
     let _ = ProducerAdmissionRejection::into_parts
         as fn(ProducerAdmissionRejection) -> (Record, KafkaError);
     let _ = translate_accepted_fault as fn(&EngineAcceptedFault) -> KafkaError;
+}
+
+#[test]
+fn local_conversion_allocation_is_retry_safe_and_not_sent() {
+    let error = conversion_allocation_error();
+
+    assert_eq!(error.kind(), ErrorKind::Backpressure);
+    assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+    assert_eq!(error.retry_advice(), RetryAdvice::RetrySafe);
+    assert!(!error.is_fatal());
 }
 
 #[test]

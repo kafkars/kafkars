@@ -118,15 +118,18 @@ fn public_byte_capacity_admits_prefix_and_preserves_exact_suffix() {
         .unwrap_or_else(|error| panic!("bounded producer should build: {error}"));
     let rejected = Bytes::from(vec![7; 256]);
     let untouched = Bytes::from_static(b"untouched");
+    let records = vec![
+        Record::to("orders").partition(2).value("accepted"),
+        Record::to("orders")
+            .partition(2)
+            .value(rejected.clone())
+            .header("trace", "rejected"),
+        Record::to("audit").partition(1).value(untouched.clone()),
+    ];
+    let record_allocation = records.as_ptr();
+    let rejected_header_allocation = records[1].headers().as_ptr();
 
-    let result = send_batch_until_admitted(
-        &producer,
-        vec![
-            Record::to("orders").partition(2).value("accepted"),
-            Record::to("orders").partition(2).value(rejected.clone()),
-            Record::to("audit").partition(1).value(untouched.clone()),
-        ],
-    );
+    let result = send_batch_until_admitted(&producer, records);
     let (deliveries, rejection) = result.into_parts();
     let rejection = rejection.unwrap_or_else(|| panic!("byte capacity must reject suffix"));
     let (records, error) = rejection.into_parts();
@@ -142,6 +145,8 @@ fn public_byte_capacity_admits_prefix_and_preserves_exact_suffix() {
     let [first, second] = records.as_slice() else {
         panic!("rejection must retain first rejected record and untouched suffix")
     };
+    assert_eq!(records.as_ptr(), record_allocation);
+    assert_eq!(first.headers().as_ptr(), rejected_header_allocation);
     assert_eq!(
         (first.topic(), first.explicit_partition()),
         ("orders", Some(2))

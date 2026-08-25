@@ -94,16 +94,6 @@ impl ProducerHeader {
         self.value.as_ref()
     }
 
-    /// Transfers shared validated name and nullable value ownership.
-    #[doc(hidden)]
-    pub fn into_shared_parts(self) -> (Bytes, Option<Bytes>, Option<Arc<dyn Send + Sync>>) {
-        (
-            self.name.into_bytes(),
-            self.value,
-            self.source_owner.into_inner(),
-        )
-    }
-
     pub(in crate::producer::boundary) fn shared_name_bytes(&self) -> Bytes {
         self.name.shared_bytes()
     }

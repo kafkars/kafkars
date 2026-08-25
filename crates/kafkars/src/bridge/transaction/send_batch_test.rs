@@ -47,6 +47,7 @@ fn over_capacity_batch_returns_exact_facade_records_without_touching_source_owne
         source_owned_record("first", Arc::clone(&first_dropped)),
         source_owned_record("second", Arc::clone(&second_dropped)),
     ];
+    let allocation = records.as_ptr();
 
     let Err((records, error)) = prepare_engine_records(records, 1) else {
         panic!("over-capacity facade batch was unexpectedly converted")
@@ -55,6 +56,7 @@ fn over_capacity_batch_returns_exact_facade_records_without_touching_source_owne
     assert_eq!(error.kind(), ErrorKind::Backpressure);
     assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
     assert_eq!(records.len(), 2);
+    assert_eq!(records.as_ptr(), allocation);
     assert_eq!(
         records[0].value_bytes(),
         Some(&Bytes::from_static(b"first"))

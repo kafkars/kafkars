@@ -59,16 +59,7 @@ impl Record {
         }
     }
 
-    pub(crate) fn into_transfer_parts(self) -> RecordTransferParts {
-        RecordTransferParts {
-            topic: self.topic,
-            expected_topic_uuid: self.expected_topic_uuid,
-            partition: self.partition,
-            timestamp_milliseconds: self.timestamp_milliseconds,
-            key: self.key,
-            value: self.value,
-            headers: self.headers,
-            source_owner: self.source_owner,
-        }
+    pub(crate) fn shared_source_owner(&self) -> Option<Arc<dyn Send + Sync>> {
+        self.source_owner.shared_arc()
     }
 }

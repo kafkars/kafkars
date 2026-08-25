@@ -10,8 +10,7 @@ use std::{
 use kafka_client_engine::TransactionSendObserver as EngineTransactionSendObserver;
 
 use crate::{
-    DeliveryStatus, KafkaError, Record, RecordMetadata,
-    bridge::producer::{into_engine_record, restore_rejected_record},
+    DeliveryStatus, KafkaError, Record, RecordMetadata, bridge::producer::prepare_engine_record,
 };
 
 use super::{
@@ -44,11 +43,21 @@ impl<'producer> TransactionEngine<'producer> {
         };
         let serialized_key_size = record.key_bytes().map(bytes::Bytes::len);
         let serialized_value_size = record.value_bytes().map(bytes::Bytes::len);
-        match self
-            .inner
-            .send_captured(into_engine_record(record), capture)
-        {
+        let prepared = match prepare_engine_record(record) {
+            Ok(prepared) => prepared,
+            Err(record) => {
+                return Err((
+                    record,
+                    translate_send_admission(
+                        kafka_client_engine::TransactionSendAdmissionErrorKind::Allocation,
+                    ),
+                ));
+            }
+        };
+        let (record, engine_record) = prepared.into_parts();
+        match self.inner.send_captured(engine_record, capture) {
             Ok(accepted) => {
+                drop(record);
                 self.identity.commit_mutation(prepared_identity);
                 let wake_failed = accepted.wake_failed();
                 Ok(TransactionSendEngine {
@@ -60,7 +69,7 @@ impl<'producer> TransactionEngine<'producer> {
             }
             Err(error) => {
                 let semantic = translate_send_admission(error.kind());
-                let record = restore_rejected_record(error.into_record());
+                drop(error.into_record());
                 Err((record, semantic))
             }
         }

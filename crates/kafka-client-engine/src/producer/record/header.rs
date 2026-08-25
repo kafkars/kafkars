@@ -33,10 +33,6 @@ impl ProducerSourceOwner {
         Self(Some(owner))
     }
 
-    pub(in crate::producer) fn into_inner(self) -> Option<Arc<dyn Send + Sync>> {
-        self.0
-    }
-
     pub(super) fn release(&mut self) {
         self.0 = None;
     }

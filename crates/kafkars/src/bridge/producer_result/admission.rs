@@ -8,9 +8,7 @@ use kafka_client_engine::{
     ProducerTrySendError as EngineTrySendError, ProducerTrySendErrorKind as EngineTrySendErrorKind,
 };
 
-use crate::{
-    DeliveryStatus, ErrorKind, KafkaError, Record, bridge::producer::restore_rejected_record,
-};
+use crate::{DeliveryStatus, ErrorKind, KafkaError, Record};
 
 /// Caller-owned record and semantic reason immediate admission failed.
 #[derive(Debug)]
@@ -25,14 +23,32 @@ impl ProducerAdmissionRejection {
     }
 }
 
-pub(crate) fn translate_admission_error(error: EngineTrySendError) -> ProducerAdmissionRejection {
-    let kind = error.kind();
-    let detail = error.detail().map(str::to_owned);
-    let record = restore_rejected_record(error.into_record());
+pub(crate) fn translate_admission_error(
+    record: Record,
+    error: EngineTrySendError,
+) -> ProducerAdmissionRejection {
+    let semantic = admission_error(error.kind(), error.detail());
+    drop(error.into_record());
     ProducerAdmissionRejection {
         record,
-        error: admission_error(kind, detail.as_deref()),
+        error: semantic,
     }
+}
+
+pub(crate) fn translate_conversion_allocation(record: Record) -> ProducerAdmissionRejection {
+    ProducerAdmissionRejection {
+        record,
+        error: conversion_allocation_error(),
+    }
+}
+
+pub(crate) fn conversion_allocation_error() -> KafkaError {
+    KafkaError::new(
+        ErrorKind::Backpressure,
+        "producer record conversion could not reserve header capacity",
+    )
+    .with_delivery_status(DeliveryStatus::NotSent)
+    .with_safe_retry()
 }
 
 pub(crate) fn translate_capture_error(

@@ -17,12 +17,12 @@ impl SourceOwner {
         Self(Some(owner))
     }
 
-    pub(crate) const fn from_optional(owner: Option<Arc<dyn Send + Sync>>) -> Self {
-        Self(owner)
-    }
-
     pub(crate) fn into_arc(self) -> Option<Arc<dyn Send + Sync>> {
         self.0
+    }
+
+    pub(crate) fn shared_arc(&self) -> Option<Arc<dyn Send + Sync>> {
+        self.0.as_ref().map(Arc::clone)
     }
 }
 

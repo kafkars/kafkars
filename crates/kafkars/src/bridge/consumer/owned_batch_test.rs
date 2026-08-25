@@ -68,7 +68,9 @@ fn reserved_conversion_and_producer_rejection_preserve_shared_bytes_and_source_l
     );
     assert!(!dropped.load(Ordering::Acquire));
 
-    let engine = crate::bridge::producer::into_engine_record(record);
+    let prepared = crate::bridge::producer::prepare_engine_record(record)
+        .unwrap_or_else(|_record| panic!("small retained record mirror should reserve"));
+    let (returned, engine) = prepared.into_parts();
     assert_eq!(
         engine.key_bytes().map(|bytes| bytes.as_ptr()),
         Some(key.as_ptr())
@@ -89,7 +91,6 @@ fn reserved_conversion_and_producer_rejection_preserve_shared_bytes_and_source_l
     );
     assert!(!dropped.load(Ordering::Acquire));
 
-    let returned = crate::bridge::producer::restore_rejected_record(engine);
     assert_record(
         &returned,
         key.as_ptr(),
@@ -97,6 +98,8 @@ fn reserved_conversion_and_producer_rejection_preserve_shared_bytes_and_source_l
         header_name.as_ptr(),
         header_value.as_ptr(),
     );
+    assert!(!dropped.load(Ordering::Acquire));
+    drop(engine);
     assert!(!dropped.load(Ordering::Acquire));
     drop(returned);
     assert!(dropped.load(Ordering::Acquire));

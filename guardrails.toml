@@ -3240,6 +3240,10 @@ production = "crates/kafkars/src/bridge/producer/handle.rs"
 test = "crates/kafkars/src/bridge/producer/handle_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafkars/src/bridge/producer/conversion.rs"
+test = "crates/kafkars/src/bridge/producer/conversion_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafkars/src/bridge/producer/delivery.rs"
 test = "crates/kafkars/src/bridge/producer/delivery_test.rs"
 
@@ -10878,6 +10882,21 @@ path = "crates/kafka-client-engine/src/producer/boundary/prepare.rs"
 [[linear_owners]]
 owner_type = "ProducerDelivery"
 path = "crates/kafkars/src/bridge/producer/delivery.rs"
+
+[[linear_owners]]
+owner_type = "PreparedEngineRecord"
+path = "crates/kafkars/src/bridge/producer/conversion.rs"
+
+[[linear_owners]]
+owner_type = "PreparedEngineRecords"
+path = "crates/kafkars/src/bridge/producer/conversion.rs"
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "with_headers"
+allowed_paths = [
+  "crates/kafkars/src/bridge/producer/conversion.rs",
+]
 
 [[linear_owners]]
 owner_type = "ProducerBarrier"

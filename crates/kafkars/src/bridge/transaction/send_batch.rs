@@ -8,14 +8,13 @@ use std::{
 };
 
 use kafka_client_engine::{
-    ProducerRecord as EngineProducerRecord,
     TransactionBatchSendObserver as EngineTransactionBatchSendObserver,
     TransactionSendAdmissionErrorKind,
 };
 
 use crate::{
     DeliveryStatus, KafkaError, Record,
-    bridge::producer::{into_engine_record, restore_rejected_record},
+    bridge::producer::{PreparedEngineRecords, prepare_engine_records as prepare_engine_mirrors},
     transaction::TransactionBatchMetadata,
 };
 
@@ -53,9 +52,11 @@ impl<'producer> TransactionEngine<'producer> {
                 return Err((records, error.with_delivery_status(DeliveryStatus::NotSent)));
             }
         };
-        let engine_records = prepare_engine_records(records, capacity)?;
+        let prepared = prepare_engine_records(records, capacity)?;
+        let (records, engine_records) = prepared.into_parts();
         match self.inner.send_batch_captured(engine_records, capture) {
             Ok(accepted) => {
+                drop(records);
                 self.identity.commit_mutation(prepared_identity);
                 let wake_failed = accepted.wake_failed();
                 Ok(TransactionBatchSendEngine {
@@ -65,11 +66,7 @@ impl<'producer> TransactionEngine<'producer> {
             }
             Err(error) => {
                 let semantic = translate_send_admission(error.kind());
-                let records = error
-                    .into_records()
-                    .into_iter()
-                    .map(restore_rejected_record)
-                    .collect();
+                drop(error.into_records());
                 Err((records, semantic))
             }
         }
@@ -79,7 +76,7 @@ impl<'producer> TransactionEngine<'producer> {
 pub(super) fn prepare_engine_records(
     records: Vec<Record>,
     capacity: usize,
-) -> Result<Vec<EngineProducerRecord>, (Vec<Record>, KafkaError)> {
+) -> Result<PreparedEngineRecords, (Vec<Record>, KafkaError)> {
     let record_count = records.len();
     let kind = if record_count == 0 {
         Some(TransactionSendAdmissionErrorKind::EmptyBatch)
@@ -94,15 +91,12 @@ pub(super) fn prepare_engine_records(
     if let Some(kind) = kind {
         return Err((records, translate_send_admission(kind)));
     }
-    let mut engine_records = Vec::new();
-    if engine_records.try_reserve_exact(record_count).is_err() {
-        return Err((
+    prepare_engine_mirrors(records).map_err(|records| {
+        (
             records,
             translate_send_admission(TransactionSendAdmissionErrorKind::Allocation),
-        ));
-    }
-    engine_records.extend(records.into_iter().map(into_engine_record));
-    Ok(engine_records)
+        )
+    })
 }
 
 /// Private observer retaining both the transaction and producer-owner borrows.

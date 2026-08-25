@@ -12,7 +12,7 @@ use crate::{
     bridge::{
         producer_result::admission::{
             ProducerAdmissionRejection, translate_accepted_fault, translate_admission_error,
-            translate_capture_error,
+            translate_capture_error, translate_conversion_allocation,
         },
         producer_result::{close::translate_close_admission, flush::translate_flush_admission},
     },
@@ -22,7 +22,7 @@ use crate::{
 use super::{
     barrier::{BarrierKind, ProducerBarrier},
     delivery::ProducerDelivery,
-    into_engine_record,
+    prepare_engine_record,
     send::ProducerSend,
 };
 
@@ -89,6 +89,11 @@ impl ProducerEngine {
             Ok(capture) => capture,
             Err(error) => return Err(translate_capture_error(record, error)),
         };
+        let prepared = match prepare_engine_record(record) {
+            Ok(prepared) => prepared,
+            Err(record) => return Err(translate_conversion_allocation(record)),
+        };
+        let (record, engine_record) = prepared.into_parts();
         let topic = std::sync::Arc::clone(record.topic_owner());
         let topic_uuid = record.expected_topic_uuid_value();
         let create_timestamp = record
@@ -96,9 +101,9 @@ impl ProducerEngine {
             .unwrap_or_else(|| capture.default_timestamp_milliseconds());
         let serialized_key_size = record.key_bytes().map(bytes::Bytes::len);
         let serialized_value_size = record.value_bytes().map(bytes::Bytes::len);
-        let engine_record = into_engine_record(record);
         match self.handle.try_send_captured(capture, engine_record) {
             Ok(accepted) => {
+                drop(record);
                 let diagnostic = accepted.fault().map(translate_accepted_fault);
                 Ok(ProducerDelivery::new(
                     topic,
@@ -110,7 +115,7 @@ impl ProducerEngine {
                     diagnostic,
                 ))
             }
-            Err(error) => Err(translate_admission_error(error)),
+            Err(error) => Err(translate_admission_error(record, error)),
         }
     }
 
@@ -123,6 +128,14 @@ impl ProducerEngine {
                 return ProducerSend::ready(error);
             }
         };
+        let prepared = match prepare_engine_record(record) {
+            Ok(prepared) => prepared,
+            Err(record) => {
+                let (_record, error) = translate_conversion_allocation(record).into_parts();
+                return ProducerSend::ready(error);
+            }
+        };
+        let (record, engine_record) = prepared.into_parts();
         let topic = std::sync::Arc::clone(record.topic_owner());
         let topic_uuid = record.expected_topic_uuid_value();
         let create_timestamp = record
@@ -130,9 +143,9 @@ impl ProducerEngine {
             .unwrap_or_else(|| capture.default_timestamp_milliseconds());
         let serialized_key_size = record.key_bytes().map(bytes::Bytes::len);
         let serialized_value_size = record.value_bytes().map(bytes::Bytes::len);
-        let engine_record = into_engine_record(record);
         match self.handle.send_captured(capture, engine_record) {
             Ok(accepted) => {
+                drop(record);
                 let diagnostic = accepted.fault().map(translate_accepted_fault);
                 ProducerSend::accepted(ProducerDelivery::new(
                     topic,
@@ -145,7 +158,7 @@ impl ProducerEngine {
                 ))
             }
             Err(error) => {
-                let (_record, error) = translate_admission_error(error).into_parts();
+                let (_record, error) = translate_admission_error(record, error).into_parts();
                 ProducerSend::ready(error)
             }
         }

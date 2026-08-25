@@ -79,6 +79,16 @@ impl ProducerRecord {
         self
     }
 
+    /// Installs one already-reserved ordered header vector.
+    ///
+    /// This private adapter seam lets the curated facade make header-vector
+    /// allocation fallible before cloning any shared record handles.
+    #[doc(hidden)]
+    pub fn with_headers(mut self, headers: Vec<ProducerHeader>) -> Self {
+        self.headers = headers;
+        self
+    }
+
     /// Returns the logical topic.
     pub fn topic(&self) -> &str {
         &self.topic
@@ -119,36 +129,6 @@ impl ProducerRecord {
     pub fn retain_source_owner(mut self, owner: Arc<dyn Send + Sync>) -> Self {
         self.source_owner = ProducerSourceOwner::new(owner);
         self
-    }
-
-    /// Transfers the exact public record fields and any opaque source lease.
-    #[doc(hidden)]
-    #[allow(
-        clippy::type_complexity,
-        reason = "private facade transfer is one exact record"
-    )]
-    pub fn into_shared_parts(
-        self,
-    ) -> (
-        Arc<str>,
-        Option<[u8; 16]>,
-        Option<i32>,
-        Option<i64>,
-        Option<Bytes>,
-        Option<Bytes>,
-        Vec<ProducerHeader>,
-        Option<Arc<dyn Send + Sync>>,
-    ) {
-        (
-            self.topic,
-            self.expected_topic_uuid,
-            self.partition,
-            self.timestamp_ms,
-            self.key,
-            self.value,
-            self.headers,
-            self.source_owner.into_inner(),
-        )
     }
 
     pub(super) fn validate_explicit_partition(&self) -> Option<PartitionIndex> {
