@@ -2,7 +2,10 @@
 
 use std::sync::Arc;
 
-use super::{AssignedConsumerOwnedRecords, batch::AssignedConsumerSharedDelivery};
+use super::{
+    AssignedConsumerFetchEvidence, AssignedConsumerOwnedRecords,
+    batch::AssignedConsumerSharedDelivery,
+};
 
 /// One owned direct-consumer batch whose derived records share its byte lease.
 #[must_use = "dropping the batch releases its share of the delivery lease"]
@@ -28,6 +31,11 @@ impl AssignedConsumerOwnedBatch {
     /// Returns the next offset after every record represented by this batch.
     pub fn checkpoint_next_offset(&self) -> i64 {
         self.delivery.delivery().lease().next_offset().get()
+    }
+
+    /// Returns one immutable view of this delivery's broker-correlated Fetch facts.
+    pub fn evidence(&self) -> AssignedConsumerFetchEvidence {
+        AssignedConsumerFetchEvidence::from_delivery(self.delivery.delivery())
     }
 
     /// Returns the number of normalized application records.

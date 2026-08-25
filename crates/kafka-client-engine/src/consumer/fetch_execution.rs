@@ -77,6 +77,8 @@ mod session_test;
 #[path = "fetch_execution/settlement.rs"]
 mod settlement;
 #[cfg(test)]
+mod settlement_progress_test;
+#[cfg(test)]
 mod settlement_test;
 #[cfg(test)]
 mod stale_test;

@@ -54,6 +54,8 @@ mod routed_response_test;
 mod settlement;
 mod settlement_owner;
 #[cfg(test)]
+mod settlement_owner_fixture;
+#[cfg(test)]
 mod settlement_owner_test;
 #[cfg(test)]
 mod settlement_test;

@@ -1323,6 +1323,23 @@ evidence = [
 ]
 
 [[invariant]]
+id = "CON-21"
+title = "Direct Fetch evidence is UUID-qualified and lease-bound"
+statement = "Every public direct-consumer RecordBatch and OwnedConsumerBatch exposes the same immutable ConsumerFetchEvidence retained by its exact delivery lease: catalog topic name, nonzero broker-issued topic UUID, partition, requested and exclusive next offsets, optional log-start, last-stable, and high-watermark facts, and the exact stable Fetch-output byte charge. Successful normalization captures those facts before application-record filtering; route correlation, decoding, retention, core authorization, delivery transfer, facade translation, and owned conversion preserve them without creating another byte owner. Public delivery is fail-closed to UUID-qualified Fetch v16 evidence, so a successful legacy or identity-less internal delivery freezes and retains its lease instead of crossing the facade. A successful complete control, aborted, filtered, compacted-empty, or otherwise record-free Fetch becomes one empty public batch only when its next offset strictly exceeds its requested offset, while no-progress long-poll and incremental-session empties remain suppressed. No progress record is invented, and the bounded delivery count and byte charge remain owned until the final lease is reclaimed. This invariant is the authoritative refinement of CON-02 and CON-03 for record-free Fetch progress."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/protocol/fetch/evidence_test.rs::v16_success_retains_exact_correlated_uuid_window_and_charge",
+  "crates/kafka-client-core/src/consumer/fetch_delivery_test.rs::progress_only_fetch_authorizes_before_advancing_the_next_fetch",
+  "crates/kafka-client-engine/src/consumer/fetch_store/outcome_test.rs::record_free_offset_progress_requires_explicit_authorization",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/settlement_progress_test.rs::compacted_empty_progress_publishes_one_zero_byte_delivery",
+  "crates/kafka-client-engine/src/consumer/assigned_host/delivery/evidence_test.rs::evidence_survives_owned_conversion_with_the_exact_lease_charge",
+  "crates/kafka-client-engine/src/consumer/assigned_host/delivery/evidence_test.rs::only_empty_fetches_with_real_offset_progress_become_public",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs::legacy_delivery_without_a_topic_uuid_faults_and_retains_the_lease",
+  "crates/kafkars/src/consumer/fetch_evidence_test.rs::evidence_is_lease_borrowed_and_exposes_exact_correlated_facts",
+  "crates/kafkars/src/topic_uuid_test.rs::topic_uuid_rejects_zero_and_preserves_exact_bytes",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Client policy consumes one absolute deadline"
 statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant. Public operations, including incremental direct-assignment additions, capture at their public boundary before input iteration or conversion, while engine-owned background Fetch captures at the exact internal-attempt boundary and fence rather than borrowing a later recv observation timeout. Accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and a producer-identity coordinator-load backoff selects the earliest surviving unchanged public deadline without erasing identity-request deadline completion."

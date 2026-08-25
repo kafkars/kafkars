@@ -5,6 +5,7 @@ mod batch_identity;
 mod batch_model;
 mod control_record;
 mod decode;
+mod evidence;
 mod exports;
 mod failure;
 #[cfg(test)]
@@ -32,11 +33,6 @@ mod retention;
 mod session;
 pub(crate) use exports::*;
 #[cfg(test)]
-pub(crate) use fixture::{
-    encoded_data_batch_for_test, encoded_delivery_batches_for_test,
-    retained_broker_failure_for_test, retained_success_for_test,
-};
-#[cfg(test)]
 mod batch_identity_test;
 #[cfg(test)]
 mod batch_model_test;
@@ -48,6 +44,8 @@ mod control_record_test;
 mod decode_next_test;
 #[cfg(test)]
 mod decode_test;
+#[cfg(test)]
+mod evidence_test;
 #[cfg(test)]
 mod facts_test;
 #[cfg(test)]

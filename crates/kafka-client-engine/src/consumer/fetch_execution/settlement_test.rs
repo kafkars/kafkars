@@ -176,13 +176,28 @@ pub(in crate::consumer) fn install(
     prepared: PreparedFetchExecution,
     fixture: TerminalFixture,
 ) {
-    let (request, output_bytes) = prepared.into_parts_for_test();
+    let (mut request, output_bytes) = prepared.into_parts_for_test();
     executor
         .reserve_output_for_test(request.fence(), output_bytes)
         .unwrap_or_else(|error| panic!("reserve output: {error:?}"));
     let calls = executor.tracked_calls_for_test();
     match fixture {
         TerminalFixture::Success(records) => {
+            request.bind_topic_route_for_test([7; 16], Some(9));
+            let partition_index =
+                i32::try_from(request.fence().position().partition().partition().get())
+                    .unwrap_or_else(|error| panic!("test partition must fit i32: {error}"));
+            calls.install_success_terminal_for_test(
+                request,
+                Moment::from_tick(7),
+                16,
+                0,
+                Some(partition_index),
+                records,
+                0,
+            );
+        }
+        TerminalFixture::LegacySuccess(records) => {
             let partition_index =
                 i32::try_from(request.fence().position().partition().partition().get())
                     .unwrap_or_else(|error| panic!("test partition must fit i32: {error}"));
@@ -221,6 +236,7 @@ pub(in crate::consumer) fn install(
 
 pub(in crate::consumer) enum TerminalFixture {
     Success(Option<Bytes>),
+    LegacySuccess(Option<Bytes>),
     Broker(i16),
     PartitionBroker(i16),
     RouteUnavailable,

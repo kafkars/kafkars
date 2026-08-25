@@ -5,7 +5,10 @@ use kafka_client_engine::{
     AssignedConsumerRecord as EngineRecord, AssignedConsumerRecords as EngineRecords,
 };
 
-use super::owned_batch::{AssignedConsumerOwnedBatch, AssignedConsumerOwnedRecords};
+use super::{
+    AssignedConsumerFetchEvidence,
+    owned_batch::{AssignedConsumerOwnedBatch, AssignedConsumerOwnedRecords},
+};
 
 /// Linear private bridge retaining one exact engine delivery lease.
 pub(crate) struct AssignedConsumerBatch {
@@ -27,6 +30,10 @@ impl AssignedConsumerBatch {
 
     pub(crate) fn checkpoint_next_offset(&self) -> i64 {
         self.inner.checkpoint_next_offset()
+    }
+
+    pub(crate) fn evidence(&self) -> AssignedConsumerFetchEvidence {
+        AssignedConsumerFetchEvidence::from_engine(self.inner.evidence())
     }
 
     pub(crate) fn record_count(&self) -> usize {

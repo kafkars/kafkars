@@ -3,7 +3,7 @@
 use core::num::NonZeroI16;
 
 use super::{
-    FetchBatch, FetchResponseFailure,
+    FetchBatch, FetchResponseFailure, FetchSuccessEvidence,
     model::FetchLeader,
     retention::{FetchOutputReservation, FetchRetainedCharge, FetchRetentionFailure},
 };
@@ -54,7 +54,7 @@ impl FetchBrokerFailure {
 pub(crate) enum FetchOutcome {
     BrokerFailure(FetchBrokerFailure),
     Success {
-        next_offset: i64,
+        evidence: FetchSuccessEvidence,
         data_batches: Box<[FetchBatch]>,
     },
 }
@@ -70,7 +70,14 @@ impl FetchOutcome {
     pub(crate) const fn next_offset(&self) -> Option<i64> {
         match self {
             Self::BrokerFailure(_) => None,
-            Self::Success { next_offset, .. } => Some(*next_offset),
+            Self::Success { evidence, .. } => Some(evidence.next_offset()),
+        }
+    }
+
+    pub(crate) const fn evidence(&self) -> Option<FetchSuccessEvidence> {
+        match self {
+            Self::BrokerFailure(_) => None,
+            Self::Success { evidence, .. } => Some(*evidence),
         }
     }
 

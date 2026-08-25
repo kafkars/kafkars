@@ -19,7 +19,7 @@ use crate::{
             ShareFetchAcquiredRange, ShareFetchPartition, ShareFetchRequestSettings,
             ShareFetchResponseLimits, ShareFetchSuccess, ShareFetchTopic,
         },
-        fetch::{FetchDecodeLimits, encoded_data_batch_for_test},
+        fetch::{FetchDecodeLimits, fixture::encoded_data_batch_for_test},
     },
 };
 

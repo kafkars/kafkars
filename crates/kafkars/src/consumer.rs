@@ -14,6 +14,7 @@ mod classic_group_config;
 mod consumer_batch;
 mod event;
 mod fetch_config;
+mod fetch_evidence;
 mod group;
 mod group_acknowledge;
 mod group_acknowledge_error;
@@ -57,6 +58,7 @@ pub use event::{
     AssignedConsumerPositionResolutionFailureKind,
 };
 pub use fetch_config::ConsumerFetchConfig;
+pub use fetch_evidence::ConsumerFetchEvidence;
 pub use group::{ClassicGroupAssignor, ConsumerBuilder, ConsumerGroupProtocol};
 pub use group_acknowledge_error::ConsumerAcknowledgeError;
 pub use group_build_error::ConsumerBuildError;
@@ -121,6 +123,8 @@ mod consumer_batch_test;
 mod event_test;
 #[cfg(test)]
 mod fetch_config_test;
+#[cfg(test)]
+mod fetch_evidence_test;
 #[cfg(test)]
 mod group_acknowledge_error_test;
 #[cfg(test)]

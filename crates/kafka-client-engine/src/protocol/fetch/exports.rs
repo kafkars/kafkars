@@ -6,6 +6,7 @@
 )]
 pub(crate) use super::{
     batch::decode_record_payload,
+    evidence::FetchSuccessEvidence,
     failure::FetchDecodeFailure,
     isolation::FetchIsolation,
     limits::FetchDecodeLimits,

@@ -44,6 +44,38 @@ fn deliverable_fetch_authorizes_before_unthrottled_progress() {
 }
 
 #[test]
+fn progress_only_fetch_authorizes_before_advancing_the_next_fetch() {
+    let mut machine = AssignedConsumerMachine::new();
+    let completed = first_fetch(&mut machine);
+    let transition = machine
+        .apply(AssignedConsumerInput::FetchAdvanced {
+            fence: completed,
+            records: FetchRecords::ProgressOnlyDelivery,
+            next_offset: offset(12),
+            now: Moment::from_tick(10),
+            throttle_ticks: 0,
+        })
+        .unwrap_or_else(|error| panic!("progress-only Fetch success: {error}"));
+
+    assert!(matches!(
+        transition.effects(),
+        [
+            AssignedConsumerEffect::AuthorizeFetchDelivery {
+                fence,
+                next_offset: checkpoint,
+            },
+            AssignedConsumerEffect::FetchReady {
+                fence: next,
+                next_offset,
+            },
+        ] if *fence == completed
+            && *checkpoint == offset(12)
+            && next.revision().get() == completed.revision().get() + 1
+            && *next_offset == offset(12)
+    ));
+}
+
+#[test]
 fn empty_or_control_only_fetch_advances_without_delivery() {
     let mut machine = AssignedConsumerMachine::new();
     let completed = first_fetch(&mut machine);
@@ -55,7 +87,7 @@ fn empty_or_control_only_fetch_advances_without_delivery() {
             now: Moment::from_tick(10),
             throttle_ticks: 0,
         })
-        .unwrap_or_else(|error| panic!("non-deliverable Fetch success: {error}"));
+        .unwrap_or_else(|error| panic!("empty Fetch success: {error}"));
 
     assert!(matches!(
         transition.effects(),

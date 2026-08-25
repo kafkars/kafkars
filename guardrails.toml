@@ -161,7 +161,6 @@ baseline = [
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 281, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
   { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc/remove_raft_voter_terminal.rs", lines = 254, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs", lines = 268, reason = "AddPartitionsToTxn retains exact response correlation, coordinator-refresh eligibility, and retry-safety evidence in one terminal owner" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs", lines = 280, reason = "EndTxn retains exact response correlation, causal coordinator invalidation, deadline fencing, and retry-safety evidence in one terminal owner" },
@@ -193,7 +192,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members.rs", lines = 270, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members_test.rs", lines = 302, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/mod.rs", lines = 89, reason = "the declarative consumer protocol facade names classic-group, Fetch, share-heartbeat, ShareAcknowledge, position, and offset-commit protocol ownership including static membership" },
-  { path = "crates/kafka-client-engine/src/public_api.rs", lines = 492, reason = "the engine crate facade explicitly reexports the complete typed Rust source-preview engine, incremental and lease-preserving direct-consumer vocabulary, transactional batch vocabulary, and operational metrics surface" },
+  { path = "crates/kafka-client-engine/src/public_api.rs", lines = 473, reason = "the engine crate facade explicitly reexports the complete typed Rust source-preview engine after transactional exports moved into a focused declarative child" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 265, reason = "the transaction-initialization settlement seam preserves its prior public failure taxonomy while the shared API 22 terminal now distinguishes compatibility for producer-fencing callers" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host.rs", lines = 245, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host_test.rs", lines = 325, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -236,6 +235,26 @@ soft = 500
 hard = 700
 
 # Load-bearing modules keep their executable evidence as declared siblings.
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/evidence.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/evidence_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/evidence.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/evidence_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/consumer/evidence.rs"
+test = "crates/kafkars/src/bridge/consumer/evidence_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/consumer/fetch_evidence.rs"
+test = "crates/kafkars/src/consumer/fetch_evidence_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/topic_uuid.rs"
+test = "crates/kafkars/src/topic_uuid_test.rs"
+
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/consumer_group/rediscovery.rs"
 test = "crates/kafka-client-core/src/consumer/consumer_group/rediscovery_retry_test.rs"
@@ -24819,6 +24838,60 @@ forbidden = [
   "Metadata",
   "Retry",
   "Stream",
+  "Transport",
+  "async",
+]
+
+# UUID-qualified Fetch evidence retains one exact ownership path at each public-to-engine boundary.
+[[linear_owners]]
+owner_type = "AssignedConsumerFetchEvidence"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/evidence.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerFetchEvidence"
+path = "crates/kafkars/src/bridge/consumer/evidence.rs"
+
+[[linear_owners]]
+owner_type = "ConsumerFetchEvidence"
+path = "crates/kafkars/src/consumer/fetch_evidence.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/protocol/fetch/evidence.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Future",
+  "Retry",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/evidence.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Future",
+  "Retry",
   "Transport",
   "async",
 ]

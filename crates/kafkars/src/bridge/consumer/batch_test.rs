@@ -1,5 +1,6 @@
 //! Private assigned-consumer batch translation shape contract.
 
+use super::AssignedConsumerFetchEvidence;
 use super::batch::{
     AssignedConsumerBatch, AssignedConsumerHeader, AssignedConsumerRecord, AssignedConsumerRecords,
 };
@@ -10,6 +11,7 @@ fn bridge_views_preserve_the_engine_borrowing_boundary() {
         let _: &str = batch.topic();
         let _: i32 = batch.partition();
         let _: i64 = batch.checkpoint_next_offset();
+        let _: AssignedConsumerFetchEvidence = batch.evidence();
         let _: usize = batch.record_count();
         let _: Option<AssignedConsumerRecord<'_>> = batch.records().next();
     }

@@ -168,11 +168,13 @@ impl FetchFence {
     }
 }
 
-/// Whether one normalized Fetch result retains records visible to the application.
+/// Whether one normalized Fetch result requires an application delivery lease.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FetchRecords {
-    /// The response was empty or contained only Kafka control records.
+    /// The response retained neither application records nor offset progress.
     NoApplicationRecords,
+    /// Complete broker progress without an application record still needs a lease.
+    ProgressOnlyDelivery,
     /// The engine retains one or more application records for delivery.
     Deliverable,
 }

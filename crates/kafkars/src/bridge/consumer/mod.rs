@@ -9,6 +9,7 @@ mod control;
 mod control_result;
 mod event;
 mod event_result;
+mod evidence;
 mod handle;
 mod next_event;
 mod next_event_result;
@@ -21,6 +22,7 @@ pub(crate) use batch::{
     AssignedConsumerBatch, AssignedConsumerHeader, AssignedConsumerRecord, AssignedConsumerRecords,
 };
 pub(crate) use close::AssignedConsumerClose;
+pub(crate) use evidence::AssignedConsumerFetchEvidence;
 pub(crate) use handle::AssignedConsumerEngine;
 pub(crate) use next_event::AssignedConsumerNextEvent;
 pub(crate) use owned_batch::{
@@ -47,6 +49,8 @@ mod control_test;
 mod event_result_test;
 #[cfg(test)]
 mod event_test;
+#[cfg(test)]
+mod evidence_test;
 #[cfg(test)]
 mod handle_test;
 #[cfg(test)]

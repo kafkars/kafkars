@@ -1,6 +1,6 @@
 //! Public record-batch linearity and immediate-observation shape contract.
 
-use super::{ConsumerRecord, RecordBatch};
+use super::{ConsumerFetchEvidence, ConsumerRecord, RecordBatch};
 
 macro_rules! assert_not_impl {
     ($type:ty: $trait:path) => {
@@ -23,6 +23,7 @@ fn batch_is_send_linear_and_exposes_borrowed_records() {
         let _: &str = batch.topic();
         let _: i32 = batch.partition();
         let _: i64 = batch.checkpoint_next_offset();
+        let _: &ConsumerFetchEvidence = batch.evidence();
         let _: usize = batch.len();
         let _: bool = batch.is_empty();
         let _: Option<ConsumerRecord<'_>> = batch.records().next();

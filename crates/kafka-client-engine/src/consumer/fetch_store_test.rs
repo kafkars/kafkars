@@ -6,10 +6,11 @@ use kafka_client_core::{
     StartPosition, TopicId,
 };
 
-use crate::protocol::fetch::{
-    FetchBrokerLevel, FetchOutputReservation, RetainedFetchOutcome, encoded_data_batch_for_test,
+use crate::protocol::fetch::fixture::{
+    encoded_data_batch_for_test, encoded_empty_progress_batch_for_test,
     retained_broker_failure_for_test, retained_success_for_test,
 };
+use crate::protocol::fetch::{FetchBrokerLevel, FetchOutputReservation, RetainedFetchOutcome};
 
 use super::fetch_store::{FetchDeliveryStore, FetchStageKind, FetchStageProof, FetchStoreFailure};
 
@@ -259,6 +260,16 @@ pub(super) fn record_outcome(reservation: FetchOutputReservation) -> RetainedFet
         PARTITION,
         OFFSET,
         Some(encoded_data_batch_for_test(OFFSET)),
+        reservation,
+    )
+}
+
+pub(super) fn progress_outcome(reservation: FetchOutputReservation) -> RetainedFetchOutcome {
+    retained_success_for_test(
+        TOPIC,
+        PARTITION,
+        OFFSET,
+        Some(encoded_empty_progress_batch_for_test(OFFSET)),
         reservation,
     )
 }

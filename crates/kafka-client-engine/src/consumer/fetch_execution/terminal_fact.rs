@@ -50,6 +50,17 @@ pub(super) fn staged_fact(
             TerminalStorage::NonDelivery(fence),
             None,
         ),
+        FetchStageKind::Progress(next_offset, throttle_ticks) => (
+            AssignedConsumerInput::FetchAdvanced {
+                fence,
+                records: FetchRecords::ProgressOnlyDelivery,
+                next_offset,
+                now: observed_at,
+                throttle_ticks,
+            },
+            TerminalStorage::Deliverable(fence, next_offset),
+            None,
+        ),
         FetchStageKind::Deliverable(next_offset, throttle_ticks) => (
             AssignedConsumerInput::FetchAdvanced {
                 fence,

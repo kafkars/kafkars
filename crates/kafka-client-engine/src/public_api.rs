@@ -1,4 +1,6 @@
 //! Curated public re-exports for engine execution and observation.
+mod transaction;
+
 pub use crate::admin::add_raft_voter::api::{
     AddRaftVoterAccepted, AddRaftVoterAcceptedFaultKind, AddRaftVoterAdmissionError,
     AddRaftVoterAdmissionErrorKind, AddRaftVoterBrokerError, AddRaftVoterCapture,
@@ -389,12 +391,12 @@ pub use crate::consumer::{
     AssignedConsumerBatch, AssignedConsumerClaimError, AssignedConsumerCloseObserver,
     AssignedConsumerCloseObserverError, AssignedConsumerControlAccepted,
     AssignedConsumerControlError, AssignedConsumerControlErrorKind, AssignedConsumerEvent,
-    AssignedConsumerFetchFailure, AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
-    AssignedConsumerFetchThrottleFailure, AssignedConsumerFetchThrottleFailureKind,
-    AssignedConsumerHandle, AssignedConsumerHeader, AssignedConsumerNextEvent,
-    AssignedConsumerNextEventError, AssignedConsumerNextEventErrorKind, AssignedConsumerOwnedBatch,
-    AssignedConsumerOwnedHeader, AssignedConsumerOwnedRecord, AssignedConsumerOwnedRecords,
-    AssignedConsumerPartition, AssignedConsumerPartitionInputError,
+    AssignedConsumerFetchEvidence, AssignedConsumerFetchFailure, AssignedConsumerFetchFailureKind,
+    AssignedConsumerFetchFence, AssignedConsumerFetchThrottleFailure,
+    AssignedConsumerFetchThrottleFailureKind, AssignedConsumerHandle, AssignedConsumerHeader,
+    AssignedConsumerNextEvent, AssignedConsumerNextEventError, AssignedConsumerNextEventErrorKind,
+    AssignedConsumerOwnedBatch, AssignedConsumerOwnedHeader, AssignedConsumerOwnedRecord,
+    AssignedConsumerOwnedRecords, AssignedConsumerPartition, AssignedConsumerPartitionInputError,
     AssignedConsumerPartitionInputErrorKind, AssignedConsumerPositionFence,
     AssignedConsumerPositionResolutionFailure, AssignedConsumerPositionResolutionFailureKind,
     AssignedConsumerRecord, AssignedConsumerRecords, AssignedConsumerRecv,
@@ -468,25 +470,4 @@ pub use crate::producer::{
     ProducerTrySendBatchError, ProducerTrySendError, ProducerTrySendErrorKind,
     PublicProducerHeader as ProducerHeader, PublicProducerRecord as ProducerRecord,
 };
-pub use crate::transaction::{
-    TransactionBatchSendAccepted, TransactionBatchSendAdmissionError, TransactionBatchSendMetadata,
-    TransactionBatchSendObserver, TransactionBatchSendOutcome, TransactionBeginAccepted,
-    TransactionControlError, TransactionControlErrorKind, TransactionEndAccepted,
-    TransactionEndAdmissionError, TransactionEndObserver, TransactionEndObserverError,
-    TransactionEndOutcome, TransactionInitializationAccepted,
-    TransactionInitializationAcceptedFaultKind, TransactionInitializationAdmissionError,
-    TransactionInitializationAdmissionErrorKind, TransactionInitializationCapture,
-    TransactionInitializationCaptureError, TransactionInitializationDeliveryStatus,
-    TransactionInitializationFailure, TransactionInitializationFailureKind,
-    TransactionInitializationObserver, TransactionInitializationObserverError,
-    TransactionInitializationOutcome, TransactionInitializationRequest, TransactionOffsetsAccepted,
-    TransactionOffsetsAdmissionError, TransactionOffsetsAdmissionErrorKind,
-    TransactionOffsetsCapture, TransactionOffsetsConsequence, TransactionOffsetsDeliveryStatus,
-    TransactionOffsetsFailure, TransactionOffsetsFailureKind, TransactionOffsetsObserver,
-    TransactionOffsetsObserverError, TransactionOffsetsOutcome, TransactionOffsetsStage,
-    TransactionSendAccepted, TransactionSendAdmissionError, TransactionSendAdmissionErrorKind,
-    TransactionSendConsequence, TransactionSendDeliveryStatus, TransactionSendFailure,
-    TransactionSendFailureKind, TransactionSendMetadata, TransactionSendObserver,
-    TransactionSendObserverError, TransactionSendOutcome, TransactionToken,
-    TransactionalOwnerHandle,
-};
+pub use transaction::*;

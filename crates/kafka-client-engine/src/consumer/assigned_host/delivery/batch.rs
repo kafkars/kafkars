@@ -3,8 +3,9 @@
 use std::sync::Arc;
 
 use super::{
-    super::state::AssignedConsumerShardState, AssignedConsumerDelivery, AssignedConsumerOwnedBatch,
-    AssignedConsumerOwnedRecords, AssignedConsumerRecords,
+    super::state::AssignedConsumerShardState, AssignedConsumerDelivery,
+    AssignedConsumerFetchEvidence, AssignedConsumerOwnedBatch, AssignedConsumerOwnedRecords,
+    AssignedConsumerRecords,
 };
 
 /// Shared final-drop owner for one exact direct-consumer delivery lease.
@@ -66,6 +67,11 @@ impl AssignedConsumerBatch {
     /// Returns the next offset after every record represented by this delivery.
     pub fn checkpoint_next_offset(&self) -> i64 {
         self.delivery().lease().next_offset().get()
+    }
+
+    /// Returns one immutable view of this delivery's broker-correlated Fetch facts.
+    pub fn evidence(&self) -> AssignedConsumerFetchEvidence {
+        AssignedConsumerFetchEvidence::from_delivery(self.delivery())
     }
 
     /// Iterates normalized application records in Kafka order.

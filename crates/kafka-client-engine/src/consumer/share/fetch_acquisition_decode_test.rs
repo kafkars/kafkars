@@ -10,7 +10,7 @@ use crate::protocol::{
     consumer::share_fetch::{
         ShareFetchAcquiredRange, ShareFetchPartition, ShareFetchSuccess, ShareFetchTopic,
     },
-    fetch::{FetchDecodeLimits, encoded_delivery_batches_for_test},
+    fetch::{FetchDecodeLimits, fixture::encoded_delivery_batches_for_test},
 };
 
 use super::{

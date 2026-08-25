@@ -112,6 +112,31 @@ pub(crate) fn encoded_data_batch_for_test(base_offset: i64) -> Bytes {
     encoded.freeze()
 }
 
+/// Encodes one complete compacted-empty batch that advances broker position.
+pub(crate) fn encoded_empty_progress_batch_for_test(base_offset: i64) -> Bytes {
+    let batch = RecordBatch {
+        base_offset,
+        last_offset_delta: 0,
+        partition_leader_epoch: 9,
+        compression: Compression::None,
+        timestamp_type: TimestampType::CreateTime,
+        is_transactional: false,
+        is_control: false,
+        has_delete_horizon: false,
+        base_timestamp: -1,
+        max_timestamp: 20,
+        producer_id: -1,
+        producer_epoch: -1,
+        base_sequence: -1,
+        records: Vec::new(),
+    };
+    let mut encoded = BytesMut::new();
+    batch
+        .encode_into(&mut encoded, RecordEncodeLimits::default())
+        .unwrap_or_else(|error| panic!("encode empty Fetch progress fixture: {error}"));
+    encoded.freeze()
+}
+
 /// Encodes multiple application batches with nullable and duplicate header facts.
 pub(crate) fn encoded_delivery_batches_for_test(base_offset: i64) -> Bytes {
     let batches = [

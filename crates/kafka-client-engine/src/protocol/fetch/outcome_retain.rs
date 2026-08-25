@@ -4,7 +4,7 @@ use core::num::NonZeroI16;
 
 use super::{
     FetchBrokerFailure, FetchBrokerLevel, FetchOutcome, FetchOutcomeFailure, FetchResponse,
-    RejectedFetchOutcome, RetainedFetchOutcome,
+    FetchSuccessEvidence, RejectedFetchOutcome, RetainedFetchOutcome,
     model::FetchLeader,
     outcome::reject,
     retention::{FetchOutputReservation, settle},
@@ -39,6 +39,7 @@ pub(super) fn retain_success(
             reservation,
         ));
     };
+    let topic_uuid = (topic.topic_id != [0; 16]).then_some(topic.topic_id);
     let mut partitions = topic.partitions.into_iter();
     let (Some(partition), None) = (partitions.next(), partitions.next()) else {
         return Err(reject(
@@ -46,6 +47,9 @@ pub(super) fn retain_success(
             reservation,
         ));
     };
+    let log_start_offset = partition.log_start_offset;
+    let last_stable_offset = partition.last_stable_offset;
+    let high_watermark = partition.high_watermark;
     let next_offset = partition
         .batches
         .last()
@@ -64,13 +68,21 @@ pub(super) fn retain_success(
         }
     }
     let data_batches = data_batches.into_boxed_slice();
+    let evidence = FetchSuccessEvidence::new(
+        topic_uuid,
+        requested_offset,
+        next_offset,
+        log_start_offset,
+        last_stable_offset,
+        high_watermark,
+    );
     let charge = settle(reservation, &data_batches).map_err(|(failure, reservation)| {
         reject(FetchOutcomeFailure::Retention(failure), reservation)
     })?;
     Ok(RetainedFetchOutcome::new(
         Some(throttle_ticks),
         FetchOutcome::Success {
-            next_offset,
+            evidence,
             data_batches,
         },
         charge,
@@ -78,6 +90,7 @@ pub(super) fn retain_success(
 }
 
 pub(super) fn retain_empty_success(
+    topic_uuid: Option<[u8; 16]>,
     requested_offset: i64,
     throttle_ticks: u64,
     reservation: FetchOutputReservation,
@@ -88,7 +101,14 @@ pub(super) fn retain_empty_success(
     Ok(RetainedFetchOutcome::new(
         Some(throttle_ticks),
         FetchOutcome::Success {
-            next_offset: requested_offset,
+            evidence: FetchSuccessEvidence::new(
+                topic_uuid,
+                requested_offset,
+                requested_offset,
+                None,
+                None,
+                None,
+            ),
             data_batches: Box::default(),
         },
         charge,

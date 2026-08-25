@@ -42,8 +42,9 @@ impl FetchDeliveryStore {
             return Err(FetchStoreFailure::InvalidState);
         }
         match slot_kind(slot)? {
-            FetchStageKind::Deliverable(actual, _) if actual == next_offset => {}
-            FetchStageKind::Deliverable(_, _) => {
+            FetchStageKind::Progress(actual, _) | FetchStageKind::Deliverable(actual, _)
+                if actual == next_offset => {}
+            FetchStageKind::Progress(_, _) | FetchStageKind::Deliverable(_, _) => {
                 return Err(FetchStoreFailure::NextOffsetMismatch);
             }
             _ => return Err(FetchStoreFailure::NotDeliverable),
@@ -65,7 +66,10 @@ impl FetchDeliveryStore {
         if slot.state != SlotState::Staged {
             return Err(FetchStoreFailure::InvalidState);
         }
-        if matches!(slot_kind(slot)?, FetchStageKind::Deliverable(_, _)) {
+        if matches!(
+            slot_kind(slot)?,
+            FetchStageKind::Progress(_, _) | FetchStageKind::Deliverable(_, _)
+        ) {
             return Err(FetchStoreFailure::NotDeliverable);
         }
         self.remove(index)
@@ -145,9 +149,14 @@ fn take(
             return Err(error);
         }
     };
-    let FetchStageKind::Deliverable(next_offset, _) = kind else {
-        slot.restore_outcome(outcome);
-        return Err(FetchStoreFailure::NotDeliverable);
+    let next_offset = match kind {
+        FetchStageKind::Progress(next_offset, _) | FetchStageKind::Deliverable(next_offset, _) => {
+            next_offset
+        }
+        FetchStageKind::BrokerFailure(_) | FetchStageKind::Empty(_, _) => {
+            slot.restore_outcome(outcome);
+            return Err(FetchStoreFailure::NotDeliverable);
+        }
     };
     slot.lease();
     Ok((next_offset, outcome))

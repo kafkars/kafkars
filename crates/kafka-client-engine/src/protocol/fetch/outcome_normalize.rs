@@ -158,7 +158,7 @@ pub(crate) fn normalize_session_fetch_outcome(
         if let Err(failure) = normalize_correlated_response(response, limits) {
             return Err(reject(FetchOutcomeFailure::Response(failure), reservation));
         }
-        return retain_empty_success(requested_offset, throttle_ticks, reservation)
+        return retain_empty_success(topic_id, requested_offset, throttle_ticks, reservation)
             .map(|outcome| (outcome, session_update));
     }
     let mut normalized = match normalize_correlated_response(response, limits) {

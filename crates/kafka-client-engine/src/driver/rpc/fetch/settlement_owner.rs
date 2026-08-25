@@ -2,9 +2,6 @@
 
 use kafka_client_core::FetchFence;
 
-#[cfg(test)]
-use bytes::Bytes;
-
 use super::{
     calls::TrackedFetchCalls,
     settlement::{
@@ -158,41 +155,6 @@ impl TrackedFetchCalls {
     }
 
     #[cfg(test)]
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the test helper exposes every exact generated Fetch terminal field to focused scenarios"
-    )]
-    pub(crate) fn install_success_terminal_for_test(
-        &mut self,
-        request: super::admission::PartitionFetchRequest,
-        observed_at: kafka_client_core::Moment,
-        selected_version: i16,
-        session_id: i32,
-        partition_index: Option<i32>,
-        records: Option<Bytes>,
-        partition_error_code: i16,
-    ) {
-        let mut response = kafka_wire::FetchResponse::default();
-        response.session_id = session_id;
-        if let Some(partition_index) = partition_index {
-            let mut partition = kafka_wire::fetch_response::PartitionData::default();
-            partition.partition_index = partition_index;
-            partition.error_code = partition_error_code;
-            partition.records = records;
-            let mut topic = kafka_wire::fetch_response::FetchableTopicResponse::default();
-            topic.topic = request.topic().into();
-            topic.partitions = vec![partition];
-            response.responses = vec![topic];
-        }
-        self.install_terminal_result_for_test(
-            request,
-            observed_at,
-            Some(selected_version),
-            Ok(response),
-        );
-    }
-
-    #[cfg(test)]
     pub(crate) fn install_broker_terminal_for_test(
         &mut self,
         request: super::admission::PartitionFetchRequest,
@@ -225,7 +187,7 @@ impl TrackedFetchCalls {
     }
 
     #[cfg(test)]
-    fn install_terminal_result_for_test(
+    pub(super) fn install_terminal_result_for_test(
         &mut self,
         request: super::admission::PartitionFetchRequest,
         observed_at: kafka_client_core::Moment,

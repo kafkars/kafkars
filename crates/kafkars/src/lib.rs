@@ -11,10 +11,12 @@ mod error;
 mod header_name;
 mod metrics;
 mod producer;
+mod public_api;
 mod readiness;
 mod record;
 mod security;
 mod shutdown;
+mod topic_uuid;
 mod transaction;
 pub use admin::{
     AbortPartitionTransaction, AbortTransactionBuilder, AbortTransactionSpec, AccessControlEntry,
@@ -128,14 +130,15 @@ pub use consumer::{
     CommitConsumerCheckpoint, Consumer, ConsumerAcknowledgeError, ConsumerAssignment,
     ConsumerAssignmentPartition, ConsumerBatch, ConsumerBuildError, ConsumerBuilder,
     ConsumerCloseAdmissionError, ConsumerCommitAdmissionError, ConsumerCommitError,
-    ConsumerControl, ConsumerEvent, ConsumerFetchConfig, ConsumerGroupProtocol, ConsumerHeader,
-    ConsumerLimits, ConsumerRecord, ConsumerRecords, ConsumerRevocation, GroupConsumerHeader,
-    GroupConsumerOperationConfig, GroupConsumerRecord, GroupConsumerRecords, GroupMembershipEpoch,
-    GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset, OwnedConsumerBatch,
-    OwnedConsumerHeader, OwnedConsumerRecord, OwnedConsumerRecords, ReadIsolation, RecordBatch,
-    RecvAssignedBatch, RecvConsumerBatch, RecvShareConsumerBatch, Seek, ShareAcknowledgement,
-    ShareAcknowledgementAdmissionError, ShareAcknowledgementBrokerError,
-    ShareAcknowledgementBuildError, ShareAcknowledgementBuildErrorKind, ShareAcknowledgementError,
+    ConsumerControl, ConsumerEvent, ConsumerFetchConfig, ConsumerFetchEvidence,
+    ConsumerGroupProtocol, ConsumerHeader, ConsumerLimits, ConsumerRecord, ConsumerRecords,
+    ConsumerRevocation, GroupConsumerHeader, GroupConsumerOperationConfig, GroupConsumerRecord,
+    GroupConsumerRecords, GroupMembershipEpoch, GroupMetadata, NextAssignedEvent,
+    NextConsumerEvent, OffsetReset, OwnedConsumerBatch, OwnedConsumerHeader, OwnedConsumerRecord,
+    OwnedConsumerRecords, ReadIsolation, RecordBatch, RecvAssignedBatch, RecvConsumerBatch,
+    RecvShareConsumerBatch, Seek, ShareAcknowledgement, ShareAcknowledgementAdmissionError,
+    ShareAcknowledgementBrokerError, ShareAcknowledgementBuildError,
+    ShareAcknowledgementBuildErrorKind, ShareAcknowledgementError,
     ShareAcknowledgementPartitionOutcome, ShareAcknowledgementResponse, ShareConsumer,
     ShareConsumerAssignment, ShareConsumerAssignmentPartition, ShareConsumerBatch,
     ShareConsumerBuildError, ShareConsumerBuilder, ShareConsumerCloseAdmissionError,
@@ -153,17 +156,12 @@ pub use producer::{
     ProducerConfig, ProducerLimits, ProducerRetryConfig, RecordMetadata, Send, SendBatch,
     SendBatchResult, TrySendError,
 };
+pub use public_api::*;
 pub use readiness::Ready;
 pub use record::{Header, Record};
 pub use security::{Sasl, SaslMechanism, Security, Tls};
 pub use shutdown::Shutdown;
-pub use transaction::{
-    AbortTransaction, CommitTransaction, InitializeTransactionalProducer, SendTransactionBatch,
-    SendTransactionOffsets, SendTransactionRecord, Transaction, TransactionBatchMetadata,
-    TransactionBatchSendAdmissionError, TransactionEndAdmissionError,
-    TransactionOffsetsAdmissionError, TransactionSendAdmissionError, TransactionalProducer,
-    TransactionalProducerBuilder, TransactionalProducerIdentity,
-};
+pub use topic_uuid::TopicUuid;
 #[cfg(test)]
 mod client_test;
 #[cfg(test)]
@@ -178,3 +176,5 @@ mod record_test;
 mod shutdown_test;
 #[cfg(test)]
 mod silent_broker_test;
+#[cfg(test)]
+mod topic_uuid_test;

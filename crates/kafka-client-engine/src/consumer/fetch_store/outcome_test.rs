@@ -1,6 +1,8 @@
 //! Closed staged-outcome classification evidence for the Fetch delivery store.
 
-use super::super::fetch_store_test::{empty_outcome, fences, offset, reserve_parts};
+use super::super::fetch_store_test::{
+    empty_outcome, fences, offset, progress_outcome, reserve_parts,
+};
 use super::{FetchDeliveryStore, FetchStageKind};
 
 #[test]
@@ -22,4 +24,30 @@ fn empty_fetch_is_classified_without_becoming_application_delivery() {
     store
         .discard_non_delivery(fence)
         .unwrap_or_else(|error| panic!("discard empty Fetch: {error:?}"));
+}
+
+#[test]
+fn record_free_offset_progress_requires_explicit_authorization() {
+    let [fence, _] = fences();
+    let mut store = FetchDeliveryStore::new(1, 4_096);
+    let (proof, output) = reserve_parts(&mut store, fence, 4_096);
+    let kind = store
+        .stage(proof, progress_outcome(output))
+        .unwrap_or_else(|(error, _)| panic!("stage progress Fetch: {error:?}"));
+
+    assert_eq!(kind, FetchStageKind::Progress(offset(11), 7_000_000));
+    assert_eq!(
+        store.discard_non_delivery(fence),
+        Err(super::FetchStoreFailure::NotDeliverable)
+    );
+    store
+        .authorize(fence, offset(11))
+        .unwrap_or_else(|error| panic!("authorize progress Fetch: {error:?}"));
+    let delivery = store
+        .take_ready()
+        .unwrap_or_else(|error| panic!("take progress delivery: {error:?}"))
+        .unwrap_or_else(|| panic!("authorized progress delivery"));
+    store
+        .reclaim(delivery)
+        .unwrap_or_else(|(error, _)| panic!("reclaim progress delivery: {error:?}"));
 }

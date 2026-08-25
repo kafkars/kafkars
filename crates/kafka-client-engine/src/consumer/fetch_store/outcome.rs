@@ -11,6 +11,7 @@ use super::{FetchSlot, FetchStoreFailure};
 pub(crate) enum FetchStageKind {
     BrokerFailure(FetchBrokerFailure),
     Empty(NextFetchOffset, u64),
+    Progress(NextFetchOffset, u64),
     Deliverable(NextFetchOffset, u64),
 }
 
@@ -28,16 +29,20 @@ pub(super) fn stage_kind(
     match outcome.outcome() {
         FetchOutcome::BrokerFailure(failure) => Ok(FetchStageKind::BrokerFailure(*failure)),
         FetchOutcome::Success {
-            next_offset,
+            evidence,
             data_batches,
         } => {
-            let next = NextFetchOffset::try_from_raw(*next_offset)
+            let next = NextFetchOffset::try_from_raw(evidence.next_offset())
                 .ok_or(FetchStoreFailure::InvalidNextOffset)?;
             let throttle = outcome
                 .throttle_ticks()
                 .ok_or(FetchStoreFailure::MissingThrottle)?;
             if data_batches.is_empty() {
-                Ok(FetchStageKind::Empty(next, throttle))
+                if evidence.advanced() {
+                    Ok(FetchStageKind::Progress(next, throttle))
+                } else {
+                    Ok(FetchStageKind::Empty(next, throttle))
+                }
             } else {
                 Ok(FetchStageKind::Deliverable(next, throttle))
             }

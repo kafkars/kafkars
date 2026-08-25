@@ -39,8 +39,18 @@ impl AssignedConsumerOwner {
                 return Err(AssignedConsumerOwnerError::Faulted);
             }
         };
+        let topic_uuid = delivery
+            .outcome()
+            .outcome()
+            .evidence()
+            .and_then(crate::protocol::fetch::FetchSuccessEvidence::topic_uuid);
+        let Some(topic_uuid) = topic_uuid else {
+            self.fault = Some(AssignedConsumerOwnerFault::DeliveryIdentity { delivery });
+            return Err(AssignedConsumerOwnerError::Faulted);
+        };
         Ok(Some(AssignedConsumerDelivery::new(
             topic,
+            topic_uuid,
             partition.partition().get().cast_signed(),
             delivery,
         )))

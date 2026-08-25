@@ -179,6 +179,40 @@ fn delivery_without_an_active_assignment_faults_and_retains_the_lease() {
 }
 
 #[test]
+fn legacy_delivery_without_a_topic_uuid_faults_and_retains_the_lease() {
+    let mut owner = owner(2);
+    owner
+        .replace_assignment(
+            vec![input("orders", 0, StartPosition::Offset(offset(10)))],
+            Duration::from_secs(30),
+        )
+        .unwrap_or_else(|error| panic!("assign: {error:?}"));
+    assert_eq!(owner.interpret_front_effect(), FrontEffect::Interpreted);
+    let prepared = owner
+        .pending_fetches
+        .pop_front()
+        .unwrap_or_else(|| panic!("prepared Fetch"));
+    install_terminal_for_test(
+        &mut owner.fetches,
+        prepared,
+        FetchTerminalFixture::LegacySuccess(Some(encoded_data_batch_for_test(10))),
+    );
+    let now = owner
+        .clock
+        .now()
+        .unwrap_or_else(|error| panic!("observe now: {error}"));
+    assert!(owner.poll_fetch_executor(now));
+    drain_effects(&mut owner);
+
+    assert!(owner.take_named_delivery().is_err());
+    assert!(matches!(
+        owner.fault.as_ref(),
+        Some(AssignedConsumerOwnerFault::DeliveryIdentity { .. })
+    ));
+    assert_eq!(owner.fetches.retained().1, 1);
+}
+
+#[test]
 fn reclaim_remains_available_through_owner_and_fetch_faults() {
     let mut owner = ready_owner();
     let delivery = owner

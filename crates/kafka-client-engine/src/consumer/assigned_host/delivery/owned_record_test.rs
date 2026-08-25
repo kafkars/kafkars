@@ -15,7 +15,7 @@ use crate::{
         assigned_owner_close_test::install_pending_ready_with_records,
         assigned_owner_effect::FrontEffect,
     },
-    protocol::fetch::encoded_delivery_batches_for_test,
+    protocol::fetch::fixture::encoded_delivery_batches_for_test,
 };
 
 macro_rules! assert_not_impl {

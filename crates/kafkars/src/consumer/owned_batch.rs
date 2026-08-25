@@ -2,18 +2,22 @@
 
 use crate::bridge::consumer as bridge;
 
-use super::OwnedConsumerRecords;
+use super::{ConsumerFetchEvidence, OwnedConsumerRecords};
 
 /// One owned direct-consumer batch retaining its exact delivery lease.
 #[must_use = "dropping the batch releases its bounded delivery lease"]
 #[derive(Debug)]
 pub struct OwnedConsumerBatch {
     inner: bridge::AssignedConsumerOwnedBatch,
+    evidence: ConsumerFetchEvidence,
 }
 
 impl OwnedConsumerBatch {
-    pub(super) const fn from_bridge(inner: bridge::AssignedConsumerOwnedBatch) -> Self {
-        Self { inner }
+    pub(super) const fn from_parts(
+        inner: bridge::AssignedConsumerOwnedBatch,
+        evidence: ConsumerFetchEvidence,
+    ) -> Self {
+        Self { inner, evidence }
     }
 
     /// Returns the retained Kafka topic name.
@@ -29,6 +33,11 @@ impl OwnedConsumerBatch {
     /// Returns the next offset after every record represented by this batch.
     pub fn checkpoint_next_offset(&self) -> i64 {
         self.inner.checkpoint_next_offset()
+    }
+
+    /// Returns the same immutable evidence retained before owned conversion.
+    pub const fn evidence(&self) -> &ConsumerFetchEvidence {
+        &self.evidence
     }
 
     /// Returns the number of normalized application records.

@@ -78,8 +78,9 @@ impl PartitionPosition {
                 failure: FetchThrottleFailure::DeadlineOverflow,
             }
         };
-        let mut effects = Vec::with_capacity(usize::from(records == FetchRecords::Deliverable) + 1);
-        if records == FetchRecords::Deliverable {
+        let publishes_delivery = records != FetchRecords::NoApplicationRecords;
+        let mut effects = Vec::with_capacity(usize::from(publishes_delivery) + 1);
+        if publishes_delivery {
             effects.push(AssignedConsumerEffect::AuthorizeFetchDelivery {
                 fence: supplied,
                 next_offset,

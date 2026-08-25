@@ -2,7 +2,7 @@
 
 use crate::bridge::consumer::AssignedConsumerBatch;
 
-use super::{ConsumerRecords, OwnedConsumerBatch, OwnedConsumerRecords};
+use super::{ConsumerFetchEvidence, ConsumerRecords, OwnedConsumerBatch, OwnedConsumerRecords};
 
 /// Owned batch whose borrowed records remain valid until this value is dropped.
 ///
@@ -11,11 +11,13 @@ use super::{ConsumerRecords, OwnedConsumerBatch, OwnedConsumerRecords};
 #[must_use = "dropping the batch releases its bounded delivery lease"]
 pub struct RecordBatch {
     inner: AssignedConsumerBatch,
+    evidence: ConsumerFetchEvidence,
 }
 
 impl RecordBatch {
-    pub(crate) const fn from_bridge(inner: AssignedConsumerBatch) -> Self {
-        Self { inner }
+    pub(crate) fn from_bridge(inner: AssignedConsumerBatch) -> Self {
+        let evidence = ConsumerFetchEvidence::from_bridge(inner.evidence());
+        Self { inner, evidence }
     }
 
     /// Returns the retained Kafka topic name.
@@ -31,6 +33,11 @@ impl RecordBatch {
     /// Returns the next offset after every record represented by this batch.
     pub fn checkpoint_next_offset(&self) -> i64 {
         self.inner.checkpoint_next_offset()
+    }
+
+    /// Returns immutable broker-correlated evidence for this exact Fetch lease.
+    pub const fn evidence(&self) -> &ConsumerFetchEvidence {
+        &self.evidence
     }
 
     /// Returns the number of normalized application records.
@@ -55,7 +62,7 @@ impl RecordBatch {
 
     /// Consumes this delivery into an owned batch retaining its exact lease.
     pub fn into_owned(self) -> OwnedConsumerBatch {
-        OwnedConsumerBatch::from_bridge(self.inner.into_owned())
+        OwnedConsumerBatch::from_parts(self.inner.into_owned(), self.evidence)
     }
 }
 
@@ -66,6 +73,7 @@ impl std::fmt::Debug for RecordBatch {
             .field("topic", &self.topic())
             .field("partition", &self.partition())
             .field("checkpoint_next_offset", &self.checkpoint_next_offset())
+            .field("evidence", &self.evidence())
             .field("len", &self.len())
             .finish()
     }
