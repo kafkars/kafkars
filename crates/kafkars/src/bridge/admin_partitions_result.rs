@@ -27,11 +27,21 @@ pub(super) fn translate_admission_kind(kind: CreatePartitionsAdmissionErrorKind)
         CreatePartitionsAdmissionErrorKind::IdentityExhausted
         | CreatePartitionsAdmissionErrorKind::HostUnavailable => ErrorKind::Internal,
     };
-    KafkaError::new(
+    let error = KafkaError::new(
         public,
         format!("CreatePartitions admission failed: {kind:?}"),
     )
-    .with_delivery_status(DeliveryStatus::NotSent)
+    .with_delivery_status(DeliveryStatus::NotSent);
+    match kind {
+        CreatePartitionsAdmissionErrorKind::Contended
+        | CreatePartitionsAdmissionErrorKind::Capacity
+        | CreatePartitionsAdmissionErrorKind::RetainedBytes => error.with_safe_retry(),
+        CreatePartitionsAdmissionErrorKind::InvalidRequest
+        | CreatePartitionsAdmissionErrorKind::InvalidDeadline
+        | CreatePartitionsAdmissionErrorKind::Closed
+        | CreatePartitionsAdmissionErrorKind::IdentityExhausted
+        | CreatePartitionsAdmissionErrorKind::HostUnavailable => error,
+    }
 }
 
 pub(super) fn translate_accepted_fault(fault: CreatePartitionsAcceptedFaultKind) -> KafkaError {

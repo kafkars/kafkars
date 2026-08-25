@@ -9,7 +9,7 @@ use super::admin_partitions_result::{
     translate_accepted_fault, translate_admission_kind, translate_failure_parts,
     translate_observer_error, translate_topic_error_parts,
 };
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 #[test]
 fn every_admission_category_maps_without_hidden_retry_policy() {
@@ -48,6 +48,17 @@ fn every_admission_category_maps_without_hidden_retry_policy() {
         let error = translate_admission_kind(engine);
         assert_eq!(error.kind(), public);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        let expected = match engine {
+            CreatePartitionsAdmissionErrorKind::Contended
+            | CreatePartitionsAdmissionErrorKind::Capacity
+            | CreatePartitionsAdmissionErrorKind::RetainedBytes => RetryAdvice::RetrySafe,
+            CreatePartitionsAdmissionErrorKind::InvalidRequest
+            | CreatePartitionsAdmissionErrorKind::InvalidDeadline
+            | CreatePartitionsAdmissionErrorKind::Closed
+            | CreatePartitionsAdmissionErrorKind::IdentityExhausted
+            | CreatePartitionsAdmissionErrorKind::HostUnavailable => RetryAdvice::DoNotRetry,
+        };
+        assert_eq!(error.retry_advice(), expected);
     }
 }
 
