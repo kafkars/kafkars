@@ -56,12 +56,12 @@ fn sync_rejection_uses_policy_before_but_loses_at_the_cycle_deadline() {
 fn heartbeat_deadline_retains_the_route_while_exact_route_loss_rediscovers() {
     let (mut early, attempt, deadline) = stable_inflight();
     let transition = reject_heartbeat(&mut early, attempt, deadline.tick() - 1, 15);
-    assert_rejoin(transition, ClassicCoordinatorRecovery::Rediscover);
+    assert_rejoin(&transition, ClassicCoordinatorRecovery::Rediscover);
     assert_eq!(early.phase(), ClassicGroupPhase::WaitingToRejoin);
 
     let (mut exact, attempt, deadline) = stable_inflight();
     let transition = reject_heartbeat(&mut exact, attempt, deadline.tick(), 15);
-    assert_rejoin(transition, ClassicCoordinatorRecovery::Retain);
+    assert_rejoin(&transition, ClassicCoordinatorRecovery::Retain);
     assert_eq!(exact.phase(), ClassicGroupPhase::WaitingToRejoin);
 
     let (mut recovered, attempt, deadline) = stable_inflight();
@@ -71,11 +71,11 @@ fn heartbeat_deadline_retains_the_route_while_exact_route_loss_rediscovers() {
             now: Moment::from_tick(deadline.tick() + 1),
         })
         .unwrap_or_else(|error| panic!("expired-attempt coordinator loss: {error}"));
-    assert_rejoin(transition, ClassicCoordinatorRecovery::Rediscover);
+    assert_rejoin(&transition, ClassicCoordinatorRecovery::Rediscover);
     assert_eq!(recovered.phase(), ClassicGroupPhase::WaitingToRejoin);
 }
 
-fn assert_rejoin(transition: super::ClassicGroupTransition, expected: ClassicCoordinatorRecovery) {
+fn assert_rejoin(transition: &super::ClassicGroupTransition, expected: ClassicCoordinatorRecovery) {
     let mut effects = transition.effects();
     assert!(matches!(
         effects.next(),
