@@ -10,7 +10,11 @@ use super::super::{
         ClassicGroupRevocationFailureKind, retire_and_revoke_classic_group_assignment,
     },
     classic_group_reconciliation_loss::stage_classic_group_reconciliation_loss,
+    classic_group_rediscovery::{
+        ClassicCoordinatorRediscovery, PreparedClassicCoordinatorRediscovery,
+    },
     classic_group_rejection_fault::{ClassicRejectionInstallFailure, ClassicRejectionPostCore},
+    classic_group_rejoin::{ClassicGroupRejoinExecution, PreparedClassicRejoinInstall},
     registry_entry::GroupConsumerEntry,
     registry_graceful_revocation::stage_classic_group_revocation,
 };
@@ -36,32 +40,20 @@ pub(super) fn install_recovery(
             MachineState,
         ));
     }
-    let prepared_rediscovery = match coordinator {
-        ClassicCoordinatorRecovery::Retain => None,
-        ClassicCoordinatorRecovery::Rediscover => {
-            match entry.rediscovery.prepare_rediscovery_install() {
-                Ok(prepared) => Some(prepared),
-                Err(_error) => {
-                    return Err(post_recovery(
-                        assignment,
-                        generation,
-                        schedule,
-                        coordinator,
-                        RediscoveryState,
-                    ));
-                }
-            }
-        }
-    };
-    let prepared_rejoin = match entry.rejoin.prepare_rejoin_install(schedule) {
+    let (prepared_rediscovery, prepared_rejoin) = match prepare_recovery_install(
+        &mut entry.rediscovery,
+        &mut entry.rejoin,
+        schedule,
+        coordinator,
+    ) {
         Ok(prepared) => prepared,
-        Err(_error) => {
+        Err(failure) => {
             return Err(post_recovery(
                 assignment,
                 generation,
                 schedule,
                 coordinator,
-                RejoinState,
+                failure,
             ));
         }
     };
@@ -74,7 +66,6 @@ pub(super) fn install_recovery(
             generation,
         ) {
             drop(prepared_rejoin);
-            drop(prepared_rediscovery);
             let kind = rejection_revocation_kind(failure.kind);
             return Err(post_recovery(
                 failure.assignment,
@@ -84,10 +75,7 @@ pub(super) fn install_recovery(
                 kind,
             ));
         }
-        prepared_rejoin.commit();
-        if let Some(prepared) = prepared_rediscovery {
-            prepared.commit();
-        }
+        commit_recovery_install(prepared_rediscovery, prepared_rejoin);
         return Ok(());
     }
     if entry.fetch.activation().is_none() && entry.fetch.machine_assignment_epoch().is_none() {
@@ -100,14 +88,10 @@ pub(super) fn install_recovery(
             generation,
         ) {
             Ok(_retirement) => {
-                prepared_rejoin.commit();
-                if let Some(prepared) = prepared_rediscovery {
-                    prepared.commit();
-                }
+                commit_recovery_install(prepared_rediscovery, prepared_rejoin);
             }
             Err(failure) => {
                 drop(prepared_rejoin);
-                drop(prepared_rediscovery);
                 let kind = rejection_revocation_kind(failure.kind);
                 return Err(post_recovery(
                     failure.assignment,
@@ -130,7 +114,6 @@ pub(super) fn install_recovery(
         now,
     ) {
         drop(prepared_rejoin);
-        drop(prepared_rediscovery);
         return Err(post_recovery(
             assignment,
             generation,
@@ -139,11 +122,44 @@ pub(super) fn install_recovery(
             GracefulRevocation(error),
         ));
     }
+    commit_recovery_install(prepared_rediscovery, prepared_rejoin);
+    Ok(())
+}
+
+fn prepare_recovery_install<'a>(
+    rediscovery: &'a mut ClassicCoordinatorRediscovery,
+    rejoin: &'a mut ClassicGroupRejoinExecution,
+    schedule: ClassicRejoinSchedule,
+    coordinator: ClassicCoordinatorRecovery,
+) -> Result<
+    (
+        Option<PreparedClassicCoordinatorRediscovery<'a>>,
+        PreparedClassicRejoinInstall<'a>,
+    ),
+    ClassicRejectionInstallFailure,
+> {
+    let prepared_rediscovery = match coordinator {
+        ClassicCoordinatorRecovery::Retain => None,
+        ClassicCoordinatorRecovery::Rediscover => Some(
+            rediscovery
+                .prepare_rediscovery_install()
+                .map_err(|_error| RediscoveryState)?,
+        ),
+    };
+    let prepared_rejoin = rejoin
+        .prepare_rejoin_install(schedule)
+        .map_err(|_error| RejoinState)?;
+    Ok((prepared_rediscovery, prepared_rejoin))
+}
+
+fn commit_recovery_install(
+    prepared_rediscovery: Option<PreparedClassicCoordinatorRediscovery<'_>>,
+    prepared_rejoin: PreparedClassicRejoinInstall<'_>,
+) {
     prepared_rejoin.commit();
     if let Some(prepared) = prepared_rediscovery {
         prepared.commit();
     }
-    Ok(())
 }
 
 pub(super) const fn rejection_revocation_kind(

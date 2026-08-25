@@ -158,9 +158,7 @@ impl ClassicGroupEntryFault {
             Self::JoinRejectionPostCore {
                 rejection,
                 terminal,
-            } => rejection
-                .retained_owner_count()
-                .saturating_add(retained_one(terminal)),
+            } => retained_rejection_terminal(rejection, terminal),
             Self::RejoinPostCore(owner) => owner.retained_owner_count(),
             Self::PartitionCount(fault) => retained_one(fault),
             Self::SyncAcceptance(owner) => retained_one(owner),
@@ -172,9 +170,7 @@ impl ClassicGroupEntryFault {
             Self::SyncRejectionPostCore {
                 rejection,
                 terminal,
-            } => rejection
-                .retained_owner_count()
-                .saturating_add(retained_one(terminal)),
+            } => retained_rejection_terminal(rejection, terminal),
             Self::ClassicReconciliationPostCore {
                 requires_followup,
                 first,
@@ -226,9 +222,7 @@ impl ClassicGroupEntryFault {
             Self::HeartbeatRejectionPostCore {
                 rejection,
                 terminal,
-            } => rejection
-                .retained_owner_count()
-                .saturating_add(retained_one(terminal)),
+            } => retained_rejection_terminal(rejection, terminal),
             Self::HeartbeatLocalPostCore(rejection) => rejection.retained_owner_count(),
             Self::HeartbeatAdmissionPostCore(rejection, admission) => rejection
                 .retained_owner_count()
@@ -259,6 +253,12 @@ fn retained_reconciliation_effects(
     second: Option<&ClassicGroupEffect>,
 ) -> usize {
     usize::from(first.is_some()).saturating_add(usize::from(second.is_some()))
+}
+
+fn retained_rejection_terminal<T>(rejection: &ClassicRejectionPostCore, terminal: &T) -> usize {
+    rejection
+        .retained_owner_count()
+        .saturating_add(retained_one(terminal))
 }
 
 const fn retained_one<T>(_owner: &T) -> usize {
