@@ -13,7 +13,10 @@ use kafka_client_core::{
 use super::{
     TransactionSendFailureKind, TransactionSendTerminal,
     partitioning::TransactionPartitioningFailure,
-    test_support::{FakeAggregate, FakeProducePort, automatic_request, deadline, driver},
+    test_support::{
+        FakeAggregate, FakeProducePort, ProducerPartitionSource, automatic_request, deadline,
+        driver,
+    },
 };
 
 #[test]
@@ -165,17 +168,23 @@ fn unkeyed_send_advances_only_after_its_transactional_batch_seals() {
         .unwrap_or_else(|error| panic!("driver shuts down: {error:?}"));
 }
 
-fn topic_view() -> TestTopicView {
+pub(super) fn topic_view() -> TestTopicView {
+    topic_view_with_uuid(Some([7; 16]))
+}
+
+pub(super) fn topic_view_with_uuid(topic_uuid: Option<[u8; 16]>) -> TestTopicView {
     TestTopicView {
         available: vec![
             AvailablePartition::new(PartitionIndex::from_raw(1), None),
             AvailablePartition::new(PartitionIndex::from_raw(7), None),
         ],
+        topic_uuid,
     }
 }
 
-struct TestTopicView {
+pub(super) struct TestTopicView {
     available: Vec<AvailablePartition>,
+    topic_uuid: Option<[u8; 16]>,
 }
 
 impl TopicPartitionSource for TestTopicView {
@@ -193,5 +202,15 @@ impl TopicPartitionSource for TestTopicView {
 
     fn available_at(&self, index: usize) -> Option<AvailablePartition> {
         self.available.get(index).copied()
+    }
+}
+
+impl ProducerPartitionSource for TestTopicView {
+    fn leader_broker_id(&self, _partition: PartitionIndex) -> Option<i32> {
+        None
+    }
+
+    fn kafka_topic_uuid(&self) -> Option<[u8; 16]> {
+        self.topic_uuid
     }
 }

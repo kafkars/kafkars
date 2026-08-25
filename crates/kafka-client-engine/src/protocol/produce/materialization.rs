@@ -56,6 +56,8 @@ pub(crate) fn materialize_transactional_produce_batch(
     input: TransactionalMaterializationBatch,
     compression: CompressionPolicy,
 ) -> Result<MaterializedProduce, ProduceMaterializationError> {
+    let expected_topic_uuid = input.expected_topic_uuid();
+    let validated_topic_generation = input.validated_topic_generation();
     let (topic, partition, records, max_batch_bytes, identity, sequence) = input.into_parts();
     let record_count = sequence.record_count();
     let records = record_batch(
@@ -69,12 +71,10 @@ pub(crate) fn materialize_transactional_produce_batch(
         true,
     )?;
 
-    Ok(MaterializedProduce::new(
-        topic,
-        partition,
-        record_count,
-        records,
-    ))
+    Ok(
+        MaterializedProduce::new(topic, partition, record_count, records)
+            .with_expected_topic_identity(expected_topic_uuid, validated_topic_generation),
+    )
 }
 
 #[expect(

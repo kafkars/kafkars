@@ -8,6 +8,7 @@ use kafka_client_engine::{
     TransactionInitializationObserverError, TransactionInitializationOutcome,
 };
 
+use crate::bridge::admin::AdminEngine;
 use crate::{DeliveryStatus, ErrorKind, KafkaError};
 
 use super::{TransactionalProducerEngine, operation::TransactionInitializationResult};
@@ -121,10 +122,11 @@ pub(super) fn translate_accepted_fault(
 
 pub(super) fn translate_observation(
     result: Result<TransactionInitializationOutcome, TransactionInitializationObserverError>,
+    admin: AdminEngine,
 ) -> TransactionInitializationResult {
     match result {
         Ok(TransactionInitializationOutcome::Initialized(owner)) => {
-            Ok(TransactionalProducerEngine::from_engine(owner))
+            Ok(TransactionalProducerEngine::from_engine(owner, admin))
         }
         Ok(TransactionInitializationOutcome::Failed(failure)) => Err(translate_failure(failure)),
         Err(error) => Err(translate_observer_error(error)),

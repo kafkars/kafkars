@@ -3,18 +3,24 @@
 use std::{num::NonZeroI16, time::Duration};
 
 use kafka_client_core::{
-    CompressionPolicy, DeliveryStatus, Moment, ProducerBrokerFailure, ProducerBrokerFailureKind,
-    ProducerRetryPolicy, TransactionSendAttempt,
-};
-
-use crate::driver::transaction_produce::{
-    TransactionProduceFailureKind, TransactionProduceRouteRefreshPoll,
-    TransactionProduceTerminalFact,
+    CompressionPolicy, DeliveryStatus, Moment, PartitionIndex, ProducerBrokerFailure,
+    ProducerBrokerFailureKind, ProducerRetryPolicy, TransactionSendAttempt,
+    partitioning::{
+        AvailablePartition, LeaderEpoch, PartitionCount, TopicMetadataGeneration,
+        TopicPartitionSource,
+    },
 };
 
 use super::{
     TransactionSendFailureKind, TransactionSendTerminal,
-    test_support::{FakeAggregate, FakeProducePort, driver, produce_failure, request},
+    test_support::{
+        FakeAggregate, FakeProducePort, ProducerPartitionSource,
+        automatic_request_with_expected_uuid, driver, produce_failure, request,
+    },
+};
+use crate::driver::transaction_produce::{
+    TransactionProduceFailureKind, TransactionProduceRouteRefreshPoll,
+    TransactionProduceTerminalFact,
 };
 
 #[test]
@@ -110,6 +116,88 @@ fn foreign_attempt_terminal_is_fatal_correlation_and_never_retried() {
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("driver shuts down: {error:?}"));
+}
+
+#[test]
+fn identity_bound_routing_failure_never_retries_without_a_fresh_uuid_proof() {
+    let policy = ProducerRetryPolicy::try_fixed(2, 10)
+        .unwrap_or_else(|error| panic!("bounded retry policy: {error:?}"));
+    let mut aggregate = FakeAggregate::with_retry_policy(policy);
+    let epoch = aggregate.epoch;
+    let mut owner = aggregate.send_owner(CompressionPolicy::None);
+    let accepted = owner
+        .try_send_with(
+            &mut aggregate,
+            automatic_request_with_expected_uuid(
+                epoch,
+                "orders",
+                Some(PartitionIndex::from_raw(2)),
+                [7; 16],
+                1_024,
+            ),
+        )
+        .unwrap_or_else(|error| panic!("identity-bound send accepted: {error:?}"));
+    owner
+        .apply_partitioning_for_test(&IdentityTopicView, &mut aggregate)
+        .unwrap_or_else(|error| panic!("matching identity view: {error:?}"));
+    let send_id = accepted.send_id();
+    let observer = accepted.into_observer();
+    aggregate.enrolled();
+    let mut driver = driver();
+    let mut port = FakeProducePort::success(&aggregate, send_id);
+    port.fact = Some(routing_failure(epoch, send_id));
+
+    drive(&mut owner, &mut aggregate, &driver, &mut port, 6);
+
+    assert_eq!(port.submit_count, 1);
+    assert!(
+        port.route_refresh_polls
+            .lock()
+            .unwrap_or_else(|error| panic!("route script: {error:?}"))
+            .is_empty()
+    );
+    assert!(matches!(
+        observer.wait(),
+        Ok(TransactionSendTerminal::AbortRequired { failure, .. })
+            if failure.delivery() == DeliveryStatus::PossiblySent
+    ));
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("driver shuts down: {error:?}"));
+}
+
+struct IdentityTopicView;
+
+impl TopicPartitionSource for IdentityTopicView {
+    fn generation(&self) -> TopicMetadataGeneration {
+        TopicMetadataGeneration::from_raw(7)
+    }
+
+    fn logical_count(&self) -> PartitionCount {
+        PartitionCount::try_from_raw(3).unwrap_or_else(|| panic!("valid partition count"))
+    }
+
+    fn available_len(&self) -> usize {
+        1
+    }
+
+    fn available_at(&self, index: usize) -> Option<AvailablePartition> {
+        (index == 0).then_some(AvailablePartition::new(
+            PartitionIndex::from_raw(2),
+            LeaderEpoch::try_from_raw(1)
+                .unwrap_or_else(|error| panic!("valid leader epoch: {error:?}")),
+        ))
+    }
+}
+
+impl ProducerPartitionSource for IdentityTopicView {
+    fn leader_broker_id(&self, partition: PartitionIndex) -> Option<i32> {
+        (partition == PartitionIndex::from_raw(2)).then_some(1)
+    }
+
+    fn kafka_topic_uuid(&self) -> Option<[u8; 16]> {
+        Some([7; 16])
+    }
 }
 
 fn routing_failure(

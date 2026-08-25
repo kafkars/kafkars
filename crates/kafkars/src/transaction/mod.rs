@@ -19,6 +19,7 @@ mod send_error;
     reason = "transaction.rs owns the public Transaction type while mod.rs remains a declarative facade"
 )]
 mod transaction;
+mod validation;
 
 pub use batch_metadata::TransactionBatchMetadata;
 pub use builder::TransactionalProducerBuilder;
@@ -35,6 +36,7 @@ pub use send_batch::SendTransactionBatch;
 pub use send_batch_error::TransactionBatchSendAdmissionError;
 pub use send_error::TransactionSendAdmissionError;
 pub use transaction::Transaction;
+pub use validation::ValidateTransaction;
 
 #[cfg(test)]
 mod batch_metadata_test;
@@ -66,3 +68,5 @@ mod send_error_test;
 mod send_test;
 #[cfg(test)]
 mod transaction_test;
+#[cfg(test)]
+mod validation_test;

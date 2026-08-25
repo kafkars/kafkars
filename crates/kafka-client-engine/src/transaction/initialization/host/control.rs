@@ -40,6 +40,16 @@ impl TransactionInitializationHost {
             .map_err(TransactionLifecycleControlError::Host)
     }
 
+    pub(in crate::transaction::initialization) fn preflight_commit_lifecycle(
+        &self,
+        owner_id: TransactionalOwnerId,
+        epoch: TransactionEpoch,
+    ) -> Result<(), TransactionLifecycleControlError> {
+        self.execution_ref(owner_id)?
+            .preflight_commit(epoch)
+            .map_err(TransactionLifecycleControlError::Host)
+    }
+
     pub(in crate::transaction::initialization) fn end_lifecycle(
         &mut self,
         owner_id: TransactionalOwnerId,
@@ -125,6 +135,17 @@ impl TransactionInitializationHost {
     {
         self.executions
             .iter_mut()
+            .find(|execution| execution.owns(owner_id))
+            .ok_or(TransactionLifecycleControlError::StaleOwner)
+    }
+
+    fn execution_ref(
+        &self,
+        owner_id: TransactionalOwnerId,
+    ) -> Result<&crate::transaction::TransactionExecutionHost, TransactionLifecycleControlError>
+    {
+        self.executions
+            .iter()
             .find(|execution| execution.owns(owner_id))
             .ok_or(TransactionLifecycleControlError::StaleOwner)
     }

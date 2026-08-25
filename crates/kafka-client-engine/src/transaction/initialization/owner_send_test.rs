@@ -4,7 +4,7 @@ use std::{sync::Arc, time::Duration};
 
 use bytes::Bytes;
 
-use super::{TransactionSendAdmissionErrorKind, host_test::Fixture};
+use super::{TransactionControlErrorKind, TransactionSendAdmissionErrorKind, host_test::Fixture};
 use crate::producer::PublicProducerRecord as ProducerRecord;
 
 #[test]
@@ -125,6 +125,34 @@ fn accepted_send_returns_one_token_borrowing_observer() {
 
     assert!(!accepted.wake_failed());
     drop(accepted.into_observer());
+}
+
+#[test]
+fn dropped_accepted_send_observer_remains_a_commit_preflight_fence() {
+    let fixture = Fixture::new();
+    let mut owner = fixture.initialize(41);
+    let mut transaction = owner
+        .begin_transaction()
+        .unwrap_or_else(|error| panic!("begin transaction: {error:?}"))
+        .into_transaction();
+    let accepted = transaction
+        .send(
+            ProducerRecord::to("orders")
+                .partition(2)
+                .value(Bytes::from_static(b"value")),
+            Duration::from_secs(5),
+        )
+        .unwrap_or_else(|error| panic!("send admission: {error:?}"));
+    drop(accepted.into_observer());
+
+    let error = transaction
+        .preflight_commit()
+        .err()
+        .unwrap_or_else(|| panic!("dropped observation must not cancel accepted work"));
+    assert_eq!(
+        error.kind(),
+        TransactionControlErrorKind::OutstandingOperations
+    );
 }
 
 #[test]

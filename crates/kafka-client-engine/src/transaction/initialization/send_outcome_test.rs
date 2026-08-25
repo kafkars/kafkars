@@ -3,12 +3,18 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    ProducerBatchSuccess, TransactionLifecycleInput, TransactionLifecycleMachine,
+    DeliveryStatus, ProducerBatchSuccess, TransactionLifecycleInput, TransactionLifecycleMachine,
     TransactionSendId, TransactionalOwnerId,
 };
 
-use super::{TransactionSendOutcome, send_outcome::translate_send_terminal};
-use crate::transaction::send::TransactionSendTerminal;
+use super::{
+    TransactionSendConsequence, TransactionSendDeliveryStatus, TransactionSendFailureKind,
+    TransactionSendOutcome, send_outcome::translate_send_terminal,
+};
+use crate::transaction::send::{
+    InternalTransactionPartitioningFailure, InternalTransactionSendFailure,
+    InternalTransactionSendFailureKind, TransactionSendTerminal,
+};
 
 #[test]
 fn success_translation_retains_route_and_all_broker_metadata() {
@@ -25,6 +31,7 @@ fn success_translation_retains_route_and_all_broker_metadata() {
         epoch,
         send_id,
         Arc::from("orders"),
+        Some([9; 16]),
         Some(3),
     )
     .unwrap_or_else(|| panic!("exact terminal correlation"));
@@ -33,6 +40,7 @@ fn success_translation_retains_route_and_all_broker_metadata() {
     };
 
     assert_eq!(metadata.topic(), "orders");
+    assert_eq!(metadata.topic_uuid(), Some([9; 16]));
     assert_eq!(metadata.partition(), 3);
     assert_eq!(metadata.offset(), 41);
     assert_eq!(metadata.last_offset(), 41);
@@ -55,10 +63,46 @@ fn success_translation_rejects_the_wrong_send_identity() {
             epoch,
             TransactionSendId::from_raw(10),
             Arc::from("orders"),
+            None,
             Some(3),
         )
         .is_none()
     );
+}
+
+#[test]
+fn topic_identity_mismatch_remains_not_sent_abort_required_and_nonfenced() {
+    let epoch = epoch();
+    let send_id = TransactionSendId::from_raw(9);
+    let outcome = translate_send_terminal(
+        TransactionSendTerminal::AbortRequired {
+            epoch,
+            send_id,
+            failure: InternalTransactionSendFailure::new(
+                InternalTransactionSendFailureKind::Partitioning(
+                    InternalTransactionPartitioningFailure::TopicIdentityMismatch,
+                ),
+                DeliveryStatus::NotSent,
+            ),
+        },
+        epoch,
+        send_id,
+        Arc::from("orders"),
+        None,
+        None,
+    )
+    .unwrap_or_else(|| panic!("exact identity failure correlation"));
+    let TransactionSendOutcome::Failed(failure) = outcome else {
+        panic!("identity mismatch must remain failed")
+    };
+
+    assert_eq!(failure.kind(), TransactionSendFailureKind::Identity);
+    assert_eq!(failure.delivery(), TransactionSendDeliveryStatus::NotSent);
+    assert_eq!(
+        failure.consequence(),
+        TransactionSendConsequence::AbortRequired
+    );
+    assert_eq!(failure.broker_code(), None);
 }
 
 fn epoch() -> kafka_client_core::TransactionEpoch {

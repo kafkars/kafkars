@@ -45,6 +45,7 @@ pub(super) struct PendingTransactionSend {
     pub(super) sequence: TransactionSequenceLease,
     pub(super) deadline: crate::clock::OperationDeadline,
     pub(super) topic_id: TopicId,
+    pub(super) expected_topic_uuid: Option<[u8; 16]>,
     pub(super) sticky: bool,
     pub(super) prepared: Option<PreparedTransactionSend>,
 }

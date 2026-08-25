@@ -35,6 +35,7 @@ fn one_batch_terminal_retains_base_metadata_and_exact_record_count() {
         epoch,
         send_id,
         Arc::from("orders"),
+        Some([9; 16]),
         Some(3),
     )
     .unwrap_or_else(|| panic!("exact terminal correlation"));
@@ -43,6 +44,7 @@ fn one_batch_terminal_retains_base_metadata_and_exact_record_count() {
         panic!("batch success remains one successful terminal")
     };
     assert_eq!(metadata.topic(), "orders");
+    assert_eq!(metadata.topic_uuid(), Some([9; 16]));
     assert_eq!(metadata.partition(), 3);
     assert_eq!(metadata.base_offset(), 41);
     assert_eq!(metadata.last_offset(), 43);

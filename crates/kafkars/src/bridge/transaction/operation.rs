@@ -12,6 +12,7 @@ use kafka_client_engine::{
 };
 
 use crate::KafkaError;
+use crate::bridge::admin::AdminEngine;
 
 use super::{
     TransactionalProducerEngine,
@@ -20,6 +21,10 @@ use super::{
 
 pub(crate) type TransactionInitializationResult = Result<TransactionalProducerEngine, KafkaError>;
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the single-shot operation retains its exact observer or terminal owner inline without another allocation"
+)]
 enum TransactionInitializationInner {
     Accepted(EngineObserver),
     Ready(Option<TransactionInitializationResult>),
@@ -30,6 +35,7 @@ enum TransactionInitializationInner {
 pub(crate) struct TransactionInitialization {
     inner: TransactionInitializationInner,
     accepted_diagnostic: Option<KafkaError>,
+    admin: Option<AdminEngine>,
 }
 
 impl TransactionInitialization {
@@ -38,21 +44,26 @@ impl TransactionInitialization {
             TransactionInitializationAccepted,
             TransactionInitializationAdmissionError,
         >,
+        admin: AdminEngine,
     ) -> Self {
         match admission {
             Ok(accepted) => Self {
                 accepted_diagnostic: accepted.fault().map(translate_accepted_fault),
                 inner: TransactionInitializationInner::Accepted(accepted.into_observer()),
+                admin: Some(admin),
             },
             Err(error) => Self::ready(Err(translate_admission_error(&error))),
         }
     }
 
-    pub(crate) fn wait(self) -> TransactionInitializationResult {
+    pub(crate) fn wait(mut self) -> TransactionInitializationResult {
         match self.inner {
-            TransactionInitializationInner::Accepted(observer) => {
-                translate_observation(observer.wait())
-            }
+            TransactionInitializationInner::Accepted(observer) => translate_observation(
+                observer.wait(),
+                self.admin
+                    .take()
+                    .unwrap_or_else(|| unreachable!("accepted initialization retains admin")),
+            ),
             TransactionInitializationInner::Ready(Some(result)) => result,
             TransactionInitializationInner::Ready(None) => Err(super::result::already_observed()),
         }
@@ -62,6 +73,7 @@ impl TransactionInitialization {
         Self {
             inner: TransactionInitializationInner::Ready(Some(result)),
             accepted_diagnostic: None,
+            admin: None,
         }
     }
 }
@@ -73,7 +85,15 @@ impl Future for TransactionInitialization {
         let this = self.get_mut();
         match &mut this.inner {
             TransactionInitializationInner::Accepted(observer) => {
-                Pin::new(observer).poll(context).map(translate_observation)
+                let Poll::Ready(result) = Pin::new(observer).poll(context) else {
+                    return Poll::Pending;
+                };
+                Poll::Ready(translate_observation(
+                    result,
+                    this.admin
+                        .take()
+                        .unwrap_or_else(|| unreachable!("accepted initialization retains admin")),
+                ))
             }
             TransactionInitializationInner::Ready(result) => Poll::Ready(
                 result

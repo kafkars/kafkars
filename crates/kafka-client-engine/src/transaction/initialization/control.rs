@@ -1,6 +1,7 @@
 //! Bounded shard control for one initialized transactional lifecycle.
 
 mod end;
+mod preflight;
 
 use std::{sync::Arc, time::Duration};
 

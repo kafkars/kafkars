@@ -110,6 +110,13 @@ impl TransactionalOwnerHandle {
         self.control.capture_send(timeout)
     }
 
+    pub(crate) fn preflight_commit(
+        &self,
+        epoch: TransactionEpoch,
+    ) -> Result<(), TransactionLifecycleControlError> {
+        self.control.preflight_commit(self.owner_id, epoch)
+    }
+
     pub(crate) fn transaction_batch_record_capacity(&self) -> usize {
         self.control.batch_record_capacity()
     }

@@ -22,12 +22,18 @@ impl TransactionSendOwner {
         failure: TransactionPartitioningFailure,
         lifecycle: &mut dyn TransactionSendAggregate,
     ) -> Result<(), TransactionLifecycleHostError> {
+        let outcome = if failure == TransactionPartitioningFailure::TopicIdentityMismatch {
+            TransactionSendOutcome::AbortRequired
+        } else {
+            TransactionSendOutcome::FailedHealthy
+        };
         self.finish_unsequenced(
             pending,
             TransactionSendFailure::new(
                 TransactionSendFailureKind::Partitioning(failure),
                 DeliveryStatus::NotSent,
             ),
+            outcome,
             lifecycle,
         )
     }
@@ -40,21 +46,35 @@ impl TransactionSendOwner {
         &mut self,
         pending: PendingTransactionPartitioning,
         failure: TransactionSendFailure,
+        outcome: TransactionSendOutcome,
         lifecycle: &mut dyn TransactionSendAggregate,
     ) -> Result<(), TransactionLifecycleHostError> {
-        lifecycle.settle_unsequenced_send(
-            pending.epoch,
-            pending.send_id,
-            TransactionSendOutcome::FailedHealthy,
-        )?;
-        self.slot = TransactionSendSlot::Terminal(
-            pending.completion_id,
-            super::model::TransactionSendTerminal::FailedHealthy {
+        lifecycle.settle_unsequenced_send(pending.epoch, pending.send_id, outcome)?;
+        let terminal = match outcome {
+            TransactionSendOutcome::FailedHealthy => {
+                super::model::TransactionSendTerminal::FailedHealthy {
+                    epoch: pending.epoch,
+                    send_id: pending.send_id,
+                    failure,
+                }
+            }
+            TransactionSendOutcome::AbortRequired => {
+                super::model::TransactionSendTerminal::AbortRequired {
+                    epoch: pending.epoch,
+                    send_id: pending.send_id,
+                    failure,
+                }
+            }
+            TransactionSendOutcome::Fatal => super::model::TransactionSendTerminal::Fatal {
                 epoch: pending.epoch,
                 send_id: pending.send_id,
                 failure,
             },
-        );
+            TransactionSendOutcome::Succeeded => {
+                unreachable!("failed partition lookup cannot succeed")
+            }
+        };
+        self.slot = TransactionSendSlot::Terminal(pending.completion_id, terminal);
         Ok(())
     }
 

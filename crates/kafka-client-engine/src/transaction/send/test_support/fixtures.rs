@@ -81,6 +81,38 @@ pub(in crate::transaction::send) fn automatic_request(
         .unwrap_or_else(|error| panic!("test automatic request prepares: {error:?}"))
 }
 
+pub(in crate::transaction::send) fn automatic_request_with_expected_uuid(
+    epoch: TransactionEpoch,
+    topic: &str,
+    partition: Option<PartitionIndex>,
+    expected_topic_uuid: [u8; 16],
+    max_batch_bytes: usize,
+) -> TransactionSendRequest {
+    let canonical_topic = Arc::<str>::from(topic);
+    let mut record = PublicProducerRecord::to(Arc::clone(&canonical_topic))
+        .expected_topic_uuid(expected_topic_uuid)
+        .timestamp_milliseconds(1_000)
+        .value(Bytes::from_static(b"value"));
+    if let Some(partition) = partition {
+        record = record.partition(
+            i32::try_from(partition.get())
+                .unwrap_or_else(|_error| panic!("test partition is signed-int representable")),
+        );
+    }
+    let input = TransactionSendInput::try_new(
+        epoch,
+        record,
+        canonical_topic,
+        partition,
+        MaterializationRecord::new(1_000, None, Some(Bytes::from_static(b"value")), Vec::new()),
+        topic.len() + b"value".len(),
+        deadline(50),
+    )
+    .unwrap_or_else(|record| panic!("test identity-bound input allocates: {record:?}"));
+    TransactionSendRequest::try_prepare(input, TopicId::from_raw(9), max_batch_bytes)
+        .unwrap_or_else(|error| panic!("test identity-bound request prepares: {error:?}"))
+}
+
 pub(in crate::transaction::send) fn batch_request(
     epoch: TransactionEpoch,
     topic: &str,

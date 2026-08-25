@@ -10,7 +10,7 @@ use std::{
 use kafka_client_engine::TransactionSendObserver as EngineTransactionSendObserver;
 
 use crate::{
-    KafkaError, Record, RecordMetadata,
+    DeliveryStatus, KafkaError, Record, RecordMetadata,
     bridge::producer::{into_engine_record, restore_rejected_record},
 };
 
@@ -33,6 +33,15 @@ impl<'producer> TransactionEngine<'producer> {
             Ok(capture) => capture,
             Err(error) => return Err((record, translate_send_capture(error))),
         };
+        let prepared_identity = match self
+            .identity
+            .prepare_mutation(Some((record.topic(), record.expected_topic_uuid_value())))
+        {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                return Err((record, error.with_delivery_status(DeliveryStatus::NotSent)));
+            }
+        };
         let serialized_key_size = record.key_bytes().map(bytes::Bytes::len);
         let serialized_value_size = record.value_bytes().map(bytes::Bytes::len);
         match self
@@ -40,6 +49,7 @@ impl<'producer> TransactionEngine<'producer> {
             .send_captured(into_engine_record(record), capture)
         {
             Ok(accepted) => {
+                self.identity.commit_mutation(prepared_identity);
                 let wake_failed = accepted.wake_failed();
                 Ok(TransactionSendEngine {
                     inner: accepted.into_observer(),

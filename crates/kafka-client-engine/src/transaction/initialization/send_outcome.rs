@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{ProducerBatchSuccess, TransactionEpoch, TransactionSendId};
+use kafka_client_core::{TransactionEpoch, TransactionSendId};
 
 use crate::transaction::send::TransactionSendTerminal as InternalTerminal;
 
-use super::send_failure_mapping::public_failure;
+use super::{send_failure_mapping::public_failure, send_metadata::TransactionSendMetadata};
 
 /// Authoritative transport certainty for a failed transactional send.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -112,49 +112,6 @@ impl TransactionSendFailure {
     }
 }
 
-/// Kafka acknowledgment metadata for one transactional record.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TransactionSendMetadata {
-    topic: Arc<str>,
-    partition: i32,
-    offset: i64,
-    last_offset: i64,
-    timestamp: Option<i64>,
-    leader_epoch: Option<i32>,
-}
-
-impl TransactionSendMetadata {
-    /// Returns the exact canonical topic spelling admitted for this send.
-    pub fn topic(&self) -> &str {
-        &self.topic
-    }
-
-    /// Returns the acknowledged zero-based partition.
-    pub const fn partition(&self) -> i32 {
-        self.partition
-    }
-
-    /// Returns the record's absolute Kafka offset.
-    pub const fn offset(&self) -> i64 {
-        self.offset
-    }
-
-    /// Returns the acknowledged offset of the last record in this send.
-    pub const fn last_offset(&self) -> i64 {
-        self.last_offset
-    }
-
-    /// Returns Kafka's append timestamp when supplied.
-    pub const fn timestamp(&self) -> Option<i64> {
-        self.timestamp
-    }
-
-    /// Returns Kafka's leader epoch when supplied.
-    pub const fn leader_epoch(&self) -> Option<i32> {
-        self.leader_epoch
-    }
-}
-
 /// Exactly one public terminal for an accepted transactional record send.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TransactionSendOutcome {
@@ -169,6 +126,7 @@ pub(super) fn translate_send_terminal(
     epoch: TransactionEpoch,
     send_id: TransactionSendId,
     topic: Arc<str>,
+    topic_uuid: Option<[u8; 16]>,
     partition: Option<i32>,
 ) -> Option<TransactionSendOutcome> {
     match terminal {
@@ -185,12 +143,15 @@ pub(super) fn translate_send_terminal(
             }) =>
         {
             let partition = i32::try_from(actual_partition.get()).ok()?;
-            Some(TransactionSendOutcome::Succeeded(success_metadata(
-                success,
-                last_offset,
-                topic,
-                partition,
-            )))
+            Some(TransactionSendOutcome::Succeeded(
+                TransactionSendMetadata::from_success(
+                    success,
+                    last_offset,
+                    topic,
+                    topic_uuid,
+                    partition,
+                ),
+            ))
         }
         InternalTerminal::FailedHealthy {
             epoch: actual_epoch,
@@ -216,21 +177,5 @@ pub(super) fn translate_send_terminal(
             Some(public_failure(failure, TransactionSendConsequence::Fatal))
         }
         _ => None,
-    }
-}
-
-fn success_metadata(
-    success: ProducerBatchSuccess,
-    last_offset: i64,
-    topic: Arc<str>,
-    partition: i32,
-) -> TransactionSendMetadata {
-    TransactionSendMetadata {
-        topic,
-        partition,
-        offset: success.base_offset(),
-        last_offset,
-        timestamp: success.append_timestamp(),
-        leader_epoch: success.leader_epoch(),
     }
 }

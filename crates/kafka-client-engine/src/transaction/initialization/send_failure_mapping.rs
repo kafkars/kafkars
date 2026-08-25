@@ -45,6 +45,9 @@ fn failure_kind(
             crate::transaction::send::InternalTransactionPartitioningFailure::Capacity => {
                 (TransactionSendFailureKind::Backpressure, None)
             }
+            crate::transaction::send::InternalTransactionPartitioningFailure::TopicIdentityMismatch => {
+                (TransactionSendFailureKind::Identity, None)
+            }
         },
         InternalTransactionSendFailureKind::Enrollment(kind) => enrollment_failure_kind(kind),
         InternalTransactionSendFailureKind::DeadlineElapsed => {

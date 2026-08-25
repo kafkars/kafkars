@@ -90,6 +90,13 @@ impl<'owner> TransactionToken<'owner> {
         self.end_until(deadline, TransactionEndIntent::Commit)
     }
 
+    /// Proves this exact transaction is active with no unsettled send or offset work.
+    pub fn preflight_commit(&self) -> Result<(), TransactionControlError> {
+        self.owner
+            .preflight_commit(self.epoch)
+            .map_err(control_error)
+    }
+
     /// Attempts to abort this exact transaction.
     pub fn abort(
         self,

@@ -1,9 +1,12 @@
 //! Stable acknowledgment metadata for one homogeneous transactional batch.
 
+use crate::TopicUuid;
+
 /// Kafka acknowledgment metadata shared by one accepted transactional batch.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TransactionBatchMetadata {
     topic: String,
+    topic_uuid: Option<TopicUuid>,
     partition: i32,
     base_offset: i64,
     last_offset: i64,
@@ -13,8 +16,13 @@ pub struct TransactionBatchMetadata {
 }
 
 impl TransactionBatchMetadata {
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the private constructor records every homogeneous batch acknowledgement fact"
+    )]
     pub(crate) const fn from_parts(
         topic: String,
+        topic_uuid: Option<TopicUuid>,
         partition: i32,
         base_offset: i64,
         last_offset: i64,
@@ -24,6 +32,7 @@ impl TransactionBatchMetadata {
     ) -> Self {
         Self {
             topic,
+            topic_uuid,
             partition,
             base_offset,
             last_offset,
@@ -36,6 +45,14 @@ impl TransactionBatchMetadata {
     /// Returns the exact canonical topic shared by every record.
     pub fn topic(&self) -> &str {
         &self.topic
+    }
+
+    /// Returns the exact UUID proven before this name-routed Produce attempt.
+    ///
+    /// This is client-observed pre-attempt evidence, not a UUID returned by the
+    /// Produce response and not an atomic Kafka topic-identity binding.
+    pub const fn topic_uuid(&self) -> Option<TopicUuid> {
+        self.topic_uuid
     }
 
     /// Returns the exact explicit partition shared by every record.

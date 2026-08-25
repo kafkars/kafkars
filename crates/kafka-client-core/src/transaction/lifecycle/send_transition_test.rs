@@ -129,6 +129,30 @@ fn duplicate_and_unknown_send_terminals_preserve_outstanding_ownership() {
 }
 
 #[test]
+fn commit_preflight_is_quiescent_and_does_not_mutate_outstanding_send_ownership() {
+    let owner_id = owner(6);
+    let mut machine = TransactionLifecycleMachine::new(owner_id);
+    let epoch = begin(&mut machine, owner_id);
+    accept(&mut machine, owner_id, epoch, send(1));
+
+    assert_eq!(
+        machine.preflight_commit(epoch),
+        Err(TransactionLifecycleMachineError::OutstandingSends { count: 1 })
+    );
+    assert_eq!(machine.state(), TransactionLifecycleState::Active);
+    assert_eq!(machine.outstanding_send_count(), 1);
+
+    settle(
+        &mut machine,
+        owner_id,
+        epoch,
+        send(1),
+        TransactionSendOutcome::FailedHealthy,
+    );
+    assert_eq!(machine.preflight_commit(epoch), Ok(()));
+}
+
+#[test]
 fn fatal_send_fences_while_later_send_terminals_can_still_drain() {
     let owner_id = owner(9);
     let mut machine = TransactionLifecycleMachine::new(owner_id);

@@ -14,7 +14,7 @@ use kafka_client_engine::{
 };
 
 use crate::{
-    KafkaError, Record,
+    DeliveryStatus, KafkaError, Record,
     bridge::producer::{into_engine_record, restore_rejected_record},
     transaction::TransactionBatchMetadata,
 };
@@ -36,9 +36,27 @@ impl<'producer> TransactionEngine<'producer> {
             Ok(capture) => capture,
             Err(error) => return Err((records, translate_send_capture(error))),
         };
-        let engine_records = prepare_engine_records(records, self.inner.batch_record_capacity())?;
+        let capacity = self.inner.batch_record_capacity();
+        if records.is_empty() || records.len() > capacity {
+            return match prepare_engine_records(records, capacity) {
+                Err(error) => Err(error),
+                Ok(_records) => unreachable!("invalid batch count cannot convert"),
+            };
+        }
+        let prepared_identity = match self.identity.prepare_mutation(
+            records
+                .first()
+                .map(|record| (record.topic(), record.expected_topic_uuid_value())),
+        ) {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                return Err((records, error.with_delivery_status(DeliveryStatus::NotSent)));
+            }
+        };
+        let engine_records = prepare_engine_records(records, capacity)?;
         match self.inner.send_batch_captured(engine_records, capture) {
             Ok(accepted) => {
+                self.identity.commit_mutation(prepared_identity);
                 let wake_failed = accepted.wake_failed();
                 Ok(TransactionBatchSendEngine {
                     inner: accepted.into_observer(),

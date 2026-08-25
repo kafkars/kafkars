@@ -5,6 +5,8 @@ mod admission_test;
 mod aggregate;
 mod automatic;
 #[cfg(test)]
+mod automatic_identity_test;
+#[cfg(test)]
 mod automatic_test;
 #[cfg(test)]
 mod batch_test;

@@ -16,12 +16,15 @@ use crate::{ErrorKind, KafkaError, TransactionEndIntent};
 
 use super::{
     TransactionalProducerEngine,
+    identity::TransactionIdentityState,
     result::{translate_control_kind, translate_end_observation},
 };
 
 /// Private active transaction retaining the mutable engine-owner borrow.
 pub(crate) struct TransactionEngine<'producer> {
     pub(super) inner: EngineTransactionToken<'producer>,
+    pub(super) admin: crate::bridge::admin::AdminEngine,
+    pub(super) identity: TransactionIdentityState,
     begin_wake_failed: bool,
 }
 
@@ -34,6 +37,8 @@ impl TransactionalProducerEngine {
         let begin_wake_failed = accepted.wake_failed();
         Ok(TransactionEngine {
             inner: accepted.into_transaction(),
+            admin: self.admin.clone(),
+            identity: TransactionIdentityState::new(),
             begin_wake_failed,
         })
     }
@@ -55,6 +60,30 @@ impl<'producer> TransactionEngine<'producer> {
         let Some(deadline) = deadline else {
             return Err((self, invalid_end_deadline(TransactionEndIntent::Commit)));
         };
+        if deadline <= Instant::now() {
+            return Err((self, invalid_end_deadline(TransactionEndIntent::Commit)));
+        }
+        if self.identity.topic_mismatch() {
+            return Err((
+                self,
+                KafkaError::new(
+                    ErrorKind::Identity,
+                    "transaction topic identity mismatch requires abort",
+                )
+                .with_transaction_end_intent(TransactionEndIntent::Commit)
+                .with_transaction_abort_required(),
+            ));
+        }
+        if self.identity.requires_validation() && !self.identity.is_sealed() {
+            return Err((
+                self,
+                KafkaError::new(
+                    ErrorKind::State,
+                    "validate transaction topic identities before commit",
+                )
+                .with_transaction_end_intent(TransactionEndIntent::Commit),
+            ));
+        }
         if deadline <= Instant::now() {
             return Err((self, invalid_end_deadline(TransactionEndIntent::Commit)));
         }
@@ -89,6 +118,8 @@ impl<'producer> TransactionEngine<'producer> {
     ) -> Result<TransactionEndEngine<'producer>, (Self, KafkaError)> {
         let Self {
             inner,
+            admin,
+            identity,
             begin_wake_failed,
         } = self;
         let accepted = match intent {
@@ -112,6 +143,8 @@ impl<'producer> TransactionEngine<'producer> {
                 Err((
                     Self {
                         inner: error.into_transaction(),
+                        admin,
+                        identity,
                         begin_wake_failed,
                     },
                     semantic,
@@ -138,6 +171,7 @@ impl core::fmt::Debug for TransactionEngine<'_> {
         formatter
             .debug_struct("TransactionEngine")
             .field("inner", &self.inner)
+            .field("identity", &self.identity)
             .field("begin_wake_failed", &self.begin_wake_failed)
             .finish()
     }

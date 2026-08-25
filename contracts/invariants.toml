@@ -1810,6 +1810,7 @@ evidence = [
   "crates/kafka-client-engine/src/transaction/lifecycle/host_test.rs::refreshed_coordinator_rejection_retries_under_the_original_deadline",
   "crates/kafka-client-engine/src/transaction/initialization/end_observer_test.rs::exact_broker_failure_crosses_core_to_public_engine_without_fencing_invention",
   "crates/kafka-client-engine/src/transaction/initialization/end_observer_test.rs::lifecycle_fatal_and_transport_failure_remain_distinct_nonfenced_causes",
+  "crates/kafka-client-engine/src/transaction/initialization/send_outcome_test.rs::topic_identity_mismatch_remains_not_sent_abort_required_and_nonfenced",
   "crates/kafka-client-engine/src/transaction/lifecycle/owner_loss_test.rs::active_owner_loss_aborts_and_never_publishes_a_success",
   "crates/kafka-client-core/src/transaction/lifecycle/send_transition_test.rs::abort_required_rejects_new_work_and_drains_before_abort_submission",
   "crates/kafka-client-core/src/transaction/sequencing/machine_test.rs::success_advances_across_transaction_epochs_without_reset",
@@ -1872,4 +1873,23 @@ evidence = [
   "crates/kafkars/src/bridge/transaction/offsets_test.rs::private_offsets_reborrow_transaction_until_observer_release",
   "crates/kafkars/src/transaction/offsets_error_test.rs::rejection_exposes_borrowed_and_owned_exact_inputs",
   "crates/kafkars/src/transaction/offsets_test.rs::accepted_offsets_are_runtime_neutral_and_linear",
+]
+
+[[invariant]]
+id = "TXN-03"
+title = "Transaction commit requires a fresh complete topic-identity seal"
+statement = "One facade-owned TransactionIdentityState retains the exact topic-name and optional expected TopicUuid mode established by each accepted transactional send, a monotonic mutation revision, an optional sealed revision, and a permanent-for-that-transaction mismatch latch. Preparing a send mutation is reversible: rejected single or homogeneous-batch admission returns the original records and does not bind a topic, advance the revision, or invalidate a seal. Acceptance commits exactly one mutation revision, rejects conflicting UUIDs and bound-versus-unbound use of the same topic name, and invalidates any prior seal; every accepted transactional offset transfer also advances the revision and invalidates the seal. Initial expected-UUID validation before transactional Produce remains required independently of this commit seal. Transaction::validate_for_commit captures one absolute deadline at its public call boundary and exclusively reborrows the active transaction. Engine lifecycle preflight must first prove the exact epoch is active and quiescent with no unsettled send or offset work. One bounded DescribeTopics operation then requests the complete current ordered set of UUID-bound topics; success requires the same count, order, names, present nonzero UUIDs, and exact expected UUIDs. Only successful observation may install a seal, and only when its captured revision still equals the current revision. Dropping the validation observer abandons observation without cancelling accepted admin work and never installs a seal. Missing, zero, different, or uncorrelated identity evidence returns abort-required public Identity, clears any seal, and latches the mismatch so later validation cannot authorize commit. A bound transaction's Commit admission returns the exact transaction and refuses a missing or stale seal as State and a latched mismatch as abort-required Identity. Explicit Abort deliberately bypasses both seal and mismatch checks; dropping the active transaction likewise preserves the existing bounded best-effort owner-loss abort and never manufactures validation or commit success. DescribeTopics, name-routed Produce, and EndTxn are separate Kafka operations and do not form an atomic UUID binding. The deployment must prevent deletion and recreation of every UUID-bound topic from its first accepted bound send through the terminal EndTxn outcome; owner drop alone does not release that fence, which remains until the abort becomes terminal or the broker transaction expires."
+status = "enforced"
+evidence = [
+  "crates/kafkars/src/bridge/transaction/identity_test.rs::accepted_mutations_commit_exact_bindings_and_invalidate_the_seal",
+  "crates/kafkars/src/bridge/transaction/identity_test.rs::repeated_exact_binding_is_stable_while_conflicting_uuid_rejects",
+  "crates/kafkars/src/bridge/transaction/identity_test.rs::stale_validation_snapshot_cannot_install_a_commit_seal",
+  "crates/kafkars/src/bridge/transaction/identity_test.rs::bound_and_unbound_uses_of_one_topic_reject_in_both_directions",
+  "crates/kafkars/src/bridge/transaction/validation_test.rs::exact_complete_topic_uuid_snapshot_validates",
+  "crates/kafkars/src/bridge/transaction/validation_test.rs::missing_mismatched_and_uncorrelated_identities_fail_closed",
+  "crates/kafkars/src/bridge/transaction/validation_test.rs::zero_topic_uuid_is_invalid_identity_evidence",
+  "crates/kafkars/src/transaction/validation_test.rs::validation_exclusively_reborrows_the_active_transaction",
+  "crates/kafkars/src/transaction/validation_test.rs::validation_deadline_starts_at_the_public_validation_boundary",
+  "crates/kafka-client-engine/src/transaction/send/automatic_identity_test.rs::expected_topic_uuid_is_proven_before_explicit_partition_enrollment",
+  "crates/kafka-client-engine/src/transaction/send/automatic_identity_test.rs::expected_topic_uuid_mismatch_never_enrolls_or_produces",
 ]

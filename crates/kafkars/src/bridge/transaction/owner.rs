@@ -2,14 +2,17 @@
 
 use kafka_client_engine::TransactionalOwnerHandle;
 
+use crate::bridge::admin::AdminEngine;
+
 /// Private linear owner preventing engine types from entering public signatures.
 pub(crate) struct TransactionalProducerEngine {
     pub(super) handle: TransactionalOwnerHandle,
+    pub(super) admin: AdminEngine,
 }
 
 impl TransactionalProducerEngine {
-    pub(super) const fn from_engine(handle: TransactionalOwnerHandle) -> Self {
-        Self { handle }
+    pub(super) const fn from_engine(handle: TransactionalOwnerHandle, admin: AdminEngine) -> Self {
+        Self { handle, admin }
     }
 
     pub(crate) fn transactional_id(&self) -> &str {

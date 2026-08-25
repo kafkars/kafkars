@@ -1,8 +1,11 @@
 //! Runtime-neutral admission of concrete `DescribeTopics` work.
 
-use std::{fmt, time::Duration};
+use std::{
+    fmt,
+    time::{Duration, Instant},
+};
 
-use crate::admin::AdminHandle;
+use crate::{admin::AdminHandle, clock::DeadlineCapture};
 
 use super::{
     DescribeTopicsAdmissionError, DescribeTopicsAdmissionErrorKind, DescribeTopicsObserver,
@@ -19,13 +22,38 @@ impl AdminHandle {
         let capture = self
             .clock
             .capture_deadline_after(timeout)
-            .map_err(|_error| {
-                DescribeTopicsAdmissionError::new(DescribeTopicsAdmissionErrorKind::InvalidDeadline)
-            })?;
+            .map_err(|_error| invalid_deadline())?;
         if timeout.is_zero() {
-            return Err(DescribeTopicsAdmissionError::new(
-                DescribeTopicsAdmissionErrorKind::InvalidDeadline,
-            ));
+            return Err(invalid_deadline());
+        }
+        self.try_describe_topics_with_capture(request, capture)
+    }
+
+    /// Attempts one topic description under an already-captured deadline.
+    ///
+    /// This is a narrow cross-crate seam for a facade that owns the public
+    /// timing boundary. The ordinary duration API remains the supported
+    /// application-facing entry point.
+    #[doc(hidden)]
+    pub fn try_describe_topics_until(
+        &self,
+        request: DescribeTopicsRequest,
+        deadline: Instant,
+    ) -> Result<DescribeTopicsAccepted, DescribeTopicsAdmissionError> {
+        let capture = self
+            .clock
+            .capture_deadline_until(deadline)
+            .map_err(|_error| invalid_deadline())?;
+        self.try_describe_topics_with_capture(request, capture)
+    }
+
+    fn try_describe_topics_with_capture(
+        &self,
+        request: DescribeTopicsRequest,
+        capture: DeadlineCapture,
+    ) -> Result<DescribeTopicsAccepted, DescribeTopicsAdmissionError> {
+        if capture.deadline().is_elapsed_at(capture.now()) {
+            return Err(invalid_deadline());
         }
         let request = request.canonicalize();
         let retained_bytes = request.retained_charge().ok_or_else(|| {
@@ -48,6 +76,10 @@ impl AdminHandle {
             fault: admission.fault.map(accepted_fault_kind),
         })
     }
+}
+
+fn invalid_deadline() -> DescribeTopicsAdmissionError {
+    DescribeTopicsAdmissionError::new(DescribeTopicsAdmissionErrorKind::InvalidDeadline)
 }
 
 const fn accepted_fault_kind(

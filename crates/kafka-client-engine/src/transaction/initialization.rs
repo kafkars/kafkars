@@ -26,6 +26,7 @@ mod send_batch_admission;
 mod send_batch_observer;
 mod send_batch_outcome;
 mod send_failure_mapping;
+mod send_metadata;
 mod send_observer;
 mod send_outcome;
 mod shard;
@@ -79,10 +80,11 @@ pub use send_admission::{TransactionSendAdmissionError, TransactionSendAdmission
 pub use send_batch_admission::TransactionBatchSendAdmissionError;
 pub use send_batch_observer::TransactionBatchSendObserver;
 pub use send_batch_outcome::{TransactionBatchSendMetadata, TransactionBatchSendOutcome};
+pub use send_metadata::TransactionSendMetadata;
 pub use send_observer::{TransactionSendObserver, TransactionSendObserverError};
 pub use send_outcome::{
     TransactionSendConsequence, TransactionSendDeliveryStatus, TransactionSendFailure,
-    TransactionSendFailureKind, TransactionSendMetadata, TransactionSendOutcome,
+    TransactionSendFailureKind, TransactionSendOutcome,
 };
 pub(crate) use shard::{
     TransactionInitializationShardLockError, TransactionInitializationShardOwner,

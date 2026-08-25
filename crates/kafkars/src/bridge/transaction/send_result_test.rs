@@ -1,167 +1,15 @@
 //! Exhaustive transactional-send admission and terminal translation.
 
 use kafka_client_engine::{
-    TransactionControlErrorKind, TransactionSendAdmissionErrorKind, TransactionSendConsequence,
-    TransactionSendDeliveryStatus, TransactionSendFailureKind, TransactionSendObserverError,
+    TransactionSendConsequence, TransactionSendDeliveryStatus, TransactionSendFailureKind,
+    TransactionSendObserverError,
 };
 
 use super::send_result::{
-    translate_send_admission, translate_send_failure_kind, translate_send_failure_parts,
-    translate_send_metadata_parts, translate_send_observation,
+    translate_send_failure_kind, translate_send_failure_parts, translate_send_metadata_parts,
+    translate_send_observation, translate_topic_uuid,
 };
-use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
-
-type AdmissionCase = (TransactionSendAdmissionErrorKind, ErrorKind, RetryAdvice);
-
-#[test]
-fn every_send_admission_kind_has_one_stable_facade_category() {
-    assert_send_admission_cases(validation_admission_cases());
-    assert_send_admission_cases(capacity_admission_cases());
-    assert_send_admission_cases(state_admission_cases());
-}
-
-fn validation_admission_cases() -> [AdmissionCase; 9] {
-    use TransactionSendAdmissionErrorKind as Kind;
-    [
-        (
-            Kind::InvalidDeadline,
-            ErrorKind::Timeout,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::EmptyBatch,
-            ErrorKind::InvalidRecord,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::EmptyTopic,
-            ErrorKind::InvalidRecord,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::NegativeExplicitPartition,
-            ErrorKind::InvalidRecord,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::MissingExplicitPartition,
-            ErrorKind::InvalidRecord,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::MixedBatchTopic,
-            ErrorKind::InvalidRecord,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::MixedBatchPartition,
-            ErrorKind::InvalidRecord,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::RetainedSizeOverflow,
-            ErrorKind::InvalidRecord,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::InvalidPartition,
-            ErrorKind::InvalidRecord,
-            RetryAdvice::DoNotRetry,
-        ),
-    ]
-}
-
-fn capacity_admission_cases() -> [AdmissionCase; 7] {
-    use TransactionSendAdmissionErrorKind as Kind;
-    [
-        (
-            Kind::BatchRecordCapacity {
-                actual: 2,
-                limit: 1,
-            },
-            ErrorKind::Backpressure,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::Contended,
-            ErrorKind::Backpressure,
-            RetryAdvice::RetrySafe,
-        ),
-        (
-            Kind::RetainedRecordBytes {
-                actual: 2,
-                limit: 1,
-            },
-            ErrorKind::Backpressure,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::RetainedTopicCapacity {
-                actual: 2,
-                limit: 1,
-            },
-            ErrorKind::Backpressure,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::RetainedTopicBytes {
-                actual: 2,
-                limit: 1,
-            },
-            ErrorKind::Backpressure,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::Allocation,
-            ErrorKind::Backpressure,
-            RetryAdvice::DoNotRetry,
-        ),
-        (Kind::Busy, ErrorKind::Backpressure, RetryAdvice::DoNotRetry),
-    ]
-}
-
-fn state_admission_cases() -> [AdmissionCase; 7] {
-    use TransactionSendAdmissionErrorKind as Kind;
-    [
-        (
-            Kind::TimestampUnavailable,
-            ErrorKind::Internal,
-            RetryAdvice::DoNotRetry,
-        ),
-        (Kind::Closed, ErrorKind::State, RetryAdvice::DoNotRetry),
-        (Kind::StaleOwner, ErrorKind::State, RetryAdvice::DoNotRetry),
-        (
-            Kind::RetainedTopicBytesOverflow,
-            ErrorKind::Internal,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::TopicIdentityExhausted,
-            ErrorKind::Internal,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::SendIdentityExhausted,
-            ErrorKind::Internal,
-            RetryAdvice::DoNotRetry,
-        ),
-        (
-            Kind::Transaction(TransactionControlErrorKind::Fenced),
-            ErrorKind::Fenced,
-            RetryAdvice::DoNotRetry,
-        ),
-    ]
-}
-
-fn assert_send_admission_cases<const N: usize>(cases: [AdmissionCase; N]) {
-    for (kind, expected, expected_retry) in cases {
-        let error = translate_send_admission(kind);
-        assert_eq!(error.kind(), expected);
-        assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
-        assert_eq!(error.retry_advice(), expected_retry, "{kind:?}");
-        assert!(!error.requires_transaction_abort());
-    }
-}
+use crate::{DeliveryStatus, ErrorKind};
 
 #[test]
 fn every_terminal_failure_kind_has_one_stable_facade_category() {
@@ -307,6 +155,7 @@ fn transactional_metadata_preserves_exact_null_empty_and_nonempty_sizes() {
     for (key_size, value_size) in [(None, None), (Some(0), Some(0)), (Some(8), Some(7))] {
         let metadata = translate_send_metadata_parts(
             "orders".to_owned(),
+            None,
             2,
             91,
             Some(1_700_000_000_456),
@@ -318,4 +167,16 @@ fn transactional_metadata_preserves_exact_null_empty_and_nonempty_sizes() {
         assert_eq!(metadata.serialized_key_size(), key_size);
         assert_eq!(metadata.serialized_value_size(), value_size);
     }
+}
+
+#[test]
+fn zero_uuid_on_engine_success_fails_closed_with_possibly_sent_certainty() {
+    let error = translate_topic_uuid(Some([0; 16]))
+        .err()
+        .unwrap_or_else(|| panic!("zero engine UUID must not become absent facade evidence"));
+
+    assert_eq!(error.kind(), ErrorKind::Identity);
+    assert_eq!(error.delivery_status(), Some(DeliveryStatus::PossiblySent));
+    assert!(error.requires_transaction_abort());
+    assert!(error.is_fatal());
 }

@@ -55,6 +55,7 @@ impl<'owner> TransactionToken<'owner> {
         capture: ProducerSendCapture,
     ) -> Result<TransactionSendAccepted<'send, 'owner>, TransactionSendAdmissionError> {
         let (deadline, default_timestamp_ms) = capture.into_parts();
+        let observer_topic_uuid = record.expected_topic_uuid_value();
         let view = match record.transaction_view(default_timestamp_ms) {
             Ok(view) => view,
             Err(error) => {
@@ -109,6 +110,7 @@ impl<'owner> TransactionToken<'owner> {
                 epoch,
                 send_id,
                 observer_topic,
+                observer_topic_uuid,
                 public_partition,
             ),
             wake_failed,

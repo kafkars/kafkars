@@ -55,6 +55,12 @@ impl TransactionSendRequest {
         &self.topic
     }
 
+    pub(in crate::transaction::send) fn expected_topic_uuid(&self) -> Option<[u8; 16]> {
+        self.original_records
+            .first()
+            .and_then(crate::producer::PublicProducerRecord::expected_topic_uuid_value)
+    }
+
     pub(in crate::transaction::send) fn key_bytes(&self) -> Option<&[u8]> {
         self.records
             .first()

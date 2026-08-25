@@ -7,6 +7,7 @@ use std::time::Instant;
 use bytes::Bytes;
 use kafka_client_core::{
     CompressionPolicy, Deadline, Moment, TransactionSequenceLease, TransactionalProducerIdentity,
+    partitioning::TopicMetadataGeneration,
 };
 use kafka_wire_records::{Compression, RecordBatch, RecordDecodeLimits, TimestampType};
 
@@ -71,9 +72,15 @@ fn transaction_batch_and_generated_request_retain_the_same_fenced_identity() {
         usize::MAX,
         identity,
         sequence,
-    );
+    )
+    .with_expected_topic_identity(Some([9; 16]), Some(TopicMetadataGeneration::from_raw(12)));
     let materialized = materialize_transactional_produce_batch(input, CompressionPolicy::Snappy)
         .unwrap_or_else(|error| panic!("transaction materialization failed: {error}"));
+    assert_eq!(materialized.expected_topic_uuid(), Some([9; 16]));
+    assert_eq!(
+        materialized.validated_topic_generation(),
+        Some(TopicMetadataGeneration::from_raw(12))
+    );
     let decoded = decoded_batch(&materialized);
 
     assert!(decoded.is_transactional);

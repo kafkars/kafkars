@@ -97,6 +97,9 @@ impl TransactionSendOwner {
         let Some(failure) = routing_failure(evidence.fact()) else {
             return self.settle_produce(pending, materialized, evidence, lifecycle);
         };
+        if pending.expected_topic_uuid.is_some() {
+            return self.settle_produce(pending, materialized, evidence, lifecycle);
+        }
         let Some(prepared) = pending.prepared.as_ref() else {
             self.slot = TransactionSendSlot::Settling(pending, materialized, evidence);
             return Err(TransactionLifecycleHostError::UnexpectedEffect);

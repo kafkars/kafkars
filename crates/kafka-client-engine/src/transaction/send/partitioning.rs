@@ -101,6 +101,7 @@ impl TransactionStickyPartitioners {
 pub(crate) enum TransactionPartitioningFailure {
     DeadlineElapsed,
     MetadataUnavailable { broker_code: Option<i16> },
+    TopicIdentityMismatch,
     Capacity,
 }
 

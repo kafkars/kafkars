@@ -9,7 +9,8 @@ use kafka_client_engine::{
 };
 
 use crate::{
-    DeliveryStatus, ErrorKind, KafkaError, RecordMetadata, transaction::TransactionBatchMetadata,
+    DeliveryStatus, ErrorKind, KafkaError, RecordMetadata, TopicUuid,
+    transaction::TransactionBatchMetadata,
 };
 
 use super::result::translate_control_kind;
@@ -40,6 +41,7 @@ pub(super) fn translate_send_admission(kind: TransactionSendAdmissionErrorKind) 
         | TransactionSendAdmissionErrorKind::MixedBatchPartition
         | TransactionSendAdmissionErrorKind::RetainedSizeOverflow
         | TransactionSendAdmissionErrorKind::InvalidPartition => ErrorKind::InvalidRecord,
+        TransactionSendAdmissionErrorKind::MixedBatchTopicIdentity => ErrorKind::Identity,
         TransactionSendAdmissionErrorKind::Contended
         | TransactionSendAdmissionErrorKind::BatchRecordCapacity { .. }
         | TransactionSendAdmissionErrorKind::RetainedRecordBytes { .. }
@@ -71,8 +73,10 @@ pub(super) fn translate_send_batch_observation(
 ) -> Result<TransactionBatchMetadata, KafkaError> {
     match result {
         Ok(TransactionBatchSendOutcome::Succeeded(metadata)) => {
+            let topic_uuid = translate_topic_uuid(metadata.topic_uuid())?;
             Ok(TransactionBatchMetadata::from_parts(
                 metadata.topic().to_owned(),
+                topic_uuid,
                 metadata.partition(),
                 metadata.base_offset(),
                 metadata.last_offset(),
@@ -92,11 +96,9 @@ pub(super) fn translate_send_observation(
     serialized_value_size: Option<usize>,
 ) -> Result<RecordMetadata, KafkaError> {
     match result {
-        Ok(TransactionSendOutcome::Succeeded(metadata)) => Ok(translate_send_metadata(
-            &metadata,
-            serialized_key_size,
-            serialized_value_size,
-        )),
+        Ok(TransactionSendOutcome::Succeeded(metadata)) => {
+            translate_send_metadata(&metadata, serialized_key_size, serialized_value_size)
+        }
         Ok(TransactionSendOutcome::Failed(failure)) => Err(translate_send_failure(failure)),
         Err(error) => Err(translate_send_observer_error(error)),
     }
@@ -106,20 +108,42 @@ fn translate_send_metadata(
     metadata: &TransactionSendMetadata,
     serialized_key_size: Option<usize>,
     serialized_value_size: Option<usize>,
-) -> RecordMetadata {
-    translate_send_metadata_parts(
+) -> Result<RecordMetadata, KafkaError> {
+    let topic_uuid = translate_topic_uuid(metadata.topic_uuid())?;
+    Ok(translate_send_metadata_parts(
         metadata.topic().to_owned(),
+        topic_uuid,
         metadata.partition(),
         metadata.offset(),
         metadata.timestamp(),
         metadata.leader_epoch(),
         serialized_key_size,
         serialized_value_size,
-    )
+    ))
 }
 
+pub(super) fn translate_topic_uuid(raw: Option<[u8; 16]>) -> Result<Option<TopicUuid>, KafkaError> {
+    match raw {
+        None => Ok(None),
+        Some(bytes) => TopicUuid::try_from_bytes(bytes).map(Some).ok_or_else(|| {
+            KafkaError::new(
+                ErrorKind::Identity,
+                "transactional success retained an invalid zero topic UUID",
+            )
+            .with_delivery_status(DeliveryStatus::PossiblySent)
+            .with_transaction_abort_required()
+            .with_fatal_disposition()
+        }),
+    }
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the lossless translation boundary names every transactional delivery fact"
+)]
 pub(super) fn translate_send_metadata_parts(
     topic: String,
+    topic_uuid: Option<TopicUuid>,
     partition: i32,
     offset: i64,
     timestamp: Option<i64>,
@@ -129,7 +153,7 @@ pub(super) fn translate_send_metadata_parts(
 ) -> RecordMetadata {
     RecordMetadata::from_parts_with_topic_uuid(
         topic,
-        None,
+        topic_uuid,
         partition,
         offset,
         timestamp,

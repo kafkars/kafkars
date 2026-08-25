@@ -5,5 +5,5 @@ pub use crate::transaction::{
     SendTransactionOffsets, SendTransactionRecord, Transaction, TransactionBatchMetadata,
     TransactionBatchSendAdmissionError, TransactionEndAdmissionError, TransactionEndIntent,
     TransactionOffsetsAdmissionError, TransactionSendAdmissionError, TransactionalProducer,
-    TransactionalProducerBuilder, TransactionalProducerIdentity,
+    TransactionalProducerBuilder, TransactionalProducerIdentity, ValidateTransaction,
 };

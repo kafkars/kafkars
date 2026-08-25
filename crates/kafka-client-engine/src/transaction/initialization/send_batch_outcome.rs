@@ -22,6 +22,11 @@ impl TransactionBatchSendMetadata {
         self.first_record.topic()
     }
 
+    /// Returns the exact UUID proven before this name-routed Produce attempt.
+    pub const fn topic_uuid(&self) -> Option<[u8; 16]> {
+        self.first_record.topic_uuid()
+    }
+
     /// Returns the exact explicit partition shared by every admitted record.
     pub const fn partition(&self) -> i32 {
         self.first_record.partition()

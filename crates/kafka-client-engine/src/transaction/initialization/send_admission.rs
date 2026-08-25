@@ -41,6 +41,8 @@ pub enum TransactionSendAdmissionErrorKind {
     MissingExplicitPartition,
     /// Every record in a homogeneous batch must use one exact topic spelling.
     MixedBatchTopic,
+    /// Every record in a homogeneous batch must require the same topic UUID.
+    MixedBatchTopicIdentity,
     /// Every record in a homogeneous batch must use one exact partition.
     MixedBatchPartition,
     /// The public record's retained byte size overflowed.

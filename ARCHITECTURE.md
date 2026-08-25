@@ -132,6 +132,12 @@ UUID binding.
 Deployments using expected topic UUIDs therefore own a no-delete/recreate
 fence. For an ordinary record, the topic name must not be deleted and recreated
 between its final UUID validation and terminal Produce result. For a
+transaction, every UUID-bound topic must remain undeleted and unrecreated from
+the first accepted bound send through the terminal `EndTxn` outcome. Dropping
+the active transaction does not release this external fence: the drop-driven
+abort must become terminal, or the broker transaction must expire. Kafkars
+fails closed on the identity observations it can make, but does not describe
+separate Kafka APIs as one atomic UUID-bound operation.
 
 ### Consumer
 
@@ -165,6 +171,13 @@ the concrete `InitProducerId`, `AddPartitionsToTxn`, Produce,
 `AddOffsetsToTxn`, `TxnOffsetCommit`, and `EndTxn` executions. Uncertain
 delivery fences later admission rather than manufacturing success.
 
+A transaction containing a UUID-bound topic cannot commit until it is
+quiescent and one fresh, complete `DescribeTopics` result validates the exact
+current bound-topic set. Success seals only the current facade-owned mutation
+revision; every later accepted send, batch, or offset transfer invalidates the
+seal. An identity mismatch latches abort-required state. Commit refuses a
+missing, stale, or mismatched seal, while explicit abort and owner-loss abort do
+not require validation.
 
 ## Threads and callbacks
 

@@ -25,6 +25,7 @@ pub struct TransactionSendObserver<'send, 'owner> {
     epoch: TransactionEpoch,
     send_id: TransactionSendId,
     topic: Option<Arc<str>>,
+    topic_uuid: Option<[u8; 16]>,
     partition: Option<i32>,
 }
 
@@ -35,6 +36,7 @@ impl<'send, 'owner> TransactionSendObserver<'send, 'owner> {
         epoch: TransactionEpoch,
         send_id: TransactionSendId,
         topic: Arc<str>,
+        topic_uuid: Option<[u8; 16]>,
         partition: Option<i32>,
     ) -> Self {
         Self {
@@ -43,6 +45,7 @@ impl<'send, 'owner> TransactionSendObserver<'send, 'owner> {
             epoch,
             send_id,
             topic: Some(topic),
+            topic_uuid,
             partition,
         }
     }
@@ -54,8 +57,15 @@ impl<'send, 'owner> TransactionSendObserver<'send, 'owner> {
             .topic
             .take()
             .ok_or(TransactionSendObserverError::AlreadyObserved)?;
-        translate_send_terminal(terminal, self.epoch, self.send_id, topic, self.partition)
-            .ok_or(TransactionSendObserverError::InternalInvariant)
+        translate_send_terminal(
+            terminal,
+            self.epoch,
+            self.send_id,
+            topic,
+            self.topic_uuid,
+            self.partition,
+        )
+        .ok_or(TransactionSendObserverError::InternalInvariant)
     }
 }
 
@@ -75,6 +85,7 @@ impl Future for TransactionSendObserver<'_, '_> {
                         this.epoch,
                         this.send_id,
                         topic,
+                        this.topic_uuid,
                         this.partition,
                     )
                     .ok_or(TransactionSendObserverError::InternalInvariant),

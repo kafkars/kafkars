@@ -33,6 +33,7 @@ impl TransactionSendOwner {
                         TransactionSendFailureKind::DriverShutdown,
                         DeliveryStatus::NotSent,
                     ),
+                    TransactionSendOutcome::FailedHealthy,
                     lifecycle,
                 )?;
             }
@@ -44,6 +45,7 @@ impl TransactionSendOwner {
                         TransactionSendFailureKind::DriverShutdown,
                         DeliveryStatus::NotSent,
                     ),
+                    TransactionSendOutcome::FailedHealthy,
                     lifecycle,
                 )?;
             }

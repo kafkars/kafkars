@@ -58,7 +58,10 @@ pub(crate) struct TransactionSendFailure {
 }
 
 impl TransactionSendFailure {
-    pub(super) const fn new(kind: TransactionSendFailureKind, delivery: DeliveryStatus) -> Self {
+    pub(in crate::transaction) const fn new(
+        kind: TransactionSendFailureKind,
+        delivery: DeliveryStatus,
+    ) -> Self {
         Self { kind, delivery }
     }
 

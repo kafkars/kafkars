@@ -11,6 +11,14 @@ use crate::{clock::OperationDeadline, completion::CompletionObserver};
 use super::host::{PendingEndOperation, TransactionLifecycleHost, TransactionLifecycleHostError};
 
 impl TransactionLifecycleHost {
+    pub(in crate::transaction) fn preflight_commit(
+        &self,
+        epoch: TransactionEpoch,
+    ) -> Result<(), TransactionLifecycleHostError> {
+        self.machine.preflight_commit(epoch)?;
+        Ok(())
+    }
+
     pub(crate) fn begin(&mut self) -> Result<TransactionEpoch, TransactionLifecycleHostError> {
         self.preflight_sequence_activation()?;
         self.enrollment.preflight_activate_epoch()?;

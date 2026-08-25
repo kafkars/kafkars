@@ -1,24 +1,25 @@
 //! Automatic transactional partition lookup and delayed sequence acquisition.
 
-use kafka_client_core::{DeliveryStatus, Moment, TransactionSendId, TransactionSendOutcome};
+use kafka_client_core::{Moment, TransactionSendId};
 
 use crate::{
     completion::CompletionId,
     driver::{DriverOwner, TopicPartitionCountAdmissionFailureKind, TopicRouteViewCall},
-    producer::materialization::TransactionalMaterializationBatch,
-    transaction::{
-        TransactionLifecycleHostError,
-        partition_enrollment::TransactionPartitionEnrollmentAdmission,
-    },
+    transaction::TransactionLifecycleHostError,
 };
+
+#[cfg(test)]
+use crate::producer::ProducerPartitionSource;
+
+mod resolution;
 
 use super::{
     aggregate::TransactionSendAggregate,
     input::{TransactionSendAdmissionFailure, TransactionSendAdmissionFailureKind},
-    model::{TransactionSendFailure, TransactionSendFailureKind, TransactionSendTurn},
+    model::TransactionSendTurn,
     owner::TransactionSendOwner,
     partitioning::{TransactionPartitioningFailure, normalize_topic_view_failure},
-    turn::{PendingTransactionPartitioning, PendingTransactionSend, TransactionSendSlot},
+    turn::{PendingTransactionPartitioning, TransactionSendSlot},
 };
 
 impl TransactionSendOwner {
@@ -54,7 +55,7 @@ impl TransactionSendOwner {
     #[cfg(test)]
     pub(super) fn apply_partitioning_for_test(
         &mut self,
-        source: &dyn kafka_client_core::partitioning::TopicPartitionSource,
+        source: &dyn ProducerPartitionSource,
         lifecycle: &mut dyn TransactionSendAggregate,
     ) -> Result<(), TransactionLifecycleHostError> {
         let TransactionSendSlot::AwaitingPartition(pending) =
@@ -120,108 +121,5 @@ impl TransactionSendOwner {
             }
         }
         Ok(TransactionSendTurn::Progress)
-    }
-
-    fn apply_partitioning(
-        &mut self,
-        mut pending: PendingTransactionPartitioning,
-        source: &dyn kafka_client_core::partitioning::TopicPartitionSource,
-        lifecycle: &mut dyn TransactionSendAggregate,
-    ) -> Result<(), TransactionLifecycleHostError> {
-        let identity = match lifecycle.producer_identity() {
-            Ok(identity) => identity,
-            Err(_error) => {
-                return self.finish_partitioning(
-                    pending,
-                    TransactionPartitioningFailure::MetadataUnavailable { broker_code: None },
-                    lifecycle,
-                );
-            }
-        };
-        let selection = match self.partitioners.select(&pending.request, source) {
-            Ok(selection) => selection,
-            Err(failure) => return self.finish_partitioning(pending, failure, lifecycle),
-        };
-        if !pending.request.assign_partition(selection.partition) {
-            return self.finish_partitioning(
-                pending,
-                TransactionPartitioningFailure::MetadataUnavailable { broker_code: None },
-                lifecycle,
-            );
-        }
-        let partition = pending
-            .request
-            .partition()
-            .unwrap_or_else(|| unreachable!("selected request owns one partition"));
-        let raw_partition = i32::try_from(partition.partition().get()).unwrap_or_else(|_| {
-            unreachable!("core topic partition count is Java signed-int representable")
-        });
-        let sequence = match lifecycle.sequence_accepted_send(
-            pending.epoch,
-            pending.send_id,
-            partition,
-            pending.request.record_count(),
-        ) {
-            Ok(sequence) => sequence,
-            Err(_error) => {
-                return self.finish_partitioning(
-                    pending,
-                    TransactionPartitioningFailure::MetadataUnavailable { broker_code: None },
-                    lifecycle,
-                );
-            }
-        };
-        let (_, partition, topic, records, max_batch_bytes, deadline) =
-            pending.request.into_parts();
-        let batch = TransactionalMaterializationBatch::new(
-            topic,
-            raw_partition,
-            records,
-            max_batch_bytes,
-            identity,
-            sequence,
-        );
-        let resolved = PendingTransactionSend {
-            completion_id: pending.completion_id,
-            epoch: pending.epoch,
-            send_id: pending.send_id,
-            partition,
-            sequence,
-            deadline,
-            topic_id: partition.topic_id(),
-            sticky: selection.sticky,
-            prepared: None,
-        };
-        match lifecycle.enroll(pending.epoch, batch, deadline) {
-            Ok(TransactionPartitionEnrollmentAdmission::Pending) => {
-                self.slot = TransactionSendSlot::Enrolling(resolved);
-            }
-            Ok(TransactionPartitionEnrollmentAdmission::Enrolled(fence)) => {
-                self.slot = TransactionSendSlot::Ready(resolved, fence.into_batch());
-            }
-            Err(failure) => {
-                let kind = failure.kind();
-                drop(failure.into_batch());
-                lifecycle.settle_unproduced(
-                    pending.epoch,
-                    pending.send_id,
-                    partition,
-                    sequence,
-                    TransactionSendOutcome::FailedHealthy,
-                )?;
-                self.slot = TransactionSendSlot::Terminal(
-                    pending.completion_id,
-                    super::model::TransactionSendTerminal::FailedHealthy {
-                        epoch: pending.epoch,
-                        send_id: pending.send_id,
-                        failure: TransactionSendFailure::new(
-                            TransactionSendFailureKind::Enrollment(kind),
-                            DeliveryStatus::NotSent,
-                        ),
-                    },
-                );
-            }
-        }
-        Ok(())
     }
 }

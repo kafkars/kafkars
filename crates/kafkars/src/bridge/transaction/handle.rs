@@ -4,16 +4,20 @@ use std::time::Duration;
 
 use kafka_client_engine::{Engine, TransactionInitializationRequest};
 
+use crate::bridge::admin::AdminEngine;
+
 use super::{TransactionInitialization, result::translate_capture_error};
 
 /// Private bridge retaining engine defaults and initialization capability.
 pub(crate) struct TransactionalProducerInitializer {
     engine: Engine,
+    admin: AdminEngine,
 }
 
 impl TransactionalProducerInitializer {
-    pub(crate) const fn new(engine: Engine) -> Self {
-        Self { engine }
+    pub(crate) fn new(engine: Engine) -> Self {
+        let admin = AdminEngine::new(engine.admin(), engine.config().admin_timeout());
+        Self { engine, admin }
     }
 
     pub(crate) fn initialize(
@@ -39,7 +43,10 @@ impl TransactionalProducerInitializer {
             transactional_id,
             transaction_timeout_ms(broker_timeout),
         );
-        TransactionInitialization::from_admission(capture.initialize_transactional_owner(request))
+        TransactionInitialization::from_admission(
+            capture.initialize_transactional_owner(request),
+            self.admin,
+        )
     }
 }
 

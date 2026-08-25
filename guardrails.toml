@@ -63,7 +63,7 @@ baseline = [
   { path = "crates/kafkars/src/admin/handle.rs", lines = 365, reason = "the shared Admin handle retains the stable common builder surface after group and specialist methods moved into focused child seams" },
   { path = "crates/kafkars/src/admin/mod.rs", lines = 156, reason = "the declarative Admin facade explicitly names the complete Rust source-preview module and sibling-test surface" },
   { path = "crates/kafkars/src/admin/public_api.rs", lines = 255, reason = "the curated generated-free Admin reexport table keeps the complete Rust source-preview vocabulary explicit without globbing protocol or engine internals" },
-  { path = "crates/kafkars/src/bridge/admin.rs", lines = 404, reason = "the private Admin bridge retains common capture-first submissions after grouped and DescribeCluster handoffs moved into focused child seams" },
+  { path = "crates/kafkars/src/bridge/admin.rs", lines = 380, reason = "the private Admin bridge retains common capture-first submissions after grouped, DescribeCluster, and DescribeTopics handoffs moved into focused child seams" },
   { path = "crates/kafkars/src/bridge/describe_streams_group/result.rs", lines = 327, reason = "the API 89 bridge result translator exhaustively maps the complete generated-free topology, member, task, exact broker rejection, and delivery vocabulary into the curated public surface" },
   { path = "crates/kafkars/src/bridge/mod.rs", lines = 138, reason = "the declarative bridge facade explicitly names every private Rust source-preview adapter including share-consumer ownership" },
   { path = "crates/kafkars/src/lib.rs", lines = 180, reason = "the crate facade explicitly reexports the complete curated Rust source-preview surface, preview limitation, and required trademark notice" },
@@ -188,11 +188,11 @@ baseline = [
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members.rs", lines = 270, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members_test.rs", lines = 302, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/protocol/consumer/mod.rs", lines = 89, reason = "the declarative consumer protocol facade names classic-group, Fetch, share-heartbeat, ShareAcknowledge, position, and offset-commit protocol ownership including static membership" },
-  { path = "crates/kafka-client-engine/src/public_api.rs", lines = 473, reason = "the engine crate facade explicitly reexports the complete typed Rust source-preview engine after transactional exports moved into a focused declarative child" },
+  { path = "crates/kafka-client-engine/src/public_api.rs", lines = 495, reason = "the engine crate facade explicitly reexports the complete typed Rust source-preview engine after transactional exports moved into a focused declarative child" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 265, reason = "the transaction-initialization settlement seam preserves its prior public failure taxonomy while the shared API 22 terminal now distinguishes compatibility for producer-fencing callers" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host.rs", lines = 245, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host_test.rs", lines = 325, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/transaction/initialization/shard.rs", lines = 247, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/shard.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this tightened measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/transaction/offset_commit/driver_evidence.rs", lines = 247, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-guardrails/tests/admin_create_delegation_token_guard/expectations.rs", lines = 352, reason = "the detector-safe finite API 38 ownership, capability, and mirror path map remains explicit in one checked-in expectation table" },
   { path = "crates/kafka-client-guardrails/tests/admin_describe_delegation_tokens_guard/expectations.rs", lines = 340, reason = "the detector-safe finite API 41 ownership, capability, and mirror path map remains explicit in one checked-in expectation table" },
@@ -3712,6 +3712,7 @@ allow = [
   { path = "crates/kafka-client-engine/src/transaction/execution/turn.rs", capability = "crate::driver", reason = "The unique execution wrapper drives its fixed send owner before the ordinary lifecycle through the embedded driver." },
   { path = "crates/kafka-client-engine/src/transaction/send/automatic.rs", capability = "crate::driver", reason = "The automatic transactional send state owns exactly one deadline-bound topic-view lookup before partition sequence acquisition." },
   { path = "crates/kafka-client-engine/src/transaction/send/automatic.rs", capability = "crate::producer", reason = "The resolved automatic target becomes one exact transactional materialization batch only after partition and sequence ownership are fixed." },
+  { path = "crates/kafka-client-engine/src/transaction/send/automatic/resolution.rs", capability = "crate::producer", reason = "The focused resolution seam consumes one exact producer partition view when constructing the enrolled transactional materialization batch." },
   { path = "crates/kafka-client-engine/src/transaction/send/aggregate.rs", capability = "crate::driver", reason = "The fixed send owner delegates enrollment progress to the installed lifecycle without acquiring a second driver owner." },
   { path = "crates/kafka-client-engine/src/transaction/send/aggregate.rs", capability = "crate::producer", reason = "The lifecycle aggregate transfers one exact accepted materialization batch through enrollment and sequence settlement." },
   { path = "crates/kafka-client-engine/src/transaction/send/input.rs", capability = "crate::producer", reason = "The linear unresolved send retains the exact original public-record vector beside its prepared materialization vector until catalog and lifecycle acceptance." },
@@ -4057,11 +4058,11 @@ owner_type = "TransactionSendOwner"
 field = "slot"
 allowed_paths = [
   "crates/kafka-client-engine/src/transaction/send/automatic.rs",
+  "crates/kafka-client-engine/src/transaction/send/automatic/resolution.rs",
   "crates/kafka-client-engine/src/transaction/send/completion.rs",
   "crates/kafka-client-engine/src/transaction/send/owner.rs",
   "crates/kafka-client-engine/src/transaction/send/produce_settlement.rs",
   "crates/kafka-client-engine/src/transaction/send/recovery.rs",
-  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
   "crates/kafka-client-engine/src/transaction/send/settlement.rs",
   "crates/kafka-client-engine/src/transaction/send/turn.rs",
   "crates/kafka-client-engine/src/transaction/send/turn/execution.rs",
@@ -5755,7 +5756,6 @@ allowed_paths = [
   "crates/kafka-client-engine/src/protocol/admin/list_share_group_offsets/request.rs",
   "crates/kafka-client-engine/src/protocol/consumer/share_acknowledge/request.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
-  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/broker_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs",
   "crates/kafka-client-engine/src/consumer/share/registry_invalidation.rs",
@@ -5870,7 +5870,6 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/incremental_alter_configs.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
-  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
 ]
 
 [[method_capabilities]]
@@ -5894,7 +5893,6 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/incremental_alter_configs.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
-  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
 ]
 
 [[method_capabilities]]
@@ -24845,7 +24843,48 @@ forbidden = [
   "async",
 ]
 
-# UUID-qualified Fetch evidence retains one exact ownership path at each public-to-engine boundary.
+# UUID-qualified Fetch evidence and transaction commit sealing retain one exact
+# ownership path at each public-to-engine boundary.
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/lifecycle/end_failure.rs"
+test = "crates/kafka-client-core/src/transaction/lifecycle/end_failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/lifecycle/send_transition.rs"
+test = "crates/kafka-client-core/src/transaction/lifecycle/send_transition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/waiting/partitioning.rs"
+test = "crates/kafka-client-engine/src/producer/waiting/partitioning_identity_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/initialization/end_observer.rs"
+test = "crates/kafka-client-engine/src/transaction/initialization/end_observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/record.rs"
+test = "crates/kafkars/src/record_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/transaction/identity.rs"
+test = "crates/kafkars/src/bridge/transaction/identity_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/transaction/validation.rs"
+test = "crates/kafkars/src/bridge/transaction/validation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/bridge/transaction/result/end.rs"
+test = "crates/kafkars/src/bridge/transaction/result/end_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/transaction/end_intent.rs"
+test = "crates/kafkars/src/transaction/end_intent_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafkars/src/transaction/validation.rs"
+test = "crates/kafkars/src/transaction/validation_test.rs"
+
 [[linear_owners]]
 owner_type = "AssignedConsumerFetchEvidence"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/evidence.rs"
@@ -24858,59 +24897,25 @@ path = "crates/kafkars/src/bridge/consumer/evidence.rs"
 owner_type = "ConsumerFetchEvidence"
 path = "crates/kafkars/src/consumer/fetch_evidence.rs"
 
-[[capability_rules]]
-root = "crates/kafka-client-engine/src/protocol/fetch/evidence.rs"
-forbidden = [
-  "crate::admin",
-  "crate::driver",
-  "crate::producer",
-  "crate::transaction",
-  "kafka_driver",
-  "kafka_wire",
-  "std::future",
-  "std::net",
-  "std::thread",
-  "std::time",
-  "Callback",
-  "Future",
-  "Retry",
-  "Transport",
-  "async",
-]
-
-[[capability_rules]]
-root = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/evidence.rs"
-forbidden = [
-  "crate::admin",
-  "crate::driver",
-  "crate::producer",
-  "crate::protocol",
-  "crate::transaction",
-  "kafka_driver",
-  "kafka_wire",
-  "std::future",
-  "std::net",
-  "std::thread",
-  "std::time",
-  "Callback",
-  "Future",
-  "Retry",
-  "Transport",
-  "async",
-]
-
-# Expected broker identity proof has one explicit ordinary producer ownership path.
-[[test_mirrors]]
-production = "crates/kafka-client-engine/src/producer/waiting/partitioning.rs"
-test = "crates/kafka-client-engine/src/producer/waiting/partitioning_identity_test.rs"
-
-[[test_mirrors]]
-production = "crates/kafkars/src/record.rs"
-test = "crates/kafkars/src/record_test.rs"
-
 [[linear_owners]]
 owner_type = "ProducerRetryIdentityCall"
 path = "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs"
+
+[[linear_owners]]
+owner_type = "PreparedIdentityMutation"
+path = "crates/kafkars/src/bridge/transaction/identity.rs"
+
+[[linear_owners]]
+owner_type = "TransactionIdentityState"
+path = "crates/kafkars/src/bridge/transaction/identity.rs"
+
+[[linear_owners]]
+owner_type = "TransactionValidationEngine"
+path = "crates/kafkars/src/bridge/transaction/validation.rs"
+
+[[linear_owners]]
+owner_type = "ValidateTransaction"
+path = "crates/kafkars/src/transaction/validation.rs"
 
 [[mutation_owners]]
 owner_type = "ProducerRetryIdentityCall"
@@ -24984,6 +24989,63 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/materialization/batch.rs",
 ]
 
+[[mutation_owners]]
+owner_type = "TransactionalMaterializationBatch"
+field = "expected_topic_uuid"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/materialization/transactional_batch.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionalMaterializationBatch"
+field = "validated_topic_generation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/materialization/transactional_batch.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionIdentityState"
+field = "revision"
+allowed_paths = [
+  "crates/kafkars/src/bridge/transaction/identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionIdentityState"
+field = "sealed_revision"
+allowed_paths = [
+  "crates/kafkars/src/bridge/transaction/identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionIdentityState"
+field = "topic_mismatch"
+allowed_paths = [
+  "crates/kafkars/src/bridge/transaction/identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionIdentityState"
+field = "topics"
+allowed_paths = [
+  "crates/kafkars/src/bridge/transaction/identity.rs",
+]
+
+[[mutation_owners]]
+owner_type = "PendingEndOperation"
+field = "delivery_floor"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/lifecycle/turn.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "submit_describe_topics"
+allowed_paths = [
+  "crates/kafkars/src/admin/list_topics_builder.rs",
+  "crates/kafkars/src/admin/topics_builder.rs",
+]
+
 [[method_capabilities]]
 root = "crates/kafkars/src"
 method = "with_expected_cluster_id"
@@ -25013,49 +25075,51 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
+root = "crates/kafkars/src"
+method = "validate_for_commit"
+allowed_paths = [
+  "crates/kafkars/src/transaction/transaction.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "prepare_mutation"
+allowed_paths = [
+  "crates/kafkars/src/bridge/transaction/offsets.rs",
+  "crates/kafkars/src/bridge/transaction/send.rs",
+  "crates/kafkars/src/bridge/transaction/send_batch.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "commit_mutation"
+allowed_paths = [
+  "crates/kafkars/src/bridge/transaction/offsets.rs",
+  "crates/kafkars/src/bridge/transaction/send.rs",
+  "crates/kafkars/src/bridge/transaction/send_batch.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "install_seal"
+allowed_paths = [
+  "crates/kafkars/src/bridge/transaction/validation.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "mark_topic_mismatch"
+allowed_paths = [
+  "crates/kafkars/src/bridge/transaction/validation.rs",
+]
+
+[[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "capture_deadline_until"
 allowed_paths = [
   "crates/kafka-client-engine/src/admin/describe_handle.rs",
+  "crates/kafka-client-engine/src/admin/topics/handle.rs",
   "crates/kafka-client-engine/src/transaction/initialization/control/end.rs",
-]
-
-[[method_capabilities]]
-root = "crates/kafkars/src"
-method = "try_describe_cluster_until"
-allowed_paths = [
-  "crates/kafkars/src/bridge/admin/describe_cluster_submit.rs",
-]
-
-[[method_capabilities]]
-root = "crates/kafkars/src"
-method = "submit_describe_cluster_until"
-allowed_paths = [
-  "crates/kafkars/src/bridge/client/identity.rs",
-]
-
-# Truthful transaction terminals retain exact ownership and capability paths.
-[[test_mirrors]]
-production = "crates/kafka-client-core/src/transaction/lifecycle/end_failure.rs"
-test = "crates/kafka-client-core/src/transaction/lifecycle/end_failure_test.rs"
-
-[[test_mirrors]]
-production = "crates/kafka-client-engine/src/transaction/initialization/end_observer.rs"
-test = "crates/kafka-client-engine/src/transaction/initialization/end_observer_test.rs"
-
-[[test_mirrors]]
-production = "crates/kafkars/src/bridge/transaction/result/end.rs"
-test = "crates/kafkars/src/bridge/transaction/result/end_test.rs"
-
-[[test_mirrors]]
-production = "crates/kafkars/src/transaction/end_intent.rs"
-test = "crates/kafkars/src/transaction/end_intent_test.rs"
-
-[[mutation_owners]]
-owner_type = "PendingEndOperation"
-field = "delivery_floor"
-allowed_paths = [
-  "crates/kafka-client-engine/src/transaction/lifecycle/turn.rs",
 ]
 
 [[method_capabilities]]
@@ -25090,6 +25154,34 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafkars/src"
+method = "try_describe_cluster_until"
+allowed_paths = [
+  "crates/kafkars/src/bridge/admin/describe_cluster_submit.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "try_describe_topics_until"
+allowed_paths = [
+  "crates/kafkars/src/bridge/admin/describe_topics_submit.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "submit_describe_cluster_until"
+allowed_paths = [
+  "crates/kafkars/src/bridge/client/identity.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
+method = "submit_describe_topics_until"
+allowed_paths = [
+  "crates/kafkars/src/bridge/transaction/validation.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafkars/src"
 method = "commit_until"
 allowed_paths = [
   "crates/kafkars/src/bridge/transaction/lifecycle.rs",
@@ -25100,4 +25192,75 @@ root = "crates/kafkars/src"
 method = "abort_until"
 allowed_paths = [
   "crates/kafkars/src/bridge/transaction/lifecycle.rs",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/protocol/fetch/evidence.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Future",
+  "Retry",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/evidence.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Future",
+  "Retry",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafkars/src/bridge/transaction/identity.rs"
+forbidden = [
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Future",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafkars/src/bridge/transaction/validation.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "std::net",
+  "std::thread",
+  "Callback",
+  "Transport",
+  "tokio",
+  "async_std",
+  "smol",
 ]

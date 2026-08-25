@@ -88,16 +88,7 @@ impl TransactionLifecycleMachine {
         epoch: TransactionEpoch,
         operation_id: OperationId,
     ) -> Result<TransactionLifecycleTransition, TransactionLifecycleMachineError> {
-        self.require_epoch(epoch)?;
-        if self.state == TransactionLifecycleState::AbortRequired {
-            return Err(TransactionLifecycleMachineError::AbortRequired);
-        }
-        self.require_state(TransactionLifecycleState::Active)?;
-        if !self.outstanding_sends.is_empty() {
-            return Err(TransactionLifecycleMachineError::OutstandingSends {
-                count: self.outstanding_sends.len(),
-            });
-        }
+        self.preflight_commit(epoch)?;
         self.pending_end = Some(PendingTransactionEnd {
             mode: TransactionEndMode::Commit,
             operation_id: Some(operation_id),

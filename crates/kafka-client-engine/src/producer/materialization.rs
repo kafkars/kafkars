@@ -102,6 +102,8 @@ pub(crate) struct MaterializationBatch {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct TransactionalMaterializationBatch {
     topic: Arc<str>,
+    expected_topic_uuid: Option<[u8; 16]>,
+    validated_topic_generation: Option<TopicMetadataGeneration>,
     partition: i32,
     records: Vec<MaterializationRecord>,
     max_batch_bytes: usize,

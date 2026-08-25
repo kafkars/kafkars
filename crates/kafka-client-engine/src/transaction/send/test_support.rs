@@ -19,13 +19,15 @@ use crate::{
     },
 };
 
+pub(in crate::transaction::send) use crate::producer::ProducerPartitionSource;
+
 mod aggregate;
 mod fixtures;
 mod produce_port;
 
 pub(super) use fixtures::{
-    automatic_request, batch_request, deadline, driver, later_epoch, local_submit_failure,
-    produce_failure, request, request_with_deadline,
+    automatic_request, automatic_request_with_expected_uuid, batch_request, deadline, driver,
+    later_epoch, local_submit_failure, produce_failure, request, request_with_deadline,
 };
 pub(super) use produce_port::FakeProducePort;
 

@@ -101,6 +101,24 @@ impl TransactionLifecycleMachine {
         self.require_state(TransactionLifecycleState::Active)
     }
 
+    /// Validates that commit preparation observes one quiescent active epoch.
+    pub fn preflight_commit(
+        &self,
+        epoch: TransactionEpoch,
+    ) -> Result<(), TransactionLifecycleMachineError> {
+        self.require_epoch(epoch)?;
+        if self.state == TransactionLifecycleState::AbortRequired {
+            return Err(TransactionLifecycleMachineError::AbortRequired);
+        }
+        self.require_state(TransactionLifecycleState::Active)?;
+        if !self.outstanding_sends.is_empty() {
+            return Err(TransactionLifecycleMachineError::OutstandingSends {
+                count: self.outstanding_sends.len(),
+            });
+        }
+        Ok(())
+    }
+
     /// Validates one exact retained send terminal without mutating ownership.
     pub fn preflight_send_settlement(
         &self,

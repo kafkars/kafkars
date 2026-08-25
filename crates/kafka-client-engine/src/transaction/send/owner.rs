@@ -95,7 +95,8 @@ impl TransactionSendOwner {
         let Some(send_id) = self.next_send_id else {
             return Err(self.rollback(TransactionSendAdmissionFailureKind::SendIdentityExhausted));
         };
-        if self.reserved().partition().is_none() {
+        if self.reserved().partition().is_none() || self.reserved().expected_topic_uuid().is_some()
+        {
             self.accept_automatic(lifecycle, send_id, completion_id)?;
             return Ok(TransactionSendAccepted::new(send_id, observer));
         }
@@ -130,6 +131,7 @@ impl TransactionSendOwner {
             .map(TransactionSendId::from_raw);
         let (request, reserved_completion_id) = self.take_reserved();
         debug_assert_eq!(reserved_completion_id, completion_id);
+        let expected_topic_uuid = request.expected_topic_uuid();
         let (_, partition_owner, topic, records, max_batch_bytes, deadline) = request.into_parts();
         let batch = TransactionalMaterializationBatch::new(
             topic,
@@ -147,6 +149,7 @@ impl TransactionSendOwner {
             sequence,
             deadline,
             topic_id: partition_owner.topic_id(),
+            expected_topic_uuid,
             sticky: false,
             prepared: None,
         };

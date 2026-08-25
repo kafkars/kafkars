@@ -11,6 +11,7 @@ mod describe_share_groups_submit;
 mod describe_streams_group_submit;
 mod describe_streams_groups_submit;
 mod describe_topic_partitions_submit;
+mod describe_topics_submit;
 mod fence_producers_submit;
 mod group_submissions;
 mod legacy_replace_topic_configs;
@@ -50,9 +51,6 @@ use super::admin_describe_replica_log_dirs::{
 use super::admin_elect_leaders::{AdminElectLeaders, ElectLeadersAdminRequest};
 use super::admin_operation::AdminCreateTopics;
 use super::admin_partitions_operation::AdminCreatePartitions;
-use super::admin_topics_by_id_operation::AdminDescribeTopicsById;
-use super::admin_topics_operation::AdminDescribeTopics;
-use super::admin_topics_request::DescribeTopicsAdminRequest;
 use super::alter_client_quotas::{AdminAlterClientQuotas, AlterClientQuotasAdminRequest};
 use super::alter_user_scram_credentials::{
     AdminAlterUserScramCredentials, AlterUserScramCredentialsAdminRequest,
@@ -313,28 +311,6 @@ impl AdminEngine {
         AdminDescribeTransactions::from_admission(
             self.handle
                 .try_describe_transactions(request.into_engine(), timeout),
-        )
-    }
-
-    pub(crate) fn submit_describe_topics(
-        &self,
-        request: DescribeTopicsAdminRequest,
-        timeout: Duration,
-    ) -> AdminDescribeTopics {
-        AdminDescribeTopics::from_admission(
-            self.handle
-                .try_describe_topics(request.into_engine(), timeout),
-        )
-    }
-
-    pub(crate) fn submit_describe_topics_by_id(
-        &self,
-        request: DescribeTopicsAdminRequest,
-        timeout: Duration,
-    ) -> AdminDescribeTopicsById {
-        AdminDescribeTopicsById::from_admission(
-            self.handle
-                .try_describe_topics(request.into_engine(), timeout),
         )
     }
 

@@ -68,6 +68,7 @@ impl<'owner> TransactionToken<'owner> {
         let (deadline, default_timestamp_ms) = capture.into_parts();
         let prepared = prepare_homogeneous(records, default_timestamp_ms)?;
         let observer_topic = Arc::clone(&prepared.topic);
+        let observer_topic_uuid = prepared.expected_topic_uuid;
         let public_partition = match i32::try_from(prepared.partition.get()) {
             Ok(partition) => partition,
             Err(_error) => {
@@ -102,6 +103,7 @@ impl<'owner> TransactionToken<'owner> {
             epoch,
             send_id,
             observer_topic,
+            observer_topic_uuid,
             Some(public_partition),
         );
         Ok(TransactionBatchSendAccepted {
@@ -115,6 +117,7 @@ struct PreparedHomogeneousBatch {
     records: Vec<PublicProducerRecord>,
     topic: Arc<str>,
     partition: PartitionIndex,
+    expected_topic_uuid: Option<[u8; 16]>,
     materializations: Vec<MaterializationRecord>,
     retained_source_bytes: usize,
 }
@@ -133,7 +136,16 @@ fn prepare_homogeneous(
     let mut topic: Option<Arc<str>> = None;
     let mut partition = None;
     let mut retained_source_bytes = 0usize;
+    let expected_topic_uuid = records
+        .first()
+        .and_then(PublicProducerRecord::expected_topic_uuid_value);
     for index in 0..records.len() {
+        if records[index].expected_topic_uuid_value() != expected_topic_uuid {
+            return Err(TransactionBatchSendAdmissionError::new(
+                TransactionSendAdmissionErrorKind::MixedBatchTopicIdentity,
+                records,
+            ));
+        }
         let view = match records[index].transaction_view(default_timestamp_ms) {
             Ok(view) => view,
             Err(error) => {
@@ -183,6 +195,7 @@ fn prepare_homogeneous(
         records,
         topic: topic.unwrap_or_else(|| unreachable!("nonempty batch has one topic")),
         partition: partition.unwrap_or_else(|| unreachable!("validated batch has one partition")),
+        expected_topic_uuid,
         materializations,
         retained_source_bytes,
     })

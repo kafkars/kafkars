@@ -80,6 +80,19 @@ impl TransactionExecutionHost {
         self.lifecycle.begin()
     }
 
+    pub(crate) fn preflight_commit(
+        &self,
+        epoch: TransactionEpoch,
+    ) -> Result<(), TransactionLifecycleHostError> {
+        if !matches!(
+            self.offset_commit.preflight_end(epoch)?,
+            TransactionOffsetCommitEndBarrier::Ready
+        ) {
+            return Err(TransactionLifecycleHostError::OffsetCommitUnsettled);
+        }
+        self.lifecycle.preflight_commit(epoch)
+    }
+
     pub(crate) fn end(
         &mut self,
         epoch: TransactionEpoch,

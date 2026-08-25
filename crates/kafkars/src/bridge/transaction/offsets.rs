@@ -41,6 +41,10 @@ impl<'producer> TransactionEngine<'producer> {
                 ),
             ));
         };
+        let prepared_identity = match self.identity.prepare_mutation(None) {
+            Ok(prepared) => prepared,
+            Err(error) => return Err((metadata, checkpoint, error)),
+        };
         let Some(engine_metadata) = metadata.bridge_clone() else {
             return Err((
                 metadata,
@@ -59,6 +63,7 @@ impl<'producer> TransactionEngine<'producer> {
             capture,
         ) {
             Ok(accepted) => {
+                self.identity.commit_mutation(prepared_identity);
                 let wake_failed = accepted.wake_failed();
                 Ok(TransactionOffsetsEngine {
                     inner: accepted.into_observer(),

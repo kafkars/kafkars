@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{TransactionSequenceLease, TransactionalProducerIdentity};
+use kafka_client_core::{
+    TransactionSequenceLease, TransactionalProducerIdentity, partitioning::TopicMetadataGeneration,
+};
 
 use super::{MaterializationRecord, TransactionalMaterializationBatch};
 
@@ -17,12 +19,32 @@ impl TransactionalMaterializationBatch {
     ) -> Self {
         Self {
             topic: topic.into(),
+            expected_topic_uuid: None,
+            validated_topic_generation: None,
             partition,
             records,
             max_batch_bytes,
             identity,
             sequence,
         }
+    }
+
+    pub(crate) const fn with_expected_topic_identity(
+        mut self,
+        expected_topic_uuid: Option<[u8; 16]>,
+        validated_topic_generation: Option<TopicMetadataGeneration>,
+    ) -> Self {
+        self.expected_topic_uuid = expected_topic_uuid;
+        self.validated_topic_generation = validated_topic_generation;
+        self
+    }
+
+    pub(crate) const fn expected_topic_uuid(&self) -> Option<[u8; 16]> {
+        self.expected_topic_uuid
+    }
+
+    pub(crate) const fn validated_topic_generation(&self) -> Option<TopicMetadataGeneration> {
+        self.validated_topic_generation
     }
 
     /// Borrows the exact name used by partition enrollment and Produce routing.

@@ -1,13 +1,9 @@
 //! Synchronized single owner and domain-neutral wake adaptation.
-
+mod preflight;
 use std::sync::{
     Arc, Mutex, MutexGuard, TryLockError,
     atomic::{AtomicBool, Ordering},
     mpsc::{SyncSender, TrySendError},
-};
-
-use kafka_client_core::{
-    TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal, TransactionalOwnerId,
 };
 
 use crate::{
@@ -18,6 +14,9 @@ use crate::{
     transaction::send::{
         TransactionSendAccepted as InternalTransactionSendAccepted, TransactionSendInput,
     },
+};
+use kafka_client_core::{
+    TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal, TransactionalOwnerId,
 };
 
 use super::{
