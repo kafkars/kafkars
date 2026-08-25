@@ -126,7 +126,7 @@ pub(crate) struct GroupConsumerRecord<'batch> {
     inner: EngineRecord<'batch>,
 }
 
-impl GroupConsumerRecord<'_> {
+impl<'batch> GroupConsumerRecord<'batch> {
     pub(crate) fn topic(&self) -> &str {
         self.inner.topic()
     }
@@ -151,7 +151,9 @@ impl GroupConsumerRecord<'_> {
         self.inner.value()
     }
 
-    pub(crate) fn headers(&self) -> impl ExactSizeIterator<Item = GroupConsumerHeader<'_>> {
+    pub(crate) fn headers(
+        &self,
+    ) -> impl ExactSizeIterator<Item = GroupConsumerHeader<'batch>> + '_ {
         self.inner
             .headers()
             .map(|inner| GroupConsumerHeader { inner })
@@ -164,12 +166,12 @@ pub(crate) struct GroupConsumerHeader<'record> {
     inner: EngineHeader<'record>,
 }
 
-impl GroupConsumerHeader<'_> {
-    pub(crate) fn key(&self) -> &[u8] {
+impl<'record> GroupConsumerHeader<'record> {
+    pub(crate) fn key(&self) -> &'record [u8] {
         self.inner.key()
     }
 
-    pub(crate) fn value(&self) -> Option<&[u8]> {
+    pub(crate) fn value(&self) -> Option<&'record [u8]> {
         self.inner.value()
     }
 }

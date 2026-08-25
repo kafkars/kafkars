@@ -98,7 +98,7 @@ impl AssignedConsumerOwnedRecord {
     }
 
     /// Returns duplicate-preserving borrowed headers in broker order.
-    pub fn headers(&self) -> impl ExactSizeIterator<Item = AssignedConsumerHeader<'_>> {
+    pub fn headers(&self) -> impl ExactSizeIterator<Item = AssignedConsumerHeader<'_>> + '_ {
         self.record()
             .headers
             .iter()

@@ -87,7 +87,7 @@ pub(crate) struct ShareConsumerRecord<'batch> {
     inner: EngineRecord<'batch>,
 }
 
-impl ShareConsumerRecord<'_> {
+impl<'batch> ShareConsumerRecord<'batch> {
     pub(crate) fn topic(&self) -> &str {
         self.inner.topic()
     }
@@ -120,7 +120,9 @@ impl ShareConsumerRecord<'_> {
         self.inner.value()
     }
 
-    pub(crate) fn headers(&self) -> impl ExactSizeIterator<Item = ShareConsumerHeader<'_>> {
+    pub(crate) fn headers(
+        &self,
+    ) -> impl ExactSizeIterator<Item = ShareConsumerHeader<'batch>> + '_ {
         self.inner
             .headers()
             .map(|inner| ShareConsumerHeader { inner })
@@ -133,12 +135,12 @@ pub(crate) struct ShareConsumerHeader<'record> {
     inner: EngineHeader<'record>,
 }
 
-impl ShareConsumerHeader<'_> {
-    pub(crate) fn key(&self) -> &[u8] {
+impl<'record> ShareConsumerHeader<'record> {
+    pub(crate) fn key(&self) -> &'record [u8] {
         self.inner.key()
     }
 
-    pub(crate) fn value(&self) -> Option<&[u8]> {
+    pub(crate) fn value(&self) -> Option<&'record [u8]> {
         self.inner.value()
     }
 }

@@ -45,6 +45,24 @@ fn owned_records_are_send_linear_capabilities() {
 }
 
 #[test]
+fn owned_header_parts_borrow_the_record_instead_of_iterator_items() {
+    type HeaderParts<'record> = (&'record [u8], Option<&'record [u8]>);
+    type HeaderCollector =
+        for<'record> fn(&'record AssignedConsumerOwnedRecord) -> Vec<HeaderParts<'record>>;
+
+    fn collect(record: &AssignedConsumerOwnedRecord) -> Vec<HeaderParts<'_>> {
+        record
+            .headers()
+            .map(|header| (header.key(), header.value()))
+            .collect()
+    }
+
+    fn require_collection(_collect: HeaderCollector) {}
+
+    require_collection(collect);
+}
+
+#[test]
 fn shared_source_owner_keeps_close_pending_after_the_original_record_drops() {
     let (owner, port, _wake) = setup();
     let (slot, _closer) = AssignedConsumerClaimSlot::create_for_engine(port);

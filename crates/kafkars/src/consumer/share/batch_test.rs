@@ -21,6 +21,9 @@ macro_rules! assert_not_impl {
 
 #[test]
 fn share_batch_is_send_linear_and_exposes_borrowed_record_facts() {
+    type HeaderParts<'record> = (&'record [u8], Option<&'record [u8]>);
+    type HeaderContract = for<'record> fn(ShareConsumerHeader<'record>) -> HeaderParts<'record>;
+
     fn require_send<T: Send>() {}
     fn batch_contract(batch: &ShareConsumerBatch) {
         let _: usize = batch.len();
@@ -45,6 +48,15 @@ fn share_batch_is_send_linear_and_exposes_borrowed_record_facts() {
         let _: i64 = decision.offset();
         let _: ShareDisposition = decision.disposition();
     }
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "consuming the iterator item proves returned references retain the record lifetime"
+    )]
+    fn retained_header_contract(header: ShareConsumerHeader<'_>) -> HeaderParts<'_> {
+        let key = header.key();
+        let value = header.value();
+        (key, value)
+    }
 
     require_send::<ShareConsumerBatch>();
     assert_not_impl!(ShareConsumerBatch: Clone);
@@ -57,6 +69,7 @@ fn share_batch_is_send_linear_and_exposes_borrowed_record_facts() {
     ) -> Result<ShareAcknowledgement, ShareAcknowledgementBuildError> =
         ShareConsumerBatch::into_acknowledgement;
     let _ = record_contract as fn(&ShareConsumerRecord<'_>);
+    let _: HeaderContract = retained_header_contract;
     require_send::<ShareAcknowledgement>();
     assert_not_impl!(ShareAcknowledgement: Clone);
     assert_not_impl!(ShareAcknowledgement: Copy);

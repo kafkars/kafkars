@@ -68,7 +68,7 @@ impl OwnedConsumerRecord {
     }
 
     /// Returns duplicate-preserving borrowed headers in broker order.
-    pub fn headers(&self) -> impl ExactSizeIterator<Item = OwnedConsumerHeader<'_>> {
+    pub fn headers(&self) -> impl ExactSizeIterator<Item = OwnedConsumerHeader<'_>> + '_ {
         self.inner.headers().map(OwnedConsumerHeader::from_bridge)
     }
 
@@ -143,7 +143,7 @@ impl RetainedSourceRecord {
     }
 
     /// Returns duplicate-preserving borrowed headers in broker order.
-    pub fn headers(&self) -> impl ExactSizeIterator<Item = OwnedConsumerHeader<'_>> {
+    pub fn headers(&self) -> impl ExactSizeIterator<Item = OwnedConsumerHeader<'_>> + '_ {
         self.inner.headers()
     }
 }
@@ -207,12 +207,12 @@ impl<'record> OwnedConsumerHeader<'record> {
     }
 
     /// Returns validated UTF-8 header-name bytes.
-    pub fn key(&self) -> &[u8] {
+    pub fn key(&self) -> &'record [u8] {
         self.inner.key()
     }
 
     /// Returns the nullable value without conflating null and empty bytes.
-    pub fn value(&self) -> Option<&[u8]> {
+    pub fn value(&self) -> Option<&'record [u8]> {
         self.inner.value()
     }
 }

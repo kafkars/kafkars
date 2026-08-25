@@ -101,7 +101,9 @@ impl AssignedConsumerOwnedRecord {
         self.inner.value()
     }
 
-    pub(crate) fn headers(&self) -> impl ExactSizeIterator<Item = AssignedConsumerOwnedHeader<'_>> {
+    pub(crate) fn headers(
+        &self,
+    ) -> impl ExactSizeIterator<Item = AssignedConsumerOwnedHeader<'_>> + '_ {
         self.inner
             .headers()
             .map(|inner| AssignedConsumerOwnedHeader { inner })
@@ -173,12 +175,12 @@ pub(crate) struct AssignedConsumerOwnedHeader<'record> {
     inner: EngineHeader<'record>,
 }
 
-impl AssignedConsumerOwnedHeader<'_> {
-    pub(crate) fn key(&self) -> &[u8] {
+impl<'record> AssignedConsumerOwnedHeader<'record> {
+    pub(crate) fn key(&self) -> &'record [u8] {
         self.inner.key()
     }
 
-    pub(crate) fn value(&self) -> Option<&[u8]> {
+    pub(crate) fn value(&self) -> Option<&'record [u8]> {
         self.inner.value()
     }
 

@@ -6,6 +6,9 @@ use super::{AssignedConsumerHeader, AssignedConsumerRecord, AssignedConsumerReco
 
 #[test]
 fn record_views_borrow_bytes_and_preserve_nullable_header_access() {
+    type HeaderParts<'record> = (&'record [u8], Option<&'record [u8]>);
+    type HeaderContract = for<'record> fn(AssignedConsumerHeader<'record>) -> HeaderParts<'record>;
+
     fn record_contract(record: &AssignedConsumerRecord<'_>) {
         let _: &str = record.topic();
         let _: i32 = record.partition();
@@ -21,6 +24,16 @@ fn record_views_borrow_bytes_and_preserve_nullable_header_access() {
         let _: Option<&[u8]> = header.value();
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "consuming the iterator item proves returned references retain the record lifetime"
+    )]
+    fn retained_header_contract(header: AssignedConsumerHeader<'_>) -> HeaderParts<'_> {
+        let key = header.key();
+        let value = header.value();
+        (key, value)
+    }
+
     fn shared_header_contract(header: AssignedConsumerHeader<'_>) -> (Bytes, Option<Bytes>) {
         header.into_shared_parts()
     }
@@ -31,6 +44,7 @@ fn record_views_borrow_bytes_and_preserve_nullable_header_access() {
 
     let _ = record_contract as fn(&AssignedConsumerRecord<'_>);
     let _ = header_contract as fn(&AssignedConsumerHeader<'_>);
+    let _: HeaderContract = retained_header_contract;
     let _ = shared_header_contract as fn(AssignedConsumerHeader<'_>) -> (Bytes, Option<Bytes>);
     let _ = iterator_contract as fn(AssignedConsumerRecords<'_>);
 }

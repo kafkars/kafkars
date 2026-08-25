@@ -22,8 +22,25 @@ macro_rules! assert_not_impl {
     };
 }
 
+struct HeaderRef<'record> {
+    _key: &'record [u8],
+    _value: Option<&'record [u8]>,
+}
+
+impl<'record> HeaderRef<'record> {
+    const fn new(key: &'record [u8], value: Option<&'record [u8]>) -> Self {
+        Self {
+            _key: key,
+            _value: value,
+        }
+    }
+}
+
 #[test]
 fn owned_record_path_is_fallible_send_linear_and_exposes_only_borrowed_bytes() {
+    type HeaderCollector =
+        for<'record> fn(&'record RetainedSourceRecord) -> Vec<HeaderRef<'record>>;
+
     fn require_send<T: Send>() {}
     fn require_error<T: std::error::Error + Send>() {}
     fn record_contract(record: &OwnedConsumerRecord) {
@@ -55,6 +72,13 @@ fn owned_record_path_is_fallible_send_linear_and_exposes_only_borrowed_bytes() {
         let _: &str = rejection.target_topic();
         let _: (OwnedConsumerRecord, Arc<str>) = rejection.into_parts();
     }
+    fn collect_retained_headers(record: &RetainedSourceRecord) -> Vec<HeaderRef<'_>> {
+        let mut headers = Vec::new();
+        for header in record.headers() {
+            headers.push(HeaderRef::new(header.key(), header.value()));
+        }
+        headers
+    }
 
     require_send::<OwnedConsumerRecords>();
     require_send::<OwnedConsumerRecord>();
@@ -75,4 +99,5 @@ fn owned_record_path_is_fallible_send_linear_and_exposes_only_borrowed_bytes() {
             Arc<str>,
         ) -> Result<(Record, RetainedSourceRecord), TransferRejection>;
     let _ = rejection_contract as fn(TransferRejection);
+    let _: HeaderCollector = collect_retained_headers;
 }

@@ -1,6 +1,6 @@
 //! Public share batch record views and linear ownership contracts.
 
-use super::ShareConsumerBatch;
+use super::{ShareConsumerBatch, ShareConsumerHeader};
 use crate::consumer::share::registry_delivery_test::{finish, staged_handle};
 
 macro_rules! assert_not_impl {
@@ -48,4 +48,22 @@ fn batch_is_unique_send_ownership_with_borrowed_acquisition_views() {
     assert_eq!(record.acquisition().range().first_offset(), 41);
     drop(batch);
     finish(owner, group_id);
+}
+
+#[test]
+fn header_parts_retain_the_record_lifetime_after_the_view_is_consumed() {
+    type HeaderParts<'record> = (&'record [u8], Option<&'record [u8]>);
+    type HeaderContract = for<'record> fn(ShareConsumerHeader<'record>) -> HeaderParts<'record>;
+
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "consuming the iterator item proves returned references retain the record lifetime"
+    )]
+    fn consume(header: ShareConsumerHeader<'_>) -> HeaderParts<'_> {
+        let key = header.key();
+        let value = header.value();
+        (key, value)
+    }
+
+    let _: HeaderContract = consume;
 }

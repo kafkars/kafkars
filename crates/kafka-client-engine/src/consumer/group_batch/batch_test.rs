@@ -2,7 +2,10 @@
 
 use std::{sync::mpsc::sync_channel, thread, time::Duration};
 
-use super::{GroupConsumerBatch, GroupConsumerCheckpoint, test_support::GroupBatchFixture};
+use super::{
+    GroupConsumerBatch, GroupConsumerCheckpoint, GroupConsumerHeader,
+    test_support::GroupBatchFixture,
+};
 use crate::consumer::group::group_fetch_unsettled_for_public_test;
 
 macro_rules! assert_not_impl {
@@ -26,6 +29,24 @@ fn batch_is_linear_send_ownership() {
     require_send::<GroupConsumerCheckpoint>();
     assert_not_impl!(GroupConsumerBatch: Clone);
     assert_not_impl!(GroupConsumerCheckpoint: Clone);
+}
+
+#[test]
+fn header_parts_retain_the_record_lifetime_after_the_view_is_consumed() {
+    type HeaderParts<'record> = (&'record [u8], Option<&'record [u8]>);
+    type HeaderContract = for<'record> fn(GroupConsumerHeader<'record>) -> HeaderParts<'record>;
+
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "consuming the iterator item proves returned references retain the record lifetime"
+    )]
+    fn consume(header: GroupConsumerHeader<'_>) -> HeaderParts<'_> {
+        let key = header.key();
+        let value = header.value();
+        (key, value)
+    }
+
+    let _: HeaderContract = consume;
 }
 
 #[test]

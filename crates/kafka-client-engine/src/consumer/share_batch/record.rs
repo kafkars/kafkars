@@ -88,7 +88,7 @@ pub struct ShareConsumerRecord<'batch> {
     record: &'batch FetchRecord,
 }
 
-impl ShareConsumerRecord<'_> {
+impl<'batch> ShareConsumerRecord<'batch> {
     /// Returns the retained Kafka topic name.
     pub fn topic(&self) -> &str {
         self.partition.topic()
@@ -146,7 +146,7 @@ impl ShareConsumerRecord<'_> {
     }
 
     /// Returns duplicate-preserving headers in broker order.
-    pub fn headers(&self) -> impl ExactSizeIterator<Item = ShareConsumerHeader<'_>> {
+    pub fn headers(&self) -> impl ExactSizeIterator<Item = ShareConsumerHeader<'batch>> + '_ {
         self.record
             .headers
             .iter()
@@ -185,14 +185,14 @@ pub struct ShareConsumerHeader<'record> {
     header: &'record FetchHeader,
 }
 
-impl ShareConsumerHeader<'_> {
+impl<'record> ShareConsumerHeader<'record> {
     /// Returns the header key bytes.
-    pub fn key(&self) -> &[u8] {
+    pub fn key(&self) -> &'record [u8] {
         &self.header.key
     }
 
     /// Returns the nullable header value bytes.
-    pub fn value(&self) -> Option<&[u8]> {
+    pub fn value(&self) -> Option<&'record [u8]> {
         self.header.value.as_deref()
     }
 }

@@ -89,7 +89,7 @@ pub(crate) struct AssignedConsumerRecord<'batch> {
     inner: EngineRecord<'batch>,
 }
 
-impl AssignedConsumerRecord<'_> {
+impl<'batch> AssignedConsumerRecord<'batch> {
     pub(crate) fn topic(&self) -> &str {
         self.inner.topic()
     }
@@ -114,7 +114,9 @@ impl AssignedConsumerRecord<'_> {
         self.inner.value()
     }
 
-    pub(crate) fn headers(&self) -> impl ExactSizeIterator<Item = AssignedConsumerHeader<'_>> {
+    pub(crate) fn headers(
+        &self,
+    ) -> impl ExactSizeIterator<Item = AssignedConsumerHeader<'batch>> + '_ {
         self.inner
             .headers()
             .map(|inner| AssignedConsumerHeader { inner })
@@ -127,12 +129,12 @@ pub(crate) struct AssignedConsumerHeader<'record> {
     inner: EngineHeader<'record>,
 }
 
-impl AssignedConsumerHeader<'_> {
-    pub(crate) fn key(&self) -> &[u8] {
+impl<'record> AssignedConsumerHeader<'record> {
+    pub(crate) fn key(&self) -> &'record [u8] {
         self.inner.key()
     }
 
-    pub(crate) fn value(&self) -> Option<&[u8]> {
+    pub(crate) fn value(&self) -> Option<&'record [u8]> {
         self.inner.value()
     }
 }

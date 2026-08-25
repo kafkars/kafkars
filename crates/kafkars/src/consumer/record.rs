@@ -66,7 +66,7 @@ impl<'batch> ConsumerRecord<'batch> {
     }
 
     /// Returns duplicate-preserving borrowed headers in broker order.
-    pub fn headers(&self) -> impl ExactSizeIterator<Item = ConsumerHeader<'_>> {
+    pub fn headers(&self) -> impl ExactSizeIterator<Item = ConsumerHeader<'batch>> + '_ {
         self.inner.headers().map(ConsumerHeader::from_bridge)
     }
 }
@@ -83,12 +83,12 @@ impl<'record> ConsumerHeader<'record> {
     }
 
     /// Returns the header key bytes.
-    pub fn key(&self) -> &[u8] {
+    pub fn key(&self) -> &'record [u8] {
         self.inner.key()
     }
 
     /// Returns the nullable value without conflating null and empty bytes.
-    pub fn value(&self) -> Option<&[u8]> {
+    pub fn value(&self) -> Option<&'record [u8]> {
         self.inner.value()
     }
 }
