@@ -1,9 +1,9 @@
 //! Public incremental direct-assignment admission contract.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use super::{AssignedConsumer, StartPosition, TopicPartition};
-use crate::{Client, ErrorKind};
+use super::{AssignedConsumer, CloseAssignedConsumer, StartPosition, TopicPartition};
+use crate::{Client, ErrorKind, RetryAdvice};
 
 #[test]
 fn incremental_assignment_api_is_synchronous_and_handle_preserving() {
@@ -61,9 +61,7 @@ fn addition_deadline_capture_precedes_input_iteration_and_conversion() {
     assert_eq!(iteration_error.kind(), ErrorKind::Timeout);
     assert_eq!(error.kind(), ErrorKind::Timeout);
 
-    consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit close after rejection: {error}"))
+    close_when_admitted(&mut consumer)
         .wait()
         .unwrap_or_else(|error| panic!("observe close: {error}"));
 }
@@ -85,9 +83,7 @@ fn missing_addition_start_is_configuration_and_preserves_the_handle() {
         .unwrap_or_else(|| panic!("missing start must fail"));
     assert_eq!(error.kind(), ErrorKind::Configuration);
 
-    consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit close after rejection: {error}"))
+    close_when_admitted(&mut consumer)
         .wait()
         .unwrap_or_else(|error| panic!("observe close: {error}"));
 }
@@ -124,9 +120,22 @@ fn empty_deltas_are_inert_without_inventing_an_assignment() {
         .unwrap_or_else(|| panic!("empty deltas must not invent an assignment"));
     assert_eq!(error.kind(), ErrorKind::State);
 
-    consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit close after empty deltas: {error}"))
+    close_when_admitted(&mut consumer)
         .wait()
         .unwrap_or_else(|error| panic!("observe close: {error}"));
+}
+
+fn close_when_admitted(consumer: &mut AssignedConsumer) -> CloseAssignedConsumer {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        match consumer.try_close() {
+            Ok(close) => return close,
+            Err(error)
+                if error.retry_advice() == RetryAdvice::RetrySafe && Instant::now() < deadline =>
+            {
+                std::hint::spin_loop();
+            }
+            Err(error) => panic!("admit assigned-consumer close: {error}"),
+        }
+    }
 }

@@ -22,7 +22,8 @@ fn blocking_wait_reuses_a_result_stored_by_an_earlier_partial_poll() {
     let broker = SilentBroker::start();
     let engine = Engine::start(EngineConfig::new(vec![broker.endpoint()]))
         .unwrap_or_else(|error| panic!("valid local engine should start: {error}"));
-    let second = accepted_delivery(&engine, Duration::from_millis(5), "second");
+    broker.wait_negotiated();
+    let second = accepted_delivery(&engine, Duration::from_millis(200), "second");
     let batch = ProducerBatch::from_partially_polled_test_state(
         Err(crate::KafkaError::new(
             ErrorKind::Timeout,
@@ -30,7 +31,6 @@ fn blocking_wait_reuses_a_result_stored_by_an_earlier_partial_poll() {
         )),
         second,
     );
-    broker.wait_negotiated();
     let result = batch.wait();
 
     assert_eq!(result.deliveries().len(), 2);
