@@ -44,12 +44,30 @@ pub(crate) enum TransactionRecordViewError {
     EmptyTopic,
     NegativeExplicitPartition,
     RetainedSizeOverflow,
+    Allocation,
 }
 
 impl ProducerRecord {
     pub(crate) fn transaction_view(
         &self,
         default_timestamp_ms: i64,
+    ) -> Result<TransactionRecordView, TransactionRecordViewError> {
+        self.transaction_view_with_header_capacity(default_timestamp_ms, self.headers.len())
+    }
+
+    #[cfg(test)]
+    pub(super) fn transaction_view_with_header_capacity_for_test(
+        &self,
+        default_timestamp_ms: i64,
+        header_capacity: usize,
+    ) -> Result<TransactionRecordView, TransactionRecordViewError> {
+        self.transaction_view_with_header_capacity(default_timestamp_ms, header_capacity)
+    }
+
+    fn transaction_view_with_header_capacity(
+        &self,
+        default_timestamp_ms: i64,
+        header_capacity: usize,
     ) -> Result<TransactionRecordView, TransactionRecordViewError> {
         if self.topic.is_empty() {
             return Err(TransactionRecordViewError::EmptyTopic);
@@ -65,13 +83,19 @@ impl ProducerRecord {
             )),
         };
         let source_retained_bytes = self.transaction_retained_bytes()?;
-        let headers = self
-            .headers
-            .iter()
-            .map(|header| {
-                MaterializationHeader::new(header.shared_name_bytes(), header.shared_value())
-            })
-            .collect();
+        if header_capacity < self.headers.len() {
+            return Err(TransactionRecordViewError::Allocation);
+        }
+        let mut headers = Vec::new();
+        headers
+            .try_reserve_exact(header_capacity)
+            .map_err(|_error| TransactionRecordViewError::Allocation)?;
+        for header in &self.headers {
+            headers.push(MaterializationHeader::new(
+                header.shared_name_bytes(),
+                header.shared_value(),
+            ));
+        }
         Ok(TransactionRecordView {
             topic: Arc::clone(&self.topic),
             partition,

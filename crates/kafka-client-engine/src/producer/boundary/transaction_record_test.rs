@@ -5,6 +5,8 @@
     reason = "test assertions intentionally fail immediately when fixture construction is invalid"
 )]
 
+use std::sync::Arc;
+
 use bytes::Bytes;
 use kafka_client_core::PartitionIndex;
 
@@ -88,5 +90,45 @@ fn transactional_view_accepts_automatic_and_rejects_invalid_routes() {
             .transaction_view(1)
             .expect_err("negative explicit partition"),
         TransactionRecordViewError::NegativeExplicitPartition
+    );
+}
+
+#[test]
+fn header_reservation_failure_leaves_the_original_record_untouched() {
+    let key = Bytes::from_static(b"key");
+    let header_name = Bytes::from_static(b"trace");
+    let header_name_pointer = header_name.as_ptr();
+    let header_value = Bytes::from_static(b"value");
+    let source_owner = Arc::new(());
+    let record = ProducerRecord::to("orders")
+        .partition(2)
+        .key(key.clone())
+        .header(
+            ProducerHeader::try_from_shared_name(header_name.clone(), Some(header_value.clone()))
+                .expect("valid shared header name"),
+        )
+        .retain_source_owner(source_owner.clone());
+    let source_owner_count = Arc::strong_count(&source_owner);
+
+    assert_eq!(
+        record
+            .transaction_view_with_header_capacity_for_test(71, usize::MAX)
+            .expect_err("impossible header capacity must reject"),
+        TransactionRecordViewError::Allocation
+    );
+    assert_eq!(record.topic(), "orders");
+    assert_eq!(record.explicit_partition(), Some(2));
+    assert_eq!(
+        record.key_bytes().map(|bytes| bytes.as_ptr()),
+        Some(key.as_ptr())
+    );
+    assert_eq!(record.headers().len(), 1);
+    assert_eq!(Arc::strong_count(&source_owner), source_owner_count);
+    assert_eq!(record.headers()[0].name(), "trace");
+    assert_eq!(record.headers()[0].name().as_ptr(), header_name_pointer);
+    assert_eq!(record.headers()[0].value(), Some(&header_value));
+    assert_eq!(
+        record.headers()[0].value().map(|bytes| bytes.as_ptr()),
+        Some(header_value.as_ptr())
     );
 }

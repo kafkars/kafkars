@@ -4,8 +4,19 @@ use std::{sync::Arc, time::Duration};
 
 use bytes::Bytes;
 
-use super::{TransactionControlErrorKind, TransactionSendAdmissionErrorKind, host_test::Fixture};
-use crate::producer::PublicProducerRecord as ProducerRecord;
+use super::{
+    TransactionControlErrorKind, TransactionSendAdmissionErrorKind, host_test::Fixture,
+    send_admission::record_error_kind,
+};
+use crate::producer::{PublicProducerRecord as ProducerRecord, TransactionRecordViewError};
+
+#[test]
+fn header_allocation_failure_maps_to_allocation_admission() {
+    assert_eq!(
+        record_error_kind(TransactionRecordViewError::Allocation),
+        TransactionSendAdmissionErrorKind::Allocation
+    );
+}
 
 #[test]
 fn zero_timeout_returns_the_exact_original_record_before_validation() {

@@ -163,6 +163,7 @@ pub(super) const fn record_error_kind(
         TransactionRecordViewError::RetainedSizeOverflow => {
             TransactionSendAdmissionErrorKind::RetainedSizeOverflow
         }
+        TransactionRecordViewError::Allocation => TransactionSendAdmissionErrorKind::Allocation,
     }
 }
 

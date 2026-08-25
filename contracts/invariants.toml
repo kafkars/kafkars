@@ -1534,13 +1534,15 @@ evidence = [
 [[invariant]]
 id = "MAT-01"
 title = "Materialization retains canonical records without changing semantics"
-statement = "Materialization preserves record order and nullable fields, creates a separately bounded encoded representation from shared canonical record handles, delegates every codec, RecordBatch layout, and CRC to kafka-wire-records, and retains canonical or worker-reserved accounting until ordered core release effects execute. Facade-to-engine producer and transactional mirrors borrow the untouched original facade record, reserve destination header capacity before cloning shared handles, and preserve topic identity, timestamp, key, value, ordered duplicate headers, nullable values, and upstream source ownership without copying bytes. Rejection discards the mirror and returns the original instead of reconstructing facade state. Producer and transactional views reuse the exact shared validated header-name allocation and do not recreate a per-record name owner."
+statement = "Materialization preserves record order and nullable fields, creates a separately bounded encoded representation from shared canonical record handles, delegates every codec, RecordBatch layout, and CRC to kafka-wire-records, and retains canonical or worker-reserved accounting until ordered core release effects execute. Facade-to-engine producer and transactional mirrors borrow the untouched original facade record, reserve destination header capacity before cloning shared handles, and preserve topic identity, timestamp, key, value, ordered duplicate headers, nullable values, and upstream source ownership without copying bytes. The engine's sequential transactional view also reserves the exact header count fallibly before cloning shared handles and maps failure to allocation admission without consuming the original record. Rejection discards the mirror and returns the original instead of reconstructing facade state. Producer and transactional views reuse the exact shared validated header-name allocation and do not recreate a per-record name owner."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/materialization_test.rs::ordered_records_null_empty_and_duplicate_headers_survive_transfer",
   "crates/kafka-client-engine/src/producer/materialization_test.rs::encoding_failure_keeps_accounting_until_ordered_release_effects",
   "crates/kafka-client-engine/src/producer/materialization_retention_test.rs::materialization_view_keeps_canonical_record_owned_until_terminal_release",
   "crates/kafka-client-engine/src/producer/boundary/transaction_record_test.rs::transactional_view_preserves_one_explicit_route_and_materialization_view",
+  "crates/kafka-client-engine/src/producer/boundary/transaction_record_test.rs::header_reservation_failure_leaves_the_original_record_untouched",
+  "crates/kafka-client-engine/src/transaction/initialization/owner_send_test.rs::header_allocation_failure_maps_to_allocation_admission",
   "crates/kafkars/src/bridge/producer/conversion_test.rs::prepared_mirror_preserves_original_and_shared_record_owners",
   "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::semantic_encoding_failure_returns_exact_attempt_to_ready",
   "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::prepared_capacity_failure_returns_exact_attempt_to_ready",
