@@ -21,16 +21,20 @@ real-broker evidence and separate release authorization.
 
 ## Runtime surface
 
+The qualification column below describes configured release-tier scenario
+scope, not a result. Only an archived passing verdict for the exact client
+commit and cell is eligible evidence for a compatibility claim.
+
 | Area | Source status | Qualification status |
 | --- | --- | --- |
 | Rust facade | Concrete runtime-neutral builders, futures, blocking observation, and error vocabulary | Unit-tested; no stable API promise |
-| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
-| Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
-| Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
-| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Eligible for Testlab qualification; no archived passing gating evidence |
-| Share-group consumer | Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Source-complete and awaiting Testlab completion scenarios; no archived passing gating evidence |
-| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | Eligible for Testlab qualification; no archived passing gating evidence |
-| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | Eligible for Testlab qualification; no archived passing gating evidence |
+| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | Configured round-trip, partition-routing, batch, broker-restart, and rolling-restart scenarios |
+| Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | Configured assigned-consumer round-trip scenario |
+| Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | Configured classic-group round-trip and broker-restart scenarios |
+| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Configured consumer-protocol group round-trip scenario in applicable Kafka 4.x cells |
+| Share-group consumer | Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Configured lifecycle, membership-ownership, close-uncertainty, leader-recovery, and session-recovery scenarios in their applicable Kafka 4.x cells |
+| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | Configured create-topic, create-partitions, describe-topic, list-topics, list-offsets, and list-consumer-group-offsets scenarios |
+| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | Configured commit-and-abort and fencing scenarios |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
 | Foreign bindings | Not included | No ABI or compatibility promise |
 
@@ -52,23 +56,50 @@ evidence sealing, aggregation, and deterministic verdicts. Kafkars owns the
 GitHub triggers, selects pull-request or release qualification, archives the
 returned evidence, and applies the required gate.
 
-Only archived passing evidence from the applicable gating Testlab run can
-establish a support claim. A Testlab `Failed` verdict blocks the claim and may
+Only archived passing evidence from the applicable gating Testlab run is
+eligible evidence for a support claim, which additionally requires explicit
+release authorization. A Testlab `Failed` verdict blocks the claim and may
 identify a client defect. An `Invalid` verdict means the run did not constitute
-valid qualification and also blocks release. Until passing evidence exists,
-compatibility reports should include the exact broker distribution and version
-without describing either as supported.
+valid qualification and also blocks release. Compatibility reports must cite
+the exact client commit, broker distribution and version, topology, security
+configuration, scenario scope, and archived gating verdict without widening
+that evidence into a production-support claim.
+
+### Configured release-tier cells
+
+The release tier pinned by this repository at Testlab revision
+`54ad151fd151e352e1fde8851b214493042878ef` defines the following gating cells.
+This table records configuration only. The archived qualification artifact is
+the authority for whether any cell passed, failed, or was invalid.
+
+| Cell ID | Broker | Topology and security | Configured pack | Attempts |
+| --- | --- | --- | --- | ---: |
+| `apache-kafka-4-3-1-plaintext` | Apache Kafka 4.3.1 | Single broker, plaintext | `kafkars-share-release` | 3 |
+| `apache-kafka-4-2-1-plaintext` | Apache Kafka 4.2.1 | Single broker, plaintext | `kafkars-share-release` | 1 |
+| `apache-kafka-4-1-2-plaintext` | Apache Kafka 4.1.2 | Single broker, plaintext | `kafkars-share-release` | 1 |
+| `apache-kafka-4-0-2-plaintext` | Apache Kafka 4.0.2 | Single broker, plaintext | `kafkars-release` | 1 |
+| `apache-kafka-3-9-2-plaintext` | Apache Kafka 3.9.2 | Single broker, plaintext | `kafkars-classic` | 1 |
+| `apache-kafka-3-8-1-plaintext` | Apache Kafka 3.8.1 | Single broker, plaintext | `kafkars-classic` | 1 |
+| `apache-kafka-3-7-2-plaintext` | Apache Kafka 3.7.2 | Single broker, plaintext | `kafkars-classic` | 1 |
+| `apache-kafka-4-3-1-three-tls` | Apache Kafka 4.3.1 | Three brokers, custom-root TLS without SASL | `kafkars-three-broker-security` | 1 |
+| `apache-kafka-4-3-1-three-sasl-plain` | Apache Kafka 4.3.1 | Three brokers, plaintext with SASL/PLAIN | `kafkars-three-broker-security` | 1 |
+| `apache-kafka-4-3-1-three-scram-sha-256` | Apache Kafka 4.3.1 | Three brokers, plaintext with SCRAM-SHA-256 | `kafkars-three-broker-security` | 1 |
+| `apache-kafka-4-3-1-three-scram-sha-512` | Apache Kafka 4.3.1 | Three brokers, plaintext with SCRAM-SHA-512 | `kafkars-three-broker-security` | 1 |
+| `apache-kafka-4-3-1-three-plaintext` | Apache Kafka 4.3.1 | Three brokers, plaintext without SASL | `kafkars-three-broker-share` | 1 |
 
 ## Transport and authentication
 
 | Configuration | Code path | Real-broker qualification |
 | --- | --- | --- |
-| Plain TCP without SASL | Present and the default | No archived passing Testlab release evidence |
-| TLS with platform roots | Present | No archived passing Testlab release evidence |
-| TLS with a custom PEM root bundle | Present | No archived passing Testlab release evidence |
-| SASL/PLAIN over plain TCP or custom-root TLS | Present | No archived passing Testlab release evidence |
-| SCRAM-SHA-256 over plain TCP or custom-root TLS | Present | No archived passing Testlab release evidence |
-| SCRAM-SHA-512 over plain TCP or custom-root TLS | Present | No archived passing Testlab release evidence |
+| Plain TCP without SASL | Present and the default | Configured for single-broker Kafka 3.7.2, 3.8.1, 3.9.2, 4.0.2, 4.1.2, 4.2.1, and 4.3.1 plus one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
+| TLS with platform roots | Present | Not configured in the release tier |
+| TLS with a custom PEM root bundle | Present | Configured without SASL for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
+| SASL/PLAIN over plain TCP | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
+| SASL/PLAIN over custom-root TLS | Present | Not configured in the release tier |
+| SCRAM-SHA-256 over plain TCP | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
+| SCRAM-SHA-256 over custom-root TLS | Present | Not configured in the release tier |
+| SCRAM-SHA-512 over plain TCP | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
+| SCRAM-SHA-512 over custom-root TLS | Present | Not configured in the release tier |
 | Mutual TLS client certificates | Not exposed | Unsupported |
 | SASL/OAUTHBEARER | Not exposed | Unsupported |
 | SASL/GSSAPI or Kerberos | Not exposed | Unsupported |
@@ -111,7 +142,8 @@ back to bounded metadata refresh, and `UNKNOWN_LEADER_EPOCH` retries the
 established broker route without carrying the rejected epoch. The qualification
 matrix includes in-process direct and classic-group recovery across broker
 leader movement. This is source and qualification-scenario coverage, not a
-production support promise without archived passing cells.
+production-support promise; any compatibility statement remains limited to
+exact archived passing cells and separate support authorization.
 
 ### Foreign interfaces
 

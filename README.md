@@ -20,9 +20,14 @@ admin, transaction, metrics, security, and shutdown APIs. There is no stable
 API promise. External [Testlab](https://github.com/kafkars/testlab) is the Kafka
 real-broker qualification authority; this repository chooses pull-request or
 release qualification, retains the resulting evidence, and applies the required
-gate. No archived passing Testlab evidence has yet established a supported
-broker cell. This preview is Rust-only; a future foreign interface will require
-its own versioned contract and qualification.
+gate. The pinned release tier defines single-broker plaintext cells for Apache
+Kafka 3.7.2, 3.8.1, 3.9.2, 4.0.2, 4.1.2, 4.2.1, and 4.3.1, plus Apache Kafka
+4.3.1 three-broker plaintext, custom-root TLS, SASL/PLAIN, and
+SCRAM-SHA-256/512 cells. A configured cell or running workflow is not a
+qualification result; only archived passing evidence for the exact client
+commit and cell is eligible for a compatibility claim. This preview is
+Rust-only; a future foreign interface will require its own versioned contract
+and qualification.
 See [support and compatibility](SUPPORT.md) for the exact boundary.
 
 ## Use
@@ -84,14 +89,15 @@ local paths, Git dependencies, alternate registries, aliases, and manifest
 
 ## Known limitations
 
-- No Kafka version or security combination is release-supported yet.
+- This RC makes no production-support claim for any Kafka version or security
+  combination.
 - Mutual TLS, SASL/OAUTHBEARER, and SASL/GSSAPI are not exposed.
 - This cut is Rust-only and has no stable foreign ABI or language bindings.
 
 The reviewed driver integration now projects exact broker routes, Kafka topic
 UUIDs, and configured client IDs. These contracts have loopback integration
-evidence, but remain outside any broker-compatibility claim until the
-corresponding gating Testlab qualification produces passing archived evidence.
+evidence. Any broker-compatibility claim for them must remain limited to exact
+archived passing Testlab cells; configured or local evidence is insufficient.
 
 ## License
 
