@@ -170,7 +170,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/engine_host/admin/schedule.rs", lines = 451, reason = "the fair Admin scheduler drives every bounded source-preview operation once per fresh-time host cycle" },
   { path = "crates/kafka-client-engine/src/engine_host/error/host_display.rs", lines = 473, reason = "the host error formatter preserves every concrete source-preview Admin invariant identity while completion and receive-notifier wording lives in the focused consumer owner" },
   { path = "crates/kafka-client-engine/src/engine_host/recovery.rs", lines = 244, reason = "the top-level recovery dispatcher keeps exact producer, consumer, transaction, and Admin ownership routing exhaustive" },
-  { path = "crates/kafka-client-engine/src/engine_host/start.rs", lines = 505, reason = "host startup explicitly constructs every bounded source-preview operation owner and transfers its exact admission port" },
+  { path = "crates/kafka-client-engine/src/engine_host/start.rs", lines = 484, reason = "host startup explicitly constructs every bounded source-preview operation owner and transfers its exact admission port" },
   { path = "crates/kafka-client-engine/src/producer/host.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/producer/mod.rs", lines = 85, reason = "the declarative producer host facade names bounded waiting, automatic partition resolution, and their evidence surface" },
   { path = "crates/kafka-client-engine/src/protocol/admin/alter_replica_log_dirs/request.rs", lines = 286, reason = "the destructive request seam validates bounded assignments and groups caller intent into generated directory and topic ownership without transport policy" },
@@ -207,7 +207,6 @@ allow = [
   { path = "crates/kafka-client-core/src/admin/exports.rs", reason = "the explicit deterministic Admin export table names the complete source-preview policy vocabulary; splitting it is a facade-only follow-up after the preview surface settles", owner = "client-architecture", issue = "rust-beta-core-admin-exports-split" },
   { path = "crates/kafka-client-engine/src/driver/rpc.rs", reason = "the explicit driver RPC facade names every concrete source-preview tracked lane, including ShareGroupHeartbeat; splitting the declaration table is a separate driver-wide shape change", owner = "client-architecture", issue = "rust-beta-driver-rpc-facade-split" },
   { path = "crates/kafka-client-engine/src/admin/public_api.rs", reason = "the declarative Admin export surface remains explicit across the complete source-preview vocabulary; splitting the shared reexport table is a separate facade-only change", owner = "client-architecture", issue = "rust-beta-admin-public-api-split" },
-  { path = "crates/kafka-client-engine/src/engine_host/start.rs", reason = "the composition root explicitly constructs every bounded source-preview owner and transfers exact ports; a further startup split is separate from operation implementation", owner = "client-architecture", issue = "rust-beta-engine-start-split" },
 ]
 
 [budgets.facade]

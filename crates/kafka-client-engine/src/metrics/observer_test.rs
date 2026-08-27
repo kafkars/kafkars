@@ -1,15 +1,31 @@
 //! Operational-metrics observation through the live embedded host.
 
-use crate::{Engine, EngineConfig};
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
+
+use crate::{Engine, EngineConfig, EngineMetricsAdmissionErrorKind};
 
 #[test]
 fn live_engine_returns_one_bounded_metrics_snapshot() {
     let engine = Engine::start(EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("start engine: {error}"));
 
-    let snapshot = engine
-        .metrics()
-        .unwrap_or_else(|error| panic!("admit metrics: {error}"))
+    let admission_deadline = Instant::now() + Duration::from_secs(2);
+    let observer = loop {
+        match engine.metrics() {
+            Ok(observer) => break observer,
+            Err(error)
+                if error.kind() == EngineMetricsAdmissionErrorKind::Capacity
+                    && Instant::now() < admission_deadline =>
+            {
+                thread::yield_now();
+            }
+            Err(error) => panic!("admit metrics: {error}"),
+        }
+    };
+    let snapshot = observer
         .wait()
         .unwrap_or_else(|error| panic!("observe metrics: {error}"));
 

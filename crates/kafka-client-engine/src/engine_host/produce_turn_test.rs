@@ -138,11 +138,7 @@ fn completion_polling_waits_without_consuming_when_the_shard_is_contended() {
         )
         .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"))
         .confirm_receipt();
-    for turn in 0..64 {
-        driver
-            .turn(Duration::from_millis(10))
-            .unwrap_or_else(|error| panic!("driver turn {turn}: {error}"));
-    }
+    drive_until_produce_completion(&mut driver, &mut calls, Moment::from_tick(1));
     let guard = producer
         .try_data()
         .unwrap_or_else(|error| panic!("acquire producer shard: {error:?}"));
@@ -195,29 +191,22 @@ fn terminal_fact_is_applied_before_the_tracked_slot_is_released() {
         .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"));
     }
 
-    let mut settled = false;
-    for turn in 0..256 {
-        driver
-            .turn(Duration::from_millis(10))
-            .unwrap_or_else(|error| panic!("driver turn {turn}: {error}"));
-        let mut data = producer
-            .try_data()
-            .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
-        if apply_ready(
+    drive_until_produce_completion(&mut driver, &mut calls, Moment::from_tick(500_000_000));
+    let mut data = producer
+        .try_data()
+        .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
+    assert!(
+        apply_ready(
             &driver,
             &mut calls,
             &mut data,
             Moment::from_tick(500_000_000),
             1,
         )
-        .unwrap_or_else(|error| panic!("apply Produce terminal: {error}"))
-        {
-            settled = true;
-            break;
-        }
-    }
-
-    assert!(settled, "bounded driver turns must settle the tracked call");
+        .unwrap_or_else(|error| panic!("apply Produce terminal: {error}")),
+        "ready terminal must settle the tracked call",
+    );
+    drop(data);
     let Err(ProducerDeliveryError::Failed(failure)) = observer.wait() else {
         panic!("unreachable broker must publish one driver-owned failure")
     };
@@ -244,6 +233,32 @@ fn materialized() -> crate::protocol::produce::MaterializedProduce {
     .unwrap_or_else(|| panic!("test materialization batch must be representable"));
     materialize_explicit_produce_batch(batch)
         .unwrap_or_else(|error| panic!("materialize Produce request: {error}"))
+}
+
+fn drive_until_produce_completion(
+    driver: &mut DriverOwner,
+    calls: &mut TrackedProduceCalls,
+    now: Moment,
+) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let mut turns = 0_usize;
+    loop {
+        driver
+            .turn(Duration::from_millis(10))
+            .unwrap_or_else(|error| panic!("driver turn {turns}: {error}"));
+        turns = turns.saturating_add(1);
+        if calls
+            .poll_next_ready(now)
+            .unwrap_or_else(|error| panic!("poll Produce completion: {error}"))
+            .is_some()
+        {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "driver must settle the tracked call before the wall-clock bound",
+        );
+    }
 }
 
 fn driver() -> DriverOwner {

@@ -76,5 +76,5 @@ pub use error::{
 };
 pub(crate) use lifecycle::EngineLifecycle;
 pub(crate) use runner::{EngineHostExit, EngineHostResources, run};
-pub(crate) use start::start;
 pub(crate) use start_handoff::StartedEngineHost;
+pub(crate) use thread_start::start;

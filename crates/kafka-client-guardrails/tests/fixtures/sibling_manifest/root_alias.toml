@@ -2,8 +2,8 @@
 members = ["crates/kafka-client-engine"]
 
 [workspace.dependencies]
-driver-alias = { package = "kafka-driver", version = "=0.1.0-rc.2" }
-kafka-driver = "=0.1.0-rc.2"
+driver-alias = { package = "kafka-driver", version = "=0.1.0-rc.3" }
+kafka-driver = "=0.1.0-rc.3"
 kafka-wire = "=0.1.0-rc.3"
 kafka-wire-core = "=0.1.0-rc.3"
 kafka-wire-records = "=0.1.0-rc.3"

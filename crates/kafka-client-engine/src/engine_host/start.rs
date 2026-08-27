@@ -8,10 +8,7 @@ mod share_group_offsets;
 use super::{
     EngineHostControl, EngineHostResources, EngineLifecycle, EngineStartError,
     alter_consumer_group_offsets_start, assigned_consumer_start, describe_configs_start,
-    finalize::finish_host,
-    notifier_start,
-    start_handoff::{StartedEngineHost, cancel_start, join_cancelled},
-    thread_start, transaction_start,
+    notifier_start, start_handoff::StartedEngineHost, transaction_start,
 };
 use crate::{
     EngineConfig,
@@ -45,29 +42,20 @@ use crate::{
 use std::sync::Arc;
 
 #[allow(clippy::too_many_lines)]
-pub(crate) fn start(
+pub(super) fn prepare(
     config: &EngineConfig,
     validated: ValidatedEngineConfig,
-) -> Result<StartedEngineHost, EngineStartError> {
-    let lifecycle = Arc::new(EngineLifecycle::new());
-    let (sender, handle) = thread_start::start(&lifecycle)?;
-    let driver = match DriverOwner::build_with_security(config, validated.security) {
-        Ok(driver) => driver,
-        Err(error) => return cancel_start(sender, handle, EngineStartError::driver(&error)),
-    };
+    lifecycle: &Arc<EngineLifecycle>,
+) -> Result<(EngineHostResources, StartedEngineHost), EngineStartError> {
+    let driver = DriverOwner::build_with_security(config, validated.security)
+        .map_err(|error| EngineStartError::driver(&error))?;
     let metrics = driver.observation_handle();
     let clock = Arc::new(MonotonicClock::new());
     let wake = Arc::new(driver.reactor_wake());
     let control = Arc::new(EngineHostControl::new(wake.as_ref().clone()));
-    let (mut group_consumers, share_consumers) = match consumer_registries::start() {
-        Ok(registries) => registries,
-        Err(error) => return cancel_start(sender, handle, error),
-    };
+    let (mut group_consumers, share_consumers) = consumer_registries::start()?;
     let (mut assigned_consumer_notifier, assigned_publishers) =
-        match notifier_start::start_assigned_consumer_notifier() {
-            Ok(started) => started,
-            Err(error) => return cancel_start(sender, handle, error),
-        };
+        notifier_start::start_assigned_consumer_notifier()?;
     let (assigned_consumer_owner, assigned_consumer) =
         match assigned_consumer_start::start_assigned_consumer(
             config.assigned_consumer_read_isolation().core(),
@@ -82,14 +70,14 @@ pub(crate) fn start(
             Ok(owner) => owner,
             Err(error) => {
                 notifier_start::join_acquired(assigned_consumer_notifier.take_join());
-                return cancel_start(sender, handle, EngineStartError::assigned_consumer(error));
+                return Err(EngineStartError::assigned_consumer(error));
             }
         };
     let (mut admin_notifier, admin_ports) = match AdminCompletionNotifier::start() {
         Ok(owner) => owner,
         Err(error) => {
             notifier_start::join_acquired(assigned_consumer_notifier.take_join());
-            return cancel_start(sender, handle, EngineStartError::admin_notifier(&error));
+            return Err(EngineStartError::admin_notifier(&error));
         }
     };
     let admin_hosts::StartedAdminHosts {
@@ -148,19 +136,16 @@ pub(crate) fn start(
         remove_consumer_group_members,
     } = admin_hosts::start(admin_ports);
     let (transaction_initialization, transaction_initialization_admission, producer) =
-        match transaction_start::start(
+        transaction_start::start(
             validated.host_limits,
             Arc::clone(&clock),
             &wake,
             &mut group_consumers,
             &mut admin_notifier,
             &mut assigned_consumer_notifier,
-        ) {
-            Ok(resources) => resources,
-            Err(error) => return cancel_start(sender, handle, error),
-        };
+        )?;
     notifier_start::install_thread_ids(
-        &lifecycle,
+        lifecycle,
         &producer,
         &admin_notifier,
         &assigned_consumer_notifier,
@@ -431,14 +416,7 @@ pub(crate) fn start(
         describe_configs_calls: config_admin.describe_calls,
         incremental_alter_configs_calls: config_admin.incremental_calls,
     };
-    if let Err(error) = sender.send(resources) {
-        control.request_shutdown();
-        finish_host(error.0, &lifecycle);
-        join_cancelled(handle);
-        return Err(EngineStartError::handoff());
-    }
-    drop(handle);
-    Ok(StartedEngineHost {
+    let started = StartedEngineHost {
         metrics,
         admission,
         abort_partition_transaction_admission,
@@ -500,6 +478,7 @@ pub(crate) fn start(
         transaction_initialization: transaction_initialization_admission,
         clock,
         control,
-        lifecycle,
-    })
+        lifecycle: Arc::clone(lifecycle),
+    };
+    Ok((resources, started))
 }

@@ -1,9 +1,6 @@
 //! Startup capabilities and rollback joining for the native engine host.
 
-use std::{
-    sync::{Arc, mpsc::SyncSender},
-    thread::JoinHandle,
-};
+use std::{sync::Arc, thread::JoinHandle};
 
 use crate::{
     admin::{
@@ -44,7 +41,7 @@ use crate::{
     transaction::TransactionInitializationAdmissionPort,
 };
 
-use super::{EngineHostControl, EngineHostResources, EngineLifecycle, EngineStartError};
+use super::{EngineHostControl, EngineLifecycle};
 
 pub(crate) struct StartedEngineHost {
     pub(crate) metrics: crate::driver::owner::observation::DriverObservationHandle,
@@ -109,16 +106,6 @@ pub(crate) struct StartedEngineHost {
     pub(crate) clock: Arc<MonotonicClock>,
     pub(crate) control: Arc<EngineHostControl>,
     pub(crate) lifecycle: Arc<EngineLifecycle>,
-}
-
-pub(super) fn cancel_start(
-    sender: SyncSender<EngineHostResources>,
-    handle: JoinHandle<()>,
-    error: EngineStartError,
-) -> Result<StartedEngineHost, EngineStartError> {
-    drop(sender);
-    join_cancelled(handle);
-    Err(error)
 }
 
 pub(super) fn join_cancelled(handle: JoinHandle<()>) {

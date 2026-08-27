@@ -1,17 +1,22 @@
-//! Native host-thread acquisition and cancelled-handoff cleanup.
+//! Native host-thread startup retains the reactor through terminal shutdown.
 
-use std::sync::Arc;
+use std::time::Duration;
 
-use super::{EngineLifecycle, thread_start};
+use crate::EngineConfig;
+
+use super::thread_start;
 
 #[test]
-fn dropped_startup_sender_closes_the_unowned_host_thread() {
-    let lifecycle = Arc::new(EngineLifecycle::new());
-    let (sender, handle) = thread_start::start(&lifecycle)
+fn host_thread_owns_driver_from_build_through_shutdown() {
+    let config = EngineConfig::new(vec!["127.0.0.1:1".to_owned()]);
+    let validated = config
+        .validate()
+        .unwrap_or_else(|error| panic!("validate engine config: {error:?}"));
+    let started = thread_start::start(&config, validated)
         .unwrap_or_else(|error| panic!("start host thread: {error}"));
-    drop(sender);
-    handle
-        .join()
-        .unwrap_or_else(|_panic| panic!("cancelled host thread"));
-    assert!(lifecycle.is_closed());
+
+    started.lifecycle.request(&started.control);
+
+    assert!(started.lifecycle.wait_closed(Duration::from_secs(5)));
+    assert!(started.lifecycle.closed_error().is_none());
 }
