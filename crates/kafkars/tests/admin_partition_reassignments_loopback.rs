@@ -15,8 +15,10 @@ use std::time::{Duration, Instant};
 
 use admin_partition_reassignments_loopback::{PartitionReassignmentsBroker, Workflow, wait_within};
 use kafkars::{
-    AlterPartitionReassignmentsResult, Client, DeliveryStatus, ErrorKind, KafkaError,
-    PartitionReassignmentChange, RetryAdvice, TopicPartition,
+    Client, Error,
+    admin::{AlterPartitionReassignmentsResult, PartitionReassignmentChange},
+    error::{DeliveryStatus, ErrorKind, RetryAdvice},
+    topic::TopicPartition,
 };
 
 #[test]
@@ -124,7 +126,7 @@ fn not_controller_refreshes_reassignment_route_before_caller_retry() {
 fn alter_within(
     admin: &kafkars::Admin,
     phase: &str,
-) -> Result<AlterPartitionReassignmentsResult, KafkaError> {
+) -> Result<AlterPartitionReassignmentsResult, Error> {
     let admission_deadline = Instant::now() + Duration::from_secs(2);
     loop {
         let result = wait_within(

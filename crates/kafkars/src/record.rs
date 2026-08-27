@@ -121,7 +121,7 @@ impl Record {
     /// atomically carry or return this UUID, so the deployment must prevent
     /// deletion and recreation from the final proof through the terminal
     /// result. Transactions require the stronger fence documented by
-    /// [`crate::Transaction::validate_for_commit`].
+    /// [`crate::transaction::Transaction::validate_for_commit`].
     #[must_use]
     pub const fn expected_topic_uuid(mut self, topic_uuid: TopicUuid) -> Self {
         self.expected_topic_uuid = Some(topic_uuid);

@@ -3,7 +3,7 @@
 use std::time::Instant;
 
 use super::ClientEngine;
-use crate::error::KafkaError;
+use crate::error::Error as KafkaError;
 
 pub(super) fn verify_startup(
     client: ClientEngine,

@@ -6,13 +6,14 @@ use crate::consumer::{
     AssignedConsumerBuilder, ConsumerBuilder, ConsumerFetchConfig, ConsumerLimits, ReadIsolation,
     ShareConsumerBuilder,
 };
-use crate::error::{ErrorKind, KafkaError};
+use crate::error::{Error as KafkaError, ErrorKind};
 use crate::metrics::Metrics;
 use crate::producer::{ProducerBuilder, ProducerConfig};
-use crate::readiness::Ready;
 use crate::security::Security;
-use crate::shutdown::Shutdown;
 use crate::transaction::TransactionalProducerBuilder;
+
+pub use crate::readiness::Ready;
+pub use crate::shutdown::Shutdown;
 
 const CLUSTER_IDENTITY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 const MAX_EXPECTED_CLUSTER_ID_BYTES: usize = 1_024;

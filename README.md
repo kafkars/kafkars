@@ -38,15 +38,21 @@ kafkars = "=0.0.2-rc.1"
 ```
 
 ```rust
-use kafkars::{Client, KafkaError};
+use kafkars::{Client, Result};
 
-fn client() -> Result<Client, KafkaError> {
+fn client() -> Result<Client> {
     Client::builder()
         .bootstrap_servers(["localhost:9092"])
         .client_id("orders-api")
         .build()
 }
 ```
+
+The crate root is deliberately limited to `Client`, `Producer`, `Consumer`,
+`Admin`, `Error`, and `Result`. Supporting vocabulary lives under the owning
+`admin`, `client`, `consumer`, `error`, `metrics`, `producer`, `security`,
+`topic`, and `transaction` modules. Client construction remains
+`Client::builder()`; its concrete builder is `client::ClientBuilder`.
 
 Compile-checked examples cover the
 [producer](crates/kafkars/examples/producer.rs),
@@ -65,9 +71,11 @@ kafka-wire -----------> kafka-driver -> kafka-client-engine ---> kafkars
 ```
 
 The core owns semantic time, retained-byte accounting, cancellation, and
-terminal decisions without owning networking or an async runtime. The engine
-owns one embedded driver reactor, bounded execution, protocol adaptation,
-shutdown, and recovery. `kafkars` exposes the curated public Rust API.
+terminal decisions without owning networking or an async runtime. Each client
+owns one private native reactor thread through the engine. Runtime-neutral means
+that Kafkars embeds no async executor; it does not mean threadless. The engine
+also owns bounded execution, protocol adaptation, shutdown, and recovery.
+`kafkars` exposes the curated public Rust API.
 
 `kafka-client-sim` supplies virtual-time execution, and
 `kafka-client-guardrails` enforces repository and architecture policy. Most

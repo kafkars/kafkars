@@ -2,6 +2,9 @@
 
 use core::fmt;
 
+/// Convenient result type for operations returning [`Error`].
+pub type Result<T> = core::result::Result<T, Error>;
+
 /// Certainty attached to a failed network operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeliveryStatus {
@@ -61,7 +64,7 @@ pub enum ErrorKind {
 
 /// Extensible client error shared by producer, consumer, admin, and transactions.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct KafkaError {
+pub struct Error {
     kind: ErrorKind,
     message: String,
     delivery_status: Option<DeliveryStatus>,
@@ -74,7 +77,7 @@ pub struct KafkaError {
     fatal: bool,
 }
 
-impl KafkaError {
+impl Error {
     /// Creates a semantic client error.
     pub fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
         Self {
@@ -204,10 +207,10 @@ impl KafkaError {
     }
 }
 
-impl fmt::Display for KafkaError {
+impl fmt::Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(&self.message)
     }
 }
 
-impl std::error::Error for KafkaError {}
+impl std::error::Error for Error {}

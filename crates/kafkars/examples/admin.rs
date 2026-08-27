@@ -1,11 +1,14 @@
 //! Compile-checked batched admin API sketch.
 
-use kafkars::{Client, KafkaError, NewPartitions, NewTopic};
+use kafkars::{
+    Client, Result,
+    admin::{NewPartitions, NewTopic},
+};
 
 fn main() {}
 
 #[allow(dead_code)]
-async fn create_topic() -> Result<(), KafkaError> {
+async fn create_topic() -> Result<()> {
     let client = Client::builder()
         .bootstrap_servers(["localhost:9092"])
         .build()?;
@@ -24,7 +27,7 @@ async fn create_topic() -> Result<(), KafkaError> {
 }
 
 #[allow(dead_code)]
-async fn delete_topics() -> Result<(), KafkaError> {
+async fn delete_topics() -> Result<()> {
     let client = Client::builder()
         .bootstrap_servers(["localhost:9092"])
         .build()?;
@@ -38,7 +41,7 @@ async fn delete_topics() -> Result<(), KafkaError> {
 }
 
 #[allow(dead_code)]
-async fn create_partitions() -> Result<(), KafkaError> {
+async fn create_partitions() -> Result<()> {
     let client = Client::builder()
         .bootstrap_servers(["localhost:9092"])
         .build()?;
@@ -56,7 +59,7 @@ async fn create_partitions() -> Result<(), KafkaError> {
 }
 
 #[allow(dead_code)]
-async fn list_visible_topics() -> Result<(), KafkaError> {
+async fn list_visible_topics() -> Result<()> {
     let client = Client::builder()
         .bootstrap_servers(["localhost:9092"])
         .build()?;

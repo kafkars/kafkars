@@ -17,8 +17,10 @@ use admin_list_partition_reassignments_loopback::{
     ListPartitionReassignmentsBroker, Workflow, wait_within,
 };
 use kafkars::{
-    Client, DeliveryStatus, ErrorKind, KafkaError, ListPartitionReassignmentsResult, RetryAdvice,
-    TopicPartition,
+    Client, Error,
+    admin::ListPartitionReassignmentsResult,
+    error::{DeliveryStatus, ErrorKind, RetryAdvice},
+    topic::TopicPartition,
 };
 
 #[test]
@@ -140,7 +142,7 @@ fn not_controller_refreshes_listing_route_before_caller_retry() {
 fn list_all_within(
     admin: &kafkars::Admin,
     phase: &str,
-) -> Result<ListPartitionReassignmentsResult, KafkaError> {
+) -> Result<ListPartitionReassignmentsResult, Error> {
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
         let now = Instant::now();
@@ -166,7 +168,7 @@ fn list_selected_within(
     admin: &kafkars::Admin,
     targets: &[TopicPartition],
     phase: &str,
-) -> Result<ListPartitionReassignmentsResult, KafkaError> {
+) -> Result<ListPartitionReassignmentsResult, Error> {
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
         let now = Instant::now();

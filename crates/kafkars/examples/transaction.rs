@@ -3,7 +3,10 @@
 use std::{sync::Arc, time::Duration};
 
 use kafkars::{
-    AssignedConsumer, Client, ErrorKind, KafkaError, Transaction, TransactionalProducer,
+    Client, Error, Result,
+    consumer::AssignedConsumer,
+    error::ErrorKind,
+    transaction::{Transaction, TransactionalProducer},
 };
 
 const OPERATION_TIMEOUT: Duration = Duration::from_secs(30);
@@ -11,7 +14,7 @@ const OPERATION_TIMEOUT: Duration = Duration::from_secs(30);
 fn main() {}
 
 #[allow(dead_code)]
-async fn initialize_transactional_owner() -> Result<(), KafkaError> {
+async fn initialize_transactional_owner() -> Result<()> {
     let client = Client::builder()
         .bootstrap_servers(["localhost:9092"])
         .build()?;
@@ -37,7 +40,7 @@ async fn copy_one_batch(
     source: &mut AssignedConsumer,
     destination: &mut TransactionalProducer,
     target_topic: Arc<str>,
-) -> Result<bool, KafkaError> {
+) -> Result<bool> {
     let Some(batch) = source.recv().await? else {
         return Ok(false);
     };
@@ -46,7 +49,7 @@ async fn copy_one_batch(
     retained_sources
         .try_reserve_exact(batch.len())
         .map_err(|_| {
-            KafkaError::new(
+            Error::new(
                 ErrorKind::Internal,
                 "retained source-record capacity allocation failed",
             )
@@ -60,7 +63,7 @@ async fn copy_one_batch(
                 Ok(transferred) => transferred,
                 Err(rejection) => {
                     let (_source_record, _target_topic) = rejection.into_parts();
-                    let error = KafkaError::new(
+                    let error = Error::new(
                         ErrorKind::Internal,
                         "consumer record transfer allocation failed",
                     );
@@ -95,7 +98,7 @@ async fn copy_one_batch(
     outcome
 }
 
-async fn abort_after_error(transaction: Transaction<'_>, error: KafkaError) -> KafkaError {
+async fn abort_after_error(transaction: Transaction<'_>, error: Error) -> Error {
     match transaction.abort(OPERATION_TIMEOUT) {
         Ok(abort) => {
             let _outcome = abort.await;

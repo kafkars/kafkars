@@ -100,7 +100,7 @@ impl Admin {
 
     /// Builds an inert caller-ordered committed-offset deletion for one group.
     ///
-    /// [`TopicPartition::start_at`](crate::TopicPartition::start_at) is
+    /// [`TopicPartition::start_at`](crate::topic::TopicPartition::start_at) is
     /// assignment-only and causes a definitely-unsent configuration rejection
     /// at [`DeleteConsumerGroupOffsetsBuilder::submit`]. No timeout starts and
     /// no operation is admitted before that submission boundary.

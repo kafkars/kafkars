@@ -14,7 +14,10 @@ use std::{
 
 use admin_list_offsets_loopback::{ListOffsetsBroker, Workflow};
 use kafkars::{
-    Client, DeliveryStatus, ErrorKind, ListOffsetsQuery, OffsetSpec, ReadIsolation, RetryAdvice,
+    Client,
+    admin::{ListOffsetsQuery, OffsetSpec},
+    consumer::ReadIsolation,
+    error::{DeliveryStatus, ErrorKind, RetryAdvice},
 };
 
 #[test]

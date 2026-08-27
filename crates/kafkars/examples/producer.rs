@@ -1,11 +1,11 @@
 //! Compile-checked native producer API sketch.
 
-use kafkars::{Client, KafkaError, Record};
+use kafkars::{Client, Result, producer::Record};
 
 fn main() {}
 
 #[allow(dead_code)]
-async fn produce() -> Result<(), KafkaError> {
+async fn produce() -> Result<()> {
     let client = Client::builder()
         .bootstrap_servers(["localhost:9092"])
         .client_id("orders-api")

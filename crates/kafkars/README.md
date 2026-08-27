@@ -15,8 +15,19 @@ kafkars = "=0.0.2-rc.1"
 ```
 
 ```rust
-use kafkars::{Client, ClientBuilder};
+use kafkars::{Client, Result};
+
+fn client() -> Result<Client> {
+    Client::builder()
+        .bootstrap_servers(["localhost:9092"])
+        .build()
+}
 ```
+
+The crate root contains only `Client`, `Producer`, `Consumer`, `Admin`, `Error`,
+and `Result`. Operation, configuration, outcome, and evidence types live under
+the owning `admin`, `client`, `consumer`, `error`, `metrics`, `producer`,
+`security`, `topic`, and `transaction` modules.
 
 See the [source repository](https://github.com/kafkars/kafkars) for the
 architecture, exact limitations, qualification evidence, and contribution

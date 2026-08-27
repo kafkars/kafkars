@@ -1,5 +1,8 @@
 //! Declarative facade for producer admission, delivery, cancellation, flush, and close.
 
+pub use crate::header_name::HeaderName;
+pub use crate::record::{Header, Record};
+
 mod cancellation;
 mod close;
 mod compression;

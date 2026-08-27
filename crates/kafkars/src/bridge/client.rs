@@ -13,7 +13,7 @@ use crate::consumer::{
     ClassicGroupAssignor, ClassicGroupConfig, ConsumerFetchConfig, ConsumerGroupProtocol,
     ConsumerLimits, GroupConsumerOperationConfig, OffsetReset, ReadIsolation,
 };
-use crate::error::{ErrorKind, KafkaError};
+use crate::error::{Error as KafkaError, ErrorKind};
 use crate::producer::ProducerConfig;
 use crate::security::Security;
 use crate::shutdown::Shutdown;
