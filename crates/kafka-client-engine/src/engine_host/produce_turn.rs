@@ -15,6 +15,7 @@ const PRODUCE_ADMISSION_BUDGET: usize = 64;
 pub(super) struct ProducerProgress {
     pub(super) outcome: Option<ProducerTurnOutcome>,
     pub(super) unsettled: usize,
+    pub(super) admissions: usize,
     pub(super) driver_progress: bool,
 }
 
@@ -71,7 +72,7 @@ pub(super) fn drive(
         .producer_partitioning_call
         .as_ref()
         .map(produce::ProducerPartitioningCall::deadline);
-    let produce_progress = admit_ready(
+    let produce_admissions = admit_ready(
         driver,
         &mut resources.produce_calls,
         &mut resources.producer_retry_identity_call,
@@ -87,7 +88,8 @@ pub(super) fn drive(
             .saturating_add(usize::from(
                 resources.producer_retry_identity_call.is_some(),
             )),
-        driver_progress: identity_progress || partitioning_progress || produce_progress,
+        admissions: produce_admissions,
+        driver_progress: identity_progress || partitioning_progress || produce_admissions != 0,
     })
 }
 
@@ -98,8 +100,8 @@ fn admit_ready(
     data: &mut crate::producer::ingress::ProducerShardData,
     now: Moment,
     retained_partitioning_deadline: Option<crate::clock::OperationDeadline>,
-) -> Result<bool, EngineHostError> {
-    let mut progress = false;
+) -> Result<usize, EngineHostError> {
+    let mut admissions = 0_usize;
     for _attempt in 0..PRODUCE_ADMISSION_BUDGET {
         if !admit_after_partitioning(
             driver,
@@ -111,9 +113,9 @@ fn admit_ready(
         )? {
             break;
         }
-        progress = true;
+        admissions = admissions.saturating_add(1);
     }
-    Ok(progress)
+    Ok(admissions)
 }
 
 pub(super) fn admit_after_partitioning(
@@ -162,6 +164,7 @@ impl ProducerProgress {
         Self {
             outcome: None,
             unsettled: usize::MAX,
+            admissions: 0,
             driver_progress: false,
         }
     }

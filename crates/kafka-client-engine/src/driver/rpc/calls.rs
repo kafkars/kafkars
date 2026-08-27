@@ -77,11 +77,6 @@ pub(crate) struct TrackedProduceCalls {
 }
 
 impl TrackedProduceCalls {
-    #[cfg(test)]
-    pub(crate) fn new(capacity: usize) -> Self {
-        Self::with_max_in_flight_requests_per_broker(capacity, 5)
-    }
-
     pub(crate) fn with_max_in_flight_requests_per_broker(
         capacity: usize,
         max_in_flight_requests_per_broker: usize,
@@ -129,6 +124,12 @@ impl TrackedProduceCalls {
             )),
             recovered: Vec::with_capacity(1),
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn settle_first_as_transport_failure_for_test(&mut self, now: Moment) {
+        let call = self.calls.remove(0);
+        self.settled = Some(SettledProduceCall::from_tracked_failure_for_test(call, now));
     }
 
     pub(crate) fn try_reserve(&mut self) -> Option<ProduceCallPermit<'_>> {
@@ -267,11 +268,6 @@ impl TrackedProduceCalls {
         for recovered in self.recovered.drain(..) {
             recovered.seal();
         }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn recovered(&self) -> &[RecoveredProduceCall] {
-        &self.recovered
     }
 
     #[cfg(test)]

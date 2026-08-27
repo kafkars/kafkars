@@ -274,7 +274,7 @@ impl Engine {
     }
 
     #[cfg(test)]
-    pub(crate) fn host_snapshot(&self) -> crate::engine_host::EngineHostSnapshot {
+    pub(crate) fn host_snapshot(&self) -> crate::engine_host::control::EngineHostSnapshot {
         self.inner.control.snapshot()
     }
 

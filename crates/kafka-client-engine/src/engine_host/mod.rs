@@ -19,7 +19,7 @@ mod assigned_consumer_wake_test;
 mod cleanup;
 #[cfg(test)]
 mod cleanup_test;
-mod control;
+pub(crate) mod control;
 mod describe_configs_start;
 mod error;
 mod finalize;
@@ -53,6 +53,8 @@ mod recovery;
 #[cfg(test)]
 mod recovery_test;
 mod runner;
+#[cfg(test)]
+mod runner_fairness_test;
 mod share_consumer;
 mod start;
 mod start_handoff;
@@ -68,8 +70,6 @@ mod wait;
 #[cfg(test)]
 mod wait_test;
 pub(crate) use control::EngineHostControl;
-#[cfg(test)]
-pub(crate) use control::EngineHostSnapshot;
 pub(crate) use error::EngineHostError;
 pub use error::{
     EngineShutdownError, EngineShutdownErrorKind, EngineStartError, EngineStartErrorKind,
