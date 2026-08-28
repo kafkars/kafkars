@@ -10,6 +10,8 @@ mod route_validation;
 #[cfg(test)]
 mod route_validation_test;
 
+use std::collections::TryReserveError;
+
 use kafka_client_core::{
     ByteCount, PayloadId,
     partitioning::{PartitionSelection, StickyPartitionError, TopicPartitionFacts},
@@ -72,6 +74,23 @@ impl ProducerStore {
             ),
             batches: BatchStore::new(limits.batches),
         }
+    }
+
+    /// Acquires every record and batch index before producer startup owns workers.
+    pub(crate) fn try_new_with_topic_limits(
+        limits: ProducerStoreLimits,
+        max_topics: usize,
+        max_topic_bytes: usize,
+    ) -> Result<Self, TryReserveError> {
+        Ok(Self {
+            records: RecordStore::try_new_with_topic_limits(
+                limits.records,
+                limits.bytes,
+                max_topics,
+                max_topic_bytes,
+            )?,
+            batches: BatchStore::try_new(limits.batches, limits.records)?,
+        })
     }
 
     /// Reserves count, bytes, payload identity, and topic identity before core.

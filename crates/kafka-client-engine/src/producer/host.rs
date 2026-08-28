@@ -7,11 +7,6 @@ mod driver_input_test;
 mod observation;
 #[cfg(test)]
 mod test_support;
-use kafka_client_core::{ByteCount, ProducerEffect, ProducerMachine, ProducerWaitingQueue};
-use std::collections::VecDeque;
-
-use crate::{clock::BatchTimers, completion::CompletionRegistry};
-
 use super::{
     ProducerHostInvariantError, ProducerHostStartError, ProducerStore, ProducerStoreLimits,
     ProducerStoreStats,
@@ -24,7 +19,10 @@ use super::{
     terminal_backlog::OrderedTerminalBacklog,
     waiting::{ProducerWaitingStats, model::ProducerWaitingStore},
 };
+use crate::{clock::BatchTimers, completion::CompletionRegistry};
 use config::ProducerCoreConfig;
+use kafka_client_core::{ByteCount, ProducerEffect, ProducerMachine, ProducerWaitingQueue};
+use std::collections::VecDeque;
 
 #[path = "host_limits.rs"]
 mod limits;
@@ -119,6 +117,16 @@ impl ProducerHost {
         let waiting_bytes = validated.waiting_bytes();
         let total_completion_capacity = validated.total_completion_capacity();
         let total_retained_bytes = validated.total_retained_bytes();
+        let store = ProducerStore::try_new_with_topic_limits(
+            ProducerStoreLimits {
+                records: limits.record_capacity,
+                bytes: limits.retained_bytes,
+                batches: limits.batch_capacity,
+            },
+            total_completion_capacity,
+            total_retained_bytes,
+        )?;
+        let bindings = OperationBindings::try_new(total_completion_capacity)?;
         let core_config = ProducerCoreConfig {
             retained_bytes,
             completion_capacity: total_completion_capacity,
@@ -142,17 +150,9 @@ impl ProducerHost {
         Ok(Self {
             core,
             core_config,
-            store: ProducerStore::new_with_topic_limits(
-                ProducerStoreLimits {
-                    records: limits.record_capacity,
-                    bytes: limits.retained_bytes,
-                    batches: limits.batch_capacity,
-                },
-                total_completion_capacity,
-                total_retained_bytes,
-            ),
+            store,
             completions,
-            bindings: OperationBindings::new(total_completion_capacity),
+            bindings,
             flush_bindings: FlushBindings::new(limits.completion_capacity),
             reclaimer: CompletionReclaimer::new(),
             timers: BatchTimers::new(limits.timer_capacity),

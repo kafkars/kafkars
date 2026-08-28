@@ -1,5 +1,6 @@
 //! Sole owner of ordered operation-to-payload batch membership.
 
+mod allocation;
 mod driver;
 #[cfg(test)]
 mod driver_test;
@@ -12,12 +13,10 @@ mod retry_test;
 mod revision;
 #[cfg(test)]
 mod revision_test;
-
+use crate::id_hash::{IdMap, id_map};
 use kafka_client_core::{
     BatchExecutionId, BatchId, OperationId, PartitionIndex, PayloadId, TopicId,
 };
-
-use crate::id_hash::{IdMap, id_map};
 
 use super::ProducerStoreError;
 pub(in crate::producer) use driver::DriverAcceptancePlan;

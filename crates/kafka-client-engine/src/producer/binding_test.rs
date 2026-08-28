@@ -209,6 +209,32 @@ fn waiting_terminal_origin_shares_the_existing_binding_bound_without_growth() {
     stop(registry);
 }
 
+#[test]
+fn fallible_binding_constructor_preallocates_both_indexes_without_growth() {
+    let mut bindings = OperationBindings::try_new(4)
+        .unwrap_or_else(|error| panic!("binding indexes should allocate: {error}"));
+    let allocation = bindings.allocation_capacity();
+    assert!(allocation.0 >= 4 && allocation.1 >= 4);
+
+    for slot in 0..4 {
+        assert_eq!(
+            bindings.bind(
+                OperationId::from_raw(slot as u64 + 1),
+                CompletionId::from_parts_for_test(slot, 1),
+                deadline(slot as u64 + 1),
+            ),
+            Ok(())
+        );
+    }
+
+    assert_eq!(bindings.allocation_capacity(), allocation);
+}
+
+#[test]
+fn fallible_binding_constructor_reports_allocation_failure() {
+    assert!(OperationBindings::try_new(usize::MAX).is_err());
+}
+
 fn deadline(tick: u64) -> OperationDeadline {
     OperationDeadline::from_parts_for_test(Deadline::from_tick(tick), Instant::now())
 }

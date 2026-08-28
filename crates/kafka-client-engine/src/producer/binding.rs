@@ -1,6 +1,6 @@
 //! Fixed-capacity association of operations with engine execution ownership.
 
-use std::{error::Error, fmt};
+use std::{collections::TryReserveError, error::Error, fmt};
 
 use kafka_client_core::OperationId;
 
@@ -68,6 +68,14 @@ impl OperationBindings {
             by_operation: id_map(),
             by_completion: id_map(),
         }
+    }
+
+    /// Acquires both bounded indexes before producer admission becomes observable.
+    pub(crate) fn try_new(capacity: usize) -> Result<Self, TryReserveError> {
+        let mut bindings = Self::new(capacity);
+        bindings.by_operation.try_reserve(capacity)?;
+        bindings.by_completion.try_reserve(capacity)?;
+        Ok(bindings)
     }
 
     /// Associates one core operation with one exact completion generation.
@@ -223,7 +231,7 @@ impl OperationBindings {
     }
 
     #[cfg(test)]
-    pub(crate) fn allocation_capacity(&self) -> usize {
-        self.by_operation.capacity()
+    pub(crate) fn allocation_capacity(&self) -> (usize, usize) {
+        (self.by_operation.capacity(), self.by_completion.capacity())
     }
 }

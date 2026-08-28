@@ -2,7 +2,7 @@
 
 mod display;
 
-use std::{error::Error, fmt};
+use std::{collections::TryReserveError, error::Error, fmt};
 
 use kafka_client_core::{AdmissionRejection, ProducerMachineError};
 
@@ -103,6 +103,7 @@ impl Error for ProducerHostLimitError {}
 #[derive(Debug)]
 pub(crate) enum ProducerHostStartError {
     Limits(ProducerHostLimitError),
+    Allocation,
     Notifier(std::io::Error),
     Compression(std::io::Error),
 }
@@ -113,10 +114,19 @@ impl From<ProducerHostLimitError> for ProducerHostStartError {
     }
 }
 
+impl From<TryReserveError> for ProducerHostStartError {
+    fn from(_error: TryReserveError) -> Self {
+        Self::Allocation
+    }
+}
+
 impl fmt::Display for ProducerHostStartError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Limits(error) => error.fmt(formatter),
+            Self::Allocation => {
+                formatter.write_str("producer admission indexes failed to allocate")
+            }
             Self::Notifier(error) => {
                 write!(formatter, "producer notifier failed to start: {error}")
             }
@@ -134,6 +144,7 @@ impl Error for ProducerHostStartError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Limits(error) => Some(error),
+            Self::Allocation => None,
             Self::Notifier(error) | Self::Compression(error) => Some(error),
         }
     }

@@ -266,6 +266,22 @@ pub(crate) fn valid_limits() -> ProducerHostLimits {
     }
 }
 
+#[test]
+fn impossible_admission_allocation_maps_to_start_error() {
+    let capacity = usize::MAX / 6;
+    let mut limits = valid_limits();
+    limits.completion_capacity = capacity;
+    limits.record_capacity = capacity;
+    limits.batch_capacity = capacity;
+    limits.timer_capacity = capacity;
+
+    match ProducerHost::new(limits) {
+        Err(ProducerHostStartError::Allocation) => {}
+        Err(error) => panic!("unexpected producer host start failure: {error}"),
+        Ok(_host) => panic!("impossible producer admission allocation should fail"),
+    }
+}
+
 pub(crate) fn start(limits: ProducerHostLimits) -> ProducerHost {
     match ProducerHost::new(limits) {
         Ok(host) => host,

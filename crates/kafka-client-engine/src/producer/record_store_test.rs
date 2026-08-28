@@ -207,6 +207,33 @@ fn release_checks_provenance_and_happens_exactly_once() {
     assert_eq!(store.topic_count(), 0);
 }
 
+#[test]
+fn fallible_record_store_constructor_preallocates_without_growth() {
+    let mut records = super::record_store::RecordStore::try_new_with_topic_limits(4, 64, 4, 64)
+        .unwrap_or_else(|error| panic!("record slots should allocate: {error}"));
+    let allocation = records.slots.capacity();
+    assert!(allocation >= 4);
+
+    for _index in 0..4 {
+        let reservation = records
+            .reserve(record("orders", None, Some(b"a"), Vec::new()))
+            .unwrap_or_else(|error| panic!("record should reserve: {error}"));
+        records
+            .commit(reservation)
+            .unwrap_or_else(|error| panic!("record should commit: {error}"));
+    }
+
+    assert_eq!(records.slots.len(), 4);
+    assert_eq!(records.slots.capacity(), allocation);
+}
+
+#[test]
+fn fallible_record_store_constructor_reports_allocation_failure() {
+    assert!(
+        super::record_store::RecordStore::try_new_with_topic_limits(usize::MAX, 1, 1, 1).is_err()
+    );
+}
+
 fn limits(max_records: usize, max_bytes: usize, max_batches: usize) -> ProducerStoreLimits {
     ProducerStoreLimits {
         records: max_records,

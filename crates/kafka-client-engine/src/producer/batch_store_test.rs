@@ -3,9 +3,12 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use kafka_client_core::{BatchId, OperationId, PartitionIndex};
+use kafka_client_core::{BatchId, OperationId, PartitionIndex, PayloadId, TopicId};
 
-use super::{ProducerRecord, ProducerStore, ProducerStoreError, ProducerStoreLimits};
+use super::{
+    ProducerRecord, ProducerStore, ProducerStoreError, ProducerStoreLimits,
+    batch_store::{BatchRoute, BatchStore},
+};
 
 #[test]
 fn batch_count_is_bounded_independently_of_record_capacity() {
@@ -120,6 +123,37 @@ fn catalog_identity_batches_equal_names_and_fences_different_names() {
         store.accumulate(batch, OperationId::from_raw(3), different.payload_id(),),
         Err(ProducerStoreError::BatchRouteMismatch)
     );
+}
+
+#[test]
+fn fallible_batch_store_constructor_preallocates_all_indexes_without_growth() {
+    let mut batches = BatchStore::try_new(4, 4)
+        .unwrap_or_else(|error| panic!("batch indexes should allocate: {error}"));
+    let allocation = batches.allocation_capacities();
+    assert!(allocation.0 >= 4 && allocation.1 >= 4 && allocation.2 >= 4);
+    let route = BatchRoute {
+        topic_id: TopicId::from_raw(1),
+        partition: PartitionIndex::from_raw(0),
+    };
+
+    for raw in 1..=4 {
+        batches
+            .append(
+                BatchId::from_raw(raw),
+                OperationId::from_raw(raw),
+                PayloadId::from_raw(raw),
+                route,
+            )
+            .unwrap_or_else(|error| panic!("batch member should append: {error}"));
+    }
+
+    assert_eq!(batches.allocation_capacities(), allocation);
+}
+
+#[test]
+fn fallible_batch_store_constructor_reports_allocation_failure() {
+    assert!(BatchStore::try_new(usize::MAX, 1).is_err());
+    assert!(BatchStore::try_new(1, usize::MAX).is_err());
 }
 
 fn admit(

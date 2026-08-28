@@ -5956,6 +5956,9 @@ allowed_paths = [
   "crates/kafka-client-engine/src/protocol/fetch/request_broker.rs",
   "crates/kafka-client-engine/src/protocol/produce_response_batch.rs",
   "crates/kafka-client-engine/src/producer/execution/next_submission.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/allocation.rs",
+  "crates/kafka-client-engine/src/producer/binding.rs",
+  "crates/kafka-client-engine/src/producer/record_store/allocation.rs",
   "crates/kafka-client-engine/src/protocol/produce/request_broker.rs",
 ]
 
@@ -8723,6 +8726,7 @@ owner_type = "BatchStore"
 field = "batches"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/batch_store.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/allocation.rs",
   "crates/kafka-client-engine/src/producer/batch_store/driver.rs",
   "crates/kafka-client-engine/src/producer/batch_store/execution.rs",
   "crates/kafka-client-engine/src/producer/batch_store/revision.rs",
@@ -8734,6 +8738,7 @@ owner_type = "BatchStore"
 field = "operations"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/batch_store.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/allocation.rs",
   "crates/kafka-client-engine/src/producer/batch_store/revision.rs",
 ]
 
@@ -8742,6 +8747,7 @@ owner_type = "BatchStore"
 field = "payloads"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/batch_store.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/allocation.rs",
   "crates/kafka-client-engine/src/producer/batch_store/revision.rs",
 ]
 

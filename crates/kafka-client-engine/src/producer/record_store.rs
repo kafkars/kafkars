@@ -1,5 +1,6 @@
 //! Sole owner of payload identities, record capacity, and retained byte counts.
 
+mod allocation;
 use kafka_client_core::{ByteCount, ExplicitRecord, PayloadId, TopicId};
 
 use crate::id_hash::{IdMap, id_map};
