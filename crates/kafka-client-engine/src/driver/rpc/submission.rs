@@ -1,11 +1,13 @@
-//! Concrete tracked submission of one name-routed generated Produce request.
+//! Concrete tracked submission of generated Produce requests.
 
 use std::{error::Error, fmt, time::Instant};
 
-use kafka_client_core::{DeliveryStatus, ProducerAttemptFailureKind};
+#[cfg(test)]
+use kafka_client_core::DeliveryStatus;
+use kafka_client_core::ProducerAttemptFailureKind;
 use kafka_driver::{
-    ApiVersion, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall, SubmitError,
-    TopicName, TopicNameError, TrafficClass,
+    ApiVersion, BrokerId, BrokerIdError, PartitionId, PartitionIdError, RequestOptions, Route,
+    RoutedCall, SubmitError, TopicName, TopicNameError, TrafficClass,
 };
 use kafka_wire::{ProduceRequest, ProduceResponse};
 
@@ -17,6 +19,7 @@ const PRODUCE_MAX_VERSION: ApiVersion = ApiVersion::new(12);
 /// Definitely-unsent rejection before the driver accepted request ownership.
 #[derive(Debug)]
 pub(crate) enum ProduceSubmitError {
+    InvalidBroker(BrokerIdError),
     InvalidTopic(TopicNameError),
     InvalidPartition(PartitionIdError),
     Driver(SubmitError),
@@ -24,11 +27,13 @@ pub(crate) enum ProduceSubmitError {
 
 impl ProduceSubmitError {
     /// Immediate submission failures have not crossed driver ownership.
+    #[cfg(test)]
     pub(crate) const fn delivery(&self) -> DeliveryStatus {
         match self {
-            Self::InvalidTopic(_) | Self::InvalidPartition(_) | Self::Driver(_) => {
-                DeliveryStatus::NotSent
-            }
+            Self::InvalidBroker(_)
+            | Self::InvalidTopic(_)
+            | Self::InvalidPartition(_)
+            | Self::Driver(_) => DeliveryStatus::NotSent,
         }
     }
 
@@ -40,7 +45,7 @@ impl ProduceSubmitError {
     )]
     pub(crate) const fn failure_kind(&self) -> ProducerAttemptFailureKind {
         match self {
-            Self::InvalidTopic(_) | Self::InvalidPartition(_) => {
+            Self::InvalidBroker(_) | Self::InvalidTopic(_) | Self::InvalidPartition(_) => {
                 ProducerAttemptFailureKind::Permanent
             }
             Self::Driver(SubmitError::Full) => ProducerAttemptFailureKind::LocalCapacity,
@@ -59,6 +64,7 @@ impl ProduceSubmitError {
 impl fmt::Display for ProduceSubmitError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidBroker(source) => write!(formatter, "invalid Produce broker: {source}"),
             Self::InvalidTopic(source) => write!(formatter, "invalid Produce topic: {source}"),
             Self::InvalidPartition(source) => {
                 write!(formatter, "invalid Produce partition: {source}")
@@ -71,6 +77,7 @@ impl fmt::Display for ProduceSubmitError {
 impl Error for ProduceSubmitError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::InvalidBroker(source) => Some(source),
             Self::InvalidTopic(source) => Some(source),
             Self::InvalidPartition(source) => Some(source),
             Self::Driver(source) => Some(source),
@@ -79,6 +86,26 @@ impl Error for ProduceSubmitError {
 }
 
 impl DriverOwner {
+    /// Submits one generated Produce owner to an exact metadata-resolved broker.
+    ///
+    /// The routed call retains its opaque route-failure token until the
+    /// deterministic core later authorizes invalidation or deliberate discard.
+    pub(crate) fn submit_tracked_produce_to_broker(
+        &self,
+        broker_id: i32,
+        request: ProduceRequest,
+        deadline: Instant,
+    ) -> Result<RoutedCall<ProduceResponse>, ProduceSubmitError> {
+        let broker_id = BrokerId::new(broker_id).map_err(ProduceSubmitError::InvalidBroker)?;
+        self.driver
+            .request_tracked_with(
+                Route::Broker { broker_id },
+                request,
+                produce_options(deadline),
+            )
+            .map_err(ProduceSubmitError::Driver)
+    }
+
     /// Submits one generated Produce owner with its original absolute deadline.
     ///
     /// The routed call retains its opaque route-failure token until the

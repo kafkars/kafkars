@@ -397,7 +397,7 @@ pub(super) fn prepare(
         produce_calls,
         producer_identity_calls: crate::driver::TrackedProducerIdentityCalls::new(),
         producer_partitioning_call: None,
-        producer_retry_identity_call: None,
+        producer_routing_call: None,
         create_topics_calls: crate::driver::TrackedCreateTopicsCalls::new(
             crate::admin::CREATE_TOPICS_CAPACITY,
         ),

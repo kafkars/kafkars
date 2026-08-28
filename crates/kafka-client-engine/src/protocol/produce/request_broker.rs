@@ -17,16 +17,12 @@ struct BrokerTopicPlan {
 type BrokerTopicPlanning = (HashMap<Arc<str>, usize>, Vec<BrokerTopicPlan>);
 
 pub(super) fn build_broker_routed_request(
-    batches: Vec<MaterializedProduce>,
+    batches: &[&MaterializedProduce],
     now: Moment,
     deadline: OperationDeadline,
-) -> Result<ProduceRequest, Vec<MaterializedProduce>> {
-    let Some((topic_indexes, topic_plans)) = plan_topics(&batches) else {
-        return Err(batches);
-    };
-    let Some(topic_data) = build_topic_data(topic_plans) else {
-        return Err(batches);
-    };
+) -> Option<ProduceRequest> {
+    let (topic_indexes, topic_plans) = plan_topics(batches)?;
+    let topic_data = build_topic_data(topic_plans)?;
 
     let mut request = ProduceRequest::default();
     request.acks = ACKS_ALL;
@@ -37,13 +33,14 @@ pub(super) fn build_broker_routed_request(
             .get(batch.topic_name())
             .copied()
             .unwrap_or_else(|| unreachable!("planned Produce topic remains indexed"));
-        let (_topic, partition) = batch.into_partition_data();
-        request.topic_data[index].partition_data.push(partition);
+        request.topic_data[index]
+            .partition_data
+            .push(batch.partition_data());
     }
-    Ok(request)
+    Some(request)
 }
 
-fn plan_topics(batches: &[MaterializedProduce]) -> Option<BrokerTopicPlanning> {
+fn plan_topics(batches: &[&MaterializedProduce]) -> Option<BrokerTopicPlanning> {
     let mut topic_indexes: HashMap<Arc<str>, usize> = HashMap::new();
     let mut topic_plans: Vec<BrokerTopicPlan> = Vec::new();
     topic_indexes.try_reserve(batches.len()).ok()?;

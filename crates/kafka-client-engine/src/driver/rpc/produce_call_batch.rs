@@ -1,13 +1,20 @@
-//! Fail-closed ownership for a not-yet-authorized aggregated Produce call.
+//! Exact-broker handoff for single and aggregated Produce calls.
 
-use kafka_client_core::{
-    BatchExecutionId, DeliveryStatus, Moment, ProducerAttemptFailureKind, ProducerInput,
+#[cfg(test)]
+use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{BatchExecutionId, Moment, ProducerAttemptFailureKind, ProducerInput};
+
+use crate::{
+    clock::OperationDeadline, producer::execution::PreparedProduceSubmission,
+    protocol::produce::MaterializedProduce,
 };
 
-use crate::producer::execution::PreparedProduceSubmission;
-
 use super::{
-    super::DriverOwner, calls::ProduceCallPermit, produce_acceptance::AcceptedProduceCall,
+    super::DriverOwner,
+    ProduceSubmitError,
+    calls::ProduceCallPermit,
+    produce_acceptance::AcceptedProduceCall,
+    produce_call_entries::{TrackedProduceEntries, TrackedProduceEntry},
 };
 
 /// Linear proof that one accepted request owns every named core execution.
@@ -23,24 +30,106 @@ pub(crate) struct ProduceBatchSubmitFailure {
 }
 
 impl ProduceCallPermit<'_> {
-    /// Rejects aggregation until the driver can accept one opaque name-routed
-    /// call without exposing or trusting a raw broker identity.
-    #[allow(
-        clippy::unused_self,
-        reason = "the fail-closed batch path consumes its exact call-capacity permit"
-    )]
+    /// Submits one generated request to the broker carried by this permit.
+    pub(crate) fn submit(
+        self,
+        driver: &DriverOwner,
+        execution: BatchExecutionId,
+        deadline: OperationDeadline,
+        materialized: MaterializedProduce,
+        now: Moment,
+    ) -> Result<AcceptedProduceCall, ProduceSubmitError> {
+        let topic = materialized.topic_owner();
+        let partition = materialized.partition();
+        let request = materialized.into_name_routed_request(now, deadline);
+        let broker_id = self.reserved_exact_broker_id();
+        let call =
+            driver.submit_tracked_produce_to_broker(broker_id, request, deadline.transport())?;
+        self.commit_reserved_exact_broker_call(
+            TrackedProduceEntries::Single(TrackedProduceEntry {
+                execution,
+                deadline: deadline.core(),
+                topic,
+                partition,
+            }),
+            deadline,
+            call,
+        );
+        Ok(AcceptedProduceCall::new(execution))
+    }
+
+    /// Submits every retained partition batch through one exact broker call.
     pub(crate) fn submit_batch(
         self,
-        _driver: &DriverOwner,
+        driver: &DriverOwner,
         submissions: Vec<PreparedProduceSubmission>,
-        _now: Moment,
+        now: Moment,
     ) -> Result<AcceptedProduceBatchCall, ProduceBatchSubmitFailure> {
-        debug_assert!(submissions.len() > 1);
-        Err(ProduceBatchSubmitFailure::from_submissions(
-            submissions,
-            ProducerAttemptFailureKind::Permanent,
-        ))
+        let Some(deadline) = shared_deadline(&submissions) else {
+            return Err(ProduceBatchSubmitFailure::from_submissions(
+                submissions,
+                ProducerAttemptFailureKind::Permanent,
+            ));
+        };
+        let retained = submissions.len();
+        let mut batches = Vec::new();
+        let mut entries = Vec::new();
+        let mut receipts = Vec::new();
+        if batches.try_reserve_exact(retained).is_err()
+            || entries.try_reserve_exact(retained).is_err()
+            || receipts.try_reserve_exact(retained).is_err()
+        {
+            return Err(ProduceBatchSubmitFailure::from_submissions(
+                submissions,
+                ProducerAttemptFailureKind::LocalCapacity,
+            ));
+        }
+        for submission in &submissions {
+            let materialized = submission.materialized();
+            batches.push(materialized);
+            entries.push(TrackedProduceEntry {
+                execution: submission.execution(),
+                deadline: deadline.core(),
+                topic: materialized.topic_owner(),
+                partition: materialized.partition(),
+            });
+            receipts.push(AcceptedProduceCall::new(submission.execution()));
+        }
+        let Some(request) = MaterializedProduce::broker_routed_request(&batches, now, deadline)
+        else {
+            drop(batches);
+            return Err(ProduceBatchSubmitFailure::from_submissions(
+                submissions,
+                ProducerAttemptFailureKind::LocalCapacity,
+            ));
+        };
+        drop(batches);
+        let broker_id = self.reserved_exact_broker_id();
+        let call =
+            match driver.submit_tracked_produce_to_broker(broker_id, request, deadline.transport())
+            {
+                Ok(call) => call,
+                Err(error) => {
+                    return Err(ProduceBatchSubmitFailure::from_submissions(
+                        submissions,
+                        error.failure_kind(),
+                    ));
+                }
+            };
+        drop(submissions);
+        self.commit_reserved_exact_broker_call(
+            TrackedProduceEntries::batch(entries),
+            deadline,
+            call,
+        );
+        Ok(AcceptedProduceBatchCall { receipts })
     }
+}
+
+fn shared_deadline(submissions: &[PreparedProduceSubmission]) -> Option<OperationDeadline> {
+    let deadline = submissions.first()?.deadline();
+    (submissions.len() > 1 && submissions.iter().all(|entry| entry.deadline() == deadline))
+        .then_some(deadline)
 }
 
 impl AcceptedProduceBatchCall {
@@ -65,6 +154,7 @@ impl ProduceBatchSubmitFailure {
         Self { submissions, kind }
     }
 
+    #[cfg(test)]
     pub(crate) fn delivery(&self) -> DeliveryStatus {
         let _retained_count = self.submissions.len();
         DeliveryStatus::NotSent

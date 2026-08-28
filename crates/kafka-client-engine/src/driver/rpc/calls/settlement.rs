@@ -5,10 +5,11 @@ use std::{error::Error, fmt, sync::Arc};
 #[cfg(test)]
 use kafka_client_core::BatchExecutionId;
 use kafka_client_core::{Deadline, Moment, ProducerInput};
-use kafka_driver::{CompletionError, RequestError, RouteFailureToken, RouteKind};
+use kafka_driver::{CompletionError, RequestError, RouteFailureToken};
 use kafka_wire::ProduceResponse;
 
 use crate::{
+    clock::OperationDeadline,
     driver::DriverOwner,
     protocol::produce_response_batch::{
         BatchedProduceResponseIndex, validate_batched_produce_response,
@@ -16,7 +17,9 @@ use crate::{
 };
 
 use super::super::produce_call_entries::TrackedProduceEntries;
-use super::route_refresh::{ProduceRouteRefresh, ProduceRouteRefreshPoll, needs_route_refresh};
+use super::route_refresh::{
+    ProduceRouteRefresh, ProduceRouteRefreshPoll, mark_route_refreshed, needs_route_refresh,
+};
 use super::settlement_normalize::normalized_entry_input;
 
 #[cfg(test)]
@@ -27,7 +30,7 @@ pub(crate) struct SettledProduceCall {
     result: Result<ProduceResponse, RequestError>,
     response_shape_valid: bool,
     response_index: Option<BatchedProduceResponseIndex>,
-    shared_deadline: Deadline,
+    deadline: OperationDeadline,
     input: ProducerInput,
     _route_token: Option<RouteFailureToken>,
     route_refresh: ProduceRouteRefresh,
@@ -36,13 +39,19 @@ pub(crate) struct SettledProduceCall {
 impl SettledProduceCall {
     pub(super) fn from_terminal(
         entries: TrackedProduceEntries,
+        deadline: OperationDeadline,
         result: Result<ProduceResponse, RequestError>,
         now: Moment,
         mut route_token: Option<RouteFailureToken>,
     ) -> Self {
-        let shared_deadline = entries.first().deadline;
+        debug_assert!(
+            entries
+                .iter()
+                .all(|entry| entry.deadline == deadline.core())
+        );
+        let batched = entries.len() > 1;
         let response_index = match &result {
-            Ok(response) if entries.len() > 1 => validate_batched_produce_response(
+            Ok(response) if batched => validate_batched_produce_response(
                 response,
                 entries.len(),
                 entries
@@ -52,31 +61,40 @@ impl SettledProduceCall {
             .ok(),
             _ => None,
         };
-        let response_shape_valid =
-            response_index.is_some() || (result.is_err() && entries.len() > 1);
+        let response_shape_valid = response_index.is_some() || (result.is_err() && batched);
         let input = normalized_entry_input(
             entries.first(),
             now,
             &result,
-            entries.len() > 1,
+            batched,
             response_shape_valid,
             response_index.as_ref(),
         );
-        // One name-route receipt proves only the selected routing partition.
-        // Batch settlement therefore retains that token until drop and never
-        // reports it as refresh evidence for every aggregated entry.
-        let route_refresh_required = entries.len() == 1 && needs_route_refresh(input);
-        let route_refresh = ProduceRouteRefresh::from_required(
-            route_refresh_required,
-            RouteKind::PartitionLeader,
-            &mut route_token,
-        );
+        let topic = &entries.first().topic;
+        let same_topic = entries
+            .iter()
+            .all(|entry| entry.topic.as_ref() == topic.as_ref());
+        let route_refresh_required = same_topic
+            && entries.iter().any(|entry| {
+                needs_route_refresh(normalized_entry_input(
+                    entry,
+                    now,
+                    &result,
+                    batched,
+                    response_shape_valid,
+                    response_index.as_ref(),
+                ))
+            });
+        // One exact-broker request token fences one post-outcome exact-topic
+        // lookup for every same-topic partition carried by this response.
+        let route_refresh =
+            ProduceRouteRefresh::from_required(route_refresh_required, &mut route_token);
         Self {
             entries,
             result,
             response_shape_valid,
             response_index,
-            shared_deadline,
+            deadline,
             input,
             _route_token: route_token,
             route_refresh,
@@ -92,9 +110,11 @@ impl SettledProduceCall {
         driver: &DriverOwner,
         now: Moment,
     ) -> ProduceRouteRefreshPoll {
+        let topic = Arc::clone(&self.entries.first().topic);
         self.route_refresh.poll(
             driver,
-            self.shared_deadline,
+            topic.as_ref(),
+            self.deadline,
             self.entries.first().execution,
             &mut self.input,
             now,
@@ -102,7 +122,7 @@ impl SettledProduceCall {
     }
 
     pub(super) fn refresh_deadline(&self) -> Option<Deadline> {
-        self.route_refresh.deadline(self.shared_deadline)
+        self.route_refresh.deadline(self.deadline.core())
     }
 
     #[cfg(test)]
@@ -122,6 +142,9 @@ impl SettledProduceCall {
             self.response_shape_valid,
             self.response_index.as_ref(),
         );
+        if matches!(&self.route_refresh, ProduceRouteRefresh::Refreshed) {
+            mark_route_refreshed(&mut self.input);
+        }
         true
     }
 

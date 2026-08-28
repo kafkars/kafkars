@@ -18,6 +18,21 @@ use crate::{
     protocol::produce::{MaterializedProduce, materialize_explicit_produce_batch},
 };
 
+impl super::PreparedProduceSubmission {
+    pub(crate) const fn from_test_parts(
+        execution: BatchExecutionId,
+        deadline: OperationDeadline,
+        materialized: MaterializedProduce,
+    ) -> Self {
+        Self::new(
+            execution,
+            OperationId::from_raw(execution.batch_id().get()),
+            deadline,
+            materialized,
+        )
+    }
+}
+
 #[test]
 fn handoff_preserves_exact_execution_deadline_and_encoded_owner() {
     let execution = execution(7);
@@ -33,7 +48,9 @@ fn handoff_preserves_exact_execution_deadline_and_encoded_owner() {
         .unwrap_or_else(|error| panic!("exact handoff failed: {error}"));
 
     assert_eq!(submission.execution(), execution);
+    assert_eq!(submission.operation_id(), OperationId::from_raw(12));
     assert_eq!(submission.deadline(), deadline);
+    assert_eq!(submission.partition(), 4);
     assert_eq!(owner.prepared_stats().batches, 0);
     assert_eq!(owner.prepared_stats().encoded_record_bytes, 0);
     assert_eq!(owner.submission_count(), 0);
@@ -60,6 +77,11 @@ fn replacement_submission_requires_newer_metadata_for_expected_uuid() {
     let mut submission =
         super::PreparedProduceSubmission::from_test_parts(replacement, deadline(41), materialized);
 
+    assert_eq!(submission.expected_topic_uuid(), Some([7; 16]));
+    assert_eq!(
+        submission.validated_topic_generation(),
+        Some(TopicMetadataGeneration::from_raw(11))
+    );
     assert_eq!(
         submission.retry_topic_identity(),
         Some(([7; 16], TopicMetadataGeneration::from_raw(11)))

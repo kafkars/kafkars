@@ -1410,15 +1410,17 @@ evidence = [
 [[invariant]]
 id = "DRV-01"
 title = "Driver handoff preserves deadline and certainty"
-statement = "The public facade captures an absolute deadline before waiting; the engine preflights bounded call capacity, moves one prepared request into the embedded reactor with that same transport deadline, and applies authoritative driver delivery certainty without engine-owned retry or metadata authority."
+statement = "The public facade captures an absolute deadline before waiting; the engine retains prepared ownership through exact topic resolution, preflights bounded global and exact-broker call capacity, atomically moves one same-topic same-deadline broker group into the embedded reactor with that same transport deadline, and applies authoritative driver delivery certainty without engine-owned retry or metadata authority."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/boundary/handle_test.rs::explicit_try_send_captures_one_absolute_deadline_and_commits",
-  "crates/kafka-client-engine/src/driver/rpc/submission_test.rs::produce_options_preserve_deadline_lane_and_name_route_version_ceiling",
-  "crates/kafka-client-engine/src/engine_host/produce_test.rs::accepted_call_is_retained_before_core_reports_submitted",
+  "crates/kafka-client-engine/src/driver/rpc/submission_test.rs::produce_options_preserve_deadline_lane_and_version_ceiling",
+  "crates/kafka-client-engine/src/driver/rpc/produce_call_batch_test.rs::aggregate_request_accepts_every_execution_into_one_tracked_owner",
   "crates/kafka-client-engine/src/engine_host/produce_test.rs::immediate_driver_rejection_applies_not_sent_before_unlock",
-  "crates/kafka-client-engine/src/engine_host/produce_turn_test.rs::terminal_fact_is_applied_before_the_tracked_slot_is_released",
-  "crates/kafka-client-engine/src/engine_host/produce_test.rs::full_call_capacity_preserves_the_next_prepared_owner",
+  "crates/kafka-client-engine/src/driver/rpc/calls_test.rs::pending_call_remains_owned_when_a_poll_has_no_result",
+  "crates/kafka-client-engine/src/driver/rpc/calls_test.rs::exact_broker_gate_does_not_become_a_global_five_request_ceiling",
+  "crates/kafka-client-engine/src/engine_host/produce_test.rs::retained_route_lookup_preserves_the_next_prepared_owner",
+  "crates/kafka-client-engine/src/producer/execution/route_window_test.rs::stale_route_snapshot_cannot_partially_detach_its_remaining_group",
   "crates/kafka-client-engine/src/engine_host/produce_turn_test.rs::completion_polling_waits_without_consuming_when_the_shard_is_contended",
   "crates/kafka-client-core/src/producer/input_outcome_test.rs::driver_deadline_preserves_certainty_and_requires_the_original_boundary",
   "crates/kafka-client-engine/src/driver/rpc/calls/settlement_normalize_test.rs::exact_driver_deadline_preserves_authoritative_delivery_certainty",
@@ -1635,7 +1637,7 @@ evidence = [
 [[invariant]]
 id = "RTY-01"
 title = "Producer retries require explicit structural and replay authority"
-statement = "The public builder may select one bounded maximum replacement count and fixed backoff before engine startup; omission preserves the bounded engine default, zero replacements disables retry and ignores the backoff, and an enabled zero or unrepresentable backoff is rejected before any host starts. Validation installs that choice into the existing sole core retry policy. A bounded replacement execution may start after nonzero backoff for a normalized structurally transient attempt with authoritative NotSent certainty, an exact broker-retriable rejection, or an exact routing rejection after completed route refresh. A PossiblySent transient transport loss may replace only after the exact partition route token yields Applied or IgnoredStale invalidation, idempotence remains unfenced, and the replacement reuses the unchanged producer identity, epoch, partition, and base sequence. Missing or failed route authority, permanent failures, unknown broker failures, and other PossiblySent failures never retry. Every replacement retains the original deadline, bytes, completion, flush, and close ownership; route refresh never rewrites delivery certainty."
+statement = "The public builder may select one bounded maximum replacement count and fixed backoff before engine startup; omission preserves the bounded engine default, zero replacements disables retry and ignores the backoff, and an enabled zero or unrepresentable backoff is rejected before any host starts. Validation installs that choice into the existing sole core retry policy. A bounded replacement execution may start after nonzero backoff for a normalized structurally transient attempt with authoritative NotSent certainty, an exact broker-retriable rejection, or an exact routing rejection after an exact-broker token completes one same-topic post-outcome view barrier. A PossiblySent transient transport loss may replace only after that causal barrier completes, idempotence remains unfenced, and the replacement reuses the unchanged producer identity, epoch, partition, and base sequence. Missing, failed, or mismatched topic authority, permanent failures, unknown broker failures, and other PossiblySent failures never retry. Every replacement retains the original deadline, bytes, completion, flush, and close ownership; route refresh never rewrites delivery certainty."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/producer/retry_test.rs::definitely_unsent_transient_failure_retries_with_a_fresh_execution",
@@ -1647,9 +1649,12 @@ evidence = [
   "crates/kafka-client-core/src/producer/retry_safety_test.rs::close_waits_across_retry_and_completes_after_record_terminal",
   "crates/kafka-client-engine/src/driver/delivery_test.rs::only_recoverable_connection_shapes_are_transient",
   "crates/kafka-client-engine/src/driver/delivery_test.rs::possibly_sent_transport_loss_is_transient_but_keeps_delivery_uncertain",
-  "crates/kafka-client-engine/src/driver/rpc/calls/route_refresh_test.rs::only_applied_or_stale_route_refresh_authorizes_retry",
-  "crates/kafka-client-engine/src/driver/rpc/calls/settlement_test.rs::single_transport_failure_retains_partition_refresh_authority",
-  "crates/kafka-client-engine/src/driver/rpc/calls/settlement_test.rs::single_broker_routing_failure_retains_partition_refresh_authority",
+  "crates/kafka-client-engine/src/driver/rpc/calls/route_refresh_test.rs::only_an_exact_broker_token_can_begin_the_topic_barrier",
+  "crates/kafka-client-engine/src/driver/rpc/topic_view/producer_test.rs::only_mailbox_full_preserves_retryable_topic_barrier_admission",
+  "crates/kafka-client-engine/src/driver/rpc/calls/settlement_test.rs::single_transport_failure_requires_exact_broker_refresh_authority",
+  "crates/kafka-client-engine/src/driver/rpc/calls/settlement_test.rs::single_broker_routing_failure_requires_exact_broker_refresh_authority",
+  "crates/kafka-client-engine/src/driver/rpc/calls/settlement_test.rs::mixed_topic_entries_cannot_share_one_topic_barrier",
+  "crates/kafka-client-engine/src/driver/rpc/calls_test/refresh_deadline_test.rs::pending_route_refresh_expires_at_the_original_delivery_deadline",
   "crates/kafka-client-engine/src/producer/host/driver_input_test.rs::live_retry_rematerializes_fresh_execution_with_original_deadline",
   "crates/kafka-client-engine/src/producer/host/driver_input_test.rs::live_possibly_sent_failure_never_creates_replacement",
   "crates/kafka-client-sim/src/state/retry_test.rs::retry_retains_attempt_history_and_materializes_only_the_replacement",

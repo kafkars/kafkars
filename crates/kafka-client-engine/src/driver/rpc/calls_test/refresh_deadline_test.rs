@@ -1,6 +1,9 @@
 //! Evidence that retained Produce-route refresh cannot outlive delivery.
 
-use std::{num::NonZeroI16, time::Duration};
+use std::{
+    num::NonZeroI16,
+    time::{Duration, Instant},
+};
 
 use kafka_client_core::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, Deadline, DeliveryStatus, Moment,
@@ -9,6 +12,7 @@ use kafka_client_core::{
 
 use crate::{
     EngineConfig,
+    clock::OperationDeadline,
     driver::{DriverOwner, ProduceRouteRefreshPoll, TrackedProduceCalls},
 };
 
@@ -26,9 +30,10 @@ fn pending_route_refresh_expires_at_the_original_delivery_deadline() {
         route_refreshed: false,
     };
     let exact_deadline = Deadline::from_tick(14);
+    let transport_deadline = Instant::now() + Duration::from_secs(1);
     let mut calls = TrackedProduceCalls::with_submit_then_pending_refresh_for_test(
         execution(7),
-        exact_deadline,
+        OperationDeadline::from_parts_for_test(exact_deadline, transport_deadline),
         input,
     );
     assert_eq!(calls.next_refresh_deadline(), Some(exact_deadline));
@@ -37,6 +42,10 @@ fn pending_route_refresh_expires_at_the_original_delivery_deadline() {
             .poll_next_ready(Moment::from_tick(13))
             .unwrap_or_else(|error| panic!("poll retained terminal: {error}"))
             .unwrap_or_else(|| panic!("test terminal remains retained"));
+        assert_eq!(
+            settled.operation_deadline_for_test().transport(),
+            transport_deadline
+        );
         assert_eq!(
             settled.poll_route_refresh(&driver, Moment::from_tick(13)),
             ProduceRouteRefreshPoll::Submitted

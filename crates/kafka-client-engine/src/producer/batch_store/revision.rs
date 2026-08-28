@@ -50,6 +50,17 @@ enum RevisionContinuation {
 }
 
 impl BatchStore {
+    #[cfg(test)]
+    pub(in crate::producer) fn replace_ready_for_test(
+        &mut self,
+        batch_id: BatchId,
+        replacement: BatchExecutionId,
+    ) {
+        if let Some(batch) = self.batches.get_mut(&batch_id) {
+            batch.state = BatchState::ReadyForMaterialization(replacement);
+        }
+    }
+
     pub(in crate::producer) fn cancellation_phase(
         &self,
         operation_id: OperationId,

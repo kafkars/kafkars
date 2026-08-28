@@ -8,8 +8,8 @@ use std::{
 use kafka_client_core::{ByteCount, Deadline, Moment, ProducerBatchPolicy, ProducerInput};
 
 use crate::{
-    EngineConfig, ProducerCancellationOutcome, ProducerDeliveryError, ProducerDeliveryFailureKind,
-    ProducerDeliveryObserver, ProducerDeliveryStatus,
+    EngineConfig, ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryObserver,
+    ProducerDeliveryStatus,
     clock::OperationDeadline,
     driver::{DriverOwner, TrackedProduceCalls, TrackedProducerIdentityCalls},
     producer::{
@@ -20,7 +20,9 @@ use crate::{
     },
 };
 
-use super::produce::{admit_identity, admit_one, apply_ready};
+use super::produce::{
+    admit_identity, admit_one, apply_ready, discard_routing_after_driver_shutdown,
+};
 
 const DRIVER_TURN_WAIT: Duration = Duration::from_millis(10);
 
@@ -33,7 +35,7 @@ fn submitted_refresh_progresses_once_but_pending_or_rejected_refresh_does_not_sp
             kafka_client_core::BatchId::from_raw(1),
             kafka_client_core::BatchExecutionGeneration::initial(),
         ),
-        Deadline::from_tick(100),
+        OperationDeadline::from_core_for_test(Deadline::from_tick(100)),
         ProducerInput::ExecutionUnavailable,
     );
     let mut data = producer
@@ -55,58 +57,28 @@ fn submitted_refresh_progresses_once_but_pending_or_rejected_refresh_does_not_sp
 }
 
 #[test]
-fn accepted_call_is_retained_before_core_reports_submitted() {
-    let (producer, observer) = prepared_producer();
-    let mut driver = driver();
-    let mut calls = TrackedProduceCalls::new(1);
-    let mut retry_identity = None;
-    {
-        let mut data = producer
-            .try_data()
-            .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
-        assert!(
-            admit_one(
-                &driver,
-                &mut calls,
-                &mut retry_identity,
-                &mut data,
-                Moment::from_tick(2),
-            )
-            .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"))
-        );
-        assert!(calls.try_reserve().is_none());
-    }
-
-    let cancellation = observer
-        .try_cancel()
-        .unwrap_or_else(|error| panic!("submitted cancellation decision: {error}"));
-    assert_eq!(cancellation.outcome(), ProducerCancellationOutcome::TooLate);
-
-    drop((observer, calls));
-    shutdown(&mut driver);
-}
-
-#[test]
 fn immediate_driver_rejection_applies_not_sent_before_unlock() {
     let (producer, observer) = prepared_producer();
     let mut driver = driver();
     shutdown(&mut driver);
     let mut calls = TrackedProduceCalls::new(1);
-    let mut retry_identity = None;
+    let mut routing = None;
     let mut data = producer
         .try_data()
         .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
 
-    assert!(
-        admit_one(
-            &driver,
-            &mut calls,
-            &mut retry_identity,
-            &mut data,
-            Moment::from_tick(2),
-        )
-        .unwrap_or_else(|error| panic!("driver rejection application: {error}"))
-    );
+    let outcome = admit_one(
+        &driver,
+        &mut calls,
+        &mut routing,
+        &mut data,
+        Moment::from_tick(2),
+        64,
+    )
+    .unwrap_or_else(|error| panic!("driver rejection application: {error}"));
+    assert!(outcome.did_progress());
+    assert_eq!(outcome.prepared_batches(), 1);
+    assert!(routing.is_none());
     assert!(calls.try_reserve().is_some());
     drop(data);
 
@@ -148,11 +120,11 @@ fn immediate_identity_rejection_applies_live_identity_failure_before_unlock() {
 }
 
 #[test]
-fn full_call_capacity_preserves_the_next_prepared_owner() {
+fn retained_route_lookup_preserves_the_next_prepared_owner() {
     let (producer, first) = prepared_producer();
     let mut driver = driver();
     let mut calls = TrackedProduceCalls::new(1);
-    let mut retry_identity = None;
+    let mut routing = None;
     {
         let mut data = producer
             .try_data()
@@ -160,9 +132,10 @@ fn full_call_capacity_preserves_the_next_prepared_owner() {
         admit_one(
             &driver,
             &mut calls,
-            &mut retry_identity,
+            &mut routing,
             &mut data,
             Moment::from_tick(2),
+            64,
         )
         .unwrap_or_else(|error| panic!("first tracked admission: {error}"));
     }
@@ -176,21 +149,24 @@ fn full_call_capacity_preserves_the_next_prepared_owner() {
         !admit_one(
             &driver,
             &mut calls,
-            &mut retry_identity,
+            &mut routing,
             &mut data,
             Moment::from_tick(4),
+            64,
         )
         .unwrap_or_else(|error| panic!("bounded admission preflight: {error}"))
+        .did_progress()
     );
 
     let after = data.shard_stats().host;
     assert_eq!(after.prepared_batches, before.prepared_batches);
     assert_eq!(after.prepared_bytes, before.prepared_bytes);
     assert_eq!(after.submission_deadlines, before.submission_deadlines);
-    assert_eq!(after.prepared_batches, 1);
-    assert_eq!(after.submission_deadlines, 1);
+    assert_eq!(after.prepared_batches, 2);
+    assert_eq!(after.submission_deadlines, 2);
     drop((data, first, second, calls));
     shutdown(&mut driver);
+    discard_routing_after_driver_shutdown(&mut routing);
 }
 
 pub(super) fn prepared_producer() -> (ProducerShardOwner, ProducerDeliveryObserver) {
@@ -277,12 +253,12 @@ fn ready_limits() -> crate::producer::ProducerHostLimits {
     limits
 }
 
-fn driver() -> DriverOwner {
+pub(super) fn driver() -> DriverOwner {
     DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("build embedded driver: {error}"))
 }
 
-fn shutdown(driver: &mut DriverOwner) {
+pub(super) fn shutdown(driver: &mut DriverOwner) {
     driver
         .shutdown_with_turn_limit(64, DRIVER_TURN_WAIT)
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));

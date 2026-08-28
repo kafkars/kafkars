@@ -148,6 +148,30 @@ impl ProducerRecord {
         true
     }
 
+    pub(in crate::producer) fn can_record_topic_identity_revalidation(
+        &self,
+        expected: [u8; 16],
+        generation: TopicMetadataGeneration,
+    ) -> bool {
+        self.expected_topic_uuid == Some(expected)
+            && self
+                .validated_topic_generation
+                .is_none_or(|current| generation > current)
+    }
+
+    pub(in crate::producer) fn record_topic_identity_revalidation(
+        &mut self,
+        expected: [u8; 16],
+        generation: TopicMetadataGeneration,
+    ) -> bool {
+        if !self.can_record_topic_identity_revalidation(expected, generation) {
+            return false;
+        }
+        self.validated_topic_uuid = Some(expected);
+        self.validated_topic_generation = Some(generation);
+        true
+    }
+
     pub(super) const fn validated_topic_generation(&self) -> Option<TopicMetadataGeneration> {
         self.validated_topic_generation
     }

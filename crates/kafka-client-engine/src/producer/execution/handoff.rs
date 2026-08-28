@@ -1,18 +1,22 @@
-//! Atomic transfer from the single prepared owner into one driver submission.
+//! Atomic transfer from the prepared owner into bounded handoff submissions.
 
+mod group;
+#[cfg(test)]
+mod group_test;
 mod identity;
 
 use std::{error::Error, fmt};
 
-use kafka_client_core::BatchExecutionId;
+use kafka_client_core::{BatchExecutionId, OperationId};
 
 use super::{PreparedExecution, PreparedProduceError, ScheduledDeadline};
 use crate::{clock::OperationDeadline, protocol::produce::MaterializedProduce};
 
-/// Linear request owner ready for a bounded driver admission attempt.
+/// Linear encoded owner ready for route resolution and later driver admission.
 #[derive(Debug)]
 pub(crate) struct PreparedProduceSubmission {
     execution: BatchExecutionId,
+    operation_id: OperationId,
     deadline: OperationDeadline,
     materialized: MaterializedProduce,
 }
@@ -20,23 +24,16 @@ pub(crate) struct PreparedProduceSubmission {
 impl PreparedProduceSubmission {
     pub(super) const fn new(
         execution: BatchExecutionId,
+        operation_id: OperationId,
         deadline: OperationDeadline,
         materialized: MaterializedProduce,
     ) -> Self {
         Self {
             execution,
+            operation_id,
             deadline,
             materialized,
         }
-    }
-
-    #[cfg(test)]
-    pub(crate) const fn from_test_parts(
-        execution: BatchExecutionId,
-        deadline: OperationDeadline,
-        materialized: MaterializedProduce,
-    ) -> Self {
-        Self::new(execution, deadline, materialized)
     }
 
     /// Returns the exact sealed-batch execution identity.
@@ -68,10 +65,24 @@ impl PreparedProduceSubmission {
 /// Exact rejection from the unified prepared-request transfer.
 #[derive(Debug)]
 pub(crate) enum PreparedProduceHandoffError {
-    /// Bounded control storage could not retain one selected broker group.
+    /// Bounded control storage could not retain one selected candidate window.
     GroupingCapacity {
         /// Number of exact prepared submissions selected without mutation.
         requested: usize,
+    },
+    /// One encoded batch exceeds the enclosing broker-request byte limit.
+    RequestByteLimit {
+        /// Exact execution that remains retained by prepared execution.
+        execution: BatchExecutionId,
+        /// Encoded record bytes observed without moving their owner.
+        encoded_bytes: usize,
+        /// Configured maximum encoded record bytes for one request.
+        limit: usize,
+    },
+    /// A borrow-only route snapshot no longer matches its prepared owner.
+    RouteSnapshotMismatch {
+        /// Exact execution whose observed route facts became stale.
+        execution: BatchExecutionId,
     },
     /// The prepared entry is absent, stale, or has not been armed by core.
     OwnershipMismatch {
@@ -103,7 +114,23 @@ impl fmt::Display for PreparedProduceHandoffError {
         match self {
             Self::GroupingCapacity { requested } => write!(
                 formatter,
-                "prepared Produce broker group could not reserve {requested} control entries"
+                "prepared Produce candidate window could not reserve {requested} control entries"
+            ),
+            Self::RequestByteLimit {
+                execution,
+                encoded_bytes,
+                limit,
+            } => write!(
+                formatter,
+                "prepared Produce batch {} generation {} retains {encoded_bytes} encoded bytes above request limit {limit}",
+                execution.batch_id().get(),
+                execution.generation().get()
+            ),
+            Self::RouteSnapshotMismatch { execution } => write!(
+                formatter,
+                "prepared Produce route snapshot is stale for batch {} generation {}",
+                execution.batch_id().get(),
+                execution.generation().get()
             ),
             Self::OwnershipMismatch { requested, .. } => write!(
                 formatter,
@@ -200,6 +227,7 @@ impl PreparedExecution {
         self.retained_bytes = next_bytes;
         Ok(PreparedProduceSubmission::new(
             execution,
+            submission.operation_id,
             submission.deadline,
             entry.materialized,
         ))

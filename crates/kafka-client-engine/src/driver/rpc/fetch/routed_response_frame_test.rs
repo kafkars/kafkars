@@ -3,7 +3,7 @@
 use kafka_wire::{KafkaRequest, RequestHeader, request_header_version};
 use kafka_wire_core::{ApiVersion, DecodeLimits, Decoder, KafkaDecode};
 
-use super::routed_response_broker_test::RequestFrame;
+use super::routed_response_broker_wire_test::RequestFrame;
 
 impl RequestFrame {
     pub(super) fn decode<R>(&self) -> R

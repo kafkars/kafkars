@@ -27,7 +27,7 @@ use crate::{
 };
 
 #[test]
-fn routing_failure_without_exact_partition_receipt_cannot_authorize_retry() {
+fn routing_failure_without_exact_broker_receipt_cannot_authorize_retry() {
     let mut driver = owner();
     let input = ProducerInput::BrokerFailed {
         execution: execution(7),
@@ -41,7 +41,7 @@ fn routing_failure_without_exact_partition_receipt_cannot_authorize_retry() {
     };
     let mut calls = TrackedProduceCalls::with_missing_route_refresh_for_test(
         execution(7),
-        kafka_client_core::Deadline::from_tick(50_000_000),
+        OperationDeadline::from_core_for_test(kafka_client_core::Deadline::from_tick(50_000_000)),
         input,
     );
     let settled = calls
@@ -65,11 +65,11 @@ fn permits_preflight_the_exact_bounded_owner() {
     let mut driver = owner();
     let mut calls = TrackedProduceCalls::new(1);
     let permit = calls
-        .try_reserve()
+        .try_reserve_for(7)
         .unwrap_or_else(|| panic!("first bounded slot must be available"));
     submit(permit, &driver, 1);
 
-    assert!(calls.try_reserve().is_none());
+    assert!(calls.try_reserve_for(7).is_none());
 
     drop(calls);
     driver
@@ -78,21 +78,22 @@ fn permits_preflight_the_exact_bounded_owner() {
 }
 
 #[test]
-fn configured_gate_bounds_unresolved_broker_requests() {
+fn configured_gate_bounds_one_exact_broker() {
     let mut driver = owner();
     let mut calls = TrackedProduceCalls::with_max_in_flight_requests_per_broker(3, 2);
-    assert!(calls.broker_admission_available(None));
+    assert!(calls.broker_admission_available(7));
 
     for batch in [1, 2] {
         let permit = calls
-            .try_reserve()
+            .try_reserve_for(7)
             .unwrap_or_else(|| panic!("bounded slot for batch {batch}"));
         submit(permit, &driver, batch);
     }
 
-    assert!(!calls.broker_admission_available(None));
-    assert!(!calls.broker_admission_available(Some(7)));
-    assert!(calls.try_reserve().is_some());
+    assert!(!calls.broker_admission_available(7));
+    assert!(calls.broker_admission_available(8));
+    assert!(calls.try_reserve_for(7).is_none());
+    assert!(calls.try_reserve_for(8).is_some());
 
     drop(calls);
     driver
@@ -101,33 +102,25 @@ fn configured_gate_bounds_unresolved_broker_requests() {
 }
 
 #[test]
-fn unresolved_calls_charge_every_resolved_broker_gate() {
+fn exact_broker_gate_does_not_become_a_global_five_request_ceiling() {
     let mut driver = owner();
-    let mut calls = TrackedProduceCalls::with_max_in_flight_requests_per_broker(6, 5);
-    for batch in 1..=4 {
+    let mut calls = TrackedProduceCalls::with_max_in_flight_requests_per_broker(7, 5);
+    for batch in 1..=5 {
         let permit = calls
-            .try_reserve()
-            .unwrap_or_else(|| panic!("bounded unresolved slot for batch {batch}"));
+            .try_reserve_for(7)
+            .unwrap_or_else(|| panic!("bounded broker-seven slot for batch {batch}"));
         submit(permit, &driver, batch);
     }
 
-    assert!(calls.broker_admission_available(Some(7)));
-    calls.set_broker_id_for_test(0, 7);
-    assert!(calls.broker_admission_available(Some(7)));
-    calls.set_broker_id_for_test(1, 7);
-    assert!(calls.broker_admission_available(Some(7)));
-    calls.set_broker_id_for_test(2, 7);
-    assert!(calls.broker_admission_available(Some(7)));
-    assert!(calls.broker_admission_available(Some(8)));
-    assert!(calls.broker_admission_available(None));
-
     let permit = calls
-        .try_reserve()
-        .unwrap_or_else(|| panic!("fifth bounded unresolved slot"));
-    submit(permit, &driver, 5);
-    assert!(!calls.broker_admission_available(Some(7)));
-    assert!(!calls.broker_admission_available(None));
-    assert_eq!(calls.max_broker_in_flight_request_count(), 5);
+        .try_reserve_for(8)
+        .unwrap_or_else(|| panic!("another broker retains an independent slot"));
+    submit(permit, &driver, 6);
+
+    assert!(calls.try_reserve_for(7).is_none());
+    assert!(calls.try_reserve_for(8).is_some());
+    assert_eq!(calls.in_flight_request_count(), 6);
+    assert_eq!(calls.broker_in_flight_request_count(7), 5);
 
     drop(calls);
     driver
@@ -140,7 +133,7 @@ fn pending_call_remains_owned_when_a_poll_has_no_result() {
     let mut driver = owner();
     let mut calls = TrackedProduceCalls::new(1);
     calls
-        .try_reserve()
+        .try_reserve_for(7)
         .unwrap_or_else(|| panic!("bounded slot"))
         .submit(
             &driver,
@@ -158,7 +151,7 @@ fn pending_call_remains_owned_when_a_poll_has_no_result() {
             .unwrap_or_else(|error| panic!("poll tracked call: {error}"))
             .is_none()
     );
-    assert!(calls.try_reserve().is_none());
+    assert!(calls.try_reserve_for(7).is_none());
 
     drop(calls);
     driver
@@ -172,7 +165,7 @@ fn shutdown_recovery_retains_every_exact_accepted_execution_until_sealed() {
     let mut calls = TrackedProduceCalls::new(2);
     for batch in [3, 9] {
         let permit = calls
-            .try_reserve()
+            .try_reserve_for(7)
             .unwrap_or_else(|| panic!("bounded slot for batch {batch}"));
         submit(permit, &driver, batch);
     }

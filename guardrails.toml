@@ -156,8 +156,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 105, reason = "the declarative consumer facade names the public ShareAcknowledge boundary and focused incremental direct-assignment admission owner" },
   { path = "crates/kafka-client-engine/src/consumer/share/mod.rs", lines = 149, reason = "the declarative share facade names acknowledgement completion, capture-first admission, hosted publication, and their sibling evidence beside ShareFetch ownership" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 177, reason = "the narrow driver facade explicitly names tracked-call, raw-terminal, and recovery types for the complete source-preview Admin surface" },
-  { path = "crates/kafka-client-engine/src/driver/rpc/calls.rs", lines = 277, reason = "the central driver RPC call owner retains exact admission, polling, settlement, and route invalidation for the supported broker operations" },
-  { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 355, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs", lines = 348, reason = "the focused evidence keeps exact broker admission, ownership, settlement, and recovery scenarios together; this reduced measured baseline ratchets further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc/remove_raft_voter_terminal.rs", lines = 254, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs", lines = 268, reason = "AddPartitionsToTxn retains exact response correlation, coordinator-refresh eligibility, and retry-safety evidence in one terminal owner" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs", lines = 297, reason = "AddOffsetsToTxn retains one explicit call, causal coordinator refresh, terminal delivery, and abort-required ownership state machine" },
@@ -1890,6 +1889,10 @@ production = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/calls/permit.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/calls/permit_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls_test.rs"
 
@@ -2070,6 +2073,14 @@ production = "crates/kafka-client-engine/src/engine_host/produce.rs"
 test = "crates/kafka-client-engine/src/engine_host/produce_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/produce/routing.rs"
+test = "crates/kafka-client-engine/src/engine_host/produce/routing_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/produce/routing/resolution.rs"
+test = "crates/kafka-client-engine/src/engine_host/produce/routing/resolution_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/finalize.rs"
 test = "crates/kafka-client-engine/src/engine_host/finalize_test.rs"
 
@@ -2182,8 +2193,28 @@ production = "crates/kafka-client-engine/src/driver/security.rs"
 test = "crates/kafka-client-engine/src/driver/security_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/topic_view/producer.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/topic_view/producer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/produce_call_batch.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/produce_call_batch_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/produce/request_broker.rs"
+test = "crates/kafka-client-engine/src/protocol/produce/request_broker_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/next_submission.rs"
 test = "crates/kafka-client-engine/src/producer/execution/next_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution/route_window.rs"
+test = "crates/kafka-client-engine/src/producer/execution/route_window_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution/handoff/group.rs"
+test = "crates/kafka-client-engine/src/producer/execution/handoff/group_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/submission.rs"
@@ -2300,6 +2331,10 @@ test = "crates/kafka-client-engine/src/producer/materialization_retention_test.r
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/store/materialization_view.rs"
 test = "crates/kafka-client-engine/src/producer/store/materialization_view_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/store/route_validation.rs"
+test = "crates/kafka-client-engine/src/producer/store/route_validation_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/store/batch_lifecycle.rs"
@@ -5645,7 +5680,47 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/execution/handoff/group.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_records",
+  "std::time",
+  "Instant::now",
+  "OperationDeadline::from_boundary_parts",
+  "materialize_explicit_produce_batch",
+  "ProduceRequest",
+  "RecordBatch",
+  "Transport",
+  "Rpc",
+  "Retry",
+  "Metadata",
+  "std::future",
+  "Future",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/producer/execution/next_submission.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_records",
+  "std::time",
+  "Instant::now",
+  "OperationDeadline::from_boundary_parts",
+  "materialize_explicit_produce_batch",
+  "ProduceRequest",
+  "RecordBatch",
+  "Transport",
+  "Rpc",
+  "Retry",
+  "Metadata",
+  "std::future",
+  "Future",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/execution/route_window.rs"
 forbidden = [
   "kafka_driver",
   "kafka_wire",
@@ -5675,7 +5750,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "take_next_driver_submission"
 allowed_paths = [
-  "crates/kafka-client-engine/src/producer/ingress/data.rs",
+  "crates/kafka-client-engine/src/producer/ingress/data_produce.rs",
 ]
 
 [[method_capabilities]]
@@ -5709,7 +5784,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "apply_one_driver_input"
 allowed_paths = [
-  "crates/kafka-client-engine/src/producer/ingress/data.rs",
+  "crates/kafka-client-engine/src/producer/ingress/data_produce.rs",
 ]
 
 [[method_capabilities]]
@@ -5717,15 +5792,132 @@ root = "crates/kafka-client-engine/src"
 method = "apply_produce_driver_input"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/produce.rs",
-  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission/submit.rs",
 ]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "submit_tracked_produce"
 allowed_paths = [
-  "crates/kafka-client-engine/src/driver/rpc/calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_produce/call.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_produce_to_broker"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/produce_call_batch.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_after_failure"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/calls/route_refresh.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "try_reserve_for"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "broker_admission_available"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "broker_in_flight_request_count"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "in_flight_request_count"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_batch"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission/submit.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "ProduceCallPermit::from_reserved_exact_broker_lane"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "reserved_exact_broker_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/produce_call_batch.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "commit_reserved_exact_broker_call"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/produce_call_batch.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "take_routed_produce_submissions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "preflight_produce_route_identity"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "finalize_produce_route_identity"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "take_driver_submission_group"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution/next_submission.rs",
+  "crates/kafka-client-engine/src/producer/ingress/data_produce.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "next_driver_route_window"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution/next_submission.rs",
+  "crates/kafka-client-engine/src/producer/ingress/data_produce.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "next_produce_route_window"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission/failure.rs",
 ]
 
 [[method_capabilities]]
@@ -5763,7 +5955,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/share/registry_invalidation.rs",
   "crates/kafka-client-engine/src/protocol/fetch/request_broker.rs",
   "crates/kafka-client-engine/src/protocol/produce_response_batch.rs",
-  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
+  "crates/kafka-client-engine/src/producer/execution/next_submission.rs",
+  "crates/kafka-client-engine/src/protocol/produce/request_broker.rs",
 ]
 
 [[method_capabilities]]
@@ -6258,7 +6451,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/produce/partitioning.rs",
   "crates/kafka-client-engine/src/engine_host/recovery.rs",
   "crates/kafka-client-engine/src/transaction/send/recovery.rs",
-  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/routing.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/routing/admission.rs",
   "crates/kafka-client-engine/src/transaction/lifecycle/driver_port.rs",
   "crates/kafka-client-engine/src/transaction/partition_enrollment/driver_port.rs",
   "crates/kafka-client-engine/src/transaction/partition_enrollment/settlement.rs",
@@ -6308,9 +6502,11 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "topic_owner"
 allowed_paths = [
-  "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/produce_call_batch.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_produce/call.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/broker_maintenance.rs",
+  "crates/kafka-client-engine/src/producer/execution/next_submission.rs",
+  "crates/kafka-client-engine/src/protocol/produce/request_broker.rs",
 ]
 
 [[method_capabilities]]
@@ -8473,6 +8669,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/store.rs",
   "crates/kafka-client-engine/src/producer/store/batch_lifecycle.rs",
   "crates/kafka-client-engine/src/producer/store/materialization_view.rs",
+  "crates/kafka-client-engine/src/producer/store/route_validation.rs",
 ]
 
 [[mutation_owners]]
@@ -8482,6 +8679,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/store.rs",
   "crates/kafka-client-engine/src/producer/store/batch_lifecycle.rs",
   "crates/kafka-client-engine/src/producer/store/materialization_view.rs",
+  "crates/kafka-client-engine/src/producer/store/route_validation.rs",
 ]
 
 [[mutation_owners]]
@@ -8637,6 +8835,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/execution.rs",
   "crates/kafka-client-engine/src/producer/execution/cleanup.rs",
   "crates/kafka-client-engine/src/producer/execution/handoff.rs",
+  "crates/kafka-client-engine/src/producer/execution/handoff/group.rs",
   "crates/kafka-client-engine/src/producer/execution/materialization.rs",
   "crates/kafka-client-engine/src/producer/execution/revision.rs",
 ]
@@ -8648,6 +8847,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/execution.rs",
   "crates/kafka-client-engine/src/producer/execution/cleanup.rs",
   "crates/kafka-client-engine/src/producer/execution/handoff.rs",
+  "crates/kafka-client-engine/src/producer/execution/handoff/group.rs",
   "crates/kafka-client-engine/src/producer/execution/materialization.rs",
   "crates/kafka-client-engine/src/producer/execution/next_submission.rs",
   "crates/kafka-client-engine/src/producer/execution/revision.rs",
@@ -8661,6 +8861,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/execution.rs",
   "crates/kafka-client-engine/src/producer/execution/cleanup.rs",
   "crates/kafka-client-engine/src/producer/execution/handoff.rs",
+  "crates/kafka-client-engine/src/producer/execution/handoff/group.rs",
   "crates/kafka-client-engine/src/producer/execution/materialization.rs",
   "crates/kafka-client-engine/src/producer/execution/revision.rs",
   "crates/kafka-client-engine/src/producer/execution/submission.rs",
@@ -10551,7 +10752,7 @@ path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
 
 [[linear_owners]]
 owner_type = "ProduceCallPermit"
-path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
+path = "crates/kafka-client-engine/src/driver/rpc/calls/permit.rs"
 
 [[linear_owners]]
 owner_type = "SettledProduceCall"
@@ -10748,6 +10949,10 @@ path = "crates/kafka-client-engine/src/producer/batch_store/execution.rs"
 [[linear_owners]]
 owner_type = "PreparedProduceSubmission"
 path = "crates/kafka-client-engine/src/producer/execution/handoff.rs"
+
+[[linear_owners]]
+owner_type = "PreparedProduceRouteWindow"
+path = "crates/kafka-client-engine/src/producer/execution/route_window.rs"
 
 [[linear_owners]]
 owner_type = "PreparedProduceHandoffError"
@@ -17617,6 +17822,30 @@ allowed_paths = [
 ]
 
 [[authority_tokens]]
+owner_type = "TopicRouteViewCall"
+path = "crates/kafka-client-engine/src/driver/rpc/topic_view/producer.rs"
+fields = ["topic_route_view_topic", "topic_route_view_driver_call"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/topic_view/producer.rs",
+]
+
+[[authority_tokens]]
+owner_type = "TopicRouteViewAfterFailureRejection"
+path = "crates/kafka-client-engine/src/driver/rpc/topic_view/producer.rs"
+fields = ["topic_route_view_retryable", "topic_route_view_failure_token"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/topic_view/producer.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ProduceCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/calls/permit.rs"
+fields = ["reserved_produce_calls", "reserved_produce_broker_id"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/calls/permit.rs",
+]
+
+[[authority_tokens]]
 owner_type = "ClassicGroupPartitionCountCall"
 path = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_call.rs"
 fields = ["partition_count_identity", "partition_count_topic", "partition_count_driver_call"]
@@ -17671,6 +17900,14 @@ path = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_co
 [[linear_owners]]
 owner_type = "TopicPartitionCountCall"
 path = "crates/kafka-client-engine/src/driver/rpc/topic_view/partition_count.rs"
+
+[[linear_owners]]
+owner_type = "TopicRouteViewCall"
+path = "crates/kafka-client-engine/src/driver/rpc/topic_view/producer.rs"
+
+[[linear_owners]]
+owner_type = "TopicRouteViewAfterFailureRejection"
+path = "crates/kafka-client-engine/src/driver/rpc/topic_view/producer.rs"
 
 [[linear_owners]]
 owner_type = "ClassicGroupPartitionCountCall"
@@ -19278,7 +19515,6 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_produce/route_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/add_raft_voter_terminal/refresh.rs",
-  "crates/kafka-client-engine/src/driver/rpc/calls/route_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_partitions_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/elect_leaders_terminal.rs",
@@ -24966,8 +25202,12 @@ owner_type = "ConsumerFetchEvidence"
 path = "crates/kafkars/src/consumer/fetch_evidence.rs"
 
 [[linear_owners]]
-owner_type = "ProducerRetryIdentityCall"
-path = "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs"
+owner_type = "ProducerRoutingCall"
+path = "crates/kafka-client-engine/src/engine_host/produce/routing.rs"
+
+[[linear_owners]]
+owner_type = "RoutedProduceGroup"
+path = "crates/kafka-client-engine/src/engine_host/produce/routing/resolution.rs"
 
 [[linear_owners]]
 owner_type = "PreparedIdentityMutation"
@@ -24986,22 +25226,15 @@ owner_type = "ValidateTransaction"
 path = "crates/kafkars/src/transaction/validation.rs"
 
 [[mutation_owners]]
-owner_type = "ProducerRetryIdentityCall"
-field = "call"
+owner_type = "ProducerRoutingCall"
+field = "state"
 allowed_paths = [
-  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
-]
-
-[[mutation_owners]]
-owner_type = "ProducerRetryIdentityCall"
-field = "validated"
-allowed_paths = [
-  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
+  "crates/kafka-client-engine/src/engine_host/produce/routing.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "EngineHostResources"
-field = "producer_retry_identity_call"
+field = "producer_routing_call"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/produce_turn.rs",
   "crates/kafka-client-engine/src/engine_host/recovery.rs",
@@ -25133,13 +25366,14 @@ root = "crates/kafka-client-engine/src"
 method = "record_topic_identity_revalidation"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/execution/handoff/identity.rs",
+  "crates/kafka-client-engine/src/producer/store/route_validation.rs",
 ]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "record_retry_topic_identity"
 allowed_paths = [
-  "crates/kafka-client-engine/src/engine_host/produce/retry_identity.rs",
+  "crates/kafka-client-engine/src/producer/ingress/data_produce.rs",
 ]
 
 [[method_capabilities]]

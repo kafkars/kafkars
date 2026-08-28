@@ -1,5 +1,7 @@
 //! Bounded ownership and normalization of tracked Produce calls.
-
+mod permit;
+#[cfg(test)]
+mod permit_test;
 mod route_refresh;
 #[cfg(test)]
 mod route_refresh_test;
@@ -9,63 +11,26 @@ mod settlement_normalize;
 mod settlement_normalize_test;
 #[cfg(test)]
 mod settlement_test;
-
 #[cfg(test)]
-use kafka_client_core::ProducerInput;
-use kafka_client_core::{BatchExecutionId, Deadline, Moment};
+use kafka_client_core::{BatchExecutionId, ProducerInput};
+use kafka_client_core::{Deadline, Moment};
 use kafka_driver::RoutedCall;
 use kafka_wire::ProduceResponse;
 
-use crate::{clock::OperationDeadline, protocol::produce::MaterializedProduce};
-
-use super::produce_call_entries::{TrackedProduceEntries, TrackedProduceEntry};
-use super::{super::DriverOwner, ProduceSubmitError, produce_acceptance::AcceptedProduceCall};
+use super::produce_call_entries::TrackedProduceEntries;
+use crate::clock::OperationDeadline;
+pub(crate) use permit::ProduceCallPermit;
 pub(crate) use route_refresh::ProduceRouteRefreshPoll;
 pub(crate) use settlement::ProduceCompletionFailure;
 #[cfg(test)]
 pub(crate) use settlement::RecoveredProduceCall as RecoveredProduceCallForTest;
 use settlement::{RecoveredProduceCall, SettledProduceCall};
 
-pub(super) struct TrackedProduceCall {
-    pub(super) entries: TrackedProduceEntries,
-    pub(super) broker_id: Option<i32>,
-    pub(super) call: RoutedCall<ProduceResponse>,
-}
-
-pub(crate) struct ProduceCallPermit<'a> {
-    pub(super) calls: &'a mut Vec<TrackedProduceCall>,
-}
-
-impl ProduceCallPermit<'_> {
-    pub(crate) fn submit(
-        self,
-        driver: &DriverOwner,
-        execution: BatchExecutionId,
-        deadline: OperationDeadline,
-        materialized: MaterializedProduce,
-        now: Moment,
-    ) -> Result<AcceptedProduceCall, ProduceSubmitError> {
-        let topic = materialized.topic_owner();
-        let partition = materialized.partition();
-        let request = materialized.into_name_routed_request(now, deadline);
-        let call = driver.submit_tracked_produce(
-            topic.as_ref(),
-            partition,
-            request,
-            deadline.transport(),
-        )?;
-        self.calls.push(TrackedProduceCall {
-            entries: TrackedProduceEntries::Single(TrackedProduceEntry {
-                execution,
-                deadline: deadline.core(),
-                topic,
-                partition,
-            }),
-            broker_id: None,
-            call,
-        });
-        Ok(AcceptedProduceCall::new(execution))
-    }
+struct TrackedProduceCall {
+    entries: TrackedProduceEntries,
+    broker_id: i32,
+    deadline: OperationDeadline,
+    call: RoutedCall<ProduceResponse>,
 }
 
 pub(crate) struct TrackedProduceCalls {
@@ -93,7 +58,7 @@ impl TrackedProduceCalls {
     #[cfg(test)]
     pub(crate) fn with_submit_then_pending_refresh_for_test(
         execution: BatchExecutionId,
-        deadline: Deadline,
+        deadline: OperationDeadline,
         input: ProducerInput,
     ) -> Self {
         Self {
@@ -112,7 +77,7 @@ impl TrackedProduceCalls {
     #[cfg(test)]
     pub(crate) fn with_missing_route_refresh_for_test(
         execution: BatchExecutionId,
-        deadline: Deadline,
+        deadline: OperationDeadline,
         input: ProducerInput,
     ) -> Self {
         Self {
@@ -132,63 +97,44 @@ impl TrackedProduceCalls {
         self.settled = Some(SettledProduceCall::from_tracked_failure_for_test(call, now));
     }
 
-    pub(crate) fn try_reserve(&mut self) -> Option<ProduceCallPermit<'_>> {
+    /// Atomically reserves global ownership and one exact broker's request slot.
+    pub(crate) fn try_reserve_for(&mut self, broker_id: i32) -> Option<ProduceCallPermit<'_>> {
         if self
             .calls
             .len()
             .saturating_add(usize::from(self.settled.is_some()))
             .saturating_add(self.recovered.len())
             >= self.capacity
+            || !self.broker_admission_available(broker_id)
         {
             return None;
         }
-        Some(ProduceCallPermit {
-            calls: &mut self.calls,
-        })
+        Some(ProduceCallPermit::from_reserved_exact_broker_lane(
+            &mut self.calls,
+            broker_id,
+        ))
     }
 
-    /// Reports capacity under the configured idempotent per-broker request gate.
-    pub(crate) fn broker_admission_available(&self, broker_id: Option<i32>) -> bool {
-        let unknown = self
-            .calls
+    #[cfg(test)]
+    pub(crate) fn try_reserve(&mut self) -> Option<ProduceCallPermit<'_>> {
+        self.try_reserve_for(0)
+    }
+
+    /// Reports capacity under the configured exact per-broker request gate.
+    pub(crate) fn broker_admission_available(&self, broker_id: i32) -> bool {
+        self.broker_in_flight_request_count(broker_id) < self.max_in_flight_requests_per_broker
+    }
+
+    /// Returns transport-owned requests for one exact broker lane.
+    pub(crate) fn broker_in_flight_request_count(&self, broker_id: i32) -> usize {
+        self.calls
             .iter()
-            .filter(|call| call.broker_id.is_none())
-            .count();
-        let broker_calls = broker_id.map_or(self.calls.len(), |broker_id| {
-            self.calls
-                .iter()
-                .filter(|call| call.broker_id == Some(broker_id))
-                .count()
-                .saturating_add(unknown)
-        });
-        broker_calls < self.max_in_flight_requests_per_broker
+            .filter(|call| call.broker_id == broker_id)
+            .count()
     }
 
-    /// Returns requests still owned by the driver transport.
     pub(crate) fn in_flight_request_count(&self) -> usize {
         self.calls.len()
-    }
-
-    /// Returns the busiest resolved broker, conservatively including unknown routes.
-    pub(crate) fn max_broker_in_flight_request_count(&self) -> usize {
-        let unknown = self
-            .calls
-            .iter()
-            .filter(|call| call.broker_id.is_none())
-            .count();
-        let resolved_max = self
-            .calls
-            .iter()
-            .filter_map(|call| call.broker_id)
-            .map(|broker_id| {
-                self.calls
-                    .iter()
-                    .filter(|call| call.broker_id == Some(broker_id))
-                    .count()
-            })
-            .max()
-            .unwrap_or(0);
-        unknown.saturating_add(resolved_max)
     }
 
     pub(crate) fn retained_count(&self) -> usize {
@@ -219,7 +165,8 @@ impl TrackedProduceCalls {
         };
         let TrackedProduceCall {
             entries,
-            broker_id: _,
+            broker_id: _completed_broker,
+            deadline,
             call,
         } = self.calls.remove(index);
         let outcome = match result {
@@ -230,6 +177,7 @@ impl TrackedProduceCalls {
         let (result, _selected_version, route_token) = outcome.into_parts();
         self.settled = Some(SettledProduceCall::from_terminal(
             entries,
+            deadline,
             result,
             now,
             route_token,
@@ -253,7 +201,8 @@ impl TrackedProduceCalls {
         for call in self.calls.drain(..) {
             let TrackedProduceCall {
                 entries,
-                broker_id: _,
+                broker_id: _shutdown_broker,
+                deadline: _shutdown_deadline,
                 call,
             } = call;
             drop(call);
@@ -268,10 +217,5 @@ impl TrackedProduceCalls {
         for recovered in self.recovered.drain(..) {
             recovered.seal();
         }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn set_broker_id_for_test(&mut self, index: usize, broker_id: i32) {
-        self.calls[index].broker_id = Some(broker_id);
     }
 }

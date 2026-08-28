@@ -5,9 +5,12 @@ use std::mem;
 use kafka_client_core::{
     BatchExecutionId, Deadline, DeliveryStatus, Moment, ProducerBrokerFailureKind, ProducerInput,
 };
-use kafka_driver::{Call, InvalidationDisposition, RouteFailureToken, RouteKind, SubmitError};
+use kafka_driver::{RouteFailureToken, RouteKind};
 
-use crate::driver::DriverOwner;
+use crate::{
+    clock::OperationDeadline,
+    driver::{DriverOwner, TopicRouteViewCall},
+};
 
 pub(super) enum ProduceRouteRefresh {
     None,
@@ -16,7 +19,7 @@ pub(super) enum ProduceRouteRefresh {
     Unavailable,
     Queued(RouteFailureToken),
     Rejected(RouteFailureToken),
-    Active(Call<InvalidationDisposition>),
+    Active(TopicRouteViewCall),
     #[cfg(test)]
     SubmitForTest,
     #[cfg(test)]
@@ -37,22 +40,17 @@ impl ProduceRouteRefresh {
         input: ProducerInput,
         route_token: &mut Option<RouteFailureToken>,
     ) -> Self {
-        Self::from_required(
-            needs_route_refresh(input),
-            RouteKind::PartitionLeader,
-            route_token,
-        )
+        Self::from_required(needs_route_refresh(input), route_token)
     }
 
     pub(super) fn from_required(
         required: bool,
-        expected_kind: RouteKind,
         route_token: &mut Option<RouteFailureToken>,
     ) -> Self {
         if !required {
             return Self::None;
         }
-        if route_token.as_ref().map(RouteFailureToken::kind) == Some(expected_kind) {
+        if route_token.as_ref().map(RouteFailureToken::kind) == Some(required_route_kind()) {
             route_token.take().map_or(Self::Unavailable, Self::Queued)
         } else {
             Self::Unavailable
@@ -80,13 +78,14 @@ impl ProduceRouteRefresh {
     pub(super) fn poll(
         &mut self,
         driver: &DriverOwner,
-        deadline: Deadline,
+        topic: &str,
+        deadline: OperationDeadline,
         execution: BatchExecutionId,
         input: &mut ProducerInput,
         now: Moment,
     ) -> ProduceRouteRefreshPoll {
         if self
-            .deadline(deadline)
+            .deadline(deadline.core())
             .is_some_and(|deadline| deadline.is_elapsed_at(now))
         {
             *self = Self::DeadlineElapsed;
@@ -111,14 +110,19 @@ impl ProduceRouteRefresh {
                 ProduceRouteRefreshPoll::Failed
             }
             Self::Queued(route_token) => {
-                match driver.driver.invalidate(route_token) {
+                match TopicRouteViewCall::submit_after_failure(
+                    driver,
+                    topic,
+                    route_token,
+                    deadline.transport(),
+                ) {
                     Ok(call) => {
                         *self = Self::Active(call);
                         return ProduceRouteRefreshPoll::Submitted;
                     }
                     Err(rejection) => {
-                        let retryable = invalidation_rejection_is_retryable(rejection.reason());
-                        let (_source, route_token) = rejection.into_parts();
+                        let retryable = rejection.is_retryable();
+                        let route_token = rejection.into_token();
                         if retryable {
                             *self = Self::Queued(route_token);
                         } else {
@@ -129,13 +133,13 @@ impl ProduceRouteRefresh {
                 }
                 ProduceRouteRefreshPoll::Pending
             }
-            Self::Active(call) => match call.try_result() {
-                Some(Ok(disposition)) if invalidation_disposition_allows_retry(disposition) => {
+            Self::Active(mut call) => match call.try_terminal() {
+                Some(Ok(_view)) => {
                     *self = Self::Refreshed;
                     mark_route_refreshed(input);
                     ProduceRouteRefreshPoll::Ready
                 }
-                Some(Ok(_) | Err(_)) => ProduceRouteRefreshPoll::Failed,
+                Some(Err(_failure)) => ProduceRouteRefreshPoll::Failed,
                 None => {
                     *self = Self::Active(call);
                     ProduceRouteRefreshPoll::Pending
@@ -153,6 +157,10 @@ impl ProduceRouteRefresh {
             }
         }
     }
+}
+
+pub(super) const fn required_route_kind() -> RouteKind {
+    RouteKind::Broker
 }
 
 pub(super) fn needs_route_refresh(input: ProducerInput) -> bool {
@@ -200,17 +208,4 @@ pub(super) fn mark_route_refreshed(input: &mut ProducerInput) {
         } => *route_refreshed = true,
         _ => {}
     }
-}
-
-pub(super) const fn invalidation_rejection_is_retryable(reason: &SubmitError) -> bool {
-    matches!(reason, SubmitError::Full)
-}
-
-pub(super) const fn invalidation_disposition_allows_retry(
-    disposition: InvalidationDisposition,
-) -> bool {
-    matches!(
-        disposition,
-        InvalidationDisposition::Applied | InvalidationDisposition::IgnoredStale
-    )
 }

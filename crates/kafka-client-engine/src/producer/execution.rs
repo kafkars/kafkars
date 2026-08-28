@@ -22,6 +22,9 @@ mod ownership;
 mod revision;
 #[cfg(test)]
 mod revision_test;
+mod route_window;
+#[cfg(test)]
+mod route_window_test;
 mod submission;
 #[cfg(test)]
 mod submission_test;
@@ -36,6 +39,9 @@ pub(crate) use error::PreparedExecutionError;
 pub(crate) use handoff::{PreparedProduceHandoffError, PreparedProduceSubmission};
 pub(crate) use ownership::{PreparedProduceError, PreparedProduceStats, SubmissionDeadlineError};
 pub(crate) use revision::{PreparedRevisionExpectation, PreparedRevisionPlan};
+pub(crate) use route_window::{
+    PreparedProduceRouteCandidate, PreparedProduceRouteKey, PreparedProduceRouteWindow,
+};
 
 /// Hard bounds shared by encoded bytes and pre-driver deadline ownership.
 #[expect(
@@ -56,7 +62,7 @@ pub(crate) struct PreparedExecutionLimits {
 #[derive(Debug)]
 pub(crate) struct PreparedExecution {
     max_batch_bytes: usize,
-    _max_request_bytes: usize,
+    max_request_bytes: usize,
     batch_capacity: usize,
     encoded_byte_capacity: usize,
     retained_bytes: usize,
@@ -88,7 +94,7 @@ impl PreparedExecution {
     pub(crate) const fn new(batch_capacity: usize, limits: PreparedExecutionLimits) -> Self {
         Self {
             max_batch_bytes: limits.max_batch_bytes,
-            _max_request_bytes: limits.max_request_bytes,
+            max_request_bytes: limits.max_request_bytes,
             batch_capacity,
             encoded_byte_capacity: limits.encoded_bytes,
             retained_bytes: 0,

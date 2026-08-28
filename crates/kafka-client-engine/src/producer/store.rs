@@ -6,6 +6,9 @@ mod batch_lifecycle_test;
 mod materialization_view;
 #[cfg(test)]
 mod materialization_view_test;
+mod route_validation;
+#[cfg(test)]
+mod route_validation_test;
 
 use kafka_client_core::{
     ByteCount, PayloadId,

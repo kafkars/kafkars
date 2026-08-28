@@ -19,6 +19,11 @@ pub(super) struct ProducerProgress {
     pub(super) driver_progress: bool,
 }
 
+pub(super) struct ProducerCompletionProgress {
+    pub(super) progressed: bool,
+    pub(super) prepared_batches: usize,
+}
+
 pub(super) fn drive(
     resources: &mut EngineHostResources,
     now: Moment,
@@ -45,9 +50,9 @@ pub(super) fn drive(
         );
     }
     if let Some(deadline) = resources
-        .producer_retry_identity_call
+        .producer_routing_call
         .as_ref()
-        .map(produce::ProducerRetryIdentityCall::deadline)
+        .and_then(produce::ProducerRoutingCall::deadline)
         .map(crate::clock::OperationDeadline::core)
     {
         outcome.next_deadline = Some(
@@ -72,10 +77,10 @@ pub(super) fn drive(
         .producer_partitioning_call
         .as_ref()
         .map(produce::ProducerPartitioningCall::deadline);
-    let produce_admissions = admit_ready(
+    let produce_admission = admit_ready(
         driver,
         &mut resources.produce_calls,
-        &mut resources.producer_retry_identity_call,
+        &mut resources.producer_routing_call,
         &mut data,
         now,
         retained_partitioning_deadline,
@@ -85,81 +90,113 @@ pub(super) fn drive(
         unsettled: data
             .unsettled_completions()
             .saturating_add(usize::from(resources.producer_partitioning_call.is_some()))
-            .saturating_add(usize::from(
-                resources.producer_retry_identity_call.is_some(),
-            )),
-        admissions: produce_admissions,
-        driver_progress: identity_progress || partitioning_progress || produce_admissions != 0,
+            .saturating_add(usize::from(resources.producer_routing_call.is_some())),
+        admissions: produce_admission.prepared_batches(),
+        driver_progress: identity_progress
+            || partitioning_progress
+            || produce_admission.did_progress(),
     })
 }
 
 fn admit_ready(
     driver: &crate::driver::DriverOwner,
     calls: &mut crate::driver::TrackedProduceCalls,
-    retry_identity: &mut Option<produce::ProducerRetryIdentityCall>,
+    routing: &mut Option<produce::ProducerRoutingCall>,
     data: &mut crate::producer::ingress::ProducerShardData,
     now: Moment,
     retained_partitioning_deadline: Option<crate::clock::OperationDeadline>,
-) -> Result<usize, EngineHostError> {
+) -> Result<produce::ProduceAdmissionOutcome, EngineHostError> {
     let mut admissions = 0_usize;
+    let mut progressed = false;
     for _attempt in 0..PRODUCE_ADMISSION_BUDGET {
-        if !admit_after_partitioning(
+        let remaining = PRODUCE_ADMISSION_BUDGET.saturating_sub(admissions);
+        if remaining == 0 {
+            break;
+        }
+        let outcome = admit_after_partitioning(
             driver,
             calls,
-            retry_identity,
+            routing,
             data,
             now,
             retained_partitioning_deadline,
-        )? {
+            remaining,
+        )?;
+        if !outcome.did_progress() {
             break;
         }
-        admissions = admissions.saturating_add(1);
+        progressed = true;
+        debug_assert!(outcome.prepared_batches() <= remaining);
+        admissions = admissions.saturating_add(outcome.prepared_batches());
     }
-    Ok(admissions)
+    Ok(if progressed {
+        produce::ProduceAdmissionOutcome::progressed(admissions)
+    } else {
+        produce::ProduceAdmissionOutcome::idle()
+    })
 }
 
 pub(super) fn admit_after_partitioning(
     driver: &crate::driver::DriverOwner,
     calls: &mut crate::driver::TrackedProduceCalls,
-    retry_identity: &mut Option<produce::ProducerRetryIdentityCall>,
+    routing: &mut Option<produce::ProducerRoutingCall>,
     data: &mut crate::producer::ingress::ProducerShardData,
     now: Moment,
     retained_partitioning_deadline: Option<crate::clock::OperationDeadline>,
-) -> Result<bool, EngineHostError> {
+    prepared_batch_budget: usize,
+) -> Result<produce::ProduceAdmissionOutcome, EngineHostError> {
     if let Some(ready_deadline) = data.next_produce_submission_deadline() {
         if retained_partitioning_deadline == Some(ready_deadline)
             || data.has_pending_produce_submission_at(ready_deadline)
         {
-            return Ok(false);
+            return Ok(produce::ProduceAdmissionOutcome::idle());
         }
     }
-    produce::admit_one(driver, calls, retry_identity, data, now)
+    produce::admit_one(driver, calls, routing, data, now, prepared_batch_budget)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "separate linear owners keep completion mutation explicit and borrow-scoped"
+)]
 pub(super) fn apply_completions(
     driver: &crate::driver::DriverOwner,
     producer: &ProducerShardOwner,
     identity_calls: &mut crate::driver::TrackedProducerIdentityCalls,
     partitioning_call: &mut Option<produce::ProducerPartitioningCall>,
-    retry_identity_call: &mut Option<produce::ProducerRetryIdentityCall>,
+    routing_call: &mut Option<produce::ProducerRoutingCall>,
     calls: &mut crate::driver::TrackedProduceCalls,
     now: Moment,
-) -> Result<bool, EngineHostError> {
+    prepared_batch_budget: usize,
+) -> Result<ProducerCompletionProgress, EngineHostError> {
     let mut data = match producer.try_data() {
         Ok(data) => data,
-        Err(ProducerShardLockError::Contended) => return Ok(false),
+        Err(ProducerShardLockError::Contended) => {
+            return Ok(ProducerCompletionProgress {
+                progressed: false,
+                prepared_batches: 0,
+            });
+        }
         Err(ProducerShardLockError::Poisoned) => {
             return Err(EngineHostError::ProducerLockPoisoned);
         }
     };
     let identity = produce::apply_identity_ready(identity_calls, &mut data, now)?;
     let partitioning = produce::apply_partitioning_ready(partitioning_call, &mut data)?;
-    let retry_identity = produce::apply_retry_identity_ready(retry_identity_call, &mut data, now)?;
+    let routing =
+        produce::apply_routing_ready(routing_call, &mut data, now, prepared_batch_budget)?;
     let produce = produce::apply_ready(driver, calls, &mut data, now, PRODUCE_COMPLETION_BUDGET)?;
-    Ok(identity || partitioning || retry_identity || produce)
+    Ok(ProducerCompletionProgress {
+        progressed: identity || partitioning || routing.did_progress() || produce,
+        prepared_batches: routing.prepared_batches(),
+    })
 }
 
 impl ProducerProgress {
+    pub(super) const fn remaining_admission_budget(&self) -> usize {
+        PRODUCE_ADMISSION_BUDGET.saturating_sub(self.admissions)
+    }
+
     const fn contended() -> Self {
         Self {
             outcome: None,

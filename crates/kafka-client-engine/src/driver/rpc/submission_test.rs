@@ -1,4 +1,4 @@
-//! Tracked name-routed Produce submission scenarios.
+//! Tracked name- and exact-broker-routed Produce submission scenarios.
 
 use std::time::{Duration, Instant};
 
@@ -14,7 +14,7 @@ use super::{
 };
 
 #[test]
-fn produce_options_preserve_deadline_lane_and_name_route_version_ceiling() {
+fn produce_options_preserve_deadline_lane_and_version_ceiling() {
     let deadline = Instant::now() + Duration::from_secs(7);
     let options = produce_options(deadline);
 
@@ -41,9 +41,35 @@ fn accepted_submission_returns_the_token_retaining_tracked_call() {
 }
 
 #[test]
-fn invalid_route_and_closed_driver_rejections_are_not_sent() {
+fn accepted_exact_broker_submission_returns_a_tracked_call() {
     let mut owner = owner();
     let deadline = Instant::now() + Duration::from_secs(1);
+    let call = owner
+        .submit_tracked_produce_to_broker(7, ProduceRequest::default(), deadline)
+        .unwrap_or_else(|error| panic!("exact-broker Produce admission: {error}"));
+
+    assert!(call.try_result().is_none());
+    assert_tracked_produce(&call);
+    drop(call);
+    owner
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+}
+
+#[test]
+fn invalid_routes_and_closed_driver_rejections_are_not_sent() {
+    let mut owner = owner();
+    let deadline = Instant::now() + Duration::from_secs(1);
+    let invalid_broker = owner
+        .submit_tracked_produce_to_broker(-1, ProduceRequest::default(), deadline)
+        .err()
+        .unwrap_or_else(|| panic!("negative broker must be rejected"));
+    assert!(matches!(
+        invalid_broker,
+        ProduceSubmitError::InvalidBroker(_)
+    ));
+    assert_eq!(invalid_broker.delivery(), DeliveryStatus::NotSent);
+
     let invalid = owner
         .submit_tracked_produce("", 0, ProduceRequest::default(), deadline)
         .err()

@@ -4,7 +4,6 @@ mod materialization;
 #[cfg(test)]
 mod materialization_test;
 mod request;
-#[cfg(test)]
 mod request_broker;
 #[cfg(test)]
 mod request_broker_test;

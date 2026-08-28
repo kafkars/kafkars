@@ -1,4 +1,6 @@
-//! Broker-aggregated Produce settlement never invents partition-refresh authority.
+//! Same-topic Produce settlement owns one exact post-outcome routing barrier.
+
+use std::time::{Duration, Instant};
 
 use kafka_client_core::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, Deadline, DeliveryStatus, Moment,
@@ -14,11 +16,14 @@ use super::{
     super::produce_call_entries::{TrackedProduceEntries, TrackedProduceEntry},
     settlement::SettledProduceCall,
 };
+use crate::clock::OperationDeadline;
 
 #[test]
-fn single_transport_failure_retains_partition_refresh_authority() {
+fn single_transport_failure_requires_exact_broker_refresh_authority() {
+    let deadline = operation_deadline(90);
     let settled = SettledProduceCall::from_terminal(
         TrackedProduceEntries::Single(entry(1, 90, 0)),
+        deadline,
         Err(RequestError::RouteUnavailable),
         Moment::from_tick(10),
         None,
@@ -35,12 +40,14 @@ fn single_transport_failure_retains_partition_refresh_authority() {
         } if actual == execution(1)
     ));
     assert!(settled.route_refresh_required_for_test());
+    assert_eq!(settled.operation_deadline_for_test(), deadline);
 }
 
 #[test]
-fn single_broker_routing_failure_retains_partition_refresh_authority() {
+fn single_broker_routing_failure_requires_exact_broker_refresh_authority() {
     let settled = SettledProduceCall::from_terminal(
         TrackedProduceEntries::Single(entry(1, 90, 0)),
+        operation_deadline(90),
         Ok(single_routing_failure_response()),
         Moment::from_tick(10),
         None,
@@ -59,26 +66,28 @@ fn single_broker_routing_failure_retains_partition_refresh_authority() {
 }
 
 #[test]
-fn aggregate_routing_failure_never_claims_partition_refresh() {
+fn aggregate_with_a_later_routing_failure_requires_one_same_topic_barrier() {
     let mut settled = SettledProduceCall::from_terminal(
-        TrackedProduceEntries::batch(vec![entry(1, 90, 0), entry(2, 40, 1)]),
+        TrackedProduceEntries::batch(vec![entry(1, 90, 0), entry(2, 90, 1)]),
+        operation_deadline(90),
         Ok(response()),
         Moment::from_tick(10),
         None,
     );
 
-    assert_eq!(settled.refresh_deadline(), None);
+    assert!(settled.route_refresh_required_for_test());
     assert!(matches!(
         settled.input(),
         ProducerInput::BrokerSucceeded { execution: actual, .. } if actual == execution(1)
     ));
+    settled.complete_route_refresh_for_test();
     assert!(settled.advance(Moment::from_tick(12)));
     assert!(matches!(
         settled.input(),
         ProducerInput::BrokerFailed {
             execution: actual,
             failure,
-            route_refreshed: false,
+            route_refreshed: true,
             ..
         } if actual == execution(2) && failure.kind() == ProducerBrokerFailureKind::Routing
     ));
@@ -86,15 +95,17 @@ fn aggregate_routing_failure_never_claims_partition_refresh() {
 }
 
 #[test]
-fn aggregate_preserves_each_routing_failure_without_shared_retry_authority() {
+fn completed_same_topic_barrier_marks_every_later_routing_failure() {
     let mut settled = SettledProduceCall::from_terminal(
-        TrackedProduceEntries::batch(vec![entry(1, 20, 0), entry(2, 40, 1), entry(3, 70, 2)]),
+        TrackedProduceEntries::batch(vec![entry(1, 70, 0), entry(2, 70, 1), entry(3, 70, 2)]),
+        operation_deadline(70),
         Ok(response_with_two_routing_failures()),
         Moment::from_tick(10),
         None,
     );
 
-    assert_eq!(settled.refresh_deadline(), None);
+    assert!(settled.route_refresh_required_for_test());
+    settled.complete_route_refresh_for_test();
     assert!(matches!(
         settled.input(),
         ProducerInput::BrokerSucceeded { execution: actual, .. } if actual == execution(1)
@@ -105,7 +116,7 @@ fn aggregate_preserves_each_routing_failure_without_shared_retry_authority() {
         ProducerInput::BrokerFailed {
             execution: actual,
             failure,
-            route_refreshed: false,
+            route_refreshed: true,
             ..
         } if actual == execution(2) && failure.kind() == ProducerBrokerFailureKind::Routing
     ));
@@ -115,7 +126,7 @@ fn aggregate_preserves_each_routing_failure_without_shared_retry_authority() {
         ProducerInput::BrokerFailed {
             execution: actual,
             failure,
-            route_refreshed: false,
+            route_refreshed: true,
             ..
         } if actual == execution(3) && failure.kind() == ProducerBrokerFailureKind::Routing
     ));
@@ -123,9 +134,26 @@ fn aggregate_preserves_each_routing_failure_without_shared_retry_authority() {
 }
 
 #[test]
+fn mixed_topic_entries_cannot_share_one_topic_barrier() {
+    let settled = SettledProduceCall::from_terminal(
+        TrackedProduceEntries::batch(vec![
+            entry_for("orders", 1, 70, 0),
+            entry_for("payments", 2, 70, 1),
+        ]),
+        operation_deadline(70),
+        Ok(mixed_topic_response()),
+        Moment::from_tick(10),
+        None,
+    );
+
+    assert!(!settled.route_refresh_required_for_test());
+}
+
+#[test]
 fn aggregate_shutdown_recovery_retains_and_seals_every_execution() {
     let settled = SettledProduceCall::from_terminal(
         TrackedProduceEntries::batch(vec![entry(1, 20, 0), entry(2, 20, 1), entry(3, 20, 2)]),
+        operation_deadline(20),
         Ok(response_with_two_routing_failures()),
         Moment::from_tick(10),
         None,
@@ -139,11 +167,22 @@ fn aggregate_shutdown_recovery_retains_and_seals_every_execution() {
     recovered.seal();
 }
 
+fn operation_deadline(raw: u64) -> OperationDeadline {
+    OperationDeadline::from_parts_for_test(
+        Deadline::from_tick(raw),
+        Instant::now() + Duration::from_secs(1),
+    )
+}
+
 fn entry(batch: u64, deadline: u64, partition: i32) -> TrackedProduceEntry {
+    entry_for("orders", batch, deadline, partition)
+}
+
+fn entry_for(topic: &str, batch: u64, deadline: u64, partition: i32) -> TrackedProduceEntry {
     TrackedProduceEntry {
         execution: execution(batch),
         deadline: Deadline::from_tick(deadline),
-        topic: "orders".into(),
+        topic: topic.into(),
         partition,
     }
 }
@@ -178,6 +217,26 @@ fn response_with_two_routing_failures() -> ProduceResponse {
     response.responses[0]
         .partition_responses
         .push(routing_failure);
+    response
+}
+
+fn mixed_topic_response() -> ProduceResponse {
+    let mut orders_success = PartitionProduceResponse::default();
+    orders_success.index = 0;
+    orders_success.base_offset = 41;
+    let mut orders = TopicProduceResponse::default();
+    orders.name = "orders".into();
+    orders.partition_responses.push(orders_success);
+
+    let mut payments_failure = PartitionProduceResponse::default();
+    payments_failure.index = 1;
+    payments_failure.error_code = 6;
+    let mut payments = TopicProduceResponse::default();
+    payments.name = "payments".into();
+    payments.partition_responses.push(payments_failure);
+
+    let mut response = ProduceResponse::default();
+    response.responses = vec![orders, payments];
     response
 }
 

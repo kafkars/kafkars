@@ -1,39 +1,38 @@
 //! Test-only constructors and route-refresh controls for Produce settlement.
 
-use kafka_client_core::{
-    BatchExecutionId, Deadline, DeliveryStatus, Moment, ProducerAttemptFailureKind, ProducerInput,
-};
-use kafka_driver::{RequestError, RouteFailureToken};
+use kafka_client_core::{BatchExecutionId, Moment, ProducerInput};
+use kafka_driver::{RequestError, ResponseCloseReason, RouteFailureToken};
 
 use super::{ProduceRouteRefresh, RecoveredProduceCall, SettledProduceCall, TrackedProduceEntries};
 use crate::driver::rpc::calls::{TrackedProduceCall, TrackedProduceCalls};
-use crate::driver::rpc::produce_call_entries::TrackedProduceEntry;
+use crate::{clock::OperationDeadline, driver::rpc::produce_call_entries::TrackedProduceEntry};
 
 impl SettledProduceCall {
     pub(in crate::driver::rpc::calls) fn from_tracked_failure_for_test(
         call: TrackedProduceCall,
         now: Moment,
     ) -> Self {
-        let execution = call.entries.first().execution;
-        let deadline = call.entries.first().deadline;
-        drop(call);
-        Self::from_input(
-            execution,
+        let TrackedProduceCall {
+            entries,
             deadline,
-            ProducerInput::TransportFailed {
-                execution,
-                now,
-                failure: ProducerAttemptFailureKind::Permanent,
-                delivery: DeliveryStatus::PossiblySent,
-                route_refreshed: false,
-            },
+            call,
+            broker_id: _broker_id,
+        } = call;
+        drop(call);
+        Self::from_terminal(
+            entries,
+            deadline,
+            Err(RequestError::ConnectionClosed(
+                ResponseCloseReason::TransportClosed,
+            )),
+            now,
             None,
         )
     }
 
     pub(in crate::driver::rpc::calls) fn from_input(
         execution: BatchExecutionId,
-        deadline: Deadline,
+        deadline: OperationDeadline,
         input: ProducerInput,
         mut route_token: Option<RouteFailureToken>,
     ) -> Self {
@@ -41,14 +40,14 @@ impl SettledProduceCall {
         Self {
             entries: TrackedProduceEntries::Single(TrackedProduceEntry {
                 execution,
-                deadline,
+                deadline: deadline.core(),
                 topic: "test".into(),
                 partition: 0,
             }),
             result: Err(RequestError::RouteUnavailable),
             response_shape_valid: true,
             response_index: None,
-            shared_deadline: deadline,
+            deadline,
             input,
             _route_token: route_token,
             route_refresh,
@@ -57,24 +56,33 @@ impl SettledProduceCall {
 
     pub(in crate::driver::rpc::calls) fn with_submit_then_pending_refresh_for_test(
         execution: BatchExecutionId,
-        deadline: Deadline,
+        deadline: OperationDeadline,
         input: ProducerInput,
     ) -> Self {
         Self {
             entries: TrackedProduceEntries::Single(TrackedProduceEntry {
                 execution,
-                deadline,
+                deadline: deadline.core(),
                 topic: "test".into(),
                 partition: 0,
             }),
             result: Err(RequestError::RouteUnavailable),
             response_shape_valid: true,
             response_index: None,
-            shared_deadline: deadline,
+            deadline,
             input,
             _route_token: None,
             route_refresh: ProduceRouteRefresh::submit_for_test(),
         }
+    }
+
+    pub(in crate::driver::rpc::calls) fn complete_route_refresh_for_test(&mut self) {
+        self.route_refresh = ProduceRouteRefresh::Refreshed;
+        super::mark_route_refreshed(&mut self.input);
+    }
+
+    pub(in crate::driver::rpc) const fn operation_deadline_for_test(&self) -> OperationDeadline {
+        self.deadline
     }
 }
 

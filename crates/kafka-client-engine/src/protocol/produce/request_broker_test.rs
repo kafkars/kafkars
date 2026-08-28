@@ -15,7 +15,7 @@ const TOPIC: &str = "orders";
 
 #[test]
 fn broker_group_request_contains_one_distinct_entry_per_partition() {
-    let batches = vec![
+    let batches = [
         MaterializedProduce::from_broker_routed_test_parts(
             TOPIC,
             0,
@@ -29,12 +29,13 @@ fn broker_group_request_contains_one_distinct_entry_per_partition() {
             Bytes::from_static(b"second"),
         ),
     ];
-    let request = MaterializedProduce::into_broker_routed_request(
-        batches,
+    let batch_refs = batches.iter().collect::<Vec<_>>();
+    let request = MaterializedProduce::broker_routed_request(
+        &batch_refs,
         Moment::from_tick(10),
         operation_deadline(30_000_000_010),
     )
-    .unwrap_or_else(|_| panic!("bounded broker request assembly"));
+    .unwrap_or_else(|| panic!("bounded broker request assembly"));
 
     assert_eq!(request.topic_data.len(), 1);
     assert_eq!(request.topic_data[0].name.as_str(), TOPIC);
@@ -50,7 +51,7 @@ fn broker_group_request_contains_one_distinct_entry_per_partition() {
 
 #[test]
 fn broker_group_request_preserves_first_seen_order_across_many_topics() {
-    let batches = (0_i32..64)
+    let batches: Vec<MaterializedProduce> = (0_i32..64)
         .map(|index| {
             MaterializedProduce::from_broker_routed_test_parts(
                 format!("topic-{index:02}"),
@@ -60,12 +61,13 @@ fn broker_group_request_preserves_first_seen_order_across_many_topics() {
             )
         })
         .collect();
-    let request = MaterializedProduce::into_broker_routed_request(
-        batches,
+    let batch_refs = batches.iter().collect::<Vec<_>>();
+    let request = MaterializedProduce::broker_routed_request(
+        &batch_refs,
         Moment::from_tick(10),
         operation_deadline(30_000_000_010),
     )
-    .unwrap_or_else(|_| panic!("bounded broker request assembly"));
+    .unwrap_or_else(|| panic!("bounded broker request assembly"));
 
     assert_eq!(request.topic_data.len(), 64);
     for (index, topic) in request.topic_data.iter().enumerate() {

@@ -2,6 +2,7 @@
 
 mod cancellation;
 mod data;
+mod data_produce;
 mod data_terminal;
 mod flush_outcome;
 mod outcome;

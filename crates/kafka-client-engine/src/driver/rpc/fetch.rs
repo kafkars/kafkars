@@ -48,6 +48,8 @@ mod route_test;
 #[cfg(test)]
 pub(in crate::driver::rpc) mod routed_response_broker_test;
 #[cfg(test)]
+mod routed_response_broker_wire_test;
+#[cfg(test)]
 mod routed_response_frame_test;
 #[cfg(test)]
 mod routed_response_test;

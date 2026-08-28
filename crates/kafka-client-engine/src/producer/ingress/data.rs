@@ -10,7 +10,6 @@ use crate::{
         ProducerPartitioningRequest, ProducerRecord,
         admission::{AdmittedExplicit, ProducerAdmissionFailure},
         cancellation::{ProducerHostCancelAccepted, ProducerHostCancelError},
-        execution::{PreparedProduceHandoffError, PreparedProduceSubmission},
         flush::{AdmittedFlush, FlushAdmissionFailure, FlushRejectionReason},
         host::ProducerHostStats,
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
@@ -99,31 +98,6 @@ impl ProducerShardData {
         self.host.turn(now, budget)
     }
 
-    /// Transfers at most one driver-ready request for focused host tests.
-    #[cfg(test)]
-    pub(crate) fn take_produce_submission(
-        &mut self,
-    ) -> Result<Option<PreparedProduceSubmission>, PreparedProduceHandoffError> {
-        self.host.execution.take_next_driver_submission()
-    }
-
-    /// Transfers the next bounded same-broker admission-order group.
-    pub(crate) fn take_produce_submissions(
-        &mut self,
-    ) -> Result<Vec<PreparedProduceSubmission>, PreparedProduceHandoffError> {
-        self.host.execution.take_next_driver_submissions()
-    }
-
-    /// Borrows the exact deadline of the next driver-ready Produce owner.
-    pub(crate) fn next_produce_submission_deadline(&self) -> Option<OperationDeadline> {
-        self.host.execution.next_submission_deadline()
-    }
-
-    /// Reports same-deadline preparation that can still join a ready submission.
-    pub(crate) fn has_pending_produce_submission_at(&self, deadline: OperationDeadline) -> bool {
-        self.host.has_pending_produce_submission_at(deadline)
-    }
-
     pub(crate) fn take_identity_submission(
         &mut self,
     ) -> Result<Option<ProducerIdentitySubmission>, ProducerIdentityHandoffError> {
@@ -157,44 +131,6 @@ impl ProducerShardData {
         failure: ProducerPartitioningFailure,
     ) -> Result<bool, ProducerHostInvariantError> {
         self.host.apply_partitioning_failure(request, failure)
-    }
-
-    /// Applies one transport-owned fact while this shard is locked.
-    pub(crate) fn apply_produce_driver_input(
-        &mut self,
-        now: Moment,
-        input: kafka_client_core::ProducerInput,
-    ) -> Result<(), ProducerHostInvariantError> {
-        self.host.apply_one_driver_input(now, input)
-    }
-
-    /// Records one driver-accepted Produce request and its exact member shape.
-    pub(crate) fn record_produce_request(
-        &mut self,
-        batches: usize,
-        records: u64,
-        encoded_bytes: usize,
-        in_flight_requests: usize,
-        broker_in_flight_requests: usize,
-    ) {
-        self.host.produce_requests = self.host.produce_requests.saturating_add(1);
-        self.host.produce_batches = self
-            .host
-            .produce_batches
-            .saturating_add(u64::try_from(batches).unwrap_or(u64::MAX));
-        self.host.produce_records = self.host.produce_records.saturating_add(records);
-        self.host.produce_encoded_bytes = self
-            .host
-            .produce_encoded_bytes
-            .saturating_add(u64::try_from(encoded_bytes).unwrap_or(u64::MAX));
-        self.host.peak_produce_in_flight_requests = self
-            .host
-            .peak_produce_in_flight_requests
-            .max(in_flight_requests);
-        self.host.peak_produce_in_flight_requests_per_broker = self
-            .host
-            .peak_produce_in_flight_requests_per_broker
-            .max(broker_in_flight_requests);
     }
 
     pub(crate) fn unsettled_completions(&self) -> usize {

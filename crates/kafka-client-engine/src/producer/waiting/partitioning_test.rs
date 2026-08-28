@@ -59,7 +59,7 @@ fn unkeyed_partition_stays_sticky_until_the_batch_seals_then_advances() {
 }
 
 #[test]
-fn same_deadline_pending_submit_remains_eligible_until_armed() {
+fn same_deadline_pending_submit_remains_eligible_until_grouped_handoff() {
     let mut host = start(partitioning_limits());
     let shared_deadline = deadline(500);
     let first = admit_automatic_at(&mut host, None, shared_deadline);
@@ -92,19 +92,22 @@ fn same_deadline_pending_submit_remains_eligible_until_armed() {
 
     assert_eq!(host.drive_prepared(Moment::from_tick(2), 1).unwrap(), 1);
     assert!(!host.has_pending_produce_submission_at(shared_deadline));
-    let first_submission = host
+    let grouped_submissions = host
         .execution
         .take_next_driver_submissions()
-        .expect("first same-deadline submission");
-    let second_submission = host
+        .expect("same-deadline grouped handoff");
+    let remaining_submissions = host
         .execution
         .take_next_driver_submissions()
-        .expect("second same-deadline submission");
-    assert_eq!(first_submission.len(), 1);
-    assert_eq!(second_submission.len(), 1);
-    assert_eq!(first_submission[0].deadline(), shared_deadline);
-    assert_eq!(second_submission[0].deadline(), shared_deadline);
-    drop((first, second, first_submission, second_submission));
+        .expect("empty handoff after same-deadline group");
+    assert_eq!(grouped_submissions.len(), 2);
+    assert!(remaining_submissions.is_empty());
+    assert!(
+        grouped_submissions
+            .iter()
+            .all(|submission| submission.deadline() == shared_deadline)
+    );
+    drop((first, second, grouped_submissions));
 }
 
 #[test]

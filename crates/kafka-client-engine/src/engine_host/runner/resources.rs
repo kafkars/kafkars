@@ -114,8 +114,7 @@ pub(crate) struct EngineHostResources {
     pub(in super::super) producer_identity_calls: TrackedProducerIdentityCalls,
     pub(in super::super) producer_partitioning_call:
         Option<super::super::produce::ProducerPartitioningCall>,
-    pub(in super::super) producer_retry_identity_call:
-        Option<super::super::produce::ProducerRetryIdentityCall>,
+    pub(in super::super) producer_routing_call: Option<super::super::produce::ProducerRoutingCall>,
     pub(in super::super) create_topics_calls: TrackedCreateTopicsCalls,
     pub(in super::super) delete_topics_calls: TrackedDeleteTopicsCalls,
     pub(in super::super) describe_cluster_calls: DescribeClusterCalls,

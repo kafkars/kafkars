@@ -68,8 +68,7 @@ impl MaterializedProduce {
         Self::new(topic.into(), partition, 1, records)
     }
 
-    /// Borrows the topic needed for name-routed driver admission.
-    #[cfg(test)]
+    /// Borrows the topic needed for request planning and response correlation.
     pub(crate) fn topic_name(&self) -> &str {
         self.topic.as_ref()
     }
@@ -106,13 +105,12 @@ impl MaterializedProduce {
         self.into_request(None, now, deadline)
     }
 
-    /// Combines already materialized batches whose metadata selected one broker.
-    #[cfg(test)]
-    pub(crate) fn into_broker_routed_request(
-        batches: Vec<Self>,
+    /// Clones shared encoded bytes into one request for an exact selected broker.
+    pub(crate) fn broker_routed_request(
+        batches: &[&Self],
         now: Moment,
         deadline: OperationDeadline,
-    ) -> Result<ProduceRequest, Vec<Self>> {
+    ) -> Option<ProduceRequest> {
         super::request_broker::build_broker_routed_request(batches, now, deadline)
     }
 
@@ -146,12 +144,11 @@ impl MaterializedProduce {
         )
     }
 
-    #[cfg(test)]
-    pub(super) fn into_partition_data(self) -> (Arc<str>, PartitionProduceData) {
+    pub(super) fn partition_data(&self) -> PartitionProduceData {
         let mut partition = PartitionProduceData::default();
         partition.index = self.partition;
-        partition.records = Some(self.records);
-        (self.topic, partition)
+        partition.records = Some(self.records.clone());
+        partition
     }
 
     fn request(

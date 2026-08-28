@@ -1,7 +1,9 @@
 //! Atomic join between prepared producer ownership and tracked driver calls.
 
 mod partitioning;
-mod retry_identity;
+mod routing;
+#[cfg(test)]
+mod routing_test;
 
 use kafka_client_core::{Moment, ProducerInput};
 
@@ -18,10 +20,40 @@ pub(super) use partitioning::{
     ProducerPartitioningCall, admit as admit_partitioning, apply_ready as apply_partitioning_ready,
     discard_after_driver_shutdown as discard_partitioning_after_driver_shutdown,
 };
-pub(super) use retry_identity::{
-    ProducerRetryIdentityCall, apply_ready as apply_retry_identity_ready,
-    discard_after_driver_shutdown as discard_retry_identity,
+pub(super) use routing::{
+    ProducerRoutingCall, apply_ready as apply_routing_ready,
+    discard_after_driver_shutdown as discard_routing_after_driver_shutdown,
 };
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct ProduceAdmissionOutcome {
+    progressed: bool,
+    prepared_batches: usize,
+}
+
+impl ProduceAdmissionOutcome {
+    pub(super) const fn idle() -> Self {
+        Self {
+            progressed: false,
+            prepared_batches: 0,
+        }
+    }
+
+    pub(super) const fn progressed(prepared_batches: usize) -> Self {
+        Self {
+            progressed: true,
+            prepared_batches,
+        }
+    }
+
+    pub(super) const fn did_progress(self) -> bool {
+        self.progressed
+    }
+
+    pub(super) const fn prepared_batches(self) -> usize {
+        self.prepared_batches
+    }
+}
 
 pub(super) fn admit_identity(
     driver: &DriverOwner,
@@ -53,125 +85,28 @@ pub(super) fn admit_identity(
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one guarded transition owns rollback"
-)]
 pub(super) fn admit_one(
     driver: &DriverOwner,
     calls: &mut TrackedProduceCalls,
-    retry_identity: &mut Option<ProducerRetryIdentityCall>,
+    routing: &mut Option<ProducerRoutingCall>,
     data: &mut ProducerShardData,
     now: Moment,
-) -> Result<bool, EngineHostError> {
-    if let Some(progress) = retry_identity::admit(driver, calls, retry_identity, data, now)? {
+    prepared_batch_budget: usize,
+) -> Result<ProduceAdmissionOutcome, EngineHostError> {
+    if prepared_batch_budget == 0 {
+        return Ok(ProduceAdmissionOutcome::idle());
+    }
+    if let Some(progress) =
+        routing::admit(driver, calls, routing, data, now, prepared_batch_budget)?
+    {
         return Ok(progress);
     }
-    if !calls.broker_admission_available(None) {
-        return Ok(false);
-    }
-    let Some(permit) = calls.try_reserve() else {
-        return Ok(false);
+    let Some(key) = data.next_produce_route_key() else {
+        return Ok(ProduceAdmissionOutcome::idle());
     };
-    let mut submissions = data
-        .take_produce_submissions()
-        .map_err(EngineHostError::ProducerHandoff)?;
-    if submissions.is_empty() {
-        return Ok(false);
-    }
-    let request_batches = submissions.len();
-    let request_records = submissions.iter().fold(0_u64, |total, submission| {
-        total.saturating_add(u64::from(submission.record_count()))
-    });
-    let request_bytes = submissions.iter().fold(0_usize, |total, submission| {
-        total.saturating_add(submission.encoded_record_bytes())
-    });
-    if submissions.len() > 1 {
-        match permit.submit_batch(driver, submissions, now) {
-            Ok(accepted) => {
-                data.record_produce_request(
-                    request_batches,
-                    request_records,
-                    request_bytes,
-                    calls.in_flight_request_count(),
-                    calls.max_broker_in_flight_request_count(),
-                );
-                for input in accepted.inputs() {
-                    data.apply_produce_driver_input(now, input)
-                        .map_err(EngineHostError::Producer)?;
-                }
-                accepted.confirm_receipt();
-            }
-            Err(rejection) => {
-                debug_assert_eq!(
-                    rejection.delivery(),
-                    kafka_client_core::DeliveryStatus::NotSent
-                );
-                let failure = rejection.failure_kind();
-                for execution in rejection.executions() {
-                    data.apply_produce_driver_input(
-                        now,
-                        ProducerInput::DriverRejected {
-                            execution,
-                            now,
-                            failure,
-                        },
-                    )
-                    .map_err(EngineHostError::Producer)?;
-                }
-            }
-        }
-        return Ok(true);
-    }
-    let submission = submissions
-        .pop()
-        .unwrap_or_else(|| unreachable!("nonempty single Produce handoff"));
-    if submission.retry_topic_identity().is_some() {
-        match ProducerRetryIdentityCall::submit(driver, submission) {
-            Ok(call) => *retry_identity = Some(call),
-            Err(submission) => reject_execution(
-                data,
-                submission.execution(),
-                now,
-                kafka_client_core::ProducerAttemptFailureKind::RouteUnavailable,
-            )?,
-        }
-        return Ok(true);
-    }
-    let (execution, deadline, materialized) = submission.into_parts();
-    match permit.submit(driver, execution, deadline, materialized, now) {
-        Ok(accepted) => {
-            data.record_produce_request(
-                request_batches,
-                request_records,
-                request_bytes,
-                calls.in_flight_request_count(),
-                calls.max_broker_in_flight_request_count(),
-            );
-            debug_assert_eq!(accepted.execution(), execution);
-            data.apply_produce_driver_input(now, accepted.driver_accepted())
-                .map_err(EngineHostError::Producer)?;
-            accepted.confirm_receipt();
-        }
-        Err(rejection) => {
-            debug_assert_eq!(
-                rejection.delivery(),
-                kafka_client_core::DeliveryStatus::NotSent
-            );
-            let failure = rejection.failure_kind();
-            drop(rejection);
-            data.apply_produce_driver_input(
-                now,
-                ProducerInput::DriverRejected {
-                    execution,
-                    now,
-                    failure,
-                },
-            )
-            .map_err(EngineHostError::Producer)?;
-        }
-    }
-    Ok(true)
+    *routing = Some(ProducerRoutingCall::new(key));
+    routing::admit(driver, calls, routing, data, now, prepared_batch_budget)
+        .map(|progress| progress.unwrap_or_else(|| ProduceAdmissionOutcome::progressed(0)))
 }
 
 pub(super) fn reject_execution(

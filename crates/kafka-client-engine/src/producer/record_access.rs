@@ -60,6 +60,19 @@ impl RecordStore {
             .ok_or(ProducerStoreError::InvalidPayloadState)
     }
 
+    pub(super) fn record_mut(
+        &mut self,
+        payload_id: PayloadId,
+    ) -> Result<&mut ProducerRecord, ProducerStoreError> {
+        let slot = self.slot_mut(payload_id)?;
+        if slot.state != PayloadState::Admitted {
+            return Err(ProducerStoreError::InvalidPayloadState);
+        }
+        slot.record
+            .as_mut()
+            .ok_or(ProducerStoreError::InvalidPayloadState)
+    }
+
     pub(super) const fn used_bytes(&self) -> usize {
         self.used_bytes
     }

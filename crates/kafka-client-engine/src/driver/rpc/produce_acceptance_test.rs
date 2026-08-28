@@ -35,7 +35,7 @@ fn accepted_receipt_preserves_replacement_execution_through_real_driver_handoff(
     );
 
     let accepted = calls
-        .try_reserve()
+        .try_reserve_for(7)
         .unwrap_or_else(|| panic!("bounded replacement slot"))
         .submit(
             &driver,

@@ -14,6 +14,7 @@ impl AcceptedProduceCall {
     }
 
     /// Returns the exact driver-owned execution identity.
+    #[cfg(test)]
     pub(crate) const fn execution(&self) -> BatchExecutionId {
         self.execution
     }

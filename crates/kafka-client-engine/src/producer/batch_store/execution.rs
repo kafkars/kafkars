@@ -200,6 +200,25 @@ impl BatchStore {
         }
     }
 
+    pub(in crate::producer) fn execution_members(
+        &self,
+        execution: BatchExecutionId,
+    ) -> Result<&[super::BatchMember], ProducerStoreError> {
+        let batch = self
+            .batches
+            .get(&execution.batch_id())
+            .ok_or(ProducerStoreError::UnknownBatch)?;
+        match batch.state {
+            BatchState::Materialized(current) if current == execution => Ok(&batch.members),
+            BatchState::ReadyForMaterialization(_)
+            | BatchState::Materializing(_)
+            | BatchState::Materialized(_)
+            | BatchState::Submitted(_)
+            | BatchState::RetryWaiting(_) => Err(ProducerStoreError::StaleBatchExecution),
+            BatchState::Open => Err(ProducerStoreError::BatchAlreadyMaterialized),
+        }
+    }
+
     pub(in crate::producer) fn execution(
         &self,
         batch_id: kafka_client_core::BatchId,
@@ -208,16 +227,5 @@ impl BatchStore {
             .get(&batch_id)
             .map(BatchAccumulator::execution)
             .ok_or(ProducerStoreError::UnknownBatch)
-    }
-
-    #[cfg(test)]
-    pub(in crate::producer) fn replace_ready_for_test(
-        &mut self,
-        batch_id: kafka_client_core::BatchId,
-        replacement: BatchExecutionId,
-    ) {
-        if let Some(batch) = self.batches.get_mut(&batch_id) {
-            batch.state = BatchState::ReadyForMaterialization(replacement);
-        }
     }
 }

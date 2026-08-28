@@ -1,4 +1,4 @@
-//! Loopback Kafka framing for real routed Fetch-token ownership scenarios.
+//! Loopback Kafka broker for real routed driver-ownership scenarios.
 
 use std::{
     io::{Read, Write},
@@ -6,30 +6,47 @@ use std::{
     time::Duration,
 };
 
-use bytes::{Bytes, BytesMut};
 use kafka_driver::ApiVersion;
 use kafka_wire::{
-    API_VERSIONS_API_DESCRIPTOR, ApiVersionsRequest, ApiVersionsResponse, FETCH_API_DESCRIPTOR,
-    FetchRequest, FetchResponse, METADATA_API_DESCRIPTOR, MetadataRequest, MetadataResponse,
-    RequestResponsePair, ResponseHeader,
-    api_versions_response::ApiVersion as AdvertisedApi,
-    metadata_response::{MetadataResponseBroker, MetadataResponsePartition, MetadataResponseTopic},
-    response_header_version_for,
+    API_VERSIONS_API_DESCRIPTOR, ApiVersionsRequest, FETCH_API_DESCRIPTOR, FetchRequest,
+    FetchResponse, METADATA_API_DESCRIPTOR, MetadataRequest,
 };
-use kafka_wire_core::{KafkaEncode, StrBytes, Uuid};
 
 use crate::driver::DriverOwner;
+
+use super::routed_response_broker_wire_test::{
+    RequestFrame, api_versions_response, encode_response, metadata_response,
+};
 
 /// Opaque loopback peers kept alive for one routed-response scenario.
 pub(crate) struct RoutedBroker {
     listener: TcpListener,
     port: u16,
+    topic: String,
+    partition_count: i32,
+    all_partitions_available: bool,
     seed: Option<TcpStream>,
     long_poll: Option<TcpStream>,
 }
 
 impl RoutedBroker {
     pub(crate) fn new() -> Self {
+        Self::with_topic_layout("events", 4, false)
+    }
+
+    pub(crate) fn with_available_topic(topic: &str, partition_count: usize) -> Self {
+        let partition_count = i32::try_from(partition_count)
+            .ok()
+            .filter(|count| *count > 0)
+            .unwrap_or_else(|| panic!("loopback topic partition count must fit positive i32"));
+        Self::with_topic_layout(topic, partition_count, true)
+    }
+
+    fn with_topic_layout(
+        topic: &str,
+        partition_count: i32,
+        all_partitions_available: bool,
+    ) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0")
             .unwrap_or_else(|error| panic!("bind loopback Kafka broker: {error}"));
         let port = listener
@@ -39,6 +56,9 @@ impl RoutedBroker {
         Self {
             listener,
             port,
+            topic: topic.to_owned(),
+            partition_count,
+            all_partitions_available,
             seed: None,
             long_poll: None,
         }
@@ -70,7 +90,15 @@ impl RoutedBroker {
     pub(crate) fn install_cluster(&mut self, driver: &mut DriverOwner) {
         let mut seed = accept_after_driving(&self.listener, driver);
         complete_negotiation(&mut seed, driver);
-        respond_metadata(&mut seed, driver, self.port, false);
+        respond_metadata(
+            &mut seed,
+            driver,
+            self.port,
+            false,
+            &self.topic,
+            self.partition_count,
+            self.all_partitions_available,
+        );
         self.seed = Some(seed);
     }
 
@@ -78,7 +106,15 @@ impl RoutedBroker {
         let Some(seed) = self.seed.as_mut() else {
             panic!("cluster connection must precede topic Metadata");
         };
-        respond_metadata(seed, driver, self.port, true);
+        respond_metadata(
+            seed,
+            driver,
+            self.port,
+            true,
+            &self.topic,
+            self.partition_count,
+            self.all_partitions_available,
+        );
     }
 
     pub(super) fn complete_fetch(&mut self, driver: &mut DriverOwner) -> ApiVersion {
@@ -119,17 +155,14 @@ fn complete_negotiation(peer: &mut TcpStream, driver: &mut DriverOwner) {
     wait_for_frame(peer, driver, "write ApiVersions request");
     let request = read_request(peer);
     assert_eq!(request.api_key, API_VERSIONS_API_DESCRIPTOR.api_key.value());
-    let mut response = ApiVersionsResponse::default();
-    response.api_keys = vec![
-        advertisement(API_VERSIONS_API_DESCRIPTOR.api_key.value(), 0, 0),
-        advertisement(METADATA_API_DESCRIPTOR.api_key.value(), 0, 13),
-        advertisement(FETCH_API_DESCRIPTOR.api_key.value(), 4, 16),
-    ];
-    write_response::<ApiVersionsRequest, _>(
+    let response = api_versions_response();
+    write_response(
         peer,
-        request.correlation_id,
-        &response,
-        ApiVersion::new(0),
+        &encode_response::<ApiVersionsRequest, _>(
+            request.correlation_id,
+            &response,
+            ApiVersion::new(0),
+        ),
     );
     drive(
         driver,
@@ -143,31 +176,27 @@ fn respond_metadata(
     driver: &mut DriverOwner,
     port: u16,
     include_partition: bool,
+    topic_name: &str,
+    partition_count: i32,
+    all_partitions_available: bool,
 ) {
     wait_for_frame(peer, driver, "write Metadata request");
     let request = read_request(peer);
     assert_eq!(request.api_key, METADATA_API_DESCRIPTOR.api_key.value());
-    let mut response = MetadataResponse::default();
-    response.brokers.push(broker(port));
-    response.controller_id = 1;
-    if include_partition {
-        let mut topic = MetadataResponseTopic::default();
-        topic.name = Some(StrBytes::from("events"));
-        topic.topic_id = Uuid::from_bytes([7; 16]);
-        for partition_index in 0..=3 {
-            let mut partition = MetadataResponsePartition::default();
-            partition.partition_index = partition_index;
-            partition.leader_id = if partition_index == 3 { 1 } else { -1 };
-            partition.leader_epoch = if partition_index == 3 { 9 } else { -1 };
-            topic.partitions.push(partition);
-        }
-        response.topics.push(topic);
-    }
-    write_response::<MetadataRequest, _>(
+    let response = metadata_response(
+        port,
+        include_partition,
+        topic_name,
+        partition_count,
+        all_partitions_available,
+    );
+    write_response(
         peer,
-        request.correlation_id,
-        &response,
-        request.api_version,
+        &encode_response::<MetadataRequest, _>(
+            request.correlation_id,
+            &response,
+            request.api_version,
+        ),
     );
     drive(driver, Duration::from_secs(1), "install Metadata response");
 }
@@ -178,11 +207,13 @@ fn respond_fetch(peer: &mut TcpStream, driver: &mut DriverOwner) -> (ApiVersion,
     assert_eq!(request.api_key, FETCH_API_DESCRIPTOR.api_key.value());
     assert!(matches!(request.api_version.value(), 12 | 16));
     let decoded = request.decode::<FetchRequest>();
-    write_response::<FetchRequest, _>(
+    write_response(
         peer,
-        request.correlation_id,
-        &FetchResponse::default(),
-        request.api_version,
+        &encode_response::<FetchRequest, _>(
+            request.correlation_id,
+            &FetchResponse::default(),
+            request.api_version,
+        ),
     );
     drive(driver, Duration::from_secs(1), "install Fetch response");
     (request.api_version, decoded)
@@ -225,76 +256,13 @@ fn read_request(peer: &mut TcpStream) -> RequestFrame {
     let mut frame = vec![0; length];
     peer.read_exact(&mut frame)
         .unwrap_or_else(|error| panic!("read request frame: {error}"));
-    RequestFrame {
-        api_key: read_i16(&frame, 0),
-        api_version: ApiVersion::new(read_i16(&frame, 2)),
-        correlation_id: read_i32(&frame, 4),
-        bytes: Bytes::from(frame),
-    }
+    RequestFrame::from_bytes(frame)
 }
 
-fn write_response<R, T>(
-    peer: &mut TcpStream,
-    correlation_id: i32,
-    response: &T,
-    version: ApiVersion,
-) where
-    R: RequestResponsePair<Response = T>,
-    T: KafkaEncode,
-{
-    let header_version = response_header_version_for::<R>(version)
-        .unwrap_or_else(|error| panic!("response header policy: {error}"));
-    let mut body = BytesMut::new();
-    let mut header = ResponseHeader::default();
-    header.correlation_id = correlation_id;
-    header
-        .encode_into(&mut body, ApiVersion::new(header_version))
-        .unwrap_or_else(|error| panic!("encode response header: {error}"));
-    response
-        .encode_into(&mut body, version)
-        .unwrap_or_else(|error| panic!("encode response body: {error}"));
+fn write_response(peer: &mut TcpStream, body: &[u8]) {
     let length =
         i32::try_from(body.len()).unwrap_or_else(|error| panic!("response length: {error}"));
     peer.write_all(&length.to_be_bytes())
-        .and_then(|()| peer.write_all(&body))
+        .and_then(|()| peer.write_all(body))
         .unwrap_or_else(|error| panic!("write response frame: {error}"));
-}
-
-fn advertisement(api_key: i16, min_version: i16, max_version: i16) -> AdvertisedApi {
-    let mut api = AdvertisedApi::default();
-    api.api_key = api_key;
-    api.min_version = min_version;
-    api.max_version = max_version;
-    api
-}
-
-fn broker(port: u16) -> MetadataResponseBroker {
-    let mut broker = MetadataResponseBroker::default();
-    broker.node_id = 1;
-    broker.host = StrBytes::from("127.0.0.1");
-    broker.port = i32::from(port);
-    broker
-}
-
-fn read_i16(bytes: &[u8], offset: usize) -> i16 {
-    let encoded = bytes
-        .get(offset..offset + 2)
-        .and_then(|bytes| bytes.try_into().ok())
-        .unwrap_or_else(|| panic!("request must contain i16 at {offset}"));
-    i16::from_be_bytes(encoded)
-}
-
-fn read_i32(bytes: &[u8], offset: usize) -> i32 {
-    let encoded = bytes
-        .get(offset..offset + 4)
-        .and_then(|bytes| bytes.try_into().ok())
-        .unwrap_or_else(|| panic!("request must contain i32 at {offset}"));
-    i32::from_be_bytes(encoded)
-}
-
-pub(super) struct RequestFrame {
-    pub(super) api_key: i16,
-    pub(super) api_version: ApiVersion,
-    pub(super) correlation_id: i32,
-    pub(super) bytes: Bytes,
 }
