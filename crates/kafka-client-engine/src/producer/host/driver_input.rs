@@ -33,7 +33,7 @@ impl ProducerHost {
         if let Some(acceptance) = acceptance {
             self.store.commit_driver_accepted(acceptance);
         }
-        self.interpret_transition(now, transition)
+        self.interpret_transition(now, &transition)
             .map_err(|error| self.poison(error))
     }
 }

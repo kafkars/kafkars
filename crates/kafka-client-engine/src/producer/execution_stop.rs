@@ -86,10 +86,10 @@ impl ProducerHost {
         let interpreted = if self.take_terminal_interpretation_fault() {
             Err(ProducerHostInvariantError::ForcedTerminalInterpretation)
         } else {
-            self.interpret_transition(now, transition)
+            self.interpret_transition(now, &transition)
         };
         #[cfg(not(test))]
-        let interpreted = self.interpret_transition(now, transition);
+        let interpreted = self.interpret_transition(now, &transition);
         if let Err(error) = interpreted {
             return self.publish_fallback_after(error);
         }

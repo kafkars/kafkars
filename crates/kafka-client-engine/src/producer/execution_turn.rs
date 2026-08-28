@@ -207,7 +207,7 @@ impl ProducerHost {
             .core
             .apply(input)
             .map_err(|error| self.poison(ProducerHostInvariantError::Core(error)))?;
-        self.interpret_transition(now, transition)
+        self.interpret_transition(now, &transition)
             .map_err(|error| self.poison(error))
     }
 }

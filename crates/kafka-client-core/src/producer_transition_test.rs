@@ -1,4 +1,4 @@
-//! Scenarios for batch readiness, timer fencing, and terminal fan-out.
+//! Scenarios for batch readiness, effect storage, timer fencing, and terminal fan-out.
 
 use core::num::NonZeroI16;
 
@@ -7,7 +7,8 @@ use crate::{
     BatchTimerGeneration, ByteCount, CompressionPolicy, Deadline, DeliveryStatus, ExplicitRecord,
     Moment, OperationId, PartitionIndex, PayloadId, ProducerBatchPolicy, ProducerBatchSuccess,
     ProducerBrokerFailure, ProducerBrokerFailureKind, ProducerCompletion, ProducerEffect,
-    ProducerFailureKind, ProducerInput, ProducerMachine, RecordMetadata, TopicId,
+    ProducerFailureKind, ProducerInput, ProducerMachine, ProducerTransition, RecordMetadata,
+    TopicId,
 };
 
 const TOPIC: TopicId = TopicId::from_raw(9);
@@ -73,6 +74,29 @@ fn accumulated(
         .unwrap_or_else(|error| panic!("accumulation failed: {error}"))
         .effects()
         .to_vec()
+}
+
+#[test]
+fn existing_batch_admission_keeps_its_single_effect_inline() {
+    let mut producer =
+        ProducerMachine::with_batch_policy(ByteCount::new(1_024), 4, policy(4, 1_024, 10));
+    let (_first, _batch, _timer) = admit(&mut producer, 1, 100);
+    let transition = producer
+        .apply(ProducerInput::AdmitExplicit {
+            now: Moment::from_tick(0),
+            deadline: Deadline::from_tick(100),
+            record: record(2),
+        })
+        .unwrap_or_else(|error| panic!("second admission failed: {error}"));
+
+    assert!(transition.effect_storage_is_inline());
+    assert!(matches!(
+        transition.effects(),
+        [ProducerEffect::AccumulateExplicit { .. }]
+    ));
+    let rebuilt = ProducerTransition::from_effects(transition.effects().to_vec());
+    assert!(rebuilt.effect_storage_is_inline());
+    assert_eq!(transition, rebuilt);
 }
 
 fn materialized(producer: &mut ProducerMachine, batch_id: BatchId) -> Vec<ProducerEffect> {

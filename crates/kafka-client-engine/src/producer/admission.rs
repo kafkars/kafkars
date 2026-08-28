@@ -170,7 +170,7 @@ impl ProducerHost {
                 observer,
             ));
         }
-        if let Err(error) = self.interpret_transition(now, transition) {
+        if let Err(error) = self.interpret_transition(now, &transition) {
             return Err(self.accepted_invariant(error, Some(operation_id), observer));
         }
         Ok(AdmittedExplicit {

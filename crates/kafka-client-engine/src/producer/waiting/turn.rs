@@ -211,7 +211,7 @@ impl ProducerHost {
         *token_state = WaitingTokenState::Accepted(operation_id);
         let cancel_after_promotion = token.cancellation_requested();
         drop(token_state);
-        self.interpret_transition(now, transition)?;
+        self.interpret_transition(now, &transition)?;
         if cancel_after_promotion {
             self.try_cancel_operation(operation_id)
                 .map_err(|error| match error {

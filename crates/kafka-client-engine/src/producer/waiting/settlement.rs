@@ -85,7 +85,7 @@ impl ProducerHost {
         self.bindings
             .mark_waiting_terminal(entry.operation_id)
             .map_err(|error| self.poison(ProducerHostInvariantError::Binding(error)))?;
-        self.interpret_time_free_transition(transition)?;
+        self.interpret_time_free_transition(&transition)?;
         Ok(true)
     }
 }

@@ -183,7 +183,7 @@ fn terminal_release_cancels_submission_that_never_started() {
             now: Moment::from_tick(5),
         })
         .unwrap_or_else(|error| panic!("deadline should settle pending materialization: {error}"));
-    host.interpret_transition(Moment::from_tick(5), transition)
+    host.interpret_transition(Moment::from_tick(5), &transition)
         .unwrap_or_else(|error| panic!("terminal effects should execute: {error}"));
 
     assert_eq!(host.stats().pending_effects, 0);

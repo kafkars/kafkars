@@ -104,7 +104,7 @@ impl ProducerHost {
                 observer,
             ));
         }
-        if let Err(error) = self.interpret_transition(now, transition) {
+        if let Err(error) = self.interpret_transition(now, &transition) {
             return Err(self.accepted_flush_invariant(error, Some(flush_id), observer));
         }
         Ok(AdmittedFlush { flush_id, observer })

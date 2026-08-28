@@ -58,15 +58,19 @@ impl ProducerMachine {
             .ok_or(ProducerMachineError::UnknownBatch)?;
         batch.commit_add_member(operation_id, deadline, timer_update);
 
-        let mut effects = vec![accumulate_effect(operation_id, batch_id, deadline, record)];
-        if let Some((generation, timer_deadline)) = timer_update {
-            effects.push(ProducerEffect::ArmBatchTimer {
-                batch_id,
-                generation,
-                deadline: timer_deadline,
-            });
-        }
-        Ok(ProducerTransition::from_effects(effects))
+        let accumulation = accumulate_effect(operation_id, batch_id, deadline, record);
+        let transition = match timer_update {
+            Some((generation, timer_deadline)) => ProducerTransition::from_effects(vec![
+                accumulation,
+                ProducerEffect::ArmBatchTimer {
+                    batch_id,
+                    generation,
+                    deadline: timer_deadline,
+                },
+            ]),
+            None => ProducerTransition::from_effect(accumulation),
+        };
+        Ok(transition)
     }
 
     fn admit_new(

@@ -117,7 +117,7 @@ fn notifier_stop_retains_every_same_transition_terminal_in_exact_fifo_order() {
     let recovery = host.recover_notifier();
 
     assert_eq!(
-        host.interpret_transition(Moment::from_tick(1), transition),
+        host.interpret_transition(Moment::from_tick(1), &transition),
         Err(ProducerHostInvariantError::Completion(
             CompletionRegistryError::NotifierStopped
         ))
@@ -218,14 +218,14 @@ fn failing_mechanism_poison_fences_reentry_before_conservative_settlement() {
     let repeated = transition.clone();
     host.store.clear_terminal();
 
-    let first = host.interpret_transition(Moment::from_tick(1), transition);
+    let first = host.interpret_transition(Moment::from_tick(1), &transition);
     assert!(matches!(
         first,
         Err(ProducerHostInvariantError::Prepared(_))
     ));
     assert_eq!(host.stats().terminal_backlog, 1);
     assert_eq!(
-        host.interpret_transition(Moment::from_tick(2), repeated),
+        host.interpret_transition(Moment::from_tick(2), &repeated),
         first
     );
 

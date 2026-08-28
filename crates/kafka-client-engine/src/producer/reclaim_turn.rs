@@ -46,7 +46,7 @@ impl ProducerHost {
                 return Err(self.poison(ProducerHostInvariantError::Core(error)));
             }
         };
-        if let Err(error) = self.interpret_transition(now, transition) {
+        if let Err(error) = self.interpret_transition(now, &transition) {
             return Err(self.poison(error));
         }
         let result = {
