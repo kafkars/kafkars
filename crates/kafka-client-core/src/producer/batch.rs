@@ -42,6 +42,7 @@ pub(crate) struct ProducerBatch {
     pub(crate) timer_deadline: Deadline,
     pub(crate) linger_elapsed: bool,
     pub(crate) accumulator_bytes: ByteCount,
+    pub(crate) accumulated_members: usize,
     pub(crate) members: Vec<BatchMember>,
     pub(crate) execution_generation: Option<BatchExecutionGeneration>,
     pub(crate) retries_started: u32,
@@ -55,6 +56,7 @@ pub(crate) struct ProducerBatch {
 pub(crate) struct BatchRemoval {
     pub(crate) members: Vec<BatchMember>,
     pub(crate) accumulator_bytes: ByteCount,
+    pub(crate) accumulated_members: usize,
     pub(crate) timer_update: Option<(BatchTimerGeneration, Deadline)>,
     pub(crate) linger_elapsed: bool,
 }
@@ -66,6 +68,7 @@ pub(crate) struct BatchRevision {
     pub(crate) replacement: Option<BatchExecutionId>,
     pub(crate) members: Vec<BatchMember>,
     pub(crate) accumulator_bytes: ByteCount,
+    pub(crate) accumulated_members: usize,
 }
 
 /// Pure observation of one current timer fact before any batch mutation.
@@ -80,6 +83,7 @@ pub(crate) struct BatchTimerObservation {
 pub(crate) struct BatchAccumulation {
     pub(crate) member_index: usize,
     pub(crate) accumulator_bytes: ByteCount,
+    pub(crate) accumulated_members: usize,
     pub(crate) readies_batch: bool,
 }
 
@@ -110,6 +114,7 @@ impl ProducerBatch {
             timer_deadline: deadline.min(linger_deadline),
             linger_elapsed: false,
             accumulator_bytes: ByteCount::new(0),
+            accumulated_members: 0,
             members: vec![BatchMember {
                 operation_id,
                 deadline,
@@ -157,9 +162,8 @@ impl ProducerBatch {
     }
 
     pub(crate) fn all_accumulated(&self) -> bool {
-        self.members
-            .iter()
-            .all(|member| member.accumulator_bytes.is_some())
+        debug_assert!(self.accumulated_members <= self.members.len());
+        self.accumulated_members == self.members.len()
     }
 
     pub(crate) fn execution_id(&self, batch_id: crate::BatchId) -> Option<BatchExecutionId> {

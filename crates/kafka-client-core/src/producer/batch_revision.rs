@@ -48,6 +48,10 @@ impl ProducerBatch {
             .filter_map(|member| member.accumulator_bytes)
             .try_fold(ByteCount::new(0), ByteCount::checked_add)
             .ok_or(ProducerMachineError::AccumulatorSizeOverflow)?;
+        let accumulated_members = members
+            .iter()
+            .filter(|member| member.accumulator_bytes.is_some())
+            .count();
         let replacement = if members.is_empty() {
             None
         } else {
@@ -62,12 +66,14 @@ impl ProducerBatch {
             replacement,
             members,
             accumulator_bytes,
+            accumulated_members,
         })
     }
 
     pub(crate) fn commit_revision(&mut self, revision: BatchRevision) {
         self.members = revision.members;
         self.accumulator_bytes = revision.accumulator_bytes;
+        self.accumulated_members = revision.accumulated_members;
         self.execution_generation = revision
             .replacement
             .map(crate::BatchExecutionId::generation);
@@ -87,6 +93,7 @@ impl ProducerBatch {
     ) {
         self.members = revision.members;
         self.accumulator_bytes = revision.accumulator_bytes;
+        self.accumulated_members = revision.accumulated_members;
         self.execution_generation = revision
             .replacement
             .map(crate::BatchExecutionId::generation);
@@ -127,6 +134,7 @@ impl ProducerBatch {
     pub(crate) fn commit_retry_revision(&mut self, revision: RetryBatchRevision) {
         self.members = revision.batch.members;
         self.accumulator_bytes = revision.batch.accumulator_bytes;
+        self.accumulated_members = revision.batch.accumulated_members;
         self.execution_generation = revision
             .batch
             .replacement

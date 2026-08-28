@@ -46,12 +46,13 @@ impl ProducerBatch {
         operation_id: OperationId,
         accumulator_bytes: ByteCount,
     ) -> Result<BatchAccumulation, ProducerMachineError> {
-        let Some(member_index) = self
-            .members
-            .iter()
-            .position(|member| member.operation_id == operation_id)
-        else {
-            return Err(ProducerMachineError::UnknownOperation);
+        let member_index = match self.members.last() {
+            Some(member) if member.operation_id == operation_id => self.members.len() - 1,
+            _ => self
+                .members
+                .iter()
+                .position(|member| member.operation_id == operation_id)
+                .ok_or(ProducerMachineError::UnknownOperation)?,
         };
         if self.members[member_index].accumulator_bytes.is_some() {
             return Err(ProducerMachineError::Transition(
@@ -62,11 +63,13 @@ impl ProducerBatch {
             .accumulator_bytes
             .checked_add(accumulator_bytes)
             .ok_or(ProducerMachineError::AccumulatorSizeOverflow)?;
-        let all_accumulated = self
-            .members
-            .iter()
-            .enumerate()
-            .all(|(index, member)| index == member_index || member.accumulator_bytes.is_some());
+        let accumulated_members =
+            self.accumulated_members
+                .checked_add(1)
+                .ok_or(ProducerMachineError::Transition(
+                    TransitionError::InvalidState,
+                ))?;
+        let all_accumulated = accumulated_members == self.members.len();
         let readies_batch = all_accumulated
             && (self.linger_elapsed
                 || self.members.len() >= self.policy.max_records()
@@ -74,12 +77,14 @@ impl ProducerBatch {
         Ok(BatchAccumulation {
             member_index,
             accumulator_bytes,
+            accumulated_members,
             readies_batch,
         })
     }
 
     pub(crate) fn commit_accumulation(&mut self, plan: BatchAccumulation, member_bytes: ByteCount) {
         self.accumulator_bytes = plan.accumulator_bytes;
+        self.accumulated_members = plan.accumulated_members;
         let member = self.members.get_mut(plan.member_index);
         debug_assert!(member.is_some());
         if let Some(member) = member {
@@ -106,10 +111,12 @@ impl ProducerBatch {
             .filter_map(|member| member.accumulator_bytes)
             .try_fold(ByteCount::new(0), ByteCount::checked_add)
             .ok_or(ProducerMachineError::AccumulatorSizeOverflow)?;
-        let linger_elapsed = self.linger_elapsed || observed_linger;
-        let ready = members
+        let accumulated_members = members
             .iter()
-            .all(|member| member.accumulator_bytes.is_some())
+            .filter(|member| member.accumulator_bytes.is_some())
+            .count();
+        let linger_elapsed = self.linger_elapsed || observed_linger;
+        let ready = accumulated_members == members.len()
             && (linger_elapsed
                 || members.len() >= self.policy.max_records()
                 || accumulator_bytes >= self.policy.max_accumulator_bytes());
@@ -136,6 +143,7 @@ impl ProducerBatch {
         Ok(BatchRemoval {
             members,
             accumulator_bytes,
+            accumulated_members,
             timer_update,
             linger_elapsed,
         })
@@ -144,6 +152,7 @@ impl ProducerBatch {
     pub(crate) fn commit_remove_members(&mut self, removal: BatchRemoval) {
         self.members = removal.members;
         self.accumulator_bytes = removal.accumulator_bytes;
+        self.accumulated_members = removal.accumulated_members;
         self.linger_elapsed = removal.linger_elapsed;
         if let Some((generation, deadline)) = removal.timer_update {
             self.timer_generation = generation;
