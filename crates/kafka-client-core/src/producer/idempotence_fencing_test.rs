@@ -12,6 +12,28 @@ use super::scenario_support::{
 };
 
 #[test]
+fn transient_identity_request_failure_keeps_admission_open() {
+    let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
+    let (operation_id, batch_id) = admit(&mut producer, 1, 0, 200_000_000);
+    accumulate(&mut producer, operation_id, batch_id, 1);
+
+    let retry = producer
+        .apply(ProducerInput::ProducerIdentityRequestUnavailable {
+            generation: ProducerIdentityGeneration::initial(),
+            now: Moment::from_tick(10),
+        })
+        .unwrap_or_else(|error| panic!("transient identity failure must retry: {error}"));
+
+    assert!(producer.admission_is_open());
+    assert!(
+        retry
+            .effects()
+            .iter()
+            .any(|effect| matches!(effect, ProducerEffect::ArmProducerIdentityRetry { .. }))
+    );
+}
+
+#[test]
 fn ambiguous_batch_fences_second_submitted_batch_out_of_retry() {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 2);
     producer.install_identity_for_test();

@@ -1,10 +1,25 @@
 //! Producer identity terminal normalization scenarios.
 
 use kafka_client_core::{Moment, ProducerIdentityGeneration, ProducerInput};
-use kafka_driver::{CallFailure, Delivery, RequestError};
+use kafka_driver::{CallFailure, Delivery, RequestError, SubmitError};
 use kafka_wire::InitProducerIdResponse;
 
-use super::init_producer_id_calls::normalize_terminal;
+use super::init_producer_id_calls::{identity_submit_rejection, normalize_terminal};
+
+#[test]
+fn identity_submission_capacity_retries_but_closed_driver_is_terminal() {
+    let generation = ProducerIdentityGeneration::initial();
+    let now = Moment::from_tick(2);
+
+    assert_eq!(
+        identity_submit_rejection(generation, now, &SubmitError::Full),
+        ProducerInput::ProducerIdentityRequestUnavailable { generation, now }
+    );
+    assert_eq!(
+        identity_submit_rejection(generation, now, &SubmitError::Closed),
+        ProducerInput::ProducerIdentityRequestFailed { generation, now }
+    );
+}
 
 #[test]
 fn success_carries_generation_identity_and_observed_moment() {
@@ -91,6 +106,21 @@ fn non_deadline_request_failure_remains_an_explicit_core_fact() {
                 failure: CallFailure::LocallyRejected,
                 delivery: Delivery::NotSent,
             }),
+        ),
+        ProducerInput::ProducerIdentityRequestUnavailable {
+            generation: ProducerIdentityGeneration::initial(),
+            now: Moment::from_tick(9),
+        }
+    );
+}
+
+#[test]
+fn permanent_request_failure_remains_an_explicit_terminal_core_fact() {
+    assert_eq!(
+        normalize_terminal(
+            ProducerIdentityGeneration::initial(),
+            Moment::from_tick(9),
+            Err(RequestError::IdentityConflict),
         ),
         ProducerInput::ProducerIdentityRequestFailed {
             generation: ProducerIdentityGeneration::initial(),

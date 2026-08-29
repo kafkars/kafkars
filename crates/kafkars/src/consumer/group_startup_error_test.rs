@@ -6,7 +6,7 @@ use std::{
 };
 
 use super::ConsumerGroupProtocol;
-use crate::{Client, ErrorKind};
+use crate::{Client, ErrorKind, RetryAdvice};
 
 #[test]
 fn accepted_modern_start_exposes_its_later_terminal_instead_of_staying_pending() {
@@ -14,13 +14,25 @@ fn accepted_modern_start_exposes_its_later_terminal_instead_of_staying_pending()
         .bootstrap_servers(["127.0.0.1:1"])
         .build()
         .unwrap_or_else(|error| panic!("lazy client: {error}"));
-    let consumer = client
+    let mut builder = client
         .consumer("startup-terminal")
         .subscribe(["orders"])
         .group_protocol(ConsumerGroupProtocol::Consumer)
-        .membership_start_timeout(Duration::from_millis(50))
-        .build()
-        .unwrap_or_else(|error| panic!("accepted consumer start: {error}"));
+        .membership_start_timeout(Duration::from_millis(50));
+    let admission_deadline = Instant::now() + Duration::from_secs(2);
+    let consumer = loop {
+        match builder.build() {
+            Ok(consumer) => break consumer,
+            Err(rejected)
+                if rejected.error().retry_advice() == RetryAdvice::RetrySafe
+                    && Instant::now() < admission_deadline =>
+            {
+                (builder, _) = rejected.into_parts();
+                std::hint::spin_loop();
+            }
+            Err(error) => panic!("accepted consumer start: {error}"),
+        }
+    };
     let observation_deadline = Instant::now() + Duration::from_secs(3);
     let error = loop {
         if let Some(error) = consumer.startup_error() {

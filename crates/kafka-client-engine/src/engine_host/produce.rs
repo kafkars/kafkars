@@ -71,15 +71,11 @@ pub(super) fn admit_identity(
         return Ok(false);
     };
     let (generation, deadline) = submission.into_parts();
-    match permit.submit(driver, generation, deadline) {
+    match permit.submit(driver, generation, deadline, now) {
         Ok(()) => Ok(true),
-        Err(rejection) => {
-            drop(rejection);
-            data.apply_produce_driver_input(
-                now,
-                ProducerInput::ProducerIdentityRequestFailed { generation, now },
-            )
-            .map_err(EngineHostError::Producer)?;
+        Err(input) => {
+            data.apply_produce_driver_input(now, input)
+                .map_err(EngineHostError::Producer)?;
             Ok(true)
         }
     }

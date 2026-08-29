@@ -1,6 +1,8 @@
 //! Public operational-metrics observation through a live client host.
 
-use crate::Client;
+use std::time::{Duration, Instant};
+
+use crate::{Client, ErrorKind, RetryAdvice};
 
 #[test]
 fn client_returns_one_real_operational_snapshot() {
@@ -9,9 +11,21 @@ fn client_returns_one_real_operational_snapshot() {
         .build()
         .unwrap_or_else(|error| panic!("build client: {error}"));
 
-    let snapshot = client
-        .metrics()
-        .unwrap_or_else(|error| panic!("admit metrics: {error}"))
+    let admission_deadline = Instant::now() + Duration::from_secs(2);
+    let metrics = loop {
+        match client.metrics() {
+            Ok(metrics) => break metrics,
+            Err(error)
+                if error.kind() == ErrorKind::Backpressure
+                    && error.retry_advice() == RetryAdvice::RetrySafe
+                    && Instant::now() < admission_deadline =>
+            {
+                core::hint::spin_loop();
+            }
+            Err(error) => panic!("admit metrics: {error}"),
+        }
+    };
+    let snapshot = metrics
         .wait()
         .unwrap_or_else(|error| panic!("observe metrics: {error}"));
 

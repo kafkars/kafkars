@@ -43,6 +43,17 @@ pub enum ProducerInput {
         /// Monotonic observation used to classify each retained batch deadline.
         now: Moment,
     },
+    /// Reports a transient non-deadline failure of one identity request.
+    ///
+    /// Nontransactional identity acquisition precedes every Produce attempt,
+    /// so an unobserved identity can be abandoned and reacquired without
+    /// weakening delivery certainty.
+    ProducerIdentityRequestUnavailable {
+        /// Exact acquisition generation.
+        generation: ProducerIdentityGeneration,
+        /// Monotonic observation used to preserve the original public deadline.
+        now: Moment,
+    },
     /// Reports a non-deadline driver failure of one identity request.
     ProducerIdentityRequestFailed {
         /// Exact acquisition generation.

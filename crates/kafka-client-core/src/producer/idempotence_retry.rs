@@ -7,10 +7,29 @@ use crate::{
 
 use super::{BatchState, ProducerBatch, ProducerMachine};
 
-const PRODUCER_IDENTITY_COORDINATOR_LOAD_BACKOFF_TICKS: u64 = 100_000_000;
+const PRODUCER_IDENTITY_RETRY_BACKOFF_TICKS: u64 = 100_000_000;
 
 impl ProducerMachine {
+    pub(crate) fn producer_identity_request_unavailable(
+        &mut self,
+        generation: ProducerIdentityGeneration,
+        now: Moment,
+    ) -> Result<ProducerTransition, ProducerMachineError> {
+        if !self.idempotence.acquisition_is_current(generation) {
+            return Ok(ProducerTransition::none());
+        }
+        self.retry_producer_identity(generation, now)
+    }
+
     pub(super) fn retry_producer_identity_coordinator_load(
+        &mut self,
+        generation: ProducerIdentityGeneration,
+        now: Moment,
+    ) -> Result<ProducerTransition, ProducerMachineError> {
+        self.retry_producer_identity(generation, now)
+    }
+
+    fn retry_producer_identity(
         &mut self,
         generation: ProducerIdentityGeneration,
         now: Moment,
@@ -23,7 +42,7 @@ impl ProducerMachine {
             return self.producer_identity_deadline_elapsed(generation, now);
         }
         let not_before = now
-            .checked_deadline_after(PRODUCER_IDENTITY_COORDINATOR_LOAD_BACKOFF_TICKS)
+            .checked_deadline_after(PRODUCER_IDENTITY_RETRY_BACKOFF_TICKS)
             .map_or(deadline, |backoff| backoff.min(deadline));
         let retry_generation = generation
             .checked_next()

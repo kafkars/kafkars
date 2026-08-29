@@ -31,11 +31,27 @@ impl ProducerIdentityCallPermit<'_> {
         driver: &DriverOwner,
         generation: ProducerIdentityGeneration,
         deadline: OperationDeadline,
-    ) -> Result<(), SubmitError> {
+        now: Moment,
+    ) -> Result<(), ProducerInput> {
         let request = nontransactional_init_producer_id_request();
-        let call = driver.submit_tracked_init_producer_id(request, deadline.transport())?;
+        let call = driver
+            .submit_tracked_init_producer_id(request, deadline.transport())
+            .map_err(|error| identity_submit_rejection(generation, now, &error))?;
         *self.slot = Some(ProducerIdentityCallEntry { generation, call });
         Ok(())
+    }
+}
+
+pub(super) const fn identity_submit_rejection(
+    generation: ProducerIdentityGeneration,
+    now: Moment,
+    rejection: &SubmitError,
+) -> ProducerInput {
+    match rejection {
+        SubmitError::Full | SubmitError::Wake(_) => {
+            ProducerInput::ProducerIdentityRequestUnavailable { generation, now }
+        }
+        _ => ProducerInput::ProducerIdentityRequestFailed { generation, now },
     }
 }
 
@@ -138,6 +154,24 @@ pub(super) fn normalize_terminal(
             failure: CallFailure::DeadlineExceeded,
             ..
         }) => ProducerInput::ProducerIdentityDeadlineElapsed { generation, now },
+        Err(error) if transient_identity_request_failure(&error) => {
+            ProducerInput::ProducerIdentityRequestUnavailable { generation, now }
+        }
         Err(_other) => ProducerInput::ProducerIdentityRequestFailed { generation, now },
     }
+}
+
+const fn transient_identity_request_failure(error: &RequestError) -> bool {
+    matches!(
+        error,
+        RequestError::ResponseCapacityReached { .. }
+            | RequestError::RouteUnavailable
+            | RequestError::RouteCapacityReached { .. }
+            | RequestError::MetadataQueryCapacityReached { .. }
+            | RequestError::CoordinatorCapacityReached { .. }
+            | RequestError::NameResolutionCapacityReached { .. }
+            | RequestError::NameResolutionFailed { .. }
+            | RequestError::Rejected { .. }
+            | RequestError::ConnectionClosed(_)
+    )
 }

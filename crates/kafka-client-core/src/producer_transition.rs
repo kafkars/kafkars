@@ -35,6 +35,9 @@ impl ProducerMachine {
             ProducerInput::ProducerIdentityDeadlineElapsed { generation, now } => {
                 self.producer_identity_deadline_elapsed(generation, now)
             }
+            ProducerInput::ProducerIdentityRequestUnavailable { generation, now } => {
+                self.producer_identity_request_unavailable(generation, now)
+            }
             ProducerInput::ProducerIdentityRequestFailed { generation, now } => {
                 self.producer_identity_request_failed(generation, now)
             }

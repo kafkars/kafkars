@@ -31,7 +31,12 @@ impl ClientEngine {
                     EngineMetricsAdmissionErrorKind::Closed => ErrorKind::State,
                     EngineMetricsAdmissionErrorKind::HostUnavailable => ErrorKind::Internal,
                 };
-                KafkaError::new(kind, error.to_string())
+                let semantic = KafkaError::new(kind, error.to_string());
+                match error.kind() {
+                    EngineMetricsAdmissionErrorKind::Capacity => semantic.with_safe_retry(),
+                    EngineMetricsAdmissionErrorKind::Closed
+                    | EngineMetricsAdmissionErrorKind::HostUnavailable => semantic,
+                }
             })
     }
 }
