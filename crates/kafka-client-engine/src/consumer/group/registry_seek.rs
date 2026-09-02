@@ -7,14 +7,10 @@ use kafka_client_core::{
     StartPosition,
 };
 
-use crate::{
-    clock::{ClockError, DeadlineCapture},
-    consumer::{
-        group_control::GroupConsumerPartition,
-        group_recv::{GroupConsumerRecvRegistration, GroupConsumerRecvWait},
-        group_seek::GroupConsumerSeekCompletion,
-    },
-};
+use crate::clock::{ClockError, DeadlineCapture};
+use crate::consumer::group_control::GroupConsumerPartition;
+use crate::consumer::group_recv::{GroupConsumerRecvRegistration, GroupConsumerRecvWait};
+use crate::consumer::group_seek::GroupConsumerSeekCompletion;
 
 use super::{
     classic_group_fetch::{ClassicGroupFetchSeekError, ClassicGroupFetchSeekObservation},
@@ -61,11 +57,12 @@ impl GroupConsumerRegistry {
             .catalog
             .live_assignment()
             .ok_or(GroupConsumerSeekRegistryError::NoAssignment)?;
-        let cycle = entry
-            .classic
-            .machine()
-            .active_cycle()
-            .ok_or(GroupConsumerSeekRegistryError::NoAssignment)?;
+        let cycle = if entry.uses_consumer_group_protocol() {
+            entry.catalog.membership_cycle()
+        } else {
+            entry.classic.machine().active_cycle()
+        }
+        .ok_or(GroupConsumerSeekRegistryError::NoAssignment)?;
         let topic_id = entry
             .catalog
             .topic_id(partition.topic())

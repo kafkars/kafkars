@@ -137,7 +137,7 @@ fn translate_partition_input(error: GroupConsumerPartitionInputError) -> KafkaEr
 }
 
 pub(super) fn translate_admission_kind(kind: GroupConsumerSeekAdmissionErrorKind) -> KafkaError {
-    let (kind, message) = match kind {
+    let (facade_kind, message) = match kind {
         GroupConsumerSeekAdmissionErrorKind::Contended
         | GroupConsumerSeekAdmissionErrorKind::Pending
         | GroupConsumerSeekAdmissionErrorKind::ResourceExhausted => (
@@ -162,7 +162,13 @@ pub(super) fn translate_admission_kind(kind: GroupConsumerSeekAdmissionErrorKind
             (ErrorKind::Internal, "group seek ownership is unavailable")
         }
     };
-    KafkaError::new(kind, message)
+    let error = KafkaError::new(facade_kind, message);
+    match kind {
+        GroupConsumerSeekAdmissionErrorKind::Contended
+        | GroupConsumerSeekAdmissionErrorKind::Pending
+        | GroupConsumerSeekAdmissionErrorKind::ResourceExhausted => error.with_safe_retry(),
+        _ => error,
+    }
 }
 
 fn translate_terminal(error: GroupConsumerSeekError) -> KafkaError {

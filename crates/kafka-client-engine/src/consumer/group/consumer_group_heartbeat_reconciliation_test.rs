@@ -136,10 +136,6 @@ fn same_member_epoch_changed_assignment_retires_then_installs_the_target() {
         panic!("replacement position resolution")
     };
     assert_eq!(position.key().operation_deadline(), ack.deadline());
-    assert!(matches!(
-        entry.catalog.take_event(),
-        Some(crate::consumer::GroupConsumerEvent::PartitionsAssigned(_))
-    ));
     assert!(entry.catalog.take_event().is_none());
 }
 
@@ -228,7 +224,7 @@ fn replacement_before_fetch_activation_uses_immediate_retirement() {
     assert!(entry.consumer_reconciliation.is_some());
 }
 
-fn activate_fetch(entry: &mut GroupConsumerEntry) {
+pub(super) fn activate_fetch(entry: &mut GroupConsumerEntry) {
     let assignment = entry
         .catalog
         .live_assignment()
@@ -272,4 +268,5 @@ fn activate_fetch(entry: &mut GroupConsumerEntry) {
         ),
         Ok(ClassicGroupFetchTransferTurn::Activated)
     );
+    entry.catalog.confirm_sync_event();
 }

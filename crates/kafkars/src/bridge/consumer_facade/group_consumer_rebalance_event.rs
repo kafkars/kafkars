@@ -104,7 +104,11 @@ pub(super) fn translate_group_consumer_revocation_acknowledgment_kind(
             "group revocation acknowledgment ownership is unavailable",
         ),
     };
-    KafkaError::new(kind, message)
+    let error = KafkaError::new(kind, message);
+    match error.kind() {
+        ErrorKind::Backpressure => error.with_safe_retry(),
+        _ => error,
+    }
 }
 
 pub(super) fn translate_group_consumer_event_observation_kind(
@@ -122,5 +126,9 @@ pub(super) fn translate_group_consumer_event_observation_kind(
             (ErrorKind::Internal, "group event ownership is inconsistent")
         }
     };
-    KafkaError::new(kind, message)
+    let error = KafkaError::new(kind, message);
+    match error.kind() {
+        ErrorKind::Backpressure => error.with_safe_retry(),
+        _ => error,
+    }
 }

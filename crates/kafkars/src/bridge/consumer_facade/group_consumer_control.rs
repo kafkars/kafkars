@@ -144,7 +144,7 @@ fn translate_group_consumer_control(error: &GroupConsumerControlError) -> KafkaE
 pub(super) fn translate_group_consumer_control_kind(
     kind: GroupConsumerControlErrorKind,
 ) -> KafkaError {
-    let (kind, message) = match kind {
+    let (facade_kind, message) = match kind {
         GroupConsumerControlErrorKind::Contended | GroupConsumerControlErrorKind::Pending => (
             ErrorKind::Backpressure,
             "group-consumer control is temporarily unavailable",
@@ -174,7 +174,13 @@ pub(super) fn translate_group_consumer_control_kind(
             "group-consumer control ownership is unavailable",
         ),
     };
-    KafkaError::new(kind, message)
+    let error = KafkaError::new(facade_kind, message);
+    match kind {
+        GroupConsumerControlErrorKind::Contended | GroupConsumerControlErrorKind::Pending => {
+            error.with_safe_retry()
+        }
+        _ => error,
+    }
 }
 
 fn translate_group_consumer_resume_capture(error: GroupConsumerResumeCaptureError) -> KafkaError {

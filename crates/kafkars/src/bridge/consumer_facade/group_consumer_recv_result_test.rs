@@ -2,12 +2,27 @@
 
 use kafka_client_engine::{
     GroupConsumerFetchFailureKind, GroupConsumerPositionFailureKind, GroupConsumerRecvErrorKind,
+    GroupConsumerTryTakeBatchErrorKind,
 };
 
-use crate::ErrorKind;
+use crate::{ErrorKind, RetryAdvice};
 
+use super::group_consumer::translate_group_consumer_batch_take_kind;
 use super::group_consumer_batch::GroupConsumerHeader;
 use super::group_consumer_recv_result::translate_group_consumer_recv_kind;
+
+#[test]
+fn immediate_batch_contention_is_safe_to_retry() {
+    for kind in [
+        GroupConsumerTryTakeBatchErrorKind::Contended,
+        GroupConsumerTryTakeBatchErrorKind::Pending,
+    ] {
+        assert_eq!(
+            translate_group_consumer_batch_take_kind(kind).retry_advice(),
+            RetryAdvice::RetrySafe
+        );
+    }
+}
 
 #[test]
 fn group_header_parts_retain_the_record_lifetime_after_translation() {

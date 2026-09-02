@@ -170,11 +170,12 @@ fn prepare_control(
         .catalog
         .live_assignment()
         .ok_or(GroupConsumerControlPortError::NoAssignment)?;
-    let cycle = entry
-        .classic
-        .machine()
-        .active_cycle()
-        .ok_or(GroupConsumerControlPortError::NoAssignment)?;
+    let cycle = if entry.uses_consumer_group_protocol() {
+        entry.catalog.membership_cycle()
+    } else {
+        entry.classic.machine().active_cycle()
+    }
+    .ok_or(GroupConsumerControlPortError::NoAssignment)?;
     let position_fence = GroupPositionFence::new(
         group_id,
         cycle,

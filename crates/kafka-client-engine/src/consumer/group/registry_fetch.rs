@@ -52,6 +52,7 @@ impl GroupConsumerRegistry {
             };
             match transfer {
                 Ok(ClassicGroupFetchTransferTurn::Activated) => {
+                    entry.catalog.confirm_sync_event();
                     return Ok(GroupConsumerFetchTurn::Progress);
                 }
                 Ok(ClassicGroupFetchTransferTurn::Idle) => {}

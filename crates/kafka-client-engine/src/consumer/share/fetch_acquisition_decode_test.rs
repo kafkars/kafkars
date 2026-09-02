@@ -45,19 +45,26 @@ fn decoded_records_map_to_exact_local_ranges_and_byte_charges() {
 }
 
 #[test]
-fn unacquired_records_and_empty_ranges_fail_before_core_ownership() {
+fn record_batch_siblings_outside_acquired_ranges_are_not_delivered() {
     let (_broker, _assignment, plan) = plan().into_parts();
-    assert_eq!(
-        decode_share_fetch_success(
-            response(vec![range(10, 10, 1)]),
-            &plan,
-            kafka_client_core::Deadline::from_tick(100),
-            Moment::from_tick(1),
-            FetchDecodeLimits::default(),
-        )
-        .err(),
-        Some(ShareFetchAcquisitionDecodeError::UnacquiredRecord(11))
-    );
+    let decoded = decode_share_fetch_success(
+        response(vec![range(11, 11, 2)]),
+        &plan,
+        kafka_client_core::Deadline::from_tick(100),
+        Moment::from_tick(1),
+        FetchDecodeLimits::default(),
+    )
+    .unwrap_or_else(|error| panic!("decode partial record batch: {error:?}"));
+    assert_eq!(decoded.ranges.len(), 1);
+    assert_eq!(decoded.ranges[0].delivery_count().get(), 2);
+    assert_eq!(decoded.partitions[0].batches().len(), 1);
+    assert_eq!(decoded.partitions[0].batches()[0].records.len(), 1);
+    assert_eq!(decoded.partitions[0].batches()[0].records[0].offset, 11);
+}
+
+#[test]
+fn empty_acquired_ranges_fail_before_core_ownership() {
+    let (_broker, _assignment, plan) = plan().into_parts();
     assert_eq!(
         decode_share_fetch_success(
             response(vec![range(9, 9, 1), range(10, 12, 1)]),

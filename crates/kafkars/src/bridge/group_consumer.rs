@@ -66,32 +66,39 @@ impl GroupConsumerEngine {
         self.handle
             .try_take_batch()
             .map(|batch| batch.map(GroupConsumerBatch::from_engine))
-            .map_err(|error| match error.kind() {
-                GroupConsumerTryTakeBatchErrorKind::Contended
-                | GroupConsumerTryTakeBatchErrorKind::Pending => KafkaError::new(
-                    ErrorKind::Backpressure,
-                    "group delivery is temporarily unavailable",
-                ),
-                GroupConsumerTryTakeBatchErrorKind::Closed
-                | GroupConsumerTryTakeBatchErrorKind::GroupUnavailable => {
-                    KafkaError::new(ErrorKind::State, "group delivery admission is closed")
-                }
-                GroupConsumerTryTakeBatchErrorKind::ProcessingExpired => KafkaError::new(
-                    ErrorKind::State,
-                    "group application-processing lease expired",
-                ),
-                GroupConsumerTryTakeBatchErrorKind::Position(failure) => {
-                    translate_group_consumer_position_failure(failure)
-                }
-                GroupConsumerTryTakeBatchErrorKind::Fetch(failure) => {
-                    translate_group_consumer_fetch_failure(failure)
-                }
-                GroupConsumerTryTakeBatchErrorKind::HostUnavailable
-                | GroupConsumerTryTakeBatchErrorKind::InternalInvariant => KafkaError::new(
-                    ErrorKind::Internal,
-                    "group delivery ownership is unavailable",
-                ),
-            })
+            .map_err(|error| translate_group_consumer_batch_take_kind(error.kind()))
+    }
+}
+
+pub(super) fn translate_group_consumer_batch_take_kind(
+    kind: GroupConsumerTryTakeBatchErrorKind,
+) -> KafkaError {
+    match kind {
+        GroupConsumerTryTakeBatchErrorKind::Contended
+        | GroupConsumerTryTakeBatchErrorKind::Pending => KafkaError::new(
+            ErrorKind::Backpressure,
+            "group delivery is temporarily unavailable",
+        )
+        .with_safe_retry(),
+        GroupConsumerTryTakeBatchErrorKind::Closed
+        | GroupConsumerTryTakeBatchErrorKind::GroupUnavailable => {
+            KafkaError::new(ErrorKind::State, "group delivery admission is closed")
+        }
+        GroupConsumerTryTakeBatchErrorKind::ProcessingExpired => KafkaError::new(
+            ErrorKind::State,
+            "group application-processing lease expired",
+        ),
+        GroupConsumerTryTakeBatchErrorKind::Position(failure) => {
+            translate_group_consumer_position_failure(failure)
+        }
+        GroupConsumerTryTakeBatchErrorKind::Fetch(failure) => {
+            translate_group_consumer_fetch_failure(failure)
+        }
+        GroupConsumerTryTakeBatchErrorKind::HostUnavailable
+        | GroupConsumerTryTakeBatchErrorKind::InternalInvariant => KafkaError::new(
+            ErrorKind::Internal,
+            "group delivery ownership is unavailable",
+        ),
     }
 }
 

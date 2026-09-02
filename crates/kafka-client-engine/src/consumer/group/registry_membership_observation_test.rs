@@ -8,6 +8,7 @@ use crate::consumer::{GroupConsumerMembershipEpoch, GroupConsumerProtocol};
 
 use super::{
     classic_group_rejoin_test_support::{arm_rejoin, entry_mut},
+    consumer_group_heartbeat_reconciliation_test::activate_fetch,
     consumer_group_heartbeat_settlement_test::{
         installed_modern_entry, installed_modern_entry_with_instance,
     },
@@ -88,7 +89,9 @@ fn prepared_classic_reconciliation_hides_its_deferred_rejoin_deadline() {
 
 #[test]
 fn confirmed_static_modern_state_exposes_identity_without_sending_it_transactionally() {
-    let (entry, _topic_id) = installed_modern_entry_with_instance(Some(&Arc::from("instance-a")));
+    let (mut entry, _topic_id) =
+        installed_modern_entry_with_instance(Some(&Arc::from("instance-a")));
+    activate_fetch(&mut entry);
     let group_id = entry.group_id();
     let mut registry =
         GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error:?}"));

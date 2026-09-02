@@ -24,7 +24,7 @@ fn testlab_pin_verdict_and_evidence_bypasses_are_rejected() {
     for (broken, expected) in [
         (
             workflow.replace(
-                "kafkars/testlab@df38a1c727923e0649a5f527514f4bd755a9249a",
+                "kafkars/testlab@4d6776c6c9d2904340d499a8a1cd64cbf22181f5",
                 "kafkars/testlab@main",
             ),
             "must pin the exact Testlab revision",
@@ -39,8 +39,8 @@ fn testlab_pin_verdict_and_evidence_bypasses_are_rejected() {
         ),
         (
             workflow.replacen(
-                "uses: kafkars/testlab@df38a1c727923e0649a5f527514f4bd755a9249a",
-                "continue-on-error: true\n        uses: kafkars/testlab@df38a1c727923e0649a5f527514f4bd755a9249a",
+                "uses: kafkars/testlab@4d6776c6c9d2904340d499a8a1cd64cbf22181f5",
+                "continue-on-error: true\n        uses: kafkars/testlab@4d6776c6c9d2904340d499a8a1cd64cbf22181f5",
                 1,
             ),
             "contains unsupported key `continue-on-error`",

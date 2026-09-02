@@ -8,7 +8,7 @@ use super::group_consumer_rebalance_event::{
     translate_group_consumer_event_observation_kind,
     translate_group_consumer_revocation_acknowledgment_kind,
 };
-use crate::ErrorKind;
+use crate::{ErrorKind, RetryAdvice};
 
 #[test]
 fn event_observation_categories_translate_exhaustively() {
@@ -31,6 +31,24 @@ fn event_observation_categories_translate_exhaustively() {
             facade
         );
     }
+}
+
+#[test]
+fn event_and_revocation_contention_are_safe_to_retry() {
+    assert_eq!(
+        translate_group_consumer_event_observation_kind(
+            GroupConsumerTryTakeEventErrorKind::Contended,
+        )
+        .retry_advice(),
+        RetryAdvice::RetrySafe
+    );
+    assert_eq!(
+        translate_group_consumer_revocation_acknowledgment_kind(
+            GroupConsumerRevocationAcknowledgeErrorKind::Contended,
+        )
+        .retry_advice(),
+        RetryAdvice::RetrySafe
+    );
 }
 
 #[test]

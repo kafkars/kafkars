@@ -18,7 +18,7 @@ use super::{
 };
 
 #[test]
-fn fenced_member_is_lost_then_rejoins_at_epoch_zero_with_the_same_identity() {
+fn fenced_unactivated_member_rejoins_without_a_false_loss_event() {
     for error_code in [25, 110] {
         let (mut entry, _topic_id) = installed_modern_entry();
         let member_id = entry
@@ -94,10 +94,7 @@ fn fenced_member_is_lost_then_rejoins_at_epoch_zero_with_the_same_identity() {
         assert_eq!(entry.catalog.current_member_id(), Some(member_id));
         assert_eq!(entry.catalog.current_member(), Some(&member));
         assert_eq!(entry.catalog.consumer_group_member_epoch(), None);
-        assert!(matches!(
-            entry.catalog.take_event(),
-            Some(crate::consumer::GroupConsumerEvent::PartitionsLost(_))
-        ));
+        assert!(entry.catalog.take_event().is_none());
         assert!(consumer_group_heartbeat_is_ready(&entry));
 
         let request = prepare_request(&entry)

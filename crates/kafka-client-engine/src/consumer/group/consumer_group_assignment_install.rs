@@ -163,7 +163,6 @@ fn install(
             .commit_consumer_group_install(candidate, cycle, member_epoch, assignment);
     }
     entry.catalog.stage_installed_assignment_event();
-    entry.catalog.confirm_sync_event();
     let _transition = processing.commit();
     entry.position.set(match position {
         ClassicGroupPositionPreparation::Prepared(prepared) => {

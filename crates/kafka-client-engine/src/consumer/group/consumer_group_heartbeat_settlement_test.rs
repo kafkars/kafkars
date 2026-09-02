@@ -36,6 +36,7 @@ use crate::consumer::GroupConsumerProtocol;
 #[test]
 fn initial_assignment_owns_position_processing_and_observation_before_fetch() {
     let (mut entry, topic_id) = installed_modern_entry();
+    assert!(entry.catalog.take_event().is_none());
 
     let assignment = entry
         .catalog
@@ -97,6 +98,8 @@ fn initial_assignment_owns_position_processing_and_observation_before_fetch() {
         Ok(ClassicGroupFetchTransferTurn::Activated)
     );
     assert!(entry.fetch.activation().is_some());
+    assert!(entry.catalog.take_event().is_none());
+    entry.catalog.confirm_sync_event();
     assert!(matches!(
         entry.catalog.take_event(),
         Some(crate::consumer::GroupConsumerEvent::PartitionsAssigned(_))
@@ -161,10 +164,7 @@ fn omitted_assignment_advances_member_epoch_without_replacing_live_ownership() {
         .live_assignment()
         .unwrap_or_else(|| panic!("live assignment"))
         .assignment_generation();
-    assert!(matches!(
-        entry.catalog.take_event(),
-        Some(crate::consumer::GroupConsumerEvent::PartitionsAssigned(_))
-    ));
+    assert!(entry.catalog.take_event().is_none());
     let schedule = entry
         .consumer
         .as_ref()

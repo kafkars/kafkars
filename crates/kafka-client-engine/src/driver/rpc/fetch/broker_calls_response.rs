@@ -4,11 +4,9 @@ use kafka_client_core::Moment;
 use kafka_wire::{FetchResponse as WireFetchResponse, fetch_response::FetchableTopicResponse};
 use kafka_wire_core::Uuid;
 
-#[cfg(test)]
-use super::broker_calls::SettledBrokerFetchBatch;
 use super::{
     admission::{FetchAdmissionFailureSource, PartitionFetchRequest},
-    broker_calls::{BrokerFetchSlot, TrackedBrokerFetchCalls},
+    broker_calls::BrokerFetchSlot,
     terminal::retain_fetch_terminal,
 };
 
@@ -75,6 +73,10 @@ fn distribute_response(
         slot.response.session_id = response.session_id;
     }
     let mut invalid = false;
+    let incremental = slots
+        .iter()
+        .find_map(|slot| slot.request.as_ref())
+        .is_some_and(|request| request.session().is_incremental());
     let topic_ids = selected_version.is_some_and(|version| version.value() >= 13);
     for mut topic in response.responses.drain(..) {
         if topic.partitions.is_empty() {
@@ -82,21 +84,25 @@ fn distribute_response(
         }
         for partition in topic.partitions.drain(..) {
             let mut matching = slots.iter().enumerate().filter_map(|(index, slot)| {
-                slot.request
-                    .as_ref()
-                    .is_some_and(|request| {
-                        ((topic_ids
-                            && request.topic_route().is_some_and(|route| {
-                                route.topic_id() == topic.topic_id.to_bytes()
-                            }))
-                            || (!topic_ids && request.topic() == topic.topic.as_str()))
-                            && request.fence().position().partition().partition().get()
-                                == u32::try_from(partition.partition_index).unwrap_or(u32::MAX)
-                    })
-                    .then_some(index)
+                let reserved = slot.response.responses.first()?;
+                let topic_matches = if topic_ids {
+                    reserved.topic_id == topic.topic_id
+                } else {
+                    reserved.topic == topic.topic
+                };
+                (topic_matches
+                    && slot.fence.position().partition().partition().get()
+                        == u32::try_from(partition.partition_index).unwrap_or(u32::MAX))
+                .then_some(index)
             });
             let Some(index) = matching.next() else {
-                invalid = true;
+                // An established broker Fetch session can return data for a
+                // cached member that was not part of this request delta. Its
+                // unchanged fetch offset keeps that data replayable, so the
+                // current exact-partition slots may safely ignore it.
+                if !incremental {
+                    invalid = true;
+                }
                 continue;
             };
             if matching.next().is_some() {
@@ -143,91 +149,4 @@ fn mark_invalid(response: &mut WireFetchResponse) {
 
 const fn allocation() -> FetchAdmissionFailureSource {
     FetchAdmissionFailureSource::Request(crate::protocol::fetch::FetchRequestFailure::Allocation)
-}
-
-impl TrackedBrokerFetchCalls {
-    #[cfg(test)]
-    pub(crate) fn install_response_for_test(
-        &mut self,
-        requests: Vec<PartitionFetchRequest>,
-        now: Moment,
-        selected_version: i16,
-        response: WireFetchResponse,
-    ) {
-        let responses = reserved_responses(&requests)
-            .unwrap_or_else(|error| panic!("reserve broker response slots: {error:?}"));
-        let mut slots = requests
-            .into_iter()
-            .zip(responses)
-            .map(|(request, response)| BrokerFetchSlot {
-                fence: request.fence(),
-                request: Some(request),
-                response,
-                terminal: None,
-            })
-            .collect::<Vec<_>>();
-        distribute_response(
-            &mut slots,
-            now,
-            Some(kafka_driver::ApiVersion::new(selected_version)),
-            response,
-        );
-        self.settled = Some(SettledBrokerFetchBatch {
-            slots,
-            route_token: None,
-        });
-    }
-
-    #[cfg(test)]
-    pub(crate) fn install_topic_partition_results_for_test(
-        &mut self,
-        requests: Vec<PartitionFetchRequest>,
-        now: Moment,
-        selected_version: i16,
-        session_id: i32,
-        error_codes: &[i16],
-    ) {
-        assert_eq!(requests.len(), error_codes.len());
-        let topic_name = requests.first().map_or_else(
-            || panic!("test response requires one request"),
-            |request| request.topic().to_owned(),
-        );
-        let mut topic = FetchableTopicResponse::default();
-        topic.topic = topic_name.into();
-        if let Some(route) = requests
-            .first()
-            .and_then(PartitionFetchRequest::topic_route)
-        {
-            topic.topic_id = Uuid::from_bytes(route.topic_id());
-        }
-        topic.partitions = requests
-            .iter()
-            .zip(error_codes)
-            .map(|(request, error_code)| {
-                let mut partition = kafka_wire::fetch_response::PartitionData::default();
-                partition.partition_index =
-                    i32::try_from(request.fence().position().partition().partition().get())
-                        .unwrap_or_else(|error| panic!("test partition must fit i32: {error}"));
-                partition.error_code = *error_code;
-                partition
-            })
-            .collect();
-        let mut response = WireFetchResponse::default();
-        response.session_id = session_id;
-        response.responses = vec![topic];
-        self.install_response_for_test(requests, now, selected_version, response);
-    }
-
-    #[cfg(test)]
-    pub(crate) fn install_broker_error_for_test(
-        &mut self,
-        requests: Vec<PartitionFetchRequest>,
-        now: Moment,
-        selected_version: i16,
-        error_code: i16,
-    ) {
-        let mut response = WireFetchResponse::default();
-        response.error_code = error_code;
-        self.install_response_for_test(requests, now, selected_version, response);
-    }
 }

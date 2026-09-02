@@ -14,7 +14,7 @@ use super::group_consumer_seek::{
     GroupConsumerSeek, engine_partition, translate_admission_kind, translate_terminal_kind,
 };
 use crate::{
-    ErrorKind, KafkaError,
+    ErrorKind, KafkaError, RetryAdvice,
     consumer::{StartPosition, TopicPartition},
 };
 
@@ -81,6 +81,20 @@ fn every_admission_kind_has_one_stable_facade_category() {
         (Admission::InternalInvariant, ErrorKind::Internal),
     ] {
         assert_eq!(translate_admission_kind(kind).kind(), expected);
+    }
+}
+
+#[test]
+fn immediate_seek_contention_is_safe_to_retry() {
+    for kind in [
+        Admission::Contended,
+        Admission::Pending,
+        Admission::ResourceExhausted,
+    ] {
+        assert_eq!(
+            translate_admission_kind(kind).retry_advice(),
+            RetryAdvice::RetrySafe
+        );
     }
 }
 

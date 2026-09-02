@@ -14,7 +14,7 @@ use kafka_wire_core::Uuid;
 
 use crate::{
     clock::OperationDeadline,
-    protocol::fetch::{FetchDecodeLimits, FetchRequestSettings},
+    protocol::fetch::{FetchDecodeLimits, FetchRequestSettings, FetchSessionRequest},
 };
 
 use super::{
@@ -61,6 +61,72 @@ fn aggregate_response_becomes_two_exact_partition_terminals() {
     assert_eq!(calls.poll_fetch(Moment::from_tick(9)), Ok(FetchPoll::Idle));
     assert_eq!(calls.retained_count(), 0);
     assert!(calls.has_admission_capacity());
+}
+
+#[test]
+fn incremental_response_ignores_cached_partition_outside_current_delta() {
+    let mut request = requests().pop().unwrap_or_else(|| panic!("test request"));
+    request.bind_session(
+        FetchSessionRequest::incremental(91, 1).unwrap_or_else(|| panic!("incremental session")),
+    );
+    let fence = request.fence();
+    let mut response = response();
+    response.responses[0].partitions.truncate(1);
+    assert_ne!(
+        response.responses[0].partitions[0].partition_index,
+        i32::try_from(fence.position().partition().partition().get())
+            .unwrap_or_else(|error| panic!("partition fits i32: {error}"))
+    );
+    let mut calls = TrackedBrokerFetchCalls::new(1);
+    calls.install_response_for_test(vec![request], Moment::from_tick(7), 16, response);
+
+    assert_eq!(
+        calls.poll_fetch(Moment::from_tick(8)),
+        Ok(FetchPoll::TerminalReady { fence })
+    );
+    let terminal = calls
+        .begin_fetch_settlement(fence)
+        .unwrap_or_else(|error| panic!("begin partition terminal: {error:?}"));
+    let response = terminal
+        .result()
+        .as_ref()
+        .unwrap_or_else(|error| panic!("Fetch response: {error:?}"));
+    assert!(response.responses.is_empty());
+}
+
+#[test]
+fn response_for_stale_slot_does_not_invalidate_live_partition() {
+    let requests = requests();
+    let stale = requests[0].fence();
+    let live = requests[1].fence();
+    let mut calls = TrackedBrokerFetchCalls::new(1);
+    calls.install_response_after_stale_request_for_test(
+        requests,
+        stale,
+        Moment::from_tick(7),
+        16,
+        response(),
+    );
+
+    assert_eq!(
+        calls.poll_fetch(Moment::from_tick(8)),
+        Ok(FetchPoll::StaleConfirmationReady { fence: stale })
+    );
+    calls
+        .confirm_stale_fetch(stale)
+        .unwrap_or_else(|error| panic!("confirm stale partition: {error:?}"));
+    assert_eq!(
+        calls.poll_fetch(Moment::from_tick(8)),
+        Ok(FetchPoll::TerminalReady { fence: live })
+    );
+    let terminal = calls
+        .begin_fetch_settlement(live)
+        .unwrap_or_else(|error| panic!("begin live partition terminal: {error:?}"));
+    let response = terminal
+        .result()
+        .as_ref()
+        .unwrap_or_else(|error| panic!("live Fetch response: {error:?}"));
+    assert_eq!(response.responses[0].partitions[0].partition_index, 4);
 }
 
 fn response() -> FetchResponse {

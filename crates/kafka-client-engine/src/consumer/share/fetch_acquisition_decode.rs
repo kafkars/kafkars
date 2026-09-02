@@ -59,24 +59,25 @@ pub(super) fn decode_share_fetch_success(
             let local = plan
                 .resolve_partition(topic.topic_id, partition.partition)
                 .ok_or(ShareFetchAcquisitionDecodeError::UnknownPartition)?;
-            let decoded = decode_record_payload(partition.records, limits)
+            let mut decoded = decode_record_payload(partition.records, limits)
                 .map_err(ShareFetchAcquisitionDecodeError::Records)?;
-            let mut charges = correlate_range_bytes(&decoded.batches, &partition.acquired)?;
+            let (mut charges, acquired_logical_bytes) =
+                retain_acquired_records(&mut decoded.batches, &partition.acquired)?;
             let logical_bytes = charges
                 .iter()
                 .try_fold(0usize, |total, charge| total.checked_add(*charge));
-            if logical_bytes != Some(decoded.logical_bytes) {
+            if logical_bytes != Some(acquired_logical_bytes) {
                 return Err(ShareFetchAcquisitionDecodeError::Accounting);
             }
             if let Some(first) = charges.first_mut() {
                 let overhead = decoded
                     .retained_bytes
-                    .checked_sub(decoded.logical_bytes)
+                    .checked_sub(acquired_logical_bytes)
                     .ok_or(ShareFetchAcquisitionDecodeError::Accounting)?;
                 *first = first
                     .checked_add(overhead)
                     .ok_or(ShareFetchAcquisitionDecodeError::Accounting)?;
-            } else if decoded.records != 0 {
+            } else if acquired_logical_bytes != 0 {
                 return Err(ShareFetchAcquisitionDecodeError::Accounting);
             }
             let has_acquisitions = !partition.acquired.is_empty();
@@ -120,10 +121,10 @@ pub(super) fn decode_share_fetch_success(
     })
 }
 
-fn correlate_range_bytes(
-    batches: &[FetchBatch],
+fn retain_acquired_records(
+    batches: &mut Vec<FetchBatch>,
     acquired: &[crate::protocol::consumer::share_fetch::ShareFetchAcquiredRange],
-) -> Result<Vec<usize>, ShareFetchAcquisitionDecodeError> {
+) -> Result<(Vec<usize>, usize), ShareFetchAcquisitionDecodeError> {
     let mut charges = Vec::new();
     charges
         .try_reserve_exact(acquired.len())
@@ -134,19 +135,23 @@ fn correlate_range_bytes(
         .try_reserve_exact(acquired.len())
         .map_err(|_error| ShareFetchAcquisitionDecodeError::Allocation)?;
     observed.resize(acquired.len(), false);
-    for batch in batches {
+    let mut logical_bytes = 0usize;
+    for batch in batches.iter() {
         if batch.is_control {
             return Err(ShareFetchAcquisitionDecodeError::ControlBatch);
         }
         for record in &batch.records {
-            let index = acquired
-                .iter()
-                .position(|range| (range.first_offset..=range.last_offset).contains(&record.offset))
-                .ok_or(ShareFetchAcquisitionDecodeError::UnacquiredRecord(
-                    record.offset,
-                ))?;
+            let Some(index) = acquired.iter().position(|range| {
+                (range.first_offset..=range.last_offset).contains(&record.offset)
+            }) else {
+                continue;
+            };
+            let record_bytes = record_payload_bytes(record)?;
             charges[index] = charges[index]
-                .checked_add(record_payload_bytes(record)?)
+                .checked_add(record_bytes)
+                .ok_or(ShareFetchAcquisitionDecodeError::Accounting)?;
+            logical_bytes = logical_bytes
+                .checked_add(record_bytes)
                 .ok_or(ShareFetchAcquisitionDecodeError::Accounting)?;
             observed[index] = true;
         }
@@ -154,7 +159,15 @@ fn correlate_range_bytes(
     if observed.iter().any(|observed| !observed) {
         return Err(ShareFetchAcquisitionDecodeError::EmptyAcquiredRange);
     }
-    Ok(charges)
+    for batch in batches.iter_mut() {
+        batch.records.retain(|record| {
+            acquired
+                .iter()
+                .any(|range| (range.first_offset..=range.last_offset).contains(&record.offset))
+        });
+    }
+    batches.retain(|batch| !batch.records.is_empty());
+    Ok((charges, logical_bytes))
 }
 
 fn record_payload_bytes(record: &FetchRecord) -> Result<usize, ShareFetchAcquisitionDecodeError> {
@@ -181,7 +194,6 @@ pub(super) enum ShareFetchAcquisitionDecodeError {
     PartitionRejected,
     Records(FetchDecodeFailure),
     ControlBatch,
-    UnacquiredRecord(i64),
     EmptyAcquiredRange,
     DeliveryCount,
     Range(ShareAcquiredRangeError),

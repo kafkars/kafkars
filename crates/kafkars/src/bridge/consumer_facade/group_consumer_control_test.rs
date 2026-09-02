@@ -12,7 +12,7 @@ use super::{
     },
 };
 use crate::{
-    ErrorKind, KafkaError,
+    ErrorKind, KafkaError, RetryAdvice,
     consumer::{StartPosition, TopicPartition},
 };
 
@@ -105,6 +105,16 @@ fn every_control_error_kind_has_one_stable_facade_category() {
         (Kind::InternalInvariant, ErrorKind::Internal),
     ] {
         assert_eq!(translate_group_consumer_control_kind(kind).kind(), expected);
+    }
+}
+
+#[test]
+fn immediate_control_contention_is_safe_to_retry() {
+    for kind in [Kind::Contended, Kind::Pending] {
+        assert_eq!(
+            translate_group_consumer_control_kind(kind).retry_advice(),
+            RetryAdvice::RetrySafe
+        );
     }
 }
 
