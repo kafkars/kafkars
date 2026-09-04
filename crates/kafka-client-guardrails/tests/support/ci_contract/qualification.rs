@@ -8,7 +8,7 @@ use crate::support::{YamlNode, yaml_entry};
 use super::shared::{
     Mapping, child_mapping, document, exact_scalar, mapping, reject_unexpected_keys, scalar,
 };
-use job::{JobContract, inspect_job};
+use job::{JobContract, inspect_job, inspect_release};
 
 pub(crate) fn violations(source: &str) -> Vec<String> {
     let mut violations = Vec::new();
@@ -42,7 +42,7 @@ pub(crate) fn violations(source: &str) -> Vec<String> {
             id: "qualification-pr",
             name: "qualification-gate",
             condition: "${{ github.event_name == 'pull_request' }}",
-            timeout: "120",
+            timeout: "60",
             tier: "pr",
             evidence: "testlab-evidence",
             artifact: "testlab-pr-evidence-${{ github.run_id }}-${{ github.run_attempt }}",
@@ -50,20 +50,7 @@ pub(crate) fn violations(source: &str) -> Vec<String> {
         },
         &mut violations,
     );
-    inspect_job(
-        jobs,
-        JobContract {
-            id: "qualification-release",
-            name: "release-qualification-gate",
-            condition: "${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}",
-            timeout: "360",
-            tier: "release",
-            evidence: "testlab-release-evidence",
-            artifact: "testlab-release-evidence-${{ github.run_id }}-${{ github.run_attempt }}",
-            retention: "90",
-        },
-        &mut violations,
-    );
+    inspect_release(jobs, &mut violations);
     violations
 }
 
