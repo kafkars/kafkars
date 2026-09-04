@@ -1,9 +1,12 @@
 //! Public assigned-consumer event observation contract.
 
-use std::future::Future;
+use std::{
+    future::Future,
+    time::{Duration, Instant},
+};
 
 use super::{AssignedConsumer, AssignedConsumerEvent, NextAssignedEvent};
-use crate::{Client, KafkaError};
+use crate::{Client, ErrorKind, KafkaError};
 
 macro_rules! assert_not_impl {
     ($type:ty: $trait:path) => {
@@ -43,9 +46,19 @@ fn named_event_observation_reports_end_after_close_admission() {
         .assigned_consumer()
         .build()
         .unwrap_or_else(|error| panic!("claim assigned consumer: {error}"));
-    let close = consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit close: {error}"));
+    let admission_deadline = Instant::now() + Duration::from_secs(2);
+    let close = loop {
+        match consumer.try_close() {
+            Ok(close) => break close,
+            Err(error)
+                if error.kind() == ErrorKind::Backpressure
+                    && Instant::now() < admission_deadline =>
+            {
+                std::thread::yield_now();
+            }
+            Err(error) => panic!("admit close: {error}"),
+        }
+    };
 
     assert!(
         consumer
