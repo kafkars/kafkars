@@ -1,7 +1,7 @@
 //! One exact same-deadline group commit replacement after coordinator invalidation.
 
 use kafka_client_core::{DeliveryStatus, GroupOffsetCommitInput, OperationId};
-use kafka_driver::{ApiVersion, RequestError, RouteFailureToken};
+use kafka_driver::{ApiVersion, CallFailure, Delivery, RequestError, RouteFailureToken};
 use kafka_wire::OffsetCommitResponse;
 
 use crate::protocol::consumer::{
@@ -15,12 +15,12 @@ use super::super::{
     group_offset_commit_terminal::normalize_group_offset_commit_terminal,
 };
 
-/// Linear ownership of the sole coordinator-rejected replacement candidate.
+/// Linear ownership of the sole rejected or definitely-unsent replacement candidate.
 #[must_use = "a group commit retry candidate must be replaced or terminally settled"]
 pub(in crate::driver::rpc) struct GroupOffsetCommitRetryCandidate {
     prepared: PreparedGroupOffsetCommit,
-    version: ApiVersion,
-    response: OffsetCommitResponse,
+    selected_version: Option<ApiVersion>,
+    result: Result<OffsetCommitResponse, RequestError>,
 }
 
 impl GroupOffsetCommitRetryCandidate {
@@ -31,22 +31,37 @@ impl GroupOffsetCommitRetryCandidate {
     pub(in crate::driver::rpc) fn try_new(
         prepared: PreparedGroupOffsetCommit,
         selected_version: Option<ApiVersion>,
-        response: OffsetCommitResponse,
-    ) -> Result<Self, (PreparedGroupOffsetCommit, OffsetCommitResponse)> {
-        let Some(version) = selected_version else {
-            return Err((prepared, response));
+        result: Result<OffsetCommitResponse, RequestError>,
+    ) -> Result<
+        Self,
+        (
+            PreparedGroupOffsetCommit,
+            Result<OffsetCommitResponse, RequestError>,
+        ),
+    > {
+        let compatible = selected_version.is_none_or(|version| {
+            (2..=9).contains(&version.value())
+                && (!prepared.requires_leader_epoch() || version.value() >= 6)
+                && (!prepared.requires_consumer_group_version() || version.value() >= 9)
+        });
+        let retryable = match &result {
+            Ok(response) => {
+                selected_version.is_some()
+                    && is_exact_group_offset_commit_coordinator_rejection(&prepared, response)
+            }
+            Err(RequestError::Rejected {
+                failure: CallFailure::NotReady,
+                delivery: Delivery::NotSent,
+            }) => true,
+            Err(_) => false,
         };
-        let compatible = (2..=9).contains(&version.value())
-            && (!prepared.requires_leader_epoch() || version.value() >= 6)
-            && (!prepared.requires_consumer_group_version() || version.value() >= 9);
-        if !compatible || !is_exact_group_offset_commit_coordinator_rejection(&prepared, &response)
-        {
-            return Err((prepared, response));
+        if !compatible || !retryable {
+            return Err((prepared, result));
         }
         Ok(Self {
             prepared,
-            version,
-            response,
+            selected_version,
+            result,
         })
     }
 
@@ -59,7 +74,7 @@ impl GroupOffsetCommitRetryCandidate {
     }
 
     pub(in crate::driver::rpc) fn into_terminal(self) -> GroupOffsetCommitInput {
-        normalize_group_offset_commit_terminal(self.prepared, Some(self.version), Ok(self.response))
+        normalize_group_offset_commit_terminal(self.prepared, self.selected_version, self.result)
     }
 }
 
@@ -91,16 +106,12 @@ pub(in crate::driver::rpc) fn classify_group_offset_commit_settlement(
 ) -> SettledGroupOffsetCommitCall {
     let operation_id = prepared.operation_id();
     match (replacement_used, route_token, result) {
-        (false, Some(route_token), Ok(response)) => {
-            match GroupOffsetCommitRetryCandidate::try_new(prepared, selected_version, response) {
+        (false, Some(route_token), result) => {
+            match GroupOffsetCommitRetryCandidate::try_new(prepared, selected_version, result) {
                 Ok(candidate) => SettledGroupOffsetCommitCall::new_retry(candidate, route_token),
-                Err((prepared, response)) => SettledGroupOffsetCommitCall::new(
+                Err((prepared, result)) => SettledGroupOffsetCommitCall::new(
                     operation_id,
-                    normalize_group_offset_commit_terminal(
-                        prepared,
-                        selected_version,
-                        Ok(response),
-                    ),
+                    normalize_group_offset_commit_terminal(prepared, selected_version, result),
                     Some(route_token),
                 ),
             }
