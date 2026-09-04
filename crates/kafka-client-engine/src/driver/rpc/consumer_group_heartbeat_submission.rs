@@ -116,8 +116,10 @@ pub(super) fn consumer_group_heartbeat_route(
 pub(super) const fn consumer_group_heartbeat_options(
     deadline: OperationDeadline,
 ) -> RequestOptions {
+    // Retain the causal route token for the existing coordinator-loss transition.
     RequestOptions::new(deadline.transport())
         .with_traffic_class(TrafficClass::Control)
+        .with_route_failure_rejection()
         .with_minimum_version(CONSUMER_HEARTBEAT_MIN_VERSION)
         .with_maximum_version(CONSUMER_HEARTBEAT_MAX_VERSION)
 }

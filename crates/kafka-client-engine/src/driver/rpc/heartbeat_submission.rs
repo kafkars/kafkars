@@ -88,8 +88,10 @@ pub(super) const fn classic_heartbeat_options(
     deadline: OperationDeadline,
     static_membership: bool,
 ) -> RequestOptions {
-    let options =
-        RequestOptions::new(deadline.transport()).with_traffic_class(TrafficClass::Control);
+    // Let the existing coordinator-loss owner rediscover a known failed route.
+    let options = RequestOptions::new(deadline.transport())
+        .with_traffic_class(TrafficClass::Control)
+        .with_route_failure_rejection();
     if static_membership {
         options
             .with_minimum_version(STATIC_HEARTBEAT_VERSION)

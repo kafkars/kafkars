@@ -101,8 +101,10 @@ impl DriverOwner {
 }
 
 pub(super) const fn produce_options(deadline: Instant) -> RequestOptions {
+    // Return causal unsent failure while the original deadline still permits refresh.
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Bulk)
+        .with_route_failure_rejection()
         .with_minimum_version(PRODUCE_MIN_VERSION)
         .with_maximum_version(PRODUCE_MAX_VERSION)
 }
