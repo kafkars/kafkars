@@ -1,4 +1,4 @@
-//! Tracked `TxnOffsetCommit` v4 call and terminal scenarios.
+//! Tracked `TxnOffsetCommit` v3-v4 call and terminal scenarios.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -45,31 +45,33 @@ fn empty_offsets_are_definitely_unsent() {
 }
 
 #[test]
-fn v4_terminal_restores_caller_order_and_preserves_signed_errors() {
-    let terminal = TransactionOffsetCommitTerminal::new(
-        Some(ApiVersion::new(4)),
-        Ok(valid_response()),
-        None,
-        targets(),
-    );
-    let TransactionOffsetCommitTerminalFact::Response(Ok(normalized)) = terminal.fact() else {
-        panic!("valid v4 response expected");
-    };
-    assert_eq!(normalized.throttle_time_ms(), 19);
-    let results = normalized.offsets();
-    assert_eq!(results[0].offset().topic(), "orders");
-    assert_eq!(results[0].offset().partition(), 2);
-    assert!(matches!(
-        results[0].outcome(),
-        TransactionOffsetCommitOutcome::Committed
-    ));
-    let TransactionOffsetCommitOutcome::Rejected(error) = results[1].outcome() else {
-        panic!("signed error must remain a rejection");
-    };
-    assert_eq!(results[1].offset().topic(), "audit");
-    assert_eq!(error.code().get(), -31_000);
-    assert_eq!(error.category(), TransactionBrokerCategory::Rejected);
-    terminal.discard();
+fn v3_v4_terminals_restore_caller_order_and_preserve_signed_errors() {
+    for version in [3, 4] {
+        let terminal = TransactionOffsetCommitTerminal::new(
+            Some(ApiVersion::new(version)),
+            Ok(valid_response()),
+            None,
+            targets(),
+        );
+        let TransactionOffsetCommitTerminalFact::Response(Ok(normalized)) = terminal.fact() else {
+            panic!("valid v4 response expected");
+        };
+        assert_eq!(normalized.throttle_time_ms(), 19);
+        let results = normalized.offsets();
+        assert_eq!(results[0].offset().topic(), "orders");
+        assert_eq!(results[0].offset().partition(), 2);
+        assert!(matches!(
+            results[0].outcome(),
+            TransactionOffsetCommitOutcome::Committed
+        ));
+        let TransactionOffsetCommitOutcome::Rejected(error) = results[1].outcome() else {
+            panic!("signed error must remain a rejection");
+        };
+        assert_eq!(results[1].offset().topic(), "audit");
+        assert_eq!(error.code().get(), -31_000);
+        assert_eq!(error.category(), TransactionBrokerCategory::Rejected);
+        terminal.discard();
+    }
 }
 
 #[test]
@@ -97,7 +99,7 @@ fn malformed_correlation_and_wrong_versions_are_terminal_failures() {
     for (version, expected) in [
         (None, TransactionOffsetDriverFailureKind::InvalidResponse),
         (
-            Some(ApiVersion::new(3)),
+            Some(ApiVersion::new(2)),
             TransactionOffsetDriverFailureKind::Compatibility,
         ),
     ] {

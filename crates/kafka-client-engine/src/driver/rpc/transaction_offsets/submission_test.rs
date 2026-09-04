@@ -1,4 +1,4 @@
-//! Transaction-offset coordinator routes and exact-v4 submission options.
+//! Transaction-offset coordinator routes and bounded v3-v4 submission options.
 
 use std::time::{Duration, Instant};
 
@@ -38,11 +38,11 @@ fn empty_coordinator_keys_are_rejected_before_driver_submission() {
 }
 
 #[test]
-fn options_preserve_deadline_lane_and_exact_v4_bounds() {
+fn options_preserve_deadline_lane_and_v3_v4_bounds() {
     let deadline = Instant::now() + Duration::from_secs(2);
     let options = transaction_offset_options(deadline);
     assert_eq!(options.deadline(), deadline);
     assert_eq!(options.traffic_class(), TrafficClass::Interactive);
-    assert_eq!(options.minimum_version(), Some(ApiVersion::new(4)));
+    assert_eq!(options.minimum_version(), Some(ApiVersion::new(3)));
     assert_eq!(options.maximum_version(), Some(ApiVersion::new(4)));
 }

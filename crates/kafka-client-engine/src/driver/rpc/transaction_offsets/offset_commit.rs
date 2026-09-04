@@ -1,4 +1,4 @@
-//! Linear tracked `TxnOffsetCommit` v4 call and terminal ownership.
+//! Linear tracked `TxnOffsetCommit` v3-v4 call and terminal ownership.
 
 use std::{error::Error, fmt, time::Instant};
 
@@ -20,8 +20,6 @@ use super::{
     offset_commit_target::{TransactionOffsetCommitTarget, target_refs},
     submission::TransactionOffsetSubmitError,
 };
-
-const VERSION: i16 = 4;
 
 /// One accepted generated request retained until exactly one terminal.
 #[must_use = "an accepted TxnOffsetCommit call requires terminal settlement"]
@@ -134,7 +132,7 @@ impl TransactionOffsetCommitTerminal {
 
     pub(crate) fn fact(&self) -> TransactionOffsetCommitTerminalFact<'_> {
         match &self.result {
-            Ok(_) if self.selected_version != Some(VERSION) => {
+            Ok(_) if !matches!(self.selected_version, Some(3 | 4)) => {
                 TransactionOffsetCommitTerminalFact::Failed {
                     kind: selected_version_failure(self.selected_version),
                     delivery: DeliveryStatus::PossiblySent,

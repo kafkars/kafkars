@@ -1,9 +1,10 @@
-//! Generated name-based v4 `TxnOffsetCommit` construction.
+//! Generated name-based v3-v4 `TxnOffsetCommit` construction.
 //!
-//! Version 4 carries leader epochs, nullable metadata, and classic/consumer
+//! Versions 3 and 4 carry leader epochs, nullable metadata, and group
 //! group identity scalars while preserving the explicit preceding
 //! `AddOffsetsToTxn` step. Version 5 may fuse that step under transaction v2,
 //! and version 6 replaces topic names with IDs, so neither is selected here.
+//! Version 3 retains classic generation and static-member fences on Kafka 3.7.
 
 use kafka_wire::{
     TxnOffsetCommitRequest,

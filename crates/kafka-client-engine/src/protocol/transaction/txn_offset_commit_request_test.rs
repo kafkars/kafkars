@@ -16,7 +16,8 @@ const VERSION: ApiVersion = ApiVersion::new(4);
 fn generated_request_preserves_group_offsets_and_nullable_facts_in_v4() {
     let request = txn_offset_commit_v4_request("invoice-writer", 42, 7, group(), &offsets())
         .unwrap_or_else(|error| panic!("request: {error:?}"));
-    let decoded = decode_request(&request);
+    let decoded = decode_request(&request, VERSION);
+    assert_eq!(decode_request(&request, ApiVersion::new(3)), decoded);
 
     assert_eq!(decoded.transactional_id.as_str(), "invoice-writer");
     assert_eq!(decoded.group_id.as_str(), "invoice-workers");
@@ -182,14 +183,14 @@ fn assert_topic(
     }
 }
 
-fn decode_request(request: &TxnOffsetCommitRequest) -> TxnOffsetCommitRequest {
+fn decode_request(request: &TxnOffsetCommitRequest, version: ApiVersion) -> TxnOffsetCommitRequest {
     let mut encoded = BytesMut::new();
     request
-        .encode_into(&mut encoded, VERSION)
+        .encode_into(&mut encoded, version)
         .unwrap_or_else(|error| panic!("v4 request encodes: {error}"));
     let mut decoder = Decoder::new(encoded.freeze(), DecodeLimits::default())
         .unwrap_or_else(|error| panic!("request frame is bounded: {error}"));
-    let decoded = TxnOffsetCommitRequest::decode(&mut decoder, VERSION)
+    let decoded = TxnOffsetCommitRequest::decode(&mut decoder, version)
         .unwrap_or_else(|error| panic!("v4 request decodes: {error}"));
     decoder
         .finish()

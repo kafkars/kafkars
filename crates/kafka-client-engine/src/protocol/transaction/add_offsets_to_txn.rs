@@ -1,8 +1,8 @@
-//! Generated v4 `AddOffsetsToTxn` adaptation.
+//! Generated v3-v4 `AddOffsetsToTxn` adaptation.
 //!
-//! Version 4 is the latest explicit add-offsets shape in the pinned wire
-//! schema. It retains name-based group identity and the `TRANSACTION_ABORTABLE`
-//! broker code without relying on `TxnOffsetCommit` v5 transaction-v2 fusion.
+//! Both versions retain identical explicit enrollment fields. Version 3 supports
+//! Kafka 3.7; version 4 additionally permits `TRANSACTION_ABORTABLE`. Neither
+//! relies on `TxnOffsetCommit` v5 transaction-v2 fusion.
 
 use kafka_wire::{AddOffsetsToTxnRequest, AddOffsetsToTxnResponse};
 

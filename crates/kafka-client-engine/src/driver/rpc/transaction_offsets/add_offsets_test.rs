@@ -1,4 +1,4 @@
-//! Tracked `AddOffsetsToTxn` v4 call and terminal scenarios.
+//! Tracked `AddOffsetsToTxn` v3-v4 call and terminal scenarios.
 
 use std::time::{Duration, Instant};
 
@@ -86,51 +86,63 @@ fn refreshing_shutdown_recovery_preserves_exact_add_offsets_terminal() {
 }
 
 #[test]
-fn v4_terminal_normalizes_success_signed_errors_and_malformed_scalars() {
-    let success =
-        TransactionAddOffsetsTerminal::new(Some(ApiVersion::new(4)), Ok(response(19, 0)), None);
-    assert!(matches!(
-        success.fact(),
-        TransactionAddOffsetsTerminalFact::Response(Ok(AddOffsetsToTxnOutcome::Added {
-            throttle_time_ms: 19
-        }))
-    ));
-    success.discard();
+fn v3_v4_terminals_normalize_success_signed_errors_and_malformed_scalars() {
+    for version in [3, 4] {
+        let success = TransactionAddOffsetsTerminal::new(
+            Some(ApiVersion::new(version)),
+            Ok(response(19, 0)),
+            None,
+        );
+        assert!(matches!(
+            success.fact(),
+            TransactionAddOffsetsTerminalFact::Response(Ok(AddOffsetsToTxnOutcome::Added {
+                throttle_time_ms: 19
+            }))
+        ));
+        success.discard();
 
-    let rejected = TransactionAddOffsetsTerminal::new(
-        Some(ApiVersion::new(4)),
-        Ok(response(7, -31_000)),
-        None,
-    );
-    let TransactionAddOffsetsTerminalFact::Response(Ok(AddOffsetsToTxnOutcome::Rejected {
-        throttle_time_ms,
-        error,
-    })) = rejected.fact()
-    else {
-        panic!("signed error must remain a rejection");
-    };
-    assert_eq!(throttle_time_ms, 7);
-    assert_eq!(error.code().get(), -31_000);
-    assert_eq!(error.category(), TransactionBrokerCategory::Rejected);
-    rejected.discard();
+        let rejected = TransactionAddOffsetsTerminal::new(
+            Some(ApiVersion::new(version)),
+            Ok(response(7, -31_000)),
+            None,
+        );
+        let TransactionAddOffsetsTerminalFact::Response(Ok(AddOffsetsToTxnOutcome::Rejected {
+            throttle_time_ms,
+            error,
+        })) = rejected.fact()
+        else {
+            panic!("signed error must remain a rejection");
+        };
+        assert_eq!(throttle_time_ms, 7);
+        assert_eq!(error.code().get(), -31_000);
+        assert_eq!(error.category(), TransactionBrokerCategory::Rejected);
+        rejected.discard();
 
-    let malformed =
-        TransactionAddOffsetsTerminal::new(Some(ApiVersion::new(4)), Ok(response(-1, 0)), None);
-    assert!(matches!(
-        malformed.fact(),
-        TransactionAddOffsetsTerminalFact::Response(Err(
-            AddOffsetsToTxnResponseFailure::NegativeThrottleTime { actual: -1 }
-        ))
-    ));
-    malformed.discard();
+        let malformed = TransactionAddOffsetsTerminal::new(
+            Some(ApiVersion::new(version)),
+            Ok(response(-1, 0)),
+            None,
+        );
+        assert!(matches!(
+            malformed.fact(),
+            TransactionAddOffsetsTerminalFact::Response(Err(
+                AddOffsetsToTxnResponseFailure::NegativeThrottleTime { actual: -1 }
+            ))
+        ));
+        malformed.discard();
+    }
 }
 
 #[test]
-fn missing_or_wrong_selected_version_is_not_interpreted_as_v4() {
+fn missing_or_outside_selected_version_is_not_interpreted_as_v3_v4() {
     for (version, expected) in [
         (None, TransactionOffsetDriverFailureKind::InvalidResponse),
         (
-            Some(ApiVersion::new(3)),
+            Some(ApiVersion::new(2)),
+            TransactionOffsetDriverFailureKind::Compatibility,
+        ),
+        (
+            Some(ApiVersion::new(5)),
             TransactionOffsetDriverFailureKind::Compatibility,
         ),
     ] {
