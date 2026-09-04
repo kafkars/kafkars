@@ -6,11 +6,11 @@ repository.
 
 ## Release status
 
-- Workspace version: `0.0.2-rc.1`
+- Workspace version: `0.0.2-rc.2`
 - Publication: enabled for `kafkars`, `kafka-client-core`, and
   `kafka-client-engine`; disabled for simulation and guardrails
 - Stability: no semantic-versioning or source-compatibility promise
-- Supported releases: no production release; `0.0.2-rc.1` is a
+- Supported releases: no production release; `0.0.2-rc.2` is a
   release-candidate source preview
 - Intended audience: design review, source and registry integration evaluation,
   and contribution
@@ -68,7 +68,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`3d3266cda163419dbca2f201bdf5a08b1dfdbbe7` defines the following gating cells.
+`1f0ee3f282868cb5bfcb701385633c773e1f51df` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

@@ -11,7 +11,7 @@ behavior.
 
 ## Status
 
-Version `0.0.2-rc.1` is a release-candidate source preview for API and registry
+Version `0.0.2-rc.2` is a release-candidate source preview for API and registry
 integration evaluation. It is not a production-supported release or general
 broker-compatibility claim.
 
@@ -34,7 +34,7 @@ See [support and compatibility](SUPPORT.md) for the exact boundary.
 
 ```toml
 [dependencies]
-kafkars = "=0.0.2-rc.1"
+kafkars = "=0.0.2-rc.2"
 ```
 
 ```rust
