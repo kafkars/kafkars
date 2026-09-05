@@ -33,6 +33,9 @@ impl ConsumerCommitError {
     /// Borrows the exact checkpoint retained for retry.
     ///
     /// Observer-lifecycle failures that cannot recover ownership return `None`.
+    /// Retained ownership alone is not retry permission: inspect the error's
+    /// `RetrySafe` advice before resubmitting this checkpoint. A bounded retry
+    /// loop must keep the original deadline rather than renew its timeout.
     pub const fn checkpoint(&self) -> Option<&Checkpoint> {
         self.checkpoint.as_ref()
     }

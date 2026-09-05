@@ -25,7 +25,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Qualify pull request with Testlab
-        uses: kafkars/testlab@ce185a38a88c05fe78ae7a75cca793989f4d03c0
+        uses: kafkars/testlab@47fec2d306c3783de0eb09c44f05181b30c698e0
         with:
           kafkars-path: ${{ github.workspace }}
           qualification: pr
@@ -42,6 +42,6 @@ jobs:
   qualification-release:
     name: release-qualification-gate
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    uses: kafkars/testlab/.github/workflows/qualification-release.yml@ce185a38a88c05fe78ae7a75cca793989f4d03c0
+    uses: kafkars/testlab/.github/workflows/qualification-release.yml@47fec2d306c3783de0eb09c44f05181b30c698e0
     with:
-      testlab-ref: ce185a38a88c05fe78ae7a75cca793989f4d03c0
+      testlab-ref: 47fec2d306c3783de0eb09c44f05181b30c698e0
