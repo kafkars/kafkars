@@ -1,5 +1,4 @@
 //! Unique ownership of the embedded `kafka-driver` reactor and its controls.
-
 mod delivery;
 #[cfg(test)]
 mod delivery_test;
