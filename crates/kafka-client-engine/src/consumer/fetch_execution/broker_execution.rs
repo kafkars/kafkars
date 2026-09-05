@@ -152,9 +152,12 @@ impl DirectFetchExecutor {
         machine: &mut AssignedConsumerMachine,
         now: Moment,
     ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
-        let Some(routed) = self.routed.pop() else {
+        if self.routed.is_empty() {
             return Ok(None);
-        };
+        }
+        // New Fetches from a busy broker must not hide older routed work or
+        // its original deadline. Backpressured plans rejoin the bounded tail.
+        let routed = self.routed.remove(0);
         let prepared = PreparedFetchExecution::from_parts(routed.request, routed.hard_output_bytes);
         let prepared = match prepared.reconcile_ownership(machine) {
             Ok(Some(prepared)) => prepared,

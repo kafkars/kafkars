@@ -103,6 +103,39 @@ fn routed_fetch_retired_before_submission_releases_without_fault() {
     assert_eq!(executor.retained(), (0, 0, 0));
 }
 
+#[test]
+fn older_routed_fetch_deadline_is_not_hidden_by_later_broker_work() {
+    let (effects, mut machine) = assignment();
+    let mut executor = DirectFetchExecutor::create_unbound(2, 2, 8_192);
+    executor
+        .try_enable_sessions(2)
+        .unwrap_or_else(|()| panic!("reserve broker-routed Fetch state"));
+    for (broker_id, effect) in [1, 2].into_iter().zip(effects.iter().copied()) {
+        let broker =
+            BrokerId::from_raw(broker_id).unwrap_or_else(|error| panic!("broker: {error:?}"));
+        executor.restore_routed(broker, prepared(effect, 100, 4_096));
+    }
+    let mut driver = owner();
+    let clock = crate::clock::MonotonicClock::new();
+
+    for effect in effects {
+        let (transition, progressed) = executor
+            .drive_broker_fetches(&driver, &mut machine, &clock, Moment::from_tick(100))
+            .unwrap_or_else(|error| panic!("settle oldest routed deadline: {error:?}"));
+        let transition = transition.unwrap_or_else(|| panic!("elapsed Fetch must settle"));
+        assert!(progressed);
+        assert_eq!(
+            transition.effects(),
+            &[AssignedConsumerEffect::FetchFailed {
+                fence: fetch_fence(effect),
+                failure: FetchFailure::DeadlineElapsed,
+            }]
+        );
+    }
+    assert_eq!(executor.retained(), (0, 0, 0));
+    shutdown(&mut driver);
+}
+
 fn assignment() -> (Vec<AssignedConsumerEffect>, AssignedConsumerMachine) {
     let mut machine = AssignedConsumerMachine::new();
     let transition = machine
