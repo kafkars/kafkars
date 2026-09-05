@@ -3,8 +3,9 @@
 pub(super) mod consumer_group;
 
 use kafka_client_core::{
-    ClassicGeneration, ClassicGracefulRevocationLease, ClassicGracefulRevocationTerminal, Deadline,
-    GroupAssignmentPartition, GroupId, LiveGroupAssignment, Moment,
+    AssignmentEpoch, ClassicGeneration, ClassicGracefulRevocationLease,
+    ClassicGracefulRevocationTerminal, Deadline, GroupAssignmentPartition, GroupId,
+    LiveGroupAssignment, Moment,
 };
 
 use crate::clock::ClockError;
@@ -50,21 +51,10 @@ pub(super) fn stage_classic_group_revocation(
             assignment,
         ));
     }
-    let Some(activation) = fetch.activation() else {
-        return Err((
-            ClassicGroupRevocationStageError::FetchBindingMissing,
-            assignment,
-        ));
+    let assignment_epoch = match revocation_assignment_epoch(fetch, &assignment) {
+        Ok(epoch) => epoch,
+        Err(error) => return Err((error, assignment)),
     };
-    let assignment_epoch = activation.binding().assignment_epoch();
-    if fetch.machine_assignment_epoch() != Some(assignment_epoch)
-        || assignment_epoch.get() != assignment.assignment_generation().get()
-    {
-        return Err((
-            ClassicGroupRevocationStageError::FetchBindingMismatch,
-            assignment,
-        ));
-    }
     let named = catalog.prepare_graceful_revocation_event(&assignment);
     let publishes_event = named.is_some();
     let lease = ClassicGracefulRevocationLease::new(assignment_epoch, deadline);
@@ -102,21 +92,10 @@ pub(super) fn stage_classic_group_reconciliation_revocation(
             assignment,
         ));
     }
-    let Some(activation) = fetch.activation() else {
-        return Err((
-            ClassicGroupRevocationStageError::FetchBindingMissing,
-            assignment,
-        ));
+    let assignment_epoch = match revocation_assignment_epoch(fetch, &assignment) {
+        Ok(epoch) => epoch,
+        Err(error) => return Err((error, assignment)),
     };
-    let assignment_epoch = activation.binding().assignment_epoch();
-    if fetch.machine_assignment_epoch() != Some(assignment_epoch)
-        || assignment_epoch.get() != assignment.assignment_generation().get()
-    {
-        return Err((
-            ClassicGroupRevocationStageError::FetchBindingMismatch,
-            assignment,
-        ));
-    }
     let named = catalog.prepare_graceful_revocation_subset_event(&assignment, removed);
     let publishes_event = named.is_some();
     let lease = ClassicGracefulRevocationLease::new(assignment_epoch, deadline);
@@ -132,6 +111,27 @@ pub(super) fn stage_classic_group_reconciliation_revocation(
             .map_err(|_error| unreachable!("newly armed revocation can be lost"))?;
     }
     Ok(())
+}
+
+fn revocation_assignment_epoch(
+    fetch: &ClassicGroupFetchOwner,
+    assignment: &LiveGroupAssignment,
+) -> Result<AssignmentEpoch, ClassicGroupRevocationStageError> {
+    let activation = fetch
+        .activation()
+        .ok_or(ClassicGroupRevocationStageError::FetchBindingMissing)?;
+    let binding = activation.binding();
+    let fence = binding.position_fence();
+    if fetch.machine_assignment_epoch() != Some(binding.assignment_epoch())
+        || fence.group_id() != assignment.group_id()
+        || fence.member_id() != assignment.member_id()
+        || fence.assignment_generation() != assignment.assignment_generation()
+    {
+        return Err(ClassicGroupRevocationStageError::FetchBindingMismatch);
+    }
+    // Public revocation follows membership, not the independent Fetch activation count.
+    AssignmentEpoch::try_from_raw(assignment.assignment_generation().get())
+        .ok_or(ClassicGroupRevocationStageError::FetchBindingMismatch)
 }
 
 impl GroupConsumerRegistry {

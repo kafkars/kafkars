@@ -51,16 +51,8 @@ pub(super) fn stage_consumer_group_graceful_revocation(
     if entry.catalog.live_assignment() != Some(&assignment) {
         return Err(ConsumerGroupExecutionError::EffectShape);
     }
-    let activation = entry
-        .fetch
-        .activation()
-        .ok_or(ConsumerGroupExecutionError::EffectShape)?;
-    let assignment_epoch = activation.binding().assignment_epoch();
-    if entry.fetch.machine_assignment_epoch() != Some(assignment_epoch)
-        || assignment_epoch.get() != assignment.assignment_generation().get()
-    {
-        return Err(ConsumerGroupExecutionError::EffectShape);
-    }
+    let assignment_epoch = super::revocation_assignment_epoch(&entry.fetch, &assignment)
+        .map_err(|_error| ConsumerGroupExecutionError::EffectShape)?;
     let named = entry.catalog.prepare_graceful_revocation_event(&assignment);
     let publishes_event = named.is_some();
     let lease = ClassicGracefulRevocationLease::new(assignment_epoch, deadline);
