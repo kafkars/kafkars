@@ -36,7 +36,7 @@ fn bridge_claims_once_and_observes_real_close() {
                 if error.retry_advice() == RetryAdvice::RetrySafe
                     && Instant::now() < admission_deadline =>
             {
-                std::thread::yield_now();
+                std::hint::spin_loop();
             }
             Err(error) => panic!("admit assigned-consumer close: {error}"),
         }
