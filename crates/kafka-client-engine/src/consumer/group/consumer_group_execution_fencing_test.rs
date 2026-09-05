@@ -73,7 +73,10 @@ fn missing_coordinator_route_preserves_steady_retry_ownership_and_expiry() {
                 ConsumerGroupHeartbeatPhase::Fatal
             );
             assert_eq!(
-                execution.machine().fatal().map(|fatal| fatal.failure()),
+                execution
+                    .machine()
+                    .fatal()
+                    .map(kafka_client_core::ConsumerGroupHeartbeatFatal::failure),
                 Some(ConsumerGroupHeartbeatFailure::DeadlineElapsed)
             );
             assert!(entry.consumer_revocation.is_some());
