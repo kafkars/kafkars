@@ -80,6 +80,7 @@ fn topic_view_binds_exact_uuid_leader_epoch_and_broker_before_fetch_admission() 
         .unwrap_or_else(|| panic!("topic route"));
     assert_eq!(route.topic_id(), [7; 16]);
     assert_eq!(route.leader_epoch(), Some(9));
+    assert!(route.metadata_generation().is_some());
     owner
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("driver shutdown: {error}"));

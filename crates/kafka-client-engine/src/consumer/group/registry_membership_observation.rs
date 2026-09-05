@@ -115,7 +115,9 @@ impl GroupConsumerRegistry {
                         .coordinator_invalidations
                         .as_ref()
                         .is_some_and(|owner| owner.blocks_join(entry.group_id()));
-                let rejoin_blocked = route_blocked || entry.classic_reconciliation.is_some();
+                let rejoin_blocked = route_blocked
+                    || entry.classic_reconciliation.is_some()
+                    || !entry.revocation.is_dormant();
                 [
                     entry.execution.next_deadline(),
                     entry.heartbeat.next_deadline(),

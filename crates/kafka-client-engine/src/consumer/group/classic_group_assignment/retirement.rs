@@ -1,8 +1,8 @@
 //! Atomic processing, Fetch, catalog, and event retirement for assignment loss.
 
 use kafka_client_core::{
-    ClassicGeneration, ClassicProcessingLease, ClassicProcessingLeaseFence, LiveGroupAssignment,
-    MembershipCycle,
+    ClassicGeneration, ClassicGroupPhase, ClassicProcessingLease, ClassicProcessingLeaseFence,
+    LiveGroupAssignment, MembershipCycle,
 };
 
 use super::{
@@ -67,7 +67,11 @@ pub(in crate::consumer::group) fn retire_and_revoke_classic_group_assignment(
             });
         }
     };
-    let retirement = match fetch.retire_for_assignment_loss(&prepared.assignment) {
+    let retirement = match if retirement_phase == ClassicGroupPhase::WaitingToRejoin {
+        fetch.retire_for_assignment_replacement(&prepared.assignment)
+    } else {
+        fetch.retire_for_assignment_loss(&prepared.assignment)
+    } {
         Ok(retirement) => retirement,
         Err(error) => {
             return Err(ClassicGroupRevocationFailure {

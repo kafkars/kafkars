@@ -46,13 +46,13 @@ impl DirectFetchExecutor {
         if prepared.deadline().is_elapsed_at(now) {
             return self.settle_unadmitted(machine, prepared, FetchFailure::DeadlineElapsed);
         }
-        if let Some((broker_id, topic_id, leader_epoch)) = self
+        if let Some((broker_id, topic_id, leader_epoch, metadata_generation)) = self
             .broker_sessions
             .as_ref()
             .and_then(|sessions| sessions.route_for_position(prepared.fence().position()))
         {
             let (mut request, hard_output_bytes) = prepared.into_parts();
-            request.bind_cached_topic_route(topic_id, leader_epoch);
+            request.bind_cached_topic_route(topic_id, leader_epoch, metadata_generation);
             self.routed.push(RoutedBrokerFetch {
                 broker_id,
                 request,
@@ -65,8 +65,15 @@ impl DirectFetchExecutor {
         if !self.route_calls.is_empty() {
             return Ok(super::FetchSubmission::Backpressured(prepared));
         }
+        let newer_than = self.broker_sessions.as_ref().and_then(|sessions| {
+            sessions.newer_route_generation(prepared.fence().position(), prepared.request.topic())
+        });
         let (request, hard_output_bytes) = prepared.into_parts();
-        match BrokerFetchRouteCall::submit(driver, request) {
+        let submission = match newer_than {
+            Some(observed) => BrokerFetchRouteCall::submit_newer_than(driver, request, observed),
+            None => BrokerFetchRouteCall::submit(driver, request),
+        };
+        match submission {
             Ok(call) => {
                 self.route_calls.push(PendingBrokerRoute {
                     call,

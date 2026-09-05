@@ -29,8 +29,13 @@ pub(super) fn bind_route(
     broker_id: DriverBrokerId,
     topic_id: [u8; 16],
     leader_epoch: Option<i32>,
+    metadata_generation: kafka_client_core::partitioning::TopicMetadataGeneration,
 ) -> BrokerRoutedFetch {
-    request.bind_topic_route(FetchTopicRoute::new(topic_id, leader_epoch));
+    request.bind_topic_route(FetchTopicRoute::observed(
+        topic_id,
+        leader_epoch,
+        metadata_generation,
+    ));
     BrokerRoutedFetch {
         request,
         broker_id: BrokerId::from_driver(broker_id),
