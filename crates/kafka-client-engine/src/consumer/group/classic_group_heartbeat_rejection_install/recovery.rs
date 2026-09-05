@@ -7,7 +7,7 @@ use kafka_client_core::{
 
 use super::super::{
     classic_group_assignment::{
-        retire_and_revoke_classic_group_assignment, ClassicGroupRevocationFailureKind,
+        ClassicGroupRevocationFailureKind, retire_and_revoke_classic_group_assignment,
     },
     classic_group_reconciliation_loss::stage_classic_group_reconciliation_loss,
     classic_group_rediscovery::{
