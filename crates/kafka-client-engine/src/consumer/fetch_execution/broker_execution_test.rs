@@ -3,6 +3,7 @@
 use kafka_client_core::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition,
     AssignedTopicPartition, Deadline, FetchFailure, Moment, PartitionIndex, StartPosition, TopicId,
+    partitioning::TopicMetadataGeneration,
 };
 
 use super::{
@@ -11,6 +12,22 @@ use super::{
     broker_execution::RoutedBrokerFetch,
 };
 use crate::driver::BrokerId;
+
+#[test]
+fn routed_retry_requires_metadata_newer_than_its_observed_generation() {
+    let (effects, _machine) = assignment();
+    let observed = TopicMetadataGeneration::from_raw(23);
+    let mut retry = prepared(effects[0], 100, 4_096);
+    retry
+        .request
+        .bind_cached_topic_route([7; 16], Some(9), Some(observed));
+    let mut executor = DirectFetchExecutor::create_unbound(1, 1, 4_096);
+    executor
+        .try_enable_sessions(1)
+        .unwrap_or_else(|()| panic!("reserve broker-routed Fetch state"));
+
+    assert_eq!(executor.required_route_generation(&retry), Some(observed));
+}
 
 #[test]
 fn later_fetch_is_retained_and_its_original_deadline_wins_retry() {

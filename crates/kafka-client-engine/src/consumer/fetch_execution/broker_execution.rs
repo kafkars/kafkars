@@ -4,7 +4,7 @@ use crate::clock::MonotonicClock;
 use crate::driver::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId, DriverOwner};
 use kafka_client_core::{
     AssignedConsumerMachine, AssignedConsumerMachineError, AssignedConsumerTransition,
-    FetchFailure, Moment,
+    FetchFailure, Moment, partitioning::TopicMetadataGeneration,
 };
 
 use super::{
@@ -65,9 +65,7 @@ impl DirectFetchExecutor {
         if !self.route_calls.is_empty() {
             return Ok(super::FetchSubmission::Backpressured(prepared));
         }
-        let newer_than = self.broker_sessions.as_ref().and_then(|sessions| {
-            sessions.newer_route_generation(prepared.fence().position(), prepared.request.topic())
-        });
+        let newer_than = self.required_route_generation(&prepared);
         let (request, hard_output_bytes) = prepared.into_parts();
         let submission = match newer_than {
             Some(observed) => BrokerFetchRouteCall::submit_newer_than(driver, request, observed),
@@ -100,6 +98,20 @@ impl DirectFetchExecutor {
                 }
             }
         }
+    }
+
+    pub(super) fn required_route_generation(
+        &self,
+        prepared: &PreparedFetchExecution,
+    ) -> Option<TopicMetadataGeneration> {
+        let request = prepared
+            .request
+            .topic_route()
+            .and_then(|route| route.metadata_generation());
+        let retained = self.broker_sessions.as_ref().and_then(|sessions| {
+            sessions.newer_route_generation(prepared.fence().position(), prepared.request.topic())
+        });
+        request.max(retained)
     }
 
     pub(crate) fn drive_broker_fetches(
