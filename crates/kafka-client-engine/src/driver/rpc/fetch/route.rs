@@ -1,6 +1,7 @@
 //! Exact topic-view ownership resolving one prepared Fetch to its leader broker.
 #![allow(
-    clippy::{redundant_closure_for_method_calls, result_large_err},
+    clippy::redundant_closure_for_method_calls,
+    clippy::result_large_err,
     reason = "route failures retain exact requests and kafka-driver hides its epoch type"
 )]
 
@@ -95,7 +96,7 @@ impl BrokerFetchRouteCall {
             },
         ) {
             Ok(call) => call,
-            Err(source) => return Err(admission_failure(request, &source)),
+            Err(source) => return Err(admit_failure(request, &source)),
         };
         Ok(Self {
             request: Some(request),
@@ -215,10 +216,7 @@ pub(crate) enum BrokerFetchRouteFailureKind {
     Completion,
 }
 
-fn admission_failure(
-    request: PartitionFetchRequest,
-    source: &SubmitError,
-) -> BrokerFetchRouteFailure {
+fn admit_failure(request: PartitionFetchRequest, source: &SubmitError) -> BrokerFetchRouteFailure {
     if matches!(source, SubmitError::Full) {
         BrokerFetchRouteFailure {
             request,
