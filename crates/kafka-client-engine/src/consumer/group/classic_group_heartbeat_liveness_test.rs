@@ -119,10 +119,28 @@ fn retained_route_loss_drains_revocation_before_preparing_a_fresh_rejoin() {
     );
 
     let due = Moment::from_tick(schedule.due().tick());
+    let entry = registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("entry expected"));
+    let revocation_deadline = entry
+        .revocation
+        .next_deadline()
+        .unwrap_or_else(|| panic!("rebalance-bounded revocation deadline"));
+    assert_eq!(revocation_deadline.tick(), now.tick() + 30_000_000_000);
+    let assignment_epoch = entry
+        .catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("retained assignment"))
+        .assignment_generation()
+        .get();
+    assert_eq!(registry.membership_next_deadline(), None);
     assert_eq!(
-        registry.turn_graceful_revocation(due),
-        Ok(ClassicGroupRevocationTurn::Progress)
+        registry.prepare_one_classic_rejoin(due, &MonotonicClock::new()),
+        Ok(ClassicGroupRejoinDueTurn::Idle)
     );
+    registry
+        .acknowledge_revocation(group_id, assignment_epoch, due)
+        .unwrap_or_else(|error| panic!("revocation acknowledgment: {error:?}"));
     assert_eq!(
         registry.turn_graceful_revocation(due),
         Ok(ClassicGroupRevocationTurn::Progress)

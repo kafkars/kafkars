@@ -7,7 +7,7 @@ use kafka_client_core::{
 
 use super::super::{
     classic_group_assignment::{
-        ClassicGroupRevocationFailureKind, retire_and_revoke_classic_group_assignment,
+        retire_and_revoke_classic_group_assignment, ClassicGroupRevocationFailureKind,
     },
     classic_group_reconciliation_loss::stage_classic_group_reconciliation_loss,
     classic_group_rediscovery::{
@@ -40,6 +40,15 @@ pub(super) fn install_recovery(
             MachineState,
         ));
     }
+    let Some(revocation_deadline) = classic_group_revocation_deadline(entry, now) else {
+        return Err(post_recovery(
+            assignment,
+            generation,
+            schedule,
+            coordinator,
+            MachineState,
+        ));
+    };
     let (prepared_rediscovery, prepared_rejoin) = match prepare_recovery_install(
         &mut entry.rediscovery,
         &mut entry.rejoin,
@@ -110,7 +119,7 @@ pub(super) fn install_recovery(
         &mut entry.revocation,
         assignment,
         generation,
-        schedule.due(),
+        revocation_deadline,
         now,
     ) {
         drop(prepared_rejoin);
@@ -183,6 +192,16 @@ fn waiting_state_matches(entry: &GroupConsumerEntry, schedule: ClassicRejoinSche
         && !entry.rediscovery.blocks_join()
 }
 
+fn classic_group_revocation_deadline(
+    entry: &GroupConsumerEntry,
+    now: Moment,
+) -> Option<kafka_client_core::Deadline> {
+    let ticks = u64::try_from(entry.classic.machine().timing().rebalance_timeout_ms())
+        .ok()?
+        .checked_mul(TICKS_PER_MILLISECOND)?;
+    now.checked_deadline_after(ticks)
+}
+
 fn post_recovery(
     assignment: LiveGroupAssignment,
     generation: ClassicGeneration,
@@ -205,3 +224,5 @@ use ClassicRejectionInstallFailure::{
     Assignment, FetchRetirement, GracefulRevocation, MachineState, ProcessingLease,
     ProcessingLeaseCycleUnavailable, RediscoveryState, RejoinState,
 };
+
+const TICKS_PER_MILLISECOND: u64 = 1_000_000;
