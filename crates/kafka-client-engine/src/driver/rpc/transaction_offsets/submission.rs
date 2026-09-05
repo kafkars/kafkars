@@ -1,4 +1,4 @@
-//! Exact-v4 tracked submission for transactional offset coordination.
+//! Bounded v3-v4 tracked submission preserves explicit transactional offset coordination.
 
 use std::{error::Error, fmt, time::Instant};
 
@@ -15,7 +15,8 @@ use super::super::{
     transaction_control::transaction_control_route,
 };
 
-const VERSION: ApiVersion = ApiVersion::new(4);
+const MIN_VERSION: ApiVersion = ApiVersion::new(3);
+const MAX_VERSION: ApiVersion = ApiVersion::new(4);
 
 /// Definitely-unsent route or driver admission failure.
 #[derive(Debug)]
@@ -89,6 +90,6 @@ pub(super) fn offset_commit_route(group_id: &str) -> Result<Route, CoordinatorKe
 pub(super) const fn transaction_offset_options(deadline: Instant) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
-        .with_minimum_version(VERSION)
-        .with_maximum_version(VERSION)
+        .with_minimum_version(MIN_VERSION)
+        .with_maximum_version(MAX_VERSION)
 }

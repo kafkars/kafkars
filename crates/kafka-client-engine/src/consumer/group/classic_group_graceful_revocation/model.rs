@@ -1,4 +1,4 @@
-//! Retained assignment owner and stable staging, completion, and host failures.
+//! Retained assignment, exact completion effect shape, and stable boundary failures.
 
 use kafka_client_core::{ClassicGeneration, ClassicGracefulRevocationError, LiveGroupAssignment};
 
@@ -97,4 +97,15 @@ pub(in crate::consumer::group) enum ClassicGroupRevocationHostError {
     MissingPending,
     Revocation(ClassicGroupRevocationFailureKind),
     ConsumerGroup(ConsumerGroupExecutionError),
+}
+
+pub(super) fn one_effect(
+    transition: &kafka_client_core::ClassicGracefulRevocationTransition,
+) -> Option<kafka_client_core::ClassicGracefulRevocationEffect> {
+    let mut effects = transition.effects().copied();
+    let first = effects.next();
+    if effects.next().is_some() {
+        return None;
+    }
+    first
 }

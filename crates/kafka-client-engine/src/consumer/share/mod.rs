@@ -78,6 +78,8 @@ mod registry_fetch_sessions;
 mod registry_fetch_sessions_test;
 mod registry_heartbeat_due;
 mod registry_heartbeat_settlement;
+#[cfg(test)]
+mod registry_heartbeat_settlement_test;
 mod registry_heartbeat_submission;
 #[cfg(test)]
 mod registry_heartbeat_test;
@@ -108,14 +110,10 @@ mod topic_identity_call;
 mod transition;
 
 pub(super) use catalog::ShareMembershipCatalog;
-#[cfg(test)]
-pub(super) use catalog::ShareTopicIdentity;
 pub(in crate::consumer) use fetch_acknowledgement_execution::{
     ShareAcknowledgementExecutionFailureKind, ShareAcknowledgementExecutionOutcome,
 };
 pub(in crate::consumer) use fetch_delivery::{ShareFetchDelivery, ShareFetchDeliveryPartition};
-#[cfg(test)]
-pub(super) use membership::ShareMembershipFailureTurn;
 pub(super) use membership::{ShareMembershipError, ShareMembershipInterpreter};
 pub(crate) use port::ShareConsumerPort;
 pub use public_close::{
@@ -147,3 +145,5 @@ pub(crate) use shard_wake::{ShareConsumerShardWake, ShareConsumerShardWakeError}
 pub(in crate::consumer) use share_acknowledgement_port::{
     ShareAcknowledgementPortAdmission, ShareAcknowledgementPortFailureSource,
 };
+#[cfg(test)]
+pub(super) use {catalog::ShareTopicIdentity, membership::ShareMembershipFailureTurn};

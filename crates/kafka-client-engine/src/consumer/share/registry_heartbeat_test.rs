@@ -254,29 +254,24 @@ fn driver_failures_map_without_granting_unknown_retry_authority() {
 }
 
 #[test]
-fn only_route_evidenced_steady_deadlines_authorize_rediscovery() {
+fn only_background_steady_deadlines_authorize_rediscovery() {
     assert_eq!(
         rediscovery_failure(
             ShareGroupHeartbeatRequestKind::Steady,
             ConsumerGroupHeartbeatDriverFailureKind::DeadlineElapsed,
-            true,
         ),
         Some(ShareGroupHeartbeatFailure::CoordinatorUnavailable)
     );
-    assert_eq!(
-        rediscovery_failure(
-            ShareGroupHeartbeatRequestKind::Steady,
-            ConsumerGroupHeartbeatDriverFailureKind::DeadlineElapsed,
-            false,
-        ),
-        None
-    );
-    assert_eq!(
-        rediscovery_failure(
-            ShareGroupHeartbeatRequestKind::Join,
-            ConsumerGroupHeartbeatDriverFailureKind::DeadlineElapsed,
-            true,
-        ),
-        None
-    );
+    for kind in [
+        ShareGroupHeartbeatRequestKind::Join,
+        ShareGroupHeartbeatRequestKind::Leave,
+    ] {
+        assert_eq!(
+            rediscovery_failure(
+                kind,
+                ConsumerGroupHeartbeatDriverFailureKind::DeadlineElapsed
+            ),
+            None
+        );
+    }
 }

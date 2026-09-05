@@ -12,7 +12,7 @@ use super::{
 };
 
 #[test]
-fn applied_and_stale_both_permit_the_planned_replacement() {
+fn applied_stale_and_unavailable_permit_driver_routed_replacement() {
     assert_eq!(
         terminal(group(), Ok(InvalidationDisposition::Applied)),
         ShareCoordinatorInvalidationPoll::Terminal {
@@ -27,15 +27,18 @@ fn applied_and_stale_both_permit_the_planned_replacement() {
             result: Ok(ShareCoordinatorInvalidationPermission::IgnoredStale),
         }
     );
+    assert_eq!(
+        terminal(group(), Ok(InvalidationDisposition::Unavailable)),
+        ShareCoordinatorInvalidationPoll::Terminal {
+            group_id: group(),
+            result: Ok(ShareCoordinatorInvalidationPermission::Unavailable),
+        }
+    );
 }
 
 #[test]
-fn unavailable_capacity_and_completion_never_permit_replacement() {
+fn capacity_and_completion_failures_never_permit_replacement() {
     for (terminal, expected) in [
-        (
-            terminal(group(), Ok(InvalidationDisposition::Unavailable)),
-            ShareCoordinatorInvalidationTerminalFailure::Unavailable,
-        ),
         (
             terminal(group(), Ok(InvalidationDisposition::CapacityReached)),
             ShareCoordinatorInvalidationTerminalFailure::CapacityReached,

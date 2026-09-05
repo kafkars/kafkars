@@ -15,7 +15,8 @@ const VERSION: ApiVersion = ApiVersion::new(4);
 fn generated_request_decodes_to_exact_v4_owner_and_group_scalars() {
     let request = add_offsets_to_txn_v4_request("invoice-writer", 42, 7, "invoice-workers")
         .unwrap_or_else(|error| panic!("request: {error:?}"));
-    let decoded = decode_request(&request);
+    let decoded = decode_request(&request, VERSION);
+    assert_eq!(decode_request(&request, ApiVersion::new(3)), decoded);
 
     assert_eq!(decoded.transactional_id.as_str(), "invoice-writer");
     assert_eq!(decoded.producer_id, 42);
@@ -102,14 +103,14 @@ fn response(throttle_time_ms: i32, error_code: i16) -> AddOffsetsToTxnResponse {
     response
 }
 
-fn decode_request(request: &AddOffsetsToTxnRequest) -> AddOffsetsToTxnRequest {
+fn decode_request(request: &AddOffsetsToTxnRequest, version: ApiVersion) -> AddOffsetsToTxnRequest {
     let mut encoded = BytesMut::new();
     request
-        .encode_into(&mut encoded, VERSION)
+        .encode_into(&mut encoded, version)
         .unwrap_or_else(|error| panic!("v4 request encodes: {error}"));
     let mut decoder = Decoder::new(encoded.freeze(), DecodeLimits::default())
         .unwrap_or_else(|error| panic!("request frame is bounded: {error}"));
-    let decoded = AddOffsetsToTxnRequest::decode(&mut decoder, VERSION)
+    let decoded = AddOffsetsToTxnRequest::decode(&mut decoder, version)
         .unwrap_or_else(|error| panic!("v4 request decodes: {error}"));
     decoder
         .finish()

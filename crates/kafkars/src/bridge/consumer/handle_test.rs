@@ -1,7 +1,11 @@
 //! Private bridge claim and close lifecycle scenarios.
 
+use std::time::{Duration, Instant};
+
 use crate::bridge::ClientEngine;
-use crate::{ConsumerFetchConfig, ConsumerLimits, ErrorKind, ProducerConfig, Security};
+use crate::{
+    ConsumerFetchConfig, ConsumerLimits, ErrorKind, ProducerConfig, RetryAdvice, Security,
+};
 
 #[test]
 fn bridge_claims_once_and_observes_real_close() {
@@ -24,9 +28,20 @@ fn bridge_claims_once_and_observes_real_close() {
     let second = engine.claim_assigned_consumer();
     assert!(matches!(second, Err(error) if error.kind() == ErrorKind::State));
 
-    consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit assigned-consumer close: {error}"))
+    let admission_deadline = Instant::now() + Duration::from_secs(2);
+    let close = loop {
+        match consumer.try_close() {
+            Ok(close) => break close,
+            Err(error)
+                if error.retry_advice() == RetryAdvice::RetrySafe
+                    && Instant::now() < admission_deadline =>
+            {
+                std::hint::spin_loop();
+            }
+            Err(error) => panic!("admit assigned-consumer close: {error}"),
+        }
+    };
+    close
         .wait()
         .unwrap_or_else(|error| panic!("close assigned consumer: {error}"));
 }

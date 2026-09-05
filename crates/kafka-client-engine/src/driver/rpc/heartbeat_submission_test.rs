@@ -21,6 +21,7 @@ fn options_preserve_absolute_deadline_control_lane_and_version_bounds() {
 
     assert_eq!(options.deadline(), transport);
     assert_eq!(options.traffic_class(), TrafficClass::Control);
+    assert!(options.rejects_after_route_failure());
     assert_eq!(options.minimum_version(), Some(HEARTBEAT_MIN_VERSION));
     assert_eq!(options.maximum_version(), Some(HEARTBEAT_MAX_VERSION));
 }
@@ -29,6 +30,7 @@ fn options_preserve_absolute_deadline_control_lane_and_version_bounds() {
 fn static_membership_uses_the_exact_v3_window() {
     let deadline = OperationDeadline::from_parts_for_test(Deadline::from_tick(50), Instant::now());
     let options = classic_heartbeat_options(deadline, true);
+    assert!(options.rejects_after_route_failure());
     assert_eq!(options.minimum_version(), Some(STATIC_HEARTBEAT_VERSION));
     assert_eq!(options.maximum_version(), Some(STATIC_HEARTBEAT_VERSION));
 }

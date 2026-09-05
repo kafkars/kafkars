@@ -176,6 +176,7 @@ pub(super) const fn group_offset_commit_options(
 ) -> RequestOptions {
     let options = RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
+        .with_route_failure_rejection()
         .with_maximum_version(GROUP_OFFSET_COMMIT_MAX_VERSION);
     if consumer_group_protocol {
         options.with_minimum_version(GROUP_OFFSET_COMMIT_CONSUMER_GROUP_VERSION)

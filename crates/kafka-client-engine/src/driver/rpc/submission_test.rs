@@ -16,10 +16,23 @@ use super::{
 #[test]
 fn produce_options_preserve_deadline_lane_and_name_route_version_ceiling() {
     let deadline = Instant::now() + Duration::from_secs(7);
-    let options = produce_options(deadline);
+    let options = produce_options(deadline, false);
 
     assert_eq!(options.deadline(), deadline);
     assert_eq!(options.traffic_class(), TrafficClass::Bulk);
+    assert!(options.rejects_after_route_failure());
+    assert_eq!(options.minimum_version(), Some(ApiVersion::new(3)));
+    assert_eq!(options.maximum_version(), Some(ApiVersion::new(12)));
+}
+
+#[test]
+fn transactional_produce_keeps_deadline_bounded_connection_waiting() {
+    let deadline = Instant::now() + Duration::from_secs(7);
+    let options = produce_options(deadline, true);
+
+    assert_eq!(options.deadline(), deadline);
+    assert_eq!(options.traffic_class(), TrafficClass::Bulk);
+    assert!(!options.rejects_after_route_failure());
     assert_eq!(options.minimum_version(), Some(ApiVersion::new(3)));
     assert_eq!(options.maximum_version(), Some(ApiVersion::new(12)));
 }

@@ -11,7 +11,7 @@ behavior.
 
 ## Status
 
-Version `0.0.2-rc.1` is a release-candidate source preview for API and registry
+Version `0.0.2-rc.2` is a release-candidate source preview for API and registry
 integration evaluation. It is not a production-supported release or general
 broker-compatibility claim.
 
@@ -34,7 +34,7 @@ See [support and compatibility](SUPPORT.md) for the exact boundary.
 
 ```toml
 [dependencies]
-kafkars = "=0.0.2-rc.1"
+kafkars = "=0.0.2-rc.2"
 ```
 
 ```rust
@@ -89,7 +89,7 @@ Rust `1.88.0`, Git, and Bash are required. From a clean clone:
 ./scripts/check
 ```
 
-Cargo resolves exact published `kafka-driver 0.1.0-rc.3` and `kafka-wire
+Cargo resolves exact published `kafka-driver 0.1.0-rc.4` and `kafka-wire
 0.1.0-rc.3` packages from crates.io. `Cargo.lock` binds their registry sources
 and checksums. For the root and engine manifest edges, the guardrails reject
 local paths, Git dependencies, alternate registries, aliases, and manifest

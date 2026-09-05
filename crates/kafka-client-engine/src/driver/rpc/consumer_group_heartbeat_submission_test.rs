@@ -21,6 +21,7 @@ fn options_preserve_absolute_deadline_control_lane_and_exact_v0_window() {
     let options = consumer_group_heartbeat_options(deadline);
     assert_eq!(options.deadline(), transport);
     assert_eq!(options.traffic_class(), TrafficClass::Control);
+    assert!(options.rejects_after_route_failure());
     assert_eq!(
         options.minimum_version(),
         Some(CONSUMER_HEARTBEAT_MIN_VERSION)

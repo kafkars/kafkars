@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-The `0.0.2-rc.1` `kafkars` line is an experimental release-candidate source
+The `0.0.2-rc.2` `kafkars` line is an experimental release-candidate source
 preview and receives best-effort security fixes on its active development
 branch. It is not a production-supported release. No older commit, artifact,
 crate, tag, C ABI, or foreign-language binding is supported.

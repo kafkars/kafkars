@@ -1,4 +1,4 @@
-//! Linear tracked `AddOffsetsToTxn` v4 call and terminal ownership.
+//! Linear tracked `AddOffsetsToTxn` v3-v4 call and terminal ownership.
 
 use std::{error::Error, fmt, mem, time::Instant};
 
@@ -23,7 +23,6 @@ use super::{
     submission::TransactionOffsetSubmitError,
 };
 
-const VERSION: i16 = 4;
 /// One accepted generated request retained until exactly one terminal.
 #[must_use = "an accepted AddOffsetsToTxn call requires terminal settlement"]
 pub(crate) struct TransactionAddOffsetsCall {
@@ -204,7 +203,7 @@ impl TransactionAddOffsetsTerminal {
 
     pub(crate) fn fact(&self) -> TransactionAddOffsetsTerminalFact {
         match &self.result {
-            Ok(_) if self.selected_version != Some(VERSION) => {
+            Ok(_) if !matches!(self.selected_version, Some(3 | 4)) => {
                 TransactionAddOffsetsTerminalFact::Failed {
                     kind: selected_version_failure(self.selected_version),
                     delivery: DeliveryStatus::PossiblySent,

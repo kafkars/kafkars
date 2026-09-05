@@ -7,8 +7,48 @@ use super::super::shared::{
 };
 
 const CHECKOUT: &str = "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803";
-const TESTLAB: &str = "kafkars/testlab@4d6776c6c9d2904340d499a8a1cd64cbf22181f5";
+const TESTLAB: &str = "kafkars/testlab@b487e4e51110fe7311f32ba07b3ef29aeb34e0f9";
+const TESTLAB_REF: &str = "b487e4e51110fe7311f32ba07b3ef29aeb34e0f9";
+const RELEASE: &str = "kafkars/testlab/.github/workflows/qualification-release.yml@b487e4e51110fe7311f32ba07b3ef29aeb34e0f9";
 const UPLOAD: &str = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a";
+
+pub(super) fn inspect_release(jobs: &Mapping, violations: &mut Vec<String>) {
+    let Some(job) = child_mapping(
+        jobs,
+        "qualification-release",
+        "release qualification",
+        violations,
+    ) else {
+        return;
+    };
+    reject_unexpected_keys(
+        job,
+        &["name", "if", "uses", "with"],
+        "release qualification",
+        violations,
+    );
+    if !exact_scalar(job, "name", "release-qualification-gate")
+        || !exact_scalar(
+            job,
+            "if",
+            "${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}",
+        )
+        || !exact_scalar(job, "uses", RELEASE)
+    {
+        violations.push(
+            "release qualification must use the exact pinned Testlab workflow and trigger"
+                .to_owned(),
+        );
+    }
+    let inputs = yaml_entry(job, "with").and_then(YamlNode::mapping);
+    if inputs.is_none_or(|inputs| {
+        inputs.len() != 1 || scalar(inputs, "testlab-ref") != Some(TESTLAB_REF)
+    }) {
+        violations.push(
+            "release qualification must check out the same exact Testlab revision".to_owned(),
+        );
+    }
+}
 
 #[derive(Clone, Copy)]
 pub(super) struct JobContract {

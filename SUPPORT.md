@@ -6,11 +6,11 @@ repository.
 
 ## Release status
 
-- Workspace version: `0.0.2-rc.1`
+- Workspace version: `0.0.2-rc.2`
 - Publication: enabled for `kafkars`, `kafka-client-core`, and
   `kafka-client-engine`; disabled for simulation and guardrails
 - Stability: no semantic-versioning or source-compatibility promise
-- Supported releases: no production release; `0.0.2-rc.1` is a
+- Supported releases: no production release; `0.0.2-rc.2` is a
   release-candidate source preview
 - Intended audience: design review, source and registry integration evaluation,
   and contribution
@@ -68,9 +68,15 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`4d6776c6c9d2904340d499a8a1cd64cbf22181f5` defines the following gating cells.
+`b487e4e51110fe7311f32ba07b3ef29aeb34e0f9` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
+
+PR qualification executes one pack pass. The pinned Testlab release workflow
+runs at most four cells concurrently, retains each cell's evidence for 90 days,
+and requires all expected cells and repetitions against identical packaged
+candidate checksums before sealing the complete release aggregate. A missing,
+partial, failed, or invalid gating cell cannot become a passing release.
 
 | Cell ID | Broker | Topology and security | Configured pack | Attempts |
 | --- | --- | --- | --- | ---: |

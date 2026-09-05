@@ -1,4 +1,4 @@
-//! Bounded coordinator-rejection replacement policy for classic group commits.
+//! Bounded coordinator-rejection and known-unsent replacement for group commits.
 
 mod candidate;
 mod state;

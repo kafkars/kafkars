@@ -7,7 +7,8 @@ use kafka_client_core::{
 };
 
 use super::model::{
-    ClassicGroupRevocationAcknowledgeError, ClassicGroupRevocationHostError, PendingGroupRevocation,
+    ClassicGroupRevocationAcknowledgeError, ClassicGroupRevocationHostError,
+    PendingGroupRevocation, one_effect,
 };
 
 /// One fixed-capacity owner constructed before any revocation is admitted.
@@ -66,6 +67,29 @@ impl ClassicGroupRevocationOwner {
             Some(lease) => Some(lease.assignment_epoch()),
             None => None,
         }
+    }
+
+    pub(in crate::consumer::group) fn acknowledge_public(
+        &mut self,
+        public_epoch: u64,
+        now: Moment,
+    ) -> Result<(), ClassicGroupRevocationAcknowledgeError> {
+        let lease = self
+            .core
+            .active_lease()
+            .ok_or(ClassicGroupRevocationAcknowledgeError::NoActiveLease)?;
+        let assignment = match &self.pending {
+            Some(
+                PendingGroupRevocation::Classic(pending)
+                | PendingGroupRevocation::ClassicReconciliation(pending),
+            ) => &pending.assignment,
+            Some(PendingGroupRevocation::Consumer(assignment)) => assignment,
+            None => return Err(ClassicGroupRevocationAcknowledgeError::UnexpectedEffect),
+        };
+        if assignment.assignment_generation().get() != public_epoch {
+            return Err(ClassicGroupRevocationAcknowledgeError::AssignmentEpochMismatch);
+        }
+        self.acknowledge(lease.assignment_epoch(), now)
     }
 
     pub(in crate::consumer::group) fn expire_if_due(
@@ -213,15 +237,4 @@ impl ClassicGroupRevocationOwner {
         }
         Ok(())
     }
-}
-
-pub(super) fn one_effect(
-    transition: &kafka_client_core::ClassicGracefulRevocationTransition,
-) -> Option<ClassicGracefulRevocationEffect> {
-    let mut effects = transition.effects().copied();
-    let first = effects.next();
-    if effects.next().is_some() {
-        return None;
-    }
-    first
 }

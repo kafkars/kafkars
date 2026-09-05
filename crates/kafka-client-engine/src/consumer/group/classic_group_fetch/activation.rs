@@ -24,7 +24,7 @@ impl ClassicGroupFetchBinding {
         Self(position_fence, assignment_epoch)
     }
 
-    pub(super) const fn position_fence(&self) -> GroupPositionFence {
+    pub(in crate::consumer::group) const fn position_fence(&self) -> GroupPositionFence {
         self.0
     }
 
