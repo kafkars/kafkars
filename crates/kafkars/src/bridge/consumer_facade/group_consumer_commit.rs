@@ -99,26 +99,43 @@ fn translate_outcome(outcome: EngineOutcome) -> Result<(), GroupConsumerCommitEr
             ))
         }
         EngineOutcome::Failed(failure, checkpoint) => {
-            let kind = match failure.kind() {
-                EngineFailureKind::DeadlineElapsed => ErrorKind::Timeout,
-                EngineFailureKind::DriverRejected => ErrorKind::Backpressure,
-                EngineFailureKind::ExecutionUnavailable => ErrorKind::Internal,
-                EngineFailureKind::Transport => ErrorKind::Transport,
-                EngineFailureKind::Compatibility => ErrorKind::Compatibility,
-                EngineFailureKind::InvalidResponse | EngineFailureKind::ResponseTooLarge => {
-                    ErrorKind::Internal
-                }
-            };
-            let delivery = match failure.delivery() {
-                EngineDeliveryStatus::NotSent => DeliveryStatus::NotSent,
-                EngineDeliveryStatus::PossiblySent => DeliveryStatus::PossiblySent,
-            };
             Err(GroupConsumerCommitError::with_checkpoint(
                 GroupConsumerCheckpoint::from_engine(checkpoint),
-                KafkaError::new(kind, "group offset commit did not complete")
-                    .with_delivery_status(delivery),
+                translate_commit_failure(failure.kind(), failure.delivery()),
             ))
         }
+    }
+}
+
+pub(super) fn translate_commit_failure(
+    failure: EngineFailureKind,
+    delivery: EngineDeliveryStatus,
+) -> KafkaError {
+    let kind = match failure {
+        EngineFailureKind::DeadlineElapsed => ErrorKind::Timeout,
+        EngineFailureKind::DriverRejected => ErrorKind::Backpressure,
+        EngineFailureKind::ExecutionUnavailable => ErrorKind::Internal,
+        EngineFailureKind::Transport => ErrorKind::Transport,
+        EngineFailureKind::Compatibility => ErrorKind::Compatibility,
+        EngineFailureKind::InvalidResponse | EngineFailureKind::ResponseTooLarge => {
+            ErrorKind::Internal
+        }
+    };
+    let delivery = match delivery {
+        EngineDeliveryStatus::NotSent => DeliveryStatus::NotSent,
+        EngineDeliveryStatus::PossiblySent => DeliveryStatus::PossiblySent,
+    };
+    let error = KafkaError::new(kind, "group offset commit did not complete")
+        .with_delivery_status(delivery);
+    if delivery == DeliveryStatus::NotSent
+        && matches!(
+            failure,
+            EngineFailureKind::DriverRejected | EngineFailureKind::Transport
+        )
+    {
+        error.with_safe_retry()
+    } else {
+        error
     }
 }
 
