@@ -25,6 +25,24 @@ fn exact_epoch_acknowledges_before_absolute_deadline() {
 }
 
 #[test]
+fn public_acknowledgement_maps_membership_to_the_private_fetch_lease() {
+    let epoch = assignment_epoch();
+    let mut owner = begun_owner(epoch, Deadline::from_tick(20));
+    assert_eq!(epoch.get(), 1);
+    assert_eq!(
+        owner.acknowledge_public(epoch.get(), Moment::from_tick(19)),
+        Err(ClassicGroupRevocationAcknowledgeError::AssignmentEpochMismatch)
+    );
+    assert!(owner.terminal().is_none());
+    assert_eq!(owner.acknowledge_public(7, Moment::from_tick(19)), Ok(()));
+    assert!(matches!(
+        owner.terminal(),
+        Some(ClassicGracefulRevocationTerminal::Acknowledged(lease))
+            if lease.assignment_epoch() == epoch
+    ));
+}
+
+#[test]
 fn deadline_and_owner_loss_preclude_late_success() {
     let epoch = assignment_epoch();
     let mut expired = begun_owner(epoch, Deadline::from_tick(20));

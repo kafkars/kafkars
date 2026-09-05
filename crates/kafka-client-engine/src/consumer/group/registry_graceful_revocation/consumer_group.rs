@@ -54,6 +54,7 @@ pub(super) fn stage_consumer_group_graceful_revocation(
     let assignment_epoch = super::revocation_assignment_epoch(&entry.fetch, &assignment)
         .map_err(|_error| ConsumerGroupExecutionError::EffectShape)?;
     let named = entry.catalog.prepare_graceful_revocation_event(&assignment);
+    let public_epoch = assignment.assignment_generation().get();
     let publishes_event = named.is_some();
     let lease = ClassicGracefulRevocationLease::new(assignment_epoch, deadline);
     entry
@@ -62,7 +63,7 @@ pub(super) fn stage_consumer_group_graceful_revocation(
         .map_err(|(_error, _assignment)| ConsumerGroupExecutionError::EffectShape)?;
     entry
         .catalog
-        .commit_graceful_revocation_event(named, assignment_epoch.get());
+        .commit_graceful_revocation_event(named, public_epoch);
     if !publishes_event {
         entry
             .revocation
@@ -101,6 +102,7 @@ pub(super) fn settle_consumer_group_revocation(
         .take_pending_consumer()
         .ok_or(ClassicGroupRevocationHostError::MissingPending)?;
     let assignment_epoch = terminal.lease().assignment_epoch();
+    let public_epoch = assignment.assignment_generation().get();
     let publishes_loss = matches!(terminal, ClassicGracefulRevocationTerminal::Lost { .. });
     if let Err((error, assignment)) = stage_consumer_group_revocation_owned(entry, assignment) {
         entry.revocation.restore_pending_consumer(assignment);
@@ -109,7 +111,7 @@ pub(super) fn settle_consumer_group_revocation(
     if publishes_loss {
         entry
             .catalog
-            .lose_consumer_group_graceful_revocation(assignment_epoch.get());
+            .lose_consumer_group_graceful_revocation(public_epoch);
     }
     entry.revocation.release_terminal(assignment_epoch)?;
     Ok(true)

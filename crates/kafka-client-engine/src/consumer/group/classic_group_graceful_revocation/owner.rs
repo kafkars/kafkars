@@ -68,6 +68,29 @@ impl ClassicGroupRevocationOwner {
         }
     }
 
+    pub(in crate::consumer::group) fn acknowledge_public(
+        &mut self,
+        public_epoch: u64,
+        now: Moment,
+    ) -> Result<(), ClassicGroupRevocationAcknowledgeError> {
+        let lease = self
+            .core
+            .active_lease()
+            .ok_or(ClassicGroupRevocationAcknowledgeError::NoActiveLease)?;
+        let assignment = match &self.pending {
+            Some(
+                PendingGroupRevocation::Classic(pending)
+                | PendingGroupRevocation::ClassicReconciliation(pending),
+            ) => &pending.assignment,
+            Some(PendingGroupRevocation::Consumer(assignment)) => assignment,
+            None => return Err(ClassicGroupRevocationAcknowledgeError::UnexpectedEffect),
+        };
+        if assignment.assignment_generation().get() != public_epoch {
+            return Err(ClassicGroupRevocationAcknowledgeError::AssignmentEpochMismatch);
+        }
+        self.acknowledge(lease.assignment_epoch(), now)
+    }
+
     pub(in crate::consumer::group) fn expire_if_due(
         &mut self,
         now: Moment,

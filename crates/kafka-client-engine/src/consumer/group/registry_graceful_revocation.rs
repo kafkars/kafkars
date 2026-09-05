@@ -56,6 +56,7 @@ pub(super) fn stage_classic_group_revocation(
         Err(error) => return Err((error, assignment)),
     };
     let named = catalog.prepare_graceful_revocation_event(&assignment);
+    let public_epoch = assignment.assignment_generation().get();
     let publishes_event = named.is_some();
     let lease = ClassicGracefulRevocationLease::new(assignment_epoch, deadline);
     revocation
@@ -63,7 +64,7 @@ pub(super) fn stage_classic_group_revocation(
         .map_err(|(error, assignment)| {
             (ClassicGroupRevocationStageError::Owner(error), assignment)
         })?;
-    catalog.commit_graceful_revocation_event(named, lease.assignment_epoch().get());
+    catalog.commit_graceful_revocation_event(named, public_epoch);
     if !publishes_event {
         revocation
             .lose_owner()
@@ -97,6 +98,7 @@ pub(super) fn stage_classic_group_reconciliation_revocation(
         Err(error) => return Err((error, assignment)),
     };
     let named = catalog.prepare_graceful_revocation_subset_event(&assignment, removed);
+    let public_epoch = assignment.assignment_generation().get();
     let publishes_event = named.is_some();
     let lease = ClassicGracefulRevocationLease::new(assignment_epoch, deadline);
     revocation
@@ -104,7 +106,7 @@ pub(super) fn stage_classic_group_reconciliation_revocation(
         .map_err(|(error, assignment)| {
             (ClassicGroupRevocationStageError::Owner(error), assignment)
         })?;
-    catalog.commit_graceful_revocation_event(named, lease.assignment_epoch().get());
+    catalog.commit_graceful_revocation_event(named, public_epoch);
     if !publishes_event {
         revocation
             .lose_owner()
@@ -129,9 +131,8 @@ fn revocation_assignment_epoch(
     {
         return Err(ClassicGroupRevocationStageError::FetchBindingMismatch);
     }
-    // Public revocation follows membership, not the independent Fetch activation count.
-    AssignmentEpoch::try_from_raw(assignment.assignment_generation().get())
-        .ok_or(ClassicGroupRevocationStageError::FetchBindingMismatch)
+    // The private lease retains Fetch identity; public events retain membership identity.
+    Ok(binding.assignment_epoch())
 }
 
 impl GroupConsumerRegistry {
@@ -197,19 +198,9 @@ impl GroupConsumerRegistry {
         if entry.state != GroupConsumerEntryState::Active || entry.fault.is_some() {
             return Err(GroupConsumerRevocationPortError::GroupUnavailable);
         }
-        let active = entry.revocation.active_assignment_epoch().ok_or(
-            GroupConsumerRevocationPortError::Acknowledge(
-                ClassicGroupRevocationAcknowledgeError::NoActiveLease,
-            ),
-        )?;
-        if active.get() != assignment_epoch {
-            return Err(GroupConsumerRevocationPortError::Acknowledge(
-                ClassicGroupRevocationAcknowledgeError::AssignmentEpochMismatch,
-            ));
-        }
         entry
             .revocation
-            .acknowledge(active, now)
+            .acknowledge_public(assignment_epoch, now)
             .map_err(GroupConsumerRevocationPortError::Acknowledge)
     }
 }
@@ -254,9 +245,10 @@ fn settle_classic_group_reconciliation_revocation(
     let assignment_epoch = terminal.lease().assignment_epoch();
     entry.revocation.release_terminal(assignment_epoch)?;
     if let Some(loss_event) = loss_event {
-        entry
-            .catalog
-            .commit_graceful_revocation_subset_loss_event(loss_event, assignment_epoch.get());
+        entry.catalog.commit_graceful_revocation_subset_loss_event(
+            loss_event,
+            assignment.assignment_generation().get(),
+        );
     }
     entry
         .classic_reconciliation
