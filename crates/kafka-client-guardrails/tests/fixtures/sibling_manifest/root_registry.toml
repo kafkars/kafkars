@@ -2,7 +2,7 @@
 members = ["crates/kafka-client-engine"]
 
 [workspace.dependencies]
-kafka-driver = { version = "=0.1.0-rc.4", registry = "private" }
+kafka-driver = { version = "=0.1.0-rc.5", registry = "private" }
 kafka-wire = "=0.1.0-rc.3"
 kafka-wire-core = "=0.1.0-rc.3"
 kafka-wire-records = "=0.1.0-rc.3"

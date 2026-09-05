@@ -1,4 +1,4 @@
-//! Engine ownership transfer from one fenced KIP-848 steady heartbeat to its recovery Join.
+//! Fenced-member recovery and bounded KIP-848 retry without a selected coordinator route.
 
 use kafka_client_core::{
     ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatInput,
@@ -12,9 +12,44 @@ use super::consumer_group_execution::{
     ConsumerGroupRediscoveryState, PreparedConsumerGroupHeartbeat,
 };
 use super::{
+    classic_group_rediscovery_execution::finish_consumer_group_rediscovery_terminal,
     consumer_group_close::position_failure_allows_consumer_group_leave,
+    consumer_group_execution_terminal::ConsumerGroupRediscoveryDecision,
     registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
 };
+
+pub(super) fn settle_unrouted_consumer_group_rediscovery(
+    entry: &mut GroupConsumerEntry,
+    now: Moment,
+    failure: ConsumerGroupHeartbeatFailure,
+) -> Result<(), ConsumerGroupExecutionError> {
+    let is_leave = consumer_group_rediscovery_is_leave(entry)?;
+    let execution = entry
+        .consumer
+        .as_mut()
+        .ok_or(ConsumerGroupExecutionError::MissingPrepared)?;
+    match execution.apply_current_rediscovery(now, failure)? {
+        // No route was selected, so no invalidation is claimed. Core still owns
+        // the exact replacement attempt, positive backoff, and original deadline.
+        ConsumerGroupRediscoveryDecision::Rediscover => execution.permit_rediscovery_replacement(),
+        ConsumerGroupRediscoveryDecision::Terminal { revoked, failure } => {
+            finish_consumer_group_rediscovery_terminal(entry, is_leave, revoked, failure)
+        }
+    }
+}
+
+pub(super) fn consumer_group_rediscovery_is_leave(
+    entry: &GroupConsumerEntry,
+) -> Result<bool, ConsumerGroupExecutionError> {
+    Ok(entry
+        .consumer
+        .as_ref()
+        .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
+        .prepared()
+        .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
+        .kind()
+        == ConsumerGroupHeartbeatRequestKind::Leave)
+}
 
 pub(super) fn consumer_group_heartbeat_is_ready(entry: &GroupConsumerEntry) -> bool {
     let leave_is_closing = entry.state == GroupConsumerEntryState::Closing

@@ -3,7 +3,7 @@ members = ["crates/kafka-client-engine"]
 
 [workspace.dependencies]
 bytes = "1"
-kafka-driver = "=0.1.0-rc.4"
+kafka-driver = "=0.1.0-rc.5"
 kafka-wire = "=0.1.0-rc.3"
 kafka-wire-core = "=0.1.0-rc.3"
 kafka-wire-records = "=0.1.0-rc.3"

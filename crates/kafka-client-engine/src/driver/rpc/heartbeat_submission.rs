@@ -88,10 +88,10 @@ pub(super) const fn classic_heartbeat_options(
     deadline: OperationDeadline,
     static_membership: bool,
 ) -> RequestOptions {
-    // Let the existing coordinator-loss owner rediscover a known failed route.
-    let options = RequestOptions::new(deadline.transport())
-        .with_traffic_class(TrafficClass::Control)
-        .with_route_failure_rejection();
+    // Keep the definitely-unsent call queued across transient physical-route
+    // recovery. Its original attempt deadline still bounds eventual loss.
+    let options =
+        RequestOptions::new(deadline.transport()).with_traffic_class(TrafficClass::Control);
     if static_membership {
         options
             .with_minimum_version(STATIC_HEARTBEAT_VERSION)

@@ -1,9 +1,6 @@
 //! Bounded submission and terminal installation for core-authorized coordinator rediscovery.
 
-use kafka_client_core::{
-    ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatRequestKind, GroupId, LiveGroupAssignment,
-    Moment,
-};
+use kafka_client_core::{ConsumerGroupHeartbeatFailure, GroupId, LiveGroupAssignment, Moment};
 
 use crate::driver::{
     ConsumerGroupHeartbeatRoute, DriverOwner,
@@ -20,6 +17,9 @@ use super::{
     consumer_group_assignment_retirement::stage_consumer_group_revocation,
     consumer_group_close::{fail_consumer_group_leave, finish_consumer_group_leave_failure},
     consumer_group_execution::{ConsumerGroupExecutionError, ConsumerGroupRediscoveryState},
+    consumer_group_execution_fencing::{
+        consumer_group_rediscovery_is_leave, settle_unrouted_consumer_group_rediscovery,
+    },
     consumer_group_execution_terminal::{
         ConsumerGroupRediscoveryDecision, fail_consumer_group_entry,
     },
@@ -51,6 +51,14 @@ impl GroupConsumerRegistry {
         if state != ConsumerGroupRediscoveryState::Open {
             route.accept();
             return Err(ConsumerGroupExecutionError::EffectShape);
+        }
+        if route.is_missing() {
+            route.accept();
+            return settle_unrouted_consumer_group_rediscovery(
+                &mut self.entries[index],
+                now,
+                failure,
+            );
         }
 
         let group_id = self.entries[index].group_id();
@@ -203,19 +211,6 @@ impl GroupConsumerRegistry {
             }
         }
     }
-}
-
-fn consumer_group_rediscovery_is_leave(
-    entry: &GroupConsumerEntry,
-) -> Result<bool, ConsumerGroupExecutionError> {
-    Ok(entry
-        .consumer
-        .as_ref()
-        .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
-        .prepared()
-        .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
-        .kind()
-        == ConsumerGroupHeartbeatRequestKind::Leave)
 }
 
 fn fail_consumer_group_rediscovery_entry(
