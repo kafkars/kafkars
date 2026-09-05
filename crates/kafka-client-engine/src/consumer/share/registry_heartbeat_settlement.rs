@@ -102,9 +102,7 @@ impl ShareConsumerRegistry {
                 )?;
             }
             ShareGroupHeartbeatResolution::Failed(failure) => {
-                if let Some(failure) =
-                    rediscovery_failure(kind, failure, route.has_coordinator_token())
-                {
+                if let Some(failure) = rediscovery_failure(kind, failure) {
                     self.begin_rediscovery(index, now, clock, failure, route)?;
                 } else {
                     let failure = driver_failure(failure);
@@ -120,15 +118,16 @@ impl ShareConsumerRegistry {
 pub(super) fn rediscovery_failure(
     kind: ShareGroupHeartbeatRequestKind,
     failure: ConsumerGroupHeartbeatDriverFailureKind,
-    has_coordinator_route: bool,
 ) -> Option<ShareGroupHeartbeatFailure> {
     match failure {
         ConsumerGroupHeartbeatDriverFailureKind::Transport => {
             Some(ShareGroupHeartbeatFailure::CoordinatorUnavailable)
         }
         ConsumerGroupHeartbeatDriverFailureKind::DeadlineElapsed
-            if kind == ShareGroupHeartbeatRequestKind::Steady && has_coordinator_route =>
+            if kind == ShareGroupHeartbeatRequestKind::Steady =>
         {
+            // A route lookup can expire before producing a token. The background
+            // member still rejoins; invalidation requires an actual route receipt.
             Some(ShareGroupHeartbeatFailure::CoordinatorUnavailable)
         }
         _ => None,

@@ -78,6 +78,8 @@ mod registry_fetch_sessions;
 mod registry_fetch_sessions_test;
 mod registry_heartbeat_due;
 mod registry_heartbeat_settlement;
+#[cfg(test)]
+mod registry_heartbeat_settlement_test;
 mod registry_heartbeat_submission;
 #[cfg(test)]
 mod registry_heartbeat_test;
