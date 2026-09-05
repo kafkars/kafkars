@@ -151,6 +151,7 @@ fn retained_route_loss_drains_revocation_before_preparing_a_fresh_rejoin() {
     assert!(entry.catalog.live_assignment().is_none());
     assert!(entry.revocation.is_dormant());
     assert!(entry.heartbeat.is_dormant());
+    assert!(!entry.fetch.broker_session_close_requested_for_test());
 
     assert_eq!(
         registry.prepare_one_classic_rejoin(due, &MonotonicClock::new()),

@@ -27,6 +27,11 @@ impl ClassicGroupFetchOwner {
     }
 
     #[cfg(test)]
+    pub(in crate::consumer::group) const fn broker_session_close_requested_for_test(&self) -> bool {
+        self.fetches.broker_session_close_requested()
+    }
+
+    #[cfg(test)]
     pub(super) fn pop_prepared_for_test(
         &mut self,
     ) -> Option<crate::consumer::fetch_execution::PreparedFetchExecution> {

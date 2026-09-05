@@ -48,7 +48,6 @@ impl GroupConsumerRegistry {
         Ok(ClassicGroupRejoinDueTurn::Progress)
     }
 }
-
 fn due_rejoin_index(entries: &[GroupConsumerEntry], now: Moment) -> Option<usize> {
     entries.iter().position(|entry| {
         entry.is_active()
