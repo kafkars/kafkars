@@ -315,9 +315,9 @@ dependencies = [
 
 [[package]]
 name = "kafka-driver"
-version = "0.1.0-rc.4"
+version = "0.1.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee2ad6a4d7170c0eef4050cce432cafcd334c57b109e92deb00ba219822a2f97"
+checksum = "0764ec42585a55d76972943f76fc2a0f644a78d81a6051d6d68031e34fc87685"
 dependencies = [
  "bornera",
  "bornera-core",
@@ -338,18 +338,18 @@ dependencies = [
 
 [[package]]
 name = "kafka-driver-core"
-version = "0.1.0-rc.4"
+version = "0.1.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "395ad94d43f6e030045d95c5c58f5e3b741f6ae452ece550ef8bf2bf2d36c5f4"
+checksum = "b8c28698b87d45f8a39c5ad229d78ca8f84d32491159d0865f05fcbe4721e556"
 dependencies = [
  "kafka-wire-core",
 ]
 
 [[package]]
 name = "kafka-driver-transport"
-version = "0.1.0-rc.4"
+version = "0.1.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e984e4d8910785d845195c89843fc546704dc94b44eafc7ad497b52d3135c8e7"
+checksum = "b922b8a5072a9cd1a4ea5b67365df0cac6761d4a074958f17809a9f0ee36531f"
 dependencies = [
  "bytes",
  "kafka-driver-core",
