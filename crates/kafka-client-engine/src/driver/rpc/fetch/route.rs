@@ -73,6 +73,10 @@ impl BrokerFetchRouteCall {
         )
     }
 
+    #[allow(
+        clippy::result_large_err,
+        reason = "admission returns exact request ownership"
+    )]
     fn submit_inner(
         driver: &DriverOwner,
         request: PartitionFetchRequest,

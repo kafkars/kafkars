@@ -44,6 +44,10 @@ impl BrokerFetchSessions {
         self.entries.first().map(|entry| entry.broker_id)
     }
 
+    #[allow(
+        clippy::type_complexity,
+        reason = "the retained route tuple is immediately destructured by its sole production caller"
+    )]
     pub(super) fn route_for_position(
         &self,
         position: PositionFence,
