@@ -1,6 +1,6 @@
 //! One-action registry scheduling for sequential missing-offset execution.
 
-use kafka_client_core::{GroupPositionBootstrapTerminal, Moment};
+use kafka_client_core::{ClassicGroupPhase, GroupPositionBootstrapTerminal, Moment};
 
 use crate::driver::DriverOwner;
 
@@ -73,6 +73,16 @@ impl GroupConsumerRegistry {
 
 fn reset_is_required(entry: &GroupConsumerEntry) -> bool {
     entry.is_active()
+        // Membership retirement must consume the old completed position first.
+        // A lost cycle cannot authorize a new ListOffsets reset.
+        && (entry.consumer.is_some()
+            || !matches!(
+                entry.classic.machine().phase(),
+                ClassicGroupPhase::WaitingToRejoin
+                    | ClassicGroupPhase::Lost
+                    | ClassicGroupPhase::Fatal
+                    | ClassicGroupPhase::Closed
+            ))
         && matches!(
             entry.position.state(),
             ClassicGroupPositionExecutionState::Complete(completed)

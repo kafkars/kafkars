@@ -1,15 +1,17 @@
 //! Sequential missing-offset reset execution scenarios.
 
 use kafka_client_core::{
-    Deadline, GroupPositionBatch, GroupPositionBootstrapEffect, GroupPositionBootstrapInput,
-    GroupPositionBootstrapMachine, GroupPositionMissingOffsetPolicy, GroupPositionPartitionFact,
-    GroupPositionResetState, GroupPositionResetTerminal, Moment, PositionResolutionAttemptFailure,
-    StartPosition,
+    ClassicGroupInput, ClassicGroupPhase, Deadline, GroupPositionBatch,
+    GroupPositionBootstrapEffect, GroupPositionBootstrapInput, GroupPositionBootstrapMachine,
+    GroupPositionMissingOffsetPolicy, GroupPositionPartitionFact, GroupPositionResetState,
+    GroupPositionResetTerminal, Moment, PositionResolutionAttemptFailure, StartPosition,
 };
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_fetch::current_consumer_group_position_fence,
+    classic_group_heartbeat::ClassicHeartbeatExecutionState,
+    classic_group_heartbeat_rejection::install_heartbeat_rejection,
     classic_group_position::{
         ClassicGroupPositionCloseTurn, ClassicGroupPositionCompleted,
         ClassicGroupPositionExecutionState, ClassicGroupPositionFailure,
@@ -231,5 +233,57 @@ fn original_deadline_terminalizes_reset_before_list_offsets_admission() {
             if failure.failure() == PositionResolutionAttemptFailure::DeadlineElapsed
     ));
 
+    stop_registry(&mut fixture.registry);
+}
+
+#[test]
+fn heartbeat_loss_defers_a_completed_reset_to_membership_retirement() {
+    let mut fixture =
+        driver_owned_fixture_with_policy(&[0], GroupPositionMissingOffsetPolicy::Earliest);
+    install_legacy_terminal(&mut fixture, Some(7), 0, 0, &[(0, PartitionValue::Missing)]);
+    for _ in 0..2 {
+        assert_eq!(
+            fixture
+                .registry
+                .settle_one_classic_group_position(Moment::from_tick(50)),
+            Ok(ClassicGroupPositionSettlementTurn::Progress)
+        );
+    }
+    let entry = &mut fixture.registry.entries[0];
+    let ClassicHeartbeatExecutionState::Waiting(schedule) = entry.heartbeat.state() else {
+        panic!("heartbeat schedule");
+    };
+    let attempt = schedule.attempt();
+    let now = Moment::from_tick(schedule.due().tick());
+    entry
+        .classic
+        .apply(ClassicGroupInput::HeartbeatDue { attempt, now })
+        .unwrap_or_else(|error| panic!("heartbeat due: {error}"));
+    let transition = entry
+        .classic
+        .apply(ClassicGroupInput::HeartbeatFailed { attempt, now })
+        .unwrap_or_else(|error| panic!("heartbeat failure: {error}"));
+    install_heartbeat_rejection(entry, transition, now)
+        .unwrap_or_else(|_error| panic!("membership retirement"));
+    assert_eq!(
+        entry.classic.machine().phase(),
+        ClassicGroupPhase::WaitingToRejoin
+    );
+    assert!(entry.classic.machine().active_cycle().is_none());
+    assert_eq!(
+        fixture.registry.begin_one_classic_group_position_reset(now),
+        Ok(ClassicGroupPositionResetTurn::Idle)
+    );
+    let entry = &mut fixture.registry.entries[0];
+    assert!(matches!(
+        entry.position.state(),
+        ClassicGroupPositionExecutionState::Complete(_)
+    ));
+    assert!(entry.fault.is_none());
+    assert_eq!(
+        close_entry_position(entry, now),
+        Ok(ClassicGroupPositionCloseTurn::Progress)
+    );
+    assert!(entry.position.is_dormant());
     stop_registry(&mut fixture.registry);
 }
