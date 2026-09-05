@@ -42,11 +42,7 @@ pub(super) fn install_recovery(
     }
     let Some(revocation_deadline) = classic_group_revocation_deadline(entry, now) else {
         return Err(post_recovery(
-            assignment,
-            generation,
-            schedule,
-            coordinator,
-            MachineState,
+            assignment, generation, schedule, coordinator, MachineState,
         ));
     };
     let (prepared_rediscovery, prepared_rejoin) = match prepare_recovery_install(
