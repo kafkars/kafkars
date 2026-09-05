@@ -89,7 +89,7 @@ pub(super) const fn terminal(
             Ok(ShareCoordinatorInvalidationPermission::IgnoredStale)
         }
         Ok(InvalidationDisposition::Unavailable) => {
-            Err(ShareCoordinatorInvalidationTerminalFailure::Unavailable)
+            Ok(ShareCoordinatorInvalidationPermission::Unavailable)
         }
         Ok(InvalidationDisposition::CapacityReached) => {
             Err(ShareCoordinatorInvalidationTerminalFailure::CapacityReached)

@@ -178,11 +178,12 @@ pub(crate) enum ShareCoordinatorInvalidationAdmissionFailureKind {
 pub(crate) enum ShareCoordinatorInvalidationPermission {
     Applied,
     IgnoredStale,
+    /// The old route was withdrawn; a replacement must resolve its route again.
+    Unavailable,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ShareCoordinatorInvalidationTerminalFailure {
-    Unavailable,
     CapacityReached,
     Completion(CompletionError),
     UnrecognizedDisposition,

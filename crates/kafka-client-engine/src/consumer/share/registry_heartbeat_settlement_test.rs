@@ -80,3 +80,64 @@ fn expired_steady_lookup_rejoins_without_fabricating_route_invalidation() {
         Some(capture)
     );
 }
+
+#[test]
+fn unavailable_invalidation_preserves_retry_delay_and_original_deadline() {
+    use crate::driver::share_group_heartbeat::ShareCoordinatorInvalidationPermission;
+    use kafka_client_core::ShareGroupHeartbeatFailure;
+
+    for expire in [false, true] {
+        let (mut registry, group_id, clock, capture) = registry_with_membership();
+        let owner = registry
+            .entry_mut(group_id)
+            .and_then(|entry| entry.membership.as_mut())
+            .unwrap_or_else(|| panic!("membership"));
+        owner
+            .settle_failure(
+                capture.now(),
+                &clock,
+                ShareGroupHeartbeatFailure::Broker(16),
+            )
+            .unwrap_or_else(|error| panic!("schedule rediscovery: {error:?}"));
+        let prepared = owner.prepared().unwrap_or_else(|| panic!("prepared"));
+        let retry = owner
+            .machine()
+            .retry_schedule()
+            .unwrap_or_else(|| panic!("retry"));
+        registry
+            .apply_invalidation_terminal(
+                group_id,
+                Ok(ShareCoordinatorInvalidationPermission::Unavailable),
+            )
+            .unwrap_or_else(|error| panic!("withdrawn route: {error:?}"));
+        let owner = registry
+            .entry(group_id)
+            .and_then(|entry| entry.membership.as_ref())
+            .unwrap_or_else(|| panic!("membership"));
+        assert_eq!(owner.prepared(), Some(prepared));
+        assert_eq!(prepared.deadline.core(), capture.deadline());
+        assert!(!owner.is_ready_to_submit());
+        let due = if expire {
+            retry.deadline()
+        } else {
+            retry.not_before()
+        };
+        registry
+            .prepare_one_heartbeat_due(Moment::from_tick(due.tick()), &clock)
+            .unwrap_or_else(|error| panic!("retry due: {error:?}"));
+        let owner = registry
+            .entry(group_id)
+            .and_then(|entry| entry.membership.as_ref())
+            .unwrap_or_else(|| panic!("membership"));
+        if expire {
+            assert!(owner.prepared().is_none());
+            assert_eq!(
+                owner.startup_failure(),
+                Some(ShareGroupHeartbeatFailure::DeadlineElapsed)
+            );
+        } else {
+            assert_eq!(owner.prepared(), Some(prepared));
+            assert!(owner.is_ready_to_submit());
+        }
+    }
+}

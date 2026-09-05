@@ -163,7 +163,8 @@ impl ShareConsumerRegistry {
         match result {
             Ok(
                 ShareCoordinatorInvalidationPermission::Applied
-                | ShareCoordinatorInvalidationPermission::IgnoredStale,
+                | ShareCoordinatorInvalidationPermission::IgnoredStale
+                | ShareCoordinatorInvalidationPermission::Unavailable,
             ) => entry
                 .membership
                 .as_mut()
