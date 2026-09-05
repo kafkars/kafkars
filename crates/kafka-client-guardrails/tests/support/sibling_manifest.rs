@@ -14,7 +14,7 @@ struct PublishedDependency {
 const PUBLISHED_DEPENDENCIES: [PublishedDependency; 4] = [
     PublishedDependency {
         name: "kafka-driver",
-        version: "=0.1.0-rc.3",
+        version: "=0.1.0-rc.4",
     },
     PublishedDependency {
         name: "kafka-wire",
@@ -33,18 +33,18 @@ const PUBLISHED_DEPENDENCIES: [PublishedDependency; 4] = [
 const PUBLISHED: [(&str, &str, &str); 6] = [
     (
         "kafka-driver",
-        "0.1.0-rc.3",
-        "9a648124464fb47416a523b65359a2e3e82d699d410ca7fa2d8361eba71dc9b5",
+        "0.1.0-rc.4",
+        "ee2ad6a4d7170c0eef4050cce432cafcd334c57b109e92deb00ba219822a2f97",
     ),
     (
         "kafka-driver-core",
-        "0.1.0-rc.3",
-        "324653616ccb50a9de60f34cdede4bff0655343694e9a73978c534d6e618448e",
+        "0.1.0-rc.4",
+        "395ad94d43f6e030045d95c5c58f5e3b741f6ae452ece550ef8bf2bf2d36c5f4",
     ),
     (
         "kafka-driver-transport",
-        "0.1.0-rc.3",
-        "a46adbddadee2eb40848a3a93a22428eb9b3c7678a8d4ddffbd4276d3659c6f2",
+        "0.1.0-rc.4",
+        "e984e4d8910785d845195c89843fc546704dc94b44eafc7ad497b52d3135c8e7",
     ),
     (
         "kafka-wire",
