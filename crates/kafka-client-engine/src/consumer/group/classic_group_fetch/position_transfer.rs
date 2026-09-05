@@ -1,6 +1,6 @@
 //! Lossless transfer from confirmed group positions into Fetch activation.
 
-use kafka_client_core::GroupPositionFence;
+use kafka_client_core::{ClassicGroupPhase, GroupPositionFence};
 
 use super::{
     activation::{
@@ -47,14 +47,23 @@ pub(in crate::consumer::group) enum ClassicGroupFetchTransferError {
 /// until the current classic machine and catalog prove the same live assignment
 /// and exact membership cycle. Once handed to Fetch activation, every pre-core
 /// rejection restores that same completed owner; only successful activation or
-/// a Fetch-retained post-core fault leaves position execution dormant.
+/// a Fetch-retained post-core fault leaves position execution dormant. Lost
+/// membership leaves the completed owner untouched for local retirement.
 pub(in crate::consumer::group) fn transfer_completed_position(
     classic: &ClassicGroupOwner,
     catalog: &GroupSessionCatalog,
     position: &mut ClassicGroupPositionExecution,
     fetch: &mut ClassicGroupFetchOwner,
 ) -> Result<ClassicGroupFetchTransferTurn, ClassicGroupFetchTransferError> {
-    if !position.has_ready_bootstrap_terminal() {
+    if !position.has_ready_bootstrap_terminal()
+        || matches!(
+            classic.machine().phase(),
+            ClassicGroupPhase::WaitingToRejoin
+                | ClassicGroupPhase::Lost
+                | ClassicGroupPhase::Fatal
+                | ClassicGroupPhase::Closed
+        )
+    {
         return Ok(ClassicGroupFetchTransferTurn::Idle);
     }
     let current_fence = current_position_fence(classic, catalog)

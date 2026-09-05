@@ -9,17 +9,20 @@ use crate::consumer::GroupConsumerEvent;
 use super::{
     super::{
         classic_group_assignment::retire_and_revoke_classic_group_assignment,
+        classic_group_fetch::{ClassicGroupFetchTransferTurn, transfer_completed_position},
         classic_group_graceful_revocation::{
             ClassicGroupRevocationAcknowledgeError, ClassicGroupRevocationTurn,
         },
         classic_group_heartbeat::ClassicHeartbeatExecutionState,
         classic_group_heartbeat_rejection::install_heartbeat_rejection,
         classic_group_heartbeat_rejection_test::stable_entry,
+        classic_group_position::ClassicGroupPositionExecutionState,
         registry_entry::GroupConsumerEntry,
         registry_graceful_revocation::GroupConsumerRevocationPortError,
+        registry_membership::GroupConsumerMembershipTurn,
         registry_test_support::{
-            install_ready_group_delivery, install_session, register, started_registry,
-            stop_registry,
+            install_completed_position, install_ready_group_delivery, install_session, register,
+            started_registry, stop_registry,
         },
     },
     recovery::install_recovery,
@@ -150,6 +153,62 @@ fn rebalance_after_an_unfetched_assignment_keeps_the_public_revocation_epoch() {
     assert!(entry.fetch.activation().is_none());
     assert!(entry.revocation.is_dormant());
     assert!(entry.fault.is_none());
+    stop_registry(&mut registry);
+}
+
+#[test]
+fn heartbeat_loss_keeps_a_ready_position_owned_until_membership_retirement() {
+    let mut registry = started_registry();
+    let group_id = register(&mut registry, "workers");
+    install_session(&mut registry, group_id);
+    install_completed_position(&mut registry, group_id, 17);
+    let entry = &mut registry.entries[0];
+    let ClassicGroupPositionExecutionState::Complete(completed) = entry.position.state() else {
+        panic!("ready position owner");
+    };
+    let fence = completed.fence();
+    let ClassicHeartbeatExecutionState::Waiting(heartbeat) = entry.heartbeat.state() else {
+        panic!("heartbeat schedule");
+    };
+    let attempt = heartbeat.attempt();
+    let now = Moment::from_tick(heartbeat.due().tick());
+    entry
+        .classic
+        .apply(ClassicGroupInput::HeartbeatDue { attempt, now })
+        .unwrap_or_else(|error| panic!("heartbeat due: {error}"));
+    let transition = entry
+        .classic
+        .apply(ClassicGroupInput::HeartbeatFailed { attempt, now })
+        .unwrap_or_else(|error| panic!("heartbeat failure: {error}"));
+    install_heartbeat_rejection(entry, transition, now)
+        .unwrap_or_else(|fault| panic!("recovery install: {:?}", fault.failure()));
+    entry
+        .heartbeat
+        .clear_local()
+        .unwrap_or_else(|error| panic!("heartbeat retirement: {error:?}"));
+    assert!(entry.catalog.live_assignment().is_none());
+    assert_eq!(
+        transfer_completed_position(
+            &entry.classic,
+            &entry.catalog,
+            &mut entry.position,
+            &mut entry.fetch,
+        ),
+        Ok(ClassicGroupFetchTransferTurn::Idle)
+    );
+    assert!(matches!(
+        entry.position.state(),
+        ClassicGroupPositionExecutionState::Complete(completed) if completed.fence() == fence
+    ));
+    assert!(entry.position.has_ready_bootstrap_terminal());
+    assert!(entry.fetch.activation().is_none());
+    assert!(entry.fault.is_none());
+    assert_eq!(
+        registry.turn_local_membership(now),
+        Ok(GroupConsumerMembershipTurn::Progress)
+    );
+    assert!(registry.entries[0].position.is_dormant());
+    assert!(registry.entries[0].fault.is_none());
     stop_registry(&mut registry);
 }
 
