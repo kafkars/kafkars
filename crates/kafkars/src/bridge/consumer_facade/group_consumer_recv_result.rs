@@ -34,7 +34,7 @@ pub(super) fn translate_group_consumer_fetch_failure(
 ) -> KafkaError {
     match failure {
         GroupConsumerFetchFailureKind::DeadlineElapsed => {
-            KafkaError::new(ErrorKind::Timeout, "group Fetch deadline elapsed")
+            KafkaError::new(ErrorKind::Timeout, "group Fetch deadline elapsed").with_safe_retry()
         }
         GroupConsumerFetchFailureKind::DriverRejected => KafkaError::new(
             ErrorKind::Backpressure,

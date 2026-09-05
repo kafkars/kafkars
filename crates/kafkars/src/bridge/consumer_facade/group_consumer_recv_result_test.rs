@@ -56,39 +56,47 @@ fn host_failures_remain_internal() {
 }
 
 #[test]
-fn every_fetch_failure_maps_to_its_exact_public_category() {
-    for (failure, expected) in [
+fn every_fetch_failure_maps_to_its_exact_public_category_and_retry_advice() {
+    for (failure, expected_kind, expected_retry) in [
         (
             GroupConsumerFetchFailureKind::DeadlineElapsed,
             ErrorKind::Timeout,
+            RetryAdvice::RetrySafe,
         ),
         (
             GroupConsumerFetchFailureKind::DriverRejected,
             ErrorKind::Backpressure,
+            RetryAdvice::DoNotRetry,
         ),
         (
             GroupConsumerFetchFailureKind::Transport,
             ErrorKind::Transport,
+            RetryAdvice::DoNotRetry,
         ),
         (
             GroupConsumerFetchFailureKind::Compatibility,
             ErrorKind::Compatibility,
+            RetryAdvice::DoNotRetry,
         ),
         (
             GroupConsumerFetchFailureKind::InvalidResponse,
             ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
         ),
         (
             GroupConsumerFetchFailureKind::ResponseTooLarge,
             ErrorKind::Backpressure,
+            RetryAdvice::DoNotRetry,
         ),
         (
             GroupConsumerFetchFailureKind::ThrottleDeadlineOverflow,
             ErrorKind::Timeout,
+            RetryAdvice::DoNotRetry,
         ),
     ] {
         let error = translate_group_consumer_recv_kind(GroupConsumerRecvErrorKind::Fetch(failure));
-        assert_eq!(error.kind(), expected);
+        assert_eq!(error.kind(), expected_kind);
+        assert_eq!(error.retry_advice(), expected_retry);
         assert_eq!(error.broker_code(), None);
     }
 }
@@ -101,6 +109,7 @@ fn fetch_broker_failure_preserves_the_exact_signed_code() {
 
     assert_eq!(error.kind(), ErrorKind::Broker);
     assert_eq!(error.broker_code(), Some(-731));
+    assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry);
 }
 
 #[test]
