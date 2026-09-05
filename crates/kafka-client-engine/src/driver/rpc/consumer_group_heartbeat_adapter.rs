@@ -49,6 +49,15 @@ pub(crate) struct ConsumerGroupHeartbeatRoute {
 }
 
 impl ConsumerGroupHeartbeatRoute {
+    #[cfg(test)]
+    pub(crate) const fn without_token_for_test() -> Self {
+        Self { token: None }
+    }
+
+    pub(crate) const fn is_missing(&self) -> bool {
+        self.token.is_none()
+    }
+
     /// Transfers exact coordinator-route authority into bounded invalidation ownership.
     pub(crate) fn into_coordinator_invalidation(
         self,
