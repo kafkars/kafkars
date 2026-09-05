@@ -23,6 +23,7 @@ fn established_member_retains_the_exact_route_for_the_next_fetch_revision() {
         Arc::from("alpha"),
         [7; 16],
         Some(11),
+        None,
     );
     let position = member.position();
     let mut sessions = BrokerFetchSessions::try_new(4, 8)
@@ -50,8 +51,8 @@ fn replacement_assignment_requires_metadata_newer_than_retired_route() {
         Arc::from("alpha"),
         [7; 16],
         Some(11),
-    )
-    .with_metadata_generation(Some(observed));
+        Some(observed),
+    );
     let mut sessions = BrokerFetchSessions::try_new(4, 8)
         .unwrap_or_else(|error| panic!("reserve broker sessions: {error:?}"));
     let plan = sessions

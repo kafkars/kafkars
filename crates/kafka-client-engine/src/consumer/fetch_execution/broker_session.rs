@@ -37,22 +37,15 @@ impl BrokerSessionMember {
         topic: Arc<str>,
         topic_id: [u8; 16],
         leader_epoch: Option<i32>,
+        metadata_generation: Option<TopicMetadataGeneration>,
     ) -> Self {
         Self {
             position,
             topic,
             topic_id,
             leader_epoch,
-            metadata_generation: None,
+            metadata_generation,
         }
-    }
-
-    pub(super) const fn with_metadata_generation(
-        mut self,
-        metadata_generation: Option<TopicMetadataGeneration>,
-    ) -> Self {
-        self.metadata_generation = metadata_generation;
-        self
     }
 
     pub(super) const fn position(&self) -> PositionFence {

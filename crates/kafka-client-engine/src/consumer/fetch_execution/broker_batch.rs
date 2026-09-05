@@ -82,8 +82,8 @@ pub(super) fn broker_session_members(
                 Arc::from(prepared.request.topic()),
                 route.topic_id(),
                 route.leader_epoch(),
+                route.metadata_generation(),
             )
-            .with_metadata_generation(route.metadata_generation())
         })
         .collect()
 }
