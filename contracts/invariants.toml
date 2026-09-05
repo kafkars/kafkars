@@ -699,7 +699,7 @@ evidence = [
   "crates/kafka-client-engine/src/protocol/fetch/read_committed_test.rs::last_stable_offset_is_required_and_empty_aborted_ranges_are_valid",
   "crates/kafka-client-engine/src/protocol/fetch/read_committed_test.rs::unordered_aborted_entries_are_sorted_before_filtering",
   "crates/kafka-client-engine/src/protocol/fetch/outcome_read_committed_test.rs::encoded_aborted_data_is_hidden_while_complete_progress_advances",
-  "crates/kafka-client-engine/src/driver/rpc/fetch/submission_test.rs::options_preserve_original_deadline_long_poll_lane_and_name_ceiling",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/submission_test.rs::options_preserve_deadline_lane_name_ceiling_and_reject_failed_routes",
   "crates/kafka-client-engine/src/driver/rpc/fetch/calls_test.rs::full_capacity_returns_the_exact_prepared_fetch_without_driver_submission",
   "crates/kafka-client-engine/src/driver/rpc/fetch/calls_test.rs::accepted_stale_call_returns_request_before_the_driver_call_drains",
   "crates/kafka-client-engine/src/driver/rpc/fetch/calls_test.rs::completion_corruption_recovers_the_exact_prepared_request_after_shutdown",
