@@ -7,7 +7,8 @@ use kafka_client_core::{
 };
 
 use super::model::{
-    ClassicGroupRevocationAcknowledgeError, ClassicGroupRevocationHostError, PendingGroupRevocation,
+    ClassicGroupRevocationAcknowledgeError, ClassicGroupRevocationHostError,
+    PendingGroupRevocation, one_effect,
 };
 
 /// One fixed-capacity owner constructed before any revocation is admitted.
@@ -236,15 +237,4 @@ impl ClassicGroupRevocationOwner {
         }
         Ok(())
     }
-}
-
-pub(super) fn one_effect(
-    transition: &kafka_client_core::ClassicGracefulRevocationTransition,
-) -> Option<ClassicGracefulRevocationEffect> {
-    let mut effects = transition.effects().copied();
-    let first = effects.next();
-    if effects.next().is_some() {
-        return None;
-    }
-    first
 }

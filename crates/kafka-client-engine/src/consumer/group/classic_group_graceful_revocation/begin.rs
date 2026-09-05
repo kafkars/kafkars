@@ -7,8 +7,8 @@ use kafka_client_core::{
 };
 
 use super::{
-    model::{ClassicGroupRevocationBeginError, PendingGroupRevocation},
-    owner::{ClassicGroupRevocationOwner, one_effect},
+    model::{ClassicGroupRevocationBeginError, PendingGroupRevocation, one_effect},
+    owner::ClassicGroupRevocationOwner,
 };
 
 impl ClassicGroupRevocationOwner {
