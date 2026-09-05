@@ -22,6 +22,7 @@ mod broker_close_test;
 mod calls;
 #[cfg(test)]
 mod calls_test;
+mod causal_route;
 mod failure;
 #[cfg(test)]
 mod failure_admission_test;
@@ -74,6 +75,9 @@ pub(crate) use admission::{FetchCallAdmission, PartitionFetchRequest};
 pub(crate) use broker_calls::{BrokerFetchCallAdmission, TrackedBrokerFetchCalls};
 pub(crate) use broker_close::BrokerFetchCloseCall;
 pub(crate) use calls::TrackedFetchCalls;
+pub(crate) use causal_route::{
+    BrokerFetchCausalRouteFailure, BrokerFetchCausalRouteFailureKind, BrokerRouteFailureToken,
+};
 pub(crate) use failure::{classify_fetch_admission, classify_fetch_request_error};
 pub(crate) use forgotten::{
     ForgottenFetchCompletionFailure, ForgottenFetchConfirmation, ForgottenFetchRequest,

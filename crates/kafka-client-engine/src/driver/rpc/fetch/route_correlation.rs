@@ -37,12 +37,7 @@ pub(super) fn bind_route(
 ) -> Result<BrokerRoutedFetch, BrokerFetchRouteFailure> {
     let broker_id = BrokerId::from_driver(driver_broker_id);
     let route = FetchTopicRoute::observed(topic_id, leader_epoch, metadata_generation);
-    if !request.bind_observed_topic_route(broker_id, route) {
-        return Err(BrokerFetchRouteFailure::terminal(
-            request,
-            FetchFailure::Transport,
-        ));
-    }
+    request.bind_observed_topic_route(route);
     Ok(BrokerRoutedFetch { request, broker_id })
 }
 

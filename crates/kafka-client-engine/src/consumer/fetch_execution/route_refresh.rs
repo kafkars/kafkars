@@ -2,7 +2,9 @@
 
 use kafka_client_core::AssignedConsumerEffect;
 
-use crate::driver::{BrokerId, DriverOwner, FetchRouteRefresh, FetchRouteRefreshPoll};
+use crate::driver::{
+    BrokerId, BrokerRouteFailureToken, DriverOwner, FetchRouteRefresh, FetchRouteRefreshPoll,
+};
 
 use super::{executor::DirectFetchExecutor, prepared::PreparedFetchExecution};
 
@@ -14,6 +16,7 @@ struct LeaderMovementAttempt {
     refresh: Option<FetchRouteRefresh>,
     waiting: Option<PreparedFetchExecution>,
     hinted_broker: Option<BrokerId>,
+    failure_token: Option<BrokerRouteFailureToken>,
     failed: bool,
 }
 
@@ -21,10 +24,12 @@ pub(super) enum WaitingLeaderRoute {
     Ready {
         prepared: PreparedFetchExecution,
         hinted_broker: Option<BrokerId>,
+        failure_token: Option<BrokerRouteFailureToken>,
     },
     Failed {
         prepared: PreparedFetchExecution,
         hinted_broker: Option<BrokerId>,
+        failure_token: Option<BrokerRouteFailureToken>,
     },
 }
 
@@ -50,12 +55,14 @@ impl LeaderMovementRecovery {
         refresh: Option<FetchRouteRefresh>,
         waiting: Option<PreparedFetchExecution>,
         hinted_broker: Option<BrokerId>,
+        failure_token: Option<BrokerRouteFailureToken>,
     ) {
-        if refresh.is_some() || waiting.is_some() {
+        if refresh.is_some() || waiting.is_some() || failure_token.is_some() {
             self.attempts.push(LeaderMovementAttempt {
                 refresh,
                 waiting,
                 hinted_broker,
+                failure_token,
                 failed: false,
             });
         }
@@ -101,30 +108,35 @@ impl LeaderMovementRecovery {
             WaitingLeaderRoute::Failed {
                 prepared: waiting,
                 hinted_broker: attempt.hinted_broker,
+                failure_token: attempt.failure_token,
             }
         } else {
             WaitingLeaderRoute::Ready {
                 prepared: waiting,
                 hinted_broker: attempt.hinted_broker,
+                failure_token: attempt.failure_token,
             }
         })
     }
 
     pub(super) fn restore_waiting(&mut self, waiting: WaitingLeaderRoute) {
-        let (waiting, hinted_broker, failed) = match waiting {
+        let (waiting, hinted_broker, failure_token, failed) = match waiting {
             WaitingLeaderRoute::Ready {
                 prepared,
                 hinted_broker,
-            } => (prepared, hinted_broker, false),
+                failure_token,
+            } => (prepared, hinted_broker, failure_token, false),
             WaitingLeaderRoute::Failed {
                 prepared,
                 hinted_broker,
-            } => (prepared, hinted_broker, true),
+                failure_token,
+            } => (prepared, hinted_broker, failure_token, true),
         };
         self.attempts.push(LeaderMovementAttempt {
             refresh: None,
             waiting: Some(waiting),
             hinted_broker,
+            failure_token,
             failed,
         });
     }
@@ -134,6 +146,7 @@ impl LeaderMovementRecovery {
             retained
                 .saturating_add(usize::from(attempt.refresh.is_some()))
                 .saturating_add(usize::from(attempt.waiting.is_some()))
+                .saturating_add(usize::from(attempt.failure_token.is_some()))
         })
     }
 
@@ -166,7 +179,7 @@ impl DirectFetchExecutor {
         if !self.leader_recovery.can_retain_attempt() {
             return Err(prepared);
         }
-        self.leader_recovery.begin(None, Some(prepared), None);
+        self.leader_recovery.begin(None, Some(prepared), None, None);
         Ok(())
     }
 }

@@ -28,6 +28,7 @@ fn failed_cache_invalidation_preserves_the_exact_newer_leader_hint() {
         Some(FetchRouteRefresh::Unavailable),
         Some(prepared(effect)),
         Some(broker(4)),
+        None,
     );
     let driver = driver();
     let clock = crate::clock::MonotonicClock::new();
@@ -68,6 +69,7 @@ fn temporarily_leaderless_topic_view_retains_the_same_fetch_attempt() {
     let super::route_refresh::WaitingLeaderRoute::Ready {
         prepared,
         hinted_broker: None,
+        failure_token: None,
     } = waiting
     else {
         panic!("metadata retry must not invent a leader hint");
@@ -90,6 +92,7 @@ fn incremental_revoke_retires_only_the_matching_leader_recovery() {
         executor.leader_recovery.begin(
             Some(FetchRouteRefresh::Unavailable),
             Some(prepared(effect)),
+            None,
             None,
         );
     }
@@ -183,7 +186,7 @@ fn closed_driver_completion_retries_the_same_offset_through_topic_metadata() {
     assert_eq!(request.operation_deadline(), original_deadline);
     assert_eq!(request.next_offset().get(), 10);
     assert_ne!(request.fence(), fence);
-    assert_eq!(request.failed_broker(), Some(source_broker));
+    assert_eq!(request.topic_id(), Some([7; 16]));
 }
 
 fn two_partition_assignment() -> (Vec<AssignedConsumerEffect>, AssignedConsumerMachine) {

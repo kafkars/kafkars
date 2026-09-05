@@ -52,6 +52,18 @@ pub(crate) struct BrokerFetchRouteCall {
 }
 
 impl BrokerFetchRouteCall {
+    pub(super) fn from_admitted(
+        request: PartitionFetchRequest,
+        topic: TopicName,
+        call: Call<Result<TopicView, TopicViewError>>,
+    ) -> Self {
+        Self {
+            request: Some(request),
+            topic,
+            call: Some(call),
+        }
+    }
+
     pub(crate) fn submit(
         driver: &DriverOwner,
         request: PartitionFetchRequest,
@@ -99,11 +111,7 @@ impl BrokerFetchRouteCall {
                 return Err(super::route_correlation::admit_failure(request, &source));
             }
         };
-        Ok(Self {
-            request: Some(request),
-            topic,
-            call: Some(call),
-        })
+        Ok(Self::from_admitted(request, topic, call))
     }
 
     pub(crate) fn try_terminal(&mut self) -> Option<BrokerFetchRouteResult> {

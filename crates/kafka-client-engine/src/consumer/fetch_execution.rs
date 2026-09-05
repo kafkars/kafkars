@@ -42,6 +42,8 @@ mod broker_session_test;
 mod broker_settlement;
 #[path = "fetch_execution/broker_submission.rs"]
 mod broker_submission;
+#[path = "fetch_execution/causal_route.rs"]
+mod causal_route;
 #[path = "fetch_execution/control.rs"]
 mod control;
 #[cfg(test)]
@@ -62,6 +64,8 @@ mod fault_test;
 mod leader_retry;
 #[cfg(test)]
 mod leader_retry_test;
+#[path = "fetch_execution/leader_route.rs"]
+mod leader_route;
 #[cfg(test)]
 mod leader_route_test;
 #[path = "fetch_execution/partition_session.rs"]
