@@ -109,8 +109,12 @@ impl PartitionFetchRequest {
         &mut self,
         topic_id: [u8; 16],
         leader_epoch: Option<i32>,
+        metadata_generation: Option<kafka_client_core::partitioning::TopicMetadataGeneration>,
     ) {
-        self.bind_topic_route(FetchTopicRoute::new(topic_id, leader_epoch));
+        self.topic_route = Some(metadata_generation.map_or_else(
+            || FetchTopicRoute::new(topic_id, leader_epoch),
+            |generation| FetchTopicRoute::observed(topic_id, leader_epoch, generation),
+        ));
     }
 
     #[cfg(test)]

@@ -83,6 +83,7 @@ pub(super) fn broker_session_members(
                 route.topic_id(),
                 route.leader_epoch(),
             )
+            .with_metadata_generation(route.metadata_generation())
         })
         .collect()
 }
