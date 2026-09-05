@@ -104,10 +104,10 @@ impl DirectFetchExecutor {
         &self,
         prepared: &PreparedFetchExecution,
     ) -> Option<TopicMetadataGeneration> {
-        let request = prepared
-            .request
-            .topic_route()
-            .and_then(|route| route.metadata_generation());
+        let request = match prepared.request.topic_route() {
+            Some(route) => route.metadata_generation(),
+            None => None,
+        };
         let retained = self.broker_sessions.as_ref().and_then(|sessions| {
             sessions.newer_route_generation(prepared.fence().position(), prepared.request.topic())
         });
