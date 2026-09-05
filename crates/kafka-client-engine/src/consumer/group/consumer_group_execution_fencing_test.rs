@@ -1,8 +1,9 @@
 //! Engine and catalog settlement evidence for recoverable KIP-848 member fencing.
 
 use kafka_client_core::{
-    ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatRequestKind,
-    Moment,
+    AssignmentGeneration, ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatPhase,
+    ConsumerGroupHeartbeatRequestKind, GroupAssignmentPartition, GroupId, LiveGroupAssignment,
+    MemberId, Moment,
 };
 
 use crate::clock::MonotonicClock;
@@ -23,7 +24,7 @@ use super::{
 fn missing_coordinator_route_preserves_steady_retry_ownership_and_expiry() {
     for expire in [false, true] {
         let (mut entry, _topic_id) = installed_modern_entry();
-        let assignment = entry.catalog.live_assignment().cloned();
+        let assignment = entry.catalog.live_assignment().map(assignment_facts);
         let execution = entry
             .consumer
             .as_mut()
@@ -99,7 +100,10 @@ fn missing_coordinator_route_preserves_steady_retry_ownership_and_expiry() {
             assert!(retry.not_before().tick() > now.tick());
             assert!(retry.not_before() <= retry.deadline());
             assert!(!consumer_group_heartbeat_is_ready(entry));
-            assert_eq!(entry.catalog.live_assignment(), assignment.as_ref());
+            assert_eq!(
+                entry.catalog.live_assignment().map(assignment_facts),
+                assignment
+            );
             entry
                 .consumer
                 .as_mut()
@@ -109,6 +113,22 @@ fn missing_coordinator_route_preserves_steady_retry_ownership_and_expiry() {
             assert!(consumer_group_heartbeat_is_ready(entry));
         }
     }
+}
+
+fn assignment_facts(
+    assignment: &LiveGroupAssignment,
+) -> (
+    GroupId,
+    MemberId,
+    AssignmentGeneration,
+    Vec<GroupAssignmentPartition>,
+) {
+    (
+        assignment.group_id(),
+        assignment.member_id(),
+        assignment.assignment_generation(),
+        assignment.partitions().to_vec(),
+    )
 }
 
 #[test]
