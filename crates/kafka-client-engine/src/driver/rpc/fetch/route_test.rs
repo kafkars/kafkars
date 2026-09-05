@@ -8,16 +8,16 @@ use kafka_client_core::{
 };
 
 use crate::{
+    EngineConfig,
     clock::OperationDeadline,
     protocol::fetch::{FetchDecodeLimits, FetchRequestSettings},
-    EngineConfig,
 };
 
 use super::{
     super::super::DriverOwner,
     admission::PartitionFetchRequest,
     route::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId},
-    routed_response_broker_test::{drive, RoutedBroker},
+    routed_response_broker_test::{RoutedBroker, drive},
 };
 
 #[test]
