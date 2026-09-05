@@ -90,7 +90,7 @@ fn failed_broker_rejects_one_newer_view_before_same_broker_reuse() {
     let (mut request, failed_broker) = initial.into_parts();
     let initial_generation = request
         .topic_route()
-        .and_then(|route| route.metadata_generation())
+        .and_then(super::topic_route::FetchTopicRoute::metadata_generation)
         .unwrap_or_else(|| panic!("initial metadata generation"));
     request.mark_failed_broker(failed_broker);
 
@@ -107,7 +107,7 @@ fn failed_broker_rejects_one_newer_view_before_same_broker_reuse() {
     ));
     let rejected_generation = request
         .topic_route()
-        .and_then(|route| route.metadata_generation())
+        .and_then(super::topic_route::FetchTopicRoute::metadata_generation)
         .unwrap_or_else(|| panic!("rejected metadata generation"));
     assert!(rejected_generation > initial_generation);
     assert_eq!(request.failed_broker(), None);
@@ -124,6 +124,10 @@ fn failed_broker_rejects_one_newer_view_before_same_broker_reuse() {
         .unwrap_or_else(|error| panic!("driver shutdown: {error}"));
 }
 
+#[allow(
+    clippy::result_large_err,
+    reason = "the test helper must inspect exact routed and rejected request owners"
+)]
 fn settle_route(
     call: &mut BrokerFetchRouteCall,
     owner: &mut DriverOwner,
