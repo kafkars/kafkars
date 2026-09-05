@@ -120,17 +120,18 @@ impl DirectFetchExecutor {
         if !self.leader_recovery.can_retain_attempt() {
             return self.apply_terminal_proposal(machine, proposal.into_proposal());
         }
+        let transport_failure = proposal.is_transport();
         let (mut fact, leader) = proposal.into_parts();
         let fence = fact.request.fence();
-        let retry_broker = hinted_broker.or_else(|| {
-            if clear_leader_epoch {
-                self.active_broker_sessions
-                    .iter()
-                    .find(|active| active.fences.contains(&fence))
-                    .map(|active| active.plan.broker_id())
-            } else {
-                None
-            }
+        let active_broker = self
+            .active_broker_sessions
+            .iter()
+            .find(|active| active.fences.contains(&fence))
+            .map(|active| active.plan.broker_id());
+        let retry_broker = hinted_broker.or(if clear_leader_epoch {
+            active_broker
+        } else {
+            None
         });
         let route_available = retry_broker.is_some() && self.routed.len() < self.route_capacity;
         if fact.request.operation_deadline().core().is_elapsed_at(now) {
@@ -221,6 +222,9 @@ impl DirectFetchExecutor {
             *next_offset,
             leader.map(|leader| leader.epoch),
         );
+        if let (true, Some(broker_id)) = (transport_failure, active_broker) {
+            fact.request.mark_failed_broker(broker_id);
+        }
         if clear_leader_epoch {
             fact.request.clear_leader_epoch();
         }

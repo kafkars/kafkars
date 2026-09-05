@@ -2,8 +2,8 @@
 
 use core::num::NonZeroI16;
 
-use kafka_client_core::FetchFailure;
-use kafka_driver::{BrokerId as DriverBrokerId, TopicViewError};
+use kafka_client_core::{FetchFailure, partitioning::TopicMetadataGeneration};
+use kafka_driver::{TopicName, TopicView, TopicViewError};
 
 use super::{
     admission::PartitionFetchRequest,
@@ -24,22 +24,56 @@ impl BrokerRoutedFetch {
     }
 }
 
-pub(super) fn bind_route(
+pub(super) fn correlate_view(
     mut request: PartitionFetchRequest,
-    broker_id: DriverBrokerId,
-    topic_id: [u8; 16],
-    leader_epoch: Option<i32>,
-    metadata_generation: kafka_client_core::partitioning::TopicMetadataGeneration,
-) -> BrokerRoutedFetch {
-    request.bind_topic_route(FetchTopicRoute::observed(
-        topic_id,
-        leader_epoch,
-        metadata_generation,
-    ));
-    BrokerRoutedFetch {
-        request,
-        broker_id: BrokerId::from_driver(broker_id),
+    topic: &TopicName,
+    view: &TopicView,
+) -> Result<BrokerRoutedFetch, BrokerFetchRouteFailure> {
+    if view.topic() != topic {
+        return Err(BrokerFetchRouteFailure::terminal(
+            request,
+            FetchFailure::InvalidResponse,
+        ));
     }
+    let partition = request.fence().position().partition().partition().get();
+    let partition = match i32::try_from(partition) {
+        Ok(partition) => partition,
+        Err(_error) => {
+            return Err(BrokerFetchRouteFailure::terminal(
+                request,
+                FetchFailure::DriverRejected,
+            ));
+        }
+    };
+    let Some((driver_broker_id, leader_epoch)) = (0..view.available_len()).find_map(|index| {
+        view.available_at(index)
+            .filter(|entry| entry.partition().get() == partition)
+            .map(|entry| (entry.broker_id(), entry.leader_epoch()))
+    }) else {
+        return Err(BrokerFetchRouteFailure::terminal(
+            request,
+            FetchFailure::Transport,
+        ));
+    };
+    let Some(topic_id) = view.topic_id() else {
+        return Err(BrokerFetchRouteFailure::terminal(
+            request,
+            FetchFailure::Compatibility,
+        ));
+    };
+    let broker_id = BrokerId::from_driver(driver_broker_id);
+    let route = FetchTopicRoute::observed(
+        topic_id.to_bytes(),
+        leader_epoch.map(|epoch| epoch.get()),
+        TopicMetadataGeneration::from_raw(view.generation().get()),
+    );
+    if !request.bind_observed_topic_route(broker_id, route) {
+        return Err(BrokerFetchRouteFailure::terminal(
+            request,
+            FetchFailure::Transport,
+        ));
+    }
+    Ok(BrokerRoutedFetch { request, broker_id })
 }
 
 #[allow(

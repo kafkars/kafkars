@@ -10,7 +10,7 @@ use kafka_client_core::{
 };
 use kafka_driver::{
     BrokerId as DriverBrokerId, Call, CompletionError, MetadataGeneration, SubmitError, TopicName,
-    TopicView, TopicViewError,
+    TopicViewError,
 };
 
 use super::{
@@ -114,7 +114,7 @@ impl BrokerFetchRouteCall {
             Ok(Err(source)) => Err(super::route_correlation::topic_view_failure(
                 request, source,
             )),
-            Ok(Ok(view)) => correlate_view(request, &self.topic, &view),
+            Ok(Ok(view)) => super::route_correlation::correlate_view(request, &self.topic, &view),
         })
     }
 
@@ -141,52 +141,6 @@ impl BrokerFetchRouteCall {
             .take()
             .unwrap_or_else(|| panic!("unsettled route call retains its request"))
     }
-}
-
-fn correlate_view(
-    request: PartitionFetchRequest,
-    topic: &TopicName,
-    view: &TopicView,
-) -> Result<BrokerRoutedFetch, BrokerFetchRouteFailure> {
-    if view.topic() != topic {
-        return Err(BrokerFetchRouteFailure::terminal(
-            request,
-            FetchFailure::InvalidResponse,
-        ));
-    }
-    let partition = request.fence().position().partition().partition().get();
-    let partition = match i32::try_from(partition) {
-        Ok(partition) => partition,
-        Err(_error) => {
-            return Err(BrokerFetchRouteFailure::terminal(
-                request,
-                FetchFailure::DriverRejected,
-            ));
-        }
-    };
-    let Some((broker_id, leader_epoch)) = (0..view.available_len()).find_map(|index| {
-        view.available_at(index)
-            .filter(|entry| entry.partition().get() == partition)
-            .map(|entry| (entry.broker_id(), entry.leader_epoch()))
-    }) else {
-        return Err(BrokerFetchRouteFailure::terminal(
-            request,
-            FetchFailure::Transport,
-        ));
-    };
-    let Some(topic_id) = view.topic_id() else {
-        return Err(BrokerFetchRouteFailure::terminal(
-            request,
-            FetchFailure::Compatibility,
-        ));
-    };
-    Ok(super::route_correlation::bind_route(
-        request,
-        broker_id,
-        topic_id.to_bytes(),
-        leader_epoch.map(|epoch| epoch.get()),
-        TopicMetadataGeneration::from_raw(view.generation().get()),
-    ))
 }
 
 /// Route-resolution failure retaining the exact prepared request.

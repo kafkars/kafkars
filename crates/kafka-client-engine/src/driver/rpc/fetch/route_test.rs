@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use kafka_client_core::{
     AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition, AssignedTopicPartition,
-    NextFetchOffset, PartitionIndex, StartPosition, TopicId,
+    FetchFailure, NextFetchOffset, PartitionIndex, StartPosition, TopicId,
 };
 
 use crate::{
@@ -56,18 +56,7 @@ fn topic_view_binds_exact_uuid_leader_epoch_and_broker_before_fetch_admission() 
     let mut call = BrokerFetchRouteCall::submit(&owner, request("events"))
         .unwrap_or_else(|_failure| panic!("topic-view admission"));
     broker.install_topic(&mut owner);
-    let routed = (0..32)
-        .find_map(|_| {
-            call.try_terminal().or_else(|| {
-                drive(
-                    &mut owner,
-                    Duration::from_millis(100),
-                    "settle Fetch TopicView",
-                );
-                call.try_terminal()
-            })
-        })
-        .unwrap_or_else(|| panic!("Fetch TopicView did not settle"))
+    let routed = settle_route(&mut call, &mut owner)
         .unwrap_or_else(|failure| panic!("Fetch route: {:?}", failure.into_parts().1));
     let (request, broker_id) = routed.into_parts();
 
@@ -84,6 +73,69 @@ fn topic_view_binds_exact_uuid_leader_epoch_and_broker_before_fetch_admission() 
     owner
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("driver shutdown: {error}"));
+}
+
+#[test]
+fn failed_broker_rejects_one_newer_view_before_same_broker_reuse() {
+    let mut broker = RoutedBroker::new();
+    let mut owner = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
+        .unwrap_or_else(|error| panic!("build routed Fetch driver: {error}"));
+    RoutedBroker::await_seed(&mut owner);
+    broker.install_cluster(&mut owner);
+    let mut initial = BrokerFetchRouteCall::submit(&owner, request("events"))
+        .unwrap_or_else(|_failure| panic!("initial topic-view admission"));
+    broker.install_topic(&mut owner);
+    let initial = settle_route(&mut initial, &mut owner)
+        .unwrap_or_else(|failure| panic!("initial route: {:?}", failure.into_parts().1));
+    let (mut request, failed_broker) = initial.into_parts();
+    let initial_generation = request
+        .topic_route()
+        .and_then(|route| route.metadata_generation())
+        .unwrap_or_else(|| panic!("initial metadata generation"));
+    request.mark_failed_broker(failed_broker);
+
+    let mut rejected = BrokerFetchRouteCall::submit_newer_than(&owner, request, initial_generation)
+        .unwrap_or_else(|_failure| panic!("newer topic-view admission"));
+    broker.install_topic(&mut owner);
+    let failure = settle_route(&mut rejected, &mut owner)
+        .err()
+        .unwrap_or_else(|| panic!("same failed broker must force another topic refresh"));
+    let (request, kind) = failure.into_parts();
+    assert!(matches!(
+        kind,
+        BrokerFetchRouteFailureKind::Terminal(FetchFailure::Transport)
+    ));
+    let rejected_generation = request
+        .topic_route()
+        .and_then(|route| route.metadata_generation())
+        .unwrap_or_else(|| panic!("rejected metadata generation"));
+    assert!(rejected_generation > initial_generation);
+    assert_eq!(request.failed_broker(), None);
+
+    let mut refreshed =
+        BrokerFetchRouteCall::submit_newer_than(&owner, request, rejected_generation)
+            .unwrap_or_else(|_failure| panic!("exact topic refresh admission"));
+    broker.install_topic(&mut owner);
+    let refreshed = settle_route(&mut refreshed, &mut owner)
+        .unwrap_or_else(|failure| panic!("refreshed route: {:?}", failure.into_parts().1));
+    assert_eq!(refreshed.into_parts().1, failed_broker);
+    owner
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("driver shutdown: {error}"));
+}
+
+fn settle_route(
+    call: &mut BrokerFetchRouteCall,
+    owner: &mut DriverOwner,
+) -> Result<super::route_correlation::BrokerRoutedFetch, super::route::BrokerFetchRouteFailure> {
+    (0..32)
+        .find_map(|_| {
+            call.try_terminal().or_else(|| {
+                drive(owner, Duration::from_millis(100), "settle Fetch TopicView");
+                call.try_terminal()
+            })
+        })
+        .unwrap_or_else(|| panic!("Fetch TopicView did not settle"))
 }
 
 fn request(topic: &str) -> PartitionFetchRequest {

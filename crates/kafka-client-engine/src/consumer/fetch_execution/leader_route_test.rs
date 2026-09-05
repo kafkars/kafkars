@@ -183,6 +183,7 @@ fn closed_driver_completion_retries_the_same_offset_through_topic_metadata() {
     assert_eq!(request.operation_deadline(), original_deadline);
     assert_eq!(request.next_offset().get(), 10);
     assert_ne!(request.fence(), fence);
+    assert_eq!(request.failed_broker(), Some(source_broker));
 }
 
 fn two_partition_assignment() -> (Vec<AssignedConsumerEffect>, AssignedConsumerMachine) {

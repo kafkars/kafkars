@@ -10,8 +10,7 @@ use crate::{
     },
 };
 
-use super::submission::FetchSubmitError;
-use super::topic_route::FetchTopicRoute;
+use super::{route::BrokerId, submission::FetchSubmitError, topic_route::FetchTopicRoute};
 
 /// One core-selected Fetch paired with engine catalog, limits, and deadline facts.
 #[must_use = "a prepared partition Fetch must be submitted or terminally settled"]
@@ -20,6 +19,7 @@ pub(crate) struct PartitionFetchRequest {
     next_offset: NextFetchOffset,
     topic: String,
     topic_route: Option<FetchTopicRoute>,
+    failed_broker: Option<BrokerId>,
     settings: FetchRequestSettings,
     session: FetchSessionRequest,
     decode_limits: FetchDecodeLimits,
@@ -44,6 +44,7 @@ impl PartitionFetchRequest {
             next_offset,
             topic,
             topic_route: None,
+            failed_broker: None,
             settings,
             session: FetchSessionRequest::LEGACY,
             decode_limits,
@@ -66,6 +67,7 @@ impl PartitionFetchRequest {
             next_offset,
             topic,
             topic_route: None,
+            failed_broker: None,
             settings,
             session: FetchSessionRequest::LEGACY,
             decode_limits,
@@ -103,6 +105,25 @@ impl PartitionFetchRequest {
 
     pub(crate) fn bind_topic_route(&mut self, route: FetchTopicRoute) {
         self.topic_route = Some(route);
+        self.failed_broker = None;
+    }
+
+    pub(crate) fn bind_observed_topic_route(
+        &mut self,
+        broker_id: BrokerId,
+        route: FetchTopicRoute,
+    ) -> bool {
+        self.topic_route = Some(route);
+        self.failed_broker.take() != Some(broker_id)
+    }
+
+    pub(crate) fn mark_failed_broker(&mut self, broker_id: BrokerId) {
+        self.failed_broker = Some(broker_id);
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn failed_broker(&self) -> Option<BrokerId> {
+        self.failed_broker
     }
 
     pub(crate) fn bind_cached_topic_route(
@@ -115,6 +136,7 @@ impl PartitionFetchRequest {
             || FetchTopicRoute::new(topic_id, leader_epoch),
             |generation| FetchTopicRoute::observed(topic_id, leader_epoch, generation),
         ));
+        self.failed_broker = None;
     }
 
     #[cfg(test)]
