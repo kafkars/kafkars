@@ -10,7 +10,7 @@ use kafka_client_core::{
 };
 use kafka_driver::{
     BrokerId as DriverBrokerId, Call, CompletionError, MetadataGeneration, SubmitError, TopicName,
-    TopicViewError,
+    TopicView, TopicViewError,
 };
 
 use super::{
