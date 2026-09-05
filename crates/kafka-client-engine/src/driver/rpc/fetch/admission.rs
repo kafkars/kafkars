@@ -114,7 +114,7 @@ impl PartitionFetchRequest {
         route: FetchTopicRoute,
     ) -> bool {
         self.topic_route = Some(route);
-        self.failed_broker.take() != Some(broker_id)
+        self.failed_broker != Some(broker_id)
     }
 
     pub(crate) fn mark_failed_broker(&mut self, broker_id: BrokerId) {

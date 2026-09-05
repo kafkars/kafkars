@@ -8,16 +8,16 @@ use kafka_client_core::{
 };
 
 use crate::{
-    EngineConfig,
     clock::OperationDeadline,
     protocol::fetch::{FetchDecodeLimits, FetchRequestSettings},
+    EngineConfig,
 };
 
 use super::{
     super::super::DriverOwner,
     admission::PartitionFetchRequest,
     route::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId},
-    routed_response_broker_test::{RoutedBroker, drive},
+    routed_response_broker_test::{drive, RoutedBroker},
 };
 
 #[test]
@@ -76,7 +76,7 @@ fn topic_view_binds_exact_uuid_leader_epoch_and_broker_before_fetch_admission() 
 }
 
 #[test]
-fn failed_broker_rejects_one_newer_view_before_same_broker_reuse() {
+fn failed_broker_rejects_newer_views_until_route_moves() {
     let mut broker = RoutedBroker::new();
     let mut owner = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
         .unwrap_or_else(|error| panic!("build routed Fetch driver: {error}"));
@@ -110,15 +110,26 @@ fn failed_broker_rejects_one_newer_view_before_same_broker_reuse() {
         .and_then(super::topic_route::FetchTopicRoute::metadata_generation)
         .unwrap_or_else(|| panic!("rejected metadata generation"));
     assert!(rejected_generation > initial_generation);
-    assert_eq!(request.failed_broker(), None);
+    assert_eq!(request.failed_broker(), Some(failed_broker));
 
     let mut refreshed =
         BrokerFetchRouteCall::submit_newer_than(&owner, request, rejected_generation)
             .unwrap_or_else(|_failure| panic!("exact topic refresh admission"));
     broker.install_topic(&mut owner);
-    let refreshed = settle_route(&mut refreshed, &mut owner)
-        .unwrap_or_else(|failure| panic!("refreshed route: {:?}", failure.into_parts().1));
-    assert_eq!(refreshed.into_parts().1, failed_broker);
+    let failure = settle_route(&mut refreshed, &mut owner)
+        .err()
+        .unwrap_or_else(|| panic!("same failed broker must remain rejected"));
+    let (request, kind) = failure.into_parts();
+    assert!(matches!(
+        kind,
+        BrokerFetchRouteFailureKind::Terminal(FetchFailure::Transport)
+    ));
+    let refreshed_generation = request
+        .topic_route()
+        .and_then(super::topic_route::FetchTopicRoute::metadata_generation)
+        .unwrap_or_else(|| panic!("refreshed metadata generation"));
+    assert!(refreshed_generation > rejected_generation);
+    assert_eq!(request.failed_broker(), Some(failed_broker));
     owner
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("driver shutdown: {error}"));
