@@ -108,7 +108,7 @@ pub(super) fn response_recovery(success: &ShareFetchSuccess) -> ShareFetchRespon
                         recovery = ShareFetchResponseRecovery::Session;
                     }
                 }
-                3 | 6 | 56 | 100 => {
+                3 | 6 | 56 | 74 | 100 => {
                     if !matches!(recovery, ShareFetchResponseRecovery::Route(_)) {
                         recovery = ShareFetchResponseRecovery::Route(topic.topic_id);
                     }

@@ -22,7 +22,7 @@ fn only_exact_share_session_codes_authorize_broker_session_replacement() {
                 .is_some()
         );
     }
-    for terminal in [1, 6, 16, 121, 124, 133] {
+    for terminal in [1, 6, 16, 74, 121, 124, 133] {
         assert!(
             broker_recovery(NonZeroI16::new(terminal).unwrap_or_else(|| panic!("nonzero")))
                 .is_none()
@@ -38,6 +38,7 @@ fn only_exact_partition_session_and_routing_codes_authorize_replacement() {
         (3, ShareFetchResponseRecovery::Route([7; 16])),
         (6, ShareFetchResponseRecovery::Route([7; 16])),
         (56, ShareFetchResponseRecovery::Route([7; 16])),
+        (74, ShareFetchResponseRecovery::Route([7; 16])),
         (100, ShareFetchResponseRecovery::Route([7; 16])),
         (29, ShareFetchResponseRecovery::Terminal),
         (30, ShareFetchResponseRecovery::Terminal),
@@ -80,6 +81,30 @@ fn routing_recovery_names_the_exact_rejected_kafka_topic() {
     assert_eq!(
         response_recovery(&response),
         ShareFetchResponseRecovery::Route([8; 16])
+    );
+}
+
+#[test]
+fn fenced_leader_epoch_refreshes_only_the_exact_topic_without_masking_terminal_errors() {
+    let mut response = success(Some(30_000));
+    response.topics[0].topic_id = [9; 16];
+    response.topics[0].partitions[0].rejection = Some(ShareFetchPartitionRejection {
+        fetch_error: NonZeroI16::new(74),
+        acknowledge_error: None,
+        current_leader: Some((2, 1)),
+    });
+    assert_eq!(
+        response_recovery(&response),
+        ShareFetchResponseRecovery::Route([9; 16])
+    );
+    response.topics[0].partitions[0]
+        .rejection
+        .as_mut()
+        .unwrap_or_else(|| panic!("partition rejection"))
+        .acknowledge_error = NonZeroI16::new(29);
+    assert_eq!(
+        response_recovery(&response),
+        ShareFetchResponseRecovery::Terminal
     );
 }
 
