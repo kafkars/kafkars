@@ -54,7 +54,7 @@ fn named_event_observation_reports_end_after_close_admission() {
                 if error.kind() == ErrorKind::Backpressure
                     && Instant::now() < admission_deadline =>
             {
-                std::thread::yield_now();
+                std::hint::spin_loop();
             }
             Err(error) => panic!("admit close: {error}"),
         }
