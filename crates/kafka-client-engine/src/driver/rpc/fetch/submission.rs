@@ -98,7 +98,6 @@ pub(super) const fn broker_fetch_options_for_request(
 ) -> RequestOptions {
     let options = RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::LongPoll)
-        .with_route_failure_rejection()
         .with_minimum_version(ApiVersion::new(FETCH_TOPIC_ID_ROUTE_VERSION))
         .with_maximum_version(ApiVersion::new(FETCH_TOPIC_ID_ROUTE_VERSION));
     if request.session_id > 0 {
