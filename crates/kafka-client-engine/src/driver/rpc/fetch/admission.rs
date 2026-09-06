@@ -10,8 +10,7 @@ use crate::{
     },
 };
 
-use super::submission::FetchSubmitError;
-use super::topic_route::FetchTopicRoute;
+use super::{submission::FetchSubmitError, topic_route::FetchTopicRoute};
 
 /// One core-selected Fetch paired with engine catalog, limits, and deadline facts.
 #[must_use = "a prepared partition Fetch must be submitted or terminally settled"]
@@ -105,12 +104,20 @@ impl PartitionFetchRequest {
         self.topic_route = Some(route);
     }
 
+    pub(crate) fn bind_observed_topic_route(&mut self, route: FetchTopicRoute) {
+        self.topic_route = Some(route);
+    }
+
     pub(crate) fn bind_cached_topic_route(
         &mut self,
         topic_id: [u8; 16],
         leader_epoch: Option<i32>,
+        metadata_generation: Option<kafka_client_core::partitioning::TopicMetadataGeneration>,
     ) {
-        self.bind_topic_route(FetchTopicRoute::new(topic_id, leader_epoch));
+        self.topic_route = Some(metadata_generation.map_or_else(
+            || FetchTopicRoute::new(topic_id, leader_epoch),
+            |generation| FetchTopicRoute::observed(topic_id, leader_epoch, generation),
+        ));
     }
 
     #[cfg(test)]

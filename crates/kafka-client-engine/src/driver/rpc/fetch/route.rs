@@ -1,15 +1,23 @@
 //! Exact topic-view ownership resolving one prepared Fetch to its leader broker.
+#![allow(
+    clippy::redundant_closure_for_method_calls,
+    clippy::result_large_err,
+    reason = "route failures retain exact requests and kafka-driver hides its epoch type"
+)]
 
-use kafka_client_core::{AssignedConsumerEffect, FetchFailure};
+use kafka_client_core::{
+    AssignedConsumerEffect, FetchFailure, partitioning::TopicMetadataGeneration,
+};
 use kafka_driver::{
-    BrokerId as DriverBrokerId, Call, CompletionError, SubmitError, TopicName, TopicView,
-    TopicViewError,
+    BrokerId as DriverBrokerId, Call, MetadataGeneration, TopicName, TopicView, TopicViewError,
 };
 
 use super::{
     super::super::DriverOwner, admission::PartitionFetchRequest,
     route_correlation::BrokerRoutedFetch,
 };
+
+type BrokerFetchRouteResult = Result<BrokerRoutedFetch, BrokerFetchRouteFailure>;
 
 /// Nonnegative Kafka broker identity retained by the broker-session owner.
 #[repr(transparent)]
@@ -44,13 +52,41 @@ pub(crate) struct BrokerFetchRouteCall {
 }
 
 impl BrokerFetchRouteCall {
-    #[allow(
-        clippy::result_large_err,
-        reason = "admission returns exact request ownership"
-    )]
+    pub(super) fn from_admitted(
+        request: PartitionFetchRequest,
+        topic: TopicName,
+        call: Call<Result<TopicView, TopicViewError>>,
+    ) -> Self {
+        Self {
+            request: Some(request),
+            topic,
+            call: Some(call),
+        }
+    }
+
     pub(crate) fn submit(
         driver: &DriverOwner,
         request: PartitionFetchRequest,
+    ) -> Result<Self, BrokerFetchRouteFailure> {
+        Self::submit_inner(driver, request, None)
+    }
+
+    pub(crate) fn submit_newer_than(
+        driver: &DriverOwner,
+        request: PartitionFetchRequest,
+        observed: TopicMetadataGeneration,
+    ) -> Result<Self, BrokerFetchRouteFailure> {
+        Self::submit_inner(
+            driver,
+            request,
+            Some(MetadataGeneration::from_raw(observed.get())),
+        )
+    }
+
+    fn submit_inner(
+        driver: &DriverOwner,
+        request: PartitionFetchRequest,
+        newer_than: Option<MetadataGeneration>,
     ) -> Result<Self, BrokerFetchRouteFailure> {
         let topic = match TopicName::new(request.topic().to_owned()) {
             Ok(topic) => topic,
@@ -61,28 +97,31 @@ impl BrokerFetchRouteCall {
                 ));
             }
         };
-        let call = match driver
-            .driver
-            .topic_view(topic.clone(), request.operation_deadline().transport())
-        {
+        let deadline = request.operation_deadline().transport();
+        let call = match newer_than.map_or_else(
+            || driver.driver.topic_view(topic.clone(), deadline),
+            |observed| {
+                driver
+                    .driver
+                    .topic_view_newer_than(topic.clone(), observed, deadline)
+            },
+        ) {
             Ok(call) => call,
-            Err(source) => return Err(admission_failure(request, &source)),
+            Err(source) => {
+                return Err(super::route_correlation::admit_failure(request, &source));
+            }
         };
-        Ok(Self {
-            request: Some(request),
-            topic,
-            call: Some(call),
-        })
+        Ok(Self::from_admitted(request, topic, call))
     }
 
-    pub(crate) fn try_terminal(
-        &mut self,
-    ) -> Option<Result<BrokerRoutedFetch, BrokerFetchRouteFailure>> {
+    pub(crate) fn try_terminal(&mut self) -> Option<BrokerFetchRouteResult> {
         let result = self.call.as_mut()?.try_result()?;
         drop(self.call.take());
         let request = self.request.take()?;
         Some(match result {
-            Err(source) => Err(completion_failure(request, source)),
+            Err(source) => Err(super::route_correlation::completion_failure(
+                request, source,
+            )),
             Ok(Err(source)) => Err(super::route_correlation::topic_view_failure(
                 request, source,
             )),
@@ -115,14 +154,6 @@ impl BrokerFetchRouteCall {
     }
 }
 
-#[allow(
-    clippy::result_large_err,
-    reason = "route failure returns the exact prepared Fetch request for deterministic settlement"
-)]
-#[allow(
-    clippy::redundant_closure_for_method_calls,
-    reason = "kafka-driver exposes the epoch value but does not reexport its concrete type"
-)]
 fn correlate_view(
     request: PartitionFetchRequest,
     topic: &TopicName,
@@ -160,19 +191,20 @@ fn correlate_view(
             FetchFailure::Compatibility,
         ));
     };
-    Ok(super::route_correlation::bind_route(
+    super::route_correlation::bind_route(
         request,
         broker_id,
         topic_id.to_bytes(),
         leader_epoch.map(|epoch| epoch.get()),
-    ))
+        TopicMetadataGeneration::from_raw(view.generation().get()),
+    )
 }
 
 /// Route-resolution failure retaining the exact prepared request.
 #[must_use = "route failure ownership must be settled or recovered"]
 pub(crate) struct BrokerFetchRouteFailure {
-    request: PartitionFetchRequest,
-    kind: BrokerFetchRouteFailureKind,
+    pub(super) request: PartitionFetchRequest,
+    pub(super) kind: BrokerFetchRouteFailureKind,
 }
 
 impl BrokerFetchRouteFailure {
@@ -193,28 +225,4 @@ pub(crate) enum BrokerFetchRouteFailureKind {
     Backpressured,
     Terminal(FetchFailure),
     Completion,
-}
-
-fn admission_failure(
-    request: PartitionFetchRequest,
-    source: &SubmitError,
-) -> BrokerFetchRouteFailure {
-    if matches!(source, SubmitError::Full) {
-        BrokerFetchRouteFailure {
-            request,
-            kind: BrokerFetchRouteFailureKind::Backpressured,
-        }
-    } else {
-        BrokerFetchRouteFailure::terminal(request, FetchFailure::DriverRejected)
-    }
-}
-
-fn completion_failure(
-    request: PartitionFetchRequest,
-    _source: CompletionError,
-) -> BrokerFetchRouteFailure {
-    BrokerFetchRouteFailure {
-        request,
-        kind: BrokerFetchRouteFailureKind::Completion,
-    }
 }

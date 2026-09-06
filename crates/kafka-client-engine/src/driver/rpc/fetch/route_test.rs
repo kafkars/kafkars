@@ -56,18 +56,7 @@ fn topic_view_binds_exact_uuid_leader_epoch_and_broker_before_fetch_admission() 
     let mut call = BrokerFetchRouteCall::submit(&owner, request("events"))
         .unwrap_or_else(|_failure| panic!("topic-view admission"));
     broker.install_topic(&mut owner);
-    let routed = (0..32)
-        .find_map(|_| {
-            call.try_terminal().or_else(|| {
-                drive(
-                    &mut owner,
-                    Duration::from_millis(100),
-                    "settle Fetch TopicView",
-                );
-                call.try_terminal()
-            })
-        })
-        .unwrap_or_else(|| panic!("Fetch TopicView did not settle"))
+    let routed = settle_route(&mut call, &mut owner)
         .unwrap_or_else(|failure| panic!("Fetch route: {:?}", failure.into_parts().1));
     let (request, broker_id) = routed.into_parts();
 
@@ -80,9 +69,28 @@ fn topic_view_binds_exact_uuid_leader_epoch_and_broker_before_fetch_admission() 
         .unwrap_or_else(|| panic!("topic route"));
     assert_eq!(route.topic_id(), [7; 16]);
     assert_eq!(route.leader_epoch(), Some(9));
+    assert!(route.metadata_generation().is_some());
     owner
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("driver shutdown: {error}"));
+}
+
+#[allow(
+    clippy::result_large_err,
+    reason = "the test helper must inspect exact routed and rejected request owners"
+)]
+fn settle_route(
+    call: &mut BrokerFetchRouteCall,
+    owner: &mut DriverOwner,
+) -> Result<super::route_correlation::BrokerRoutedFetch, super::route::BrokerFetchRouteFailure> {
+    (0..32)
+        .find_map(|_| {
+            call.try_terminal().or_else(|| {
+                drive(owner, Duration::from_millis(100), "settle Fetch TopicView");
+                call.try_terminal()
+            })
+        })
+        .unwrap_or_else(|| panic!("Fetch TopicView did not settle"))
 }
 
 fn request(topic: &str) -> PartitionFetchRequest {

@@ -1,10 +1,13 @@
-//! Broker-issued topic identity and partition-leader generation for Fetch v16.
+//! Broker-issued topic identity, metadata generation, and partition leader for Fetch v16.
+
+use kafka_client_core::partitioning::TopicMetadataGeneration;
 
 /// Immutable topic metadata retained by one prepared broker-routed Fetch.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct FetchTopicRoute {
     topic_id: [u8; 16],
     leader_epoch: Option<i32>,
+    metadata_generation: Option<TopicMetadataGeneration>,
 }
 
 impl FetchTopicRoute {
@@ -12,6 +15,19 @@ impl FetchTopicRoute {
         Self {
             topic_id,
             leader_epoch,
+            metadata_generation: None,
+        }
+    }
+
+    pub(crate) const fn observed(
+        topic_id: [u8; 16],
+        leader_epoch: Option<i32>,
+        metadata_generation: TopicMetadataGeneration,
+    ) -> Self {
+        Self {
+            topic_id,
+            leader_epoch,
+            metadata_generation: Some(metadata_generation),
         }
     }
 
@@ -23,17 +39,21 @@ impl FetchTopicRoute {
         self.leader_epoch
     }
 
+    pub(crate) const fn metadata_generation(self) -> Option<TopicMetadataGeneration> {
+        self.metadata_generation
+    }
+
     pub(crate) const fn with_leader_epoch(self, leader_epoch: i32) -> Self {
         Self {
-            topic_id: self.topic_id,
             leader_epoch: Some(leader_epoch),
+            ..self
         }
     }
 
     pub(crate) const fn without_leader_epoch(self) -> Self {
         Self {
-            topic_id: self.topic_id,
             leader_epoch: None,
+            ..self
         }
     }
 }

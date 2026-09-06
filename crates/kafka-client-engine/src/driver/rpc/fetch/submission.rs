@@ -110,6 +110,7 @@ pub(super) const fn broker_fetch_options_for_request(
 pub(super) const fn fetch_options(deadline: Instant) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::LongPoll)
+        .with_route_failure_rejection()
         .with_maximum_version(ApiVersion::new(FETCH_NAME_ROUTE_MAX_VERSION))
 }
 

@@ -2,7 +2,7 @@
 members = ["crates/kafka-client-engine"]
 
 [workspace.dependencies]
-kafka-driver = { git = "https://example.invalid/kafka-driver", version = "=0.1.0-rc.5" }
+kafka-driver = { git = "https://example.invalid/kafka-driver", version = "=0.1.0-rc.6" }
 kafka-wire = "=0.1.0-rc.3"
 kafka-wire-core = "=0.1.0-rc.3"
 kafka-wire-records = "=0.1.0-rc.3"

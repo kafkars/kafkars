@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::PositionFence;
+use kafka_client_core::{PositionFence, partitioning::TopicMetadataGeneration};
 
 use crate::{
     driver::BrokerId,
@@ -18,6 +18,7 @@ pub(super) struct BrokerSessionMember {
     topic: Arc<str>,
     topic_id: [u8; 16],
     leader_epoch: Option<i32>,
+    metadata_generation: Option<TopicMetadataGeneration>,
 }
 
 impl BrokerSessionMember {
@@ -27,6 +28,7 @@ impl BrokerSessionMember {
             topic,
             topic_id,
             leader_epoch: None,
+            metadata_generation: None,
         }
     }
 
@@ -35,12 +37,14 @@ impl BrokerSessionMember {
         topic: Arc<str>,
         topic_id: [u8; 16],
         leader_epoch: Option<i32>,
+        metadata_generation: Option<TopicMetadataGeneration>,
     ) -> Self {
         Self {
             position,
             topic,
             topic_id,
             leader_epoch,
+            metadata_generation,
         }
     }
 
@@ -62,6 +66,10 @@ impl BrokerSessionMember {
 
     pub(super) const fn leader_epoch(&self) -> Option<i32> {
         self.leader_epoch
+    }
+
+    pub(super) const fn metadata_generation(&self) -> Option<TopicMetadataGeneration> {
+        self.metadata_generation
     }
 }
 

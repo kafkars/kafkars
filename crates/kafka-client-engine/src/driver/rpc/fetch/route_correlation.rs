@@ -1,13 +1,13 @@
-//! Exact immutable route facts bound to one prepared broker-routed Fetch.
+//! Exact route facts and failure normalization for one prepared broker-routed Fetch.
 
 use core::num::NonZeroI16;
 
-use kafka_client_core::FetchFailure;
-use kafka_driver::{BrokerId as DriverBrokerId, TopicViewError};
+use kafka_client_core::{FetchFailure, partitioning::TopicMetadataGeneration};
+use kafka_driver::{BrokerId as DriverBrokerId, CompletionError, SubmitError, TopicViewError};
 
 use super::{
     admission::PartitionFetchRequest,
-    route::{BrokerFetchRouteFailure, BrokerId},
+    route::{BrokerFetchRouteFailure, BrokerFetchRouteFailureKind, BrokerId},
     topic_route::FetchTopicRoute,
 };
 
@@ -24,16 +24,44 @@ impl BrokerRoutedFetch {
     }
 }
 
+#[allow(
+    clippy::result_large_err,
+    reason = "route rejection returns the exact linear prepared Fetch owner"
+)]
 pub(super) fn bind_route(
     mut request: PartitionFetchRequest,
-    broker_id: DriverBrokerId,
+    driver_broker_id: DriverBrokerId,
     topic_id: [u8; 16],
     leader_epoch: Option<i32>,
-) -> BrokerRoutedFetch {
-    request.bind_topic_route(FetchTopicRoute::new(topic_id, leader_epoch));
-    BrokerRoutedFetch {
+    metadata_generation: TopicMetadataGeneration,
+) -> Result<BrokerRoutedFetch, BrokerFetchRouteFailure> {
+    let broker_id = BrokerId::from_driver(driver_broker_id);
+    let route = FetchTopicRoute::observed(topic_id, leader_epoch, metadata_generation);
+    request.bind_observed_topic_route(route);
+    Ok(BrokerRoutedFetch { request, broker_id })
+}
+
+pub(super) fn admit_failure(
+    request: PartitionFetchRequest,
+    source: &SubmitError,
+) -> BrokerFetchRouteFailure {
+    if matches!(source, SubmitError::Full) {
+        BrokerFetchRouteFailure {
+            request,
+            kind: BrokerFetchRouteFailureKind::Backpressured,
+        }
+    } else {
+        BrokerFetchRouteFailure::terminal(request, FetchFailure::DriverRejected)
+    }
+}
+
+pub(super) fn completion_failure(
+    request: PartitionFetchRequest,
+    _source: CompletionError,
+) -> BrokerFetchRouteFailure {
+    BrokerFetchRouteFailure {
         request,
-        broker_id: BrokerId::from_driver(broker_id),
+        kind: BrokerFetchRouteFailureKind::Completion,
     }
 }
 

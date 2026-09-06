@@ -5,14 +5,13 @@ use kafka_client_core::{
     AssignedConsumerTransition, FetchFailure, Moment,
 };
 
-use crate::driver::{BrokerId, DriverOwner, FetchRouteRefresh};
+use crate::driver::{BrokerId, BrokerRouteFailureToken, DriverOwner, FetchRouteRefresh};
 
 use super::{
     super::assigned_event::AssignedConsumerEventStore,
     executor::DirectFetchExecutor,
     fault::{FetchExecutionError, RetainedFetchFault},
     prepared::PreparedFetchExecution,
-    route_refresh::WaitingLeaderRoute,
     terminal::{FetchTerminalAction, TerminalStorage},
     terminal_proposal::{FetchTerminalProposal, LeaderMovementFetchProposal},
 };
@@ -31,73 +30,6 @@ impl DirectFetchExecutor {
                 self.apply_leader_movement_retry(driver, machine, events, proposal, now)
             }
             Err(proposal) => self.apply_terminal_proposal(machine, proposal),
-        }
-    }
-
-    pub(super) fn drive_waiting_leader_route(
-        &mut self,
-        driver: &DriverOwner,
-        machine: &mut AssignedConsumerMachine,
-        waiting: WaitingLeaderRoute,
-        now: Moment,
-    ) -> Result<(Option<AssignedConsumerTransition>, bool), FetchExecutionError> {
-        match waiting {
-            WaitingLeaderRoute::Failed {
-                prepared,
-                hinted_broker: Some(broker_id),
-            } => {
-                if self.routed.len() >= self.route_capacity {
-                    self.leader_recovery
-                        .restore_waiting(WaitingLeaderRoute::Failed {
-                            prepared,
-                            hinted_broker: Some(broker_id),
-                        });
-                    return Ok((None, false));
-                }
-                self.restore_routed(broker_id, prepared);
-                Ok((None, true))
-            }
-            WaitingLeaderRoute::Failed {
-                prepared,
-                hinted_broker: None,
-            } => {
-                let super::FetchSubmission::Settled(transition) =
-                    self.settle_unadmitted(machine, prepared, FetchFailure::Transport)?
-                else {
-                    unreachable!("failed refresh settles its retained Fetch")
-                };
-                Ok((transition, true))
-            }
-            WaitingLeaderRoute::Ready {
-                prepared,
-                hinted_broker,
-            } => {
-                if let Some(broker_id) = hinted_broker {
-                    if self.routed.len() >= self.route_capacity {
-                        self.leader_recovery
-                            .restore_waiting(WaitingLeaderRoute::Ready {
-                                prepared,
-                                hinted_broker: Some(broker_id),
-                            });
-                        return Ok((None, false));
-                    }
-                    self.restore_routed(broker_id, prepared);
-                    return Ok((None, true));
-                }
-                match self.submit_broker_route(driver, machine, prepared, now)? {
-                    super::FetchSubmission::Accepted => Ok((None, true)),
-                    super::FetchSubmission::Settled(transition) => Ok((transition, true)),
-                    super::FetchSubmission::Backpressured(prepared)
-                    | super::FetchSubmission::Unavailable(prepared) => {
-                        self.leader_recovery
-                            .restore_waiting(WaitingLeaderRoute::Ready {
-                                prepared,
-                                hinted_broker: None,
-                            });
-                        Ok((None, false))
-                    }
-                }
-            }
         }
     }
 
@@ -120,17 +52,18 @@ impl DirectFetchExecutor {
         if !self.leader_recovery.can_retain_attempt() {
             return self.apply_terminal_proposal(machine, proposal.into_proposal());
         }
+        let transport_failure = proposal.is_transport();
         let (mut fact, leader) = proposal.into_parts();
         let fence = fact.request.fence();
-        let retry_broker = hinted_broker.or_else(|| {
-            if clear_leader_epoch {
-                self.active_broker_sessions
-                    .iter()
-                    .find(|active| active.fences.contains(&fence))
-                    .map(|active| active.plan.broker_id())
-            } else {
-                None
-            }
+        let active_broker = self
+            .active_broker_sessions
+            .iter()
+            .find(|active| active.fences.contains(&fence))
+            .map(|active| active.plan.broker_id());
+        let retry_broker = hinted_broker.or(if clear_leader_epoch {
+            active_broker
+        } else {
+            None
         });
         let route_available = retry_broker.is_some() && self.routed.len() < self.route_capacity;
         if fact.request.operation_deadline().core().is_elapsed_at(now) {
@@ -203,7 +136,11 @@ impl DirectFetchExecutor {
                 return Err(FetchExecutionError::Confirm(error));
             }
         };
-        let refresh = FetchRouteRefresh::from_token(route_token);
+        let (refresh, failure_token) = if transport_failure {
+            (None, BrokerRouteFailureToken::from_driver(route_token))
+        } else {
+            (FetchRouteRefresh::from_token(route_token), None)
+        };
         match self.complete_broker_session(fence, crate::protocol::fetch::FetchSessionUpdate::Reset)
         {
             Ok(true) => {}
@@ -229,6 +166,7 @@ impl DirectFetchExecutor {
             refresh,
             Some(prepared),
             retry_broker.filter(|_| route_available),
+            failure_token,
         );
         Ok(None)
     }

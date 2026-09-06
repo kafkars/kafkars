@@ -21,12 +21,13 @@ use super::{
 };
 
 #[test]
-fn options_preserve_original_deadline_long_poll_lane_and_name_ceiling() {
+fn options_preserve_deadline_lane_name_ceiling_and_reject_failed_routes() {
     let deadline = Instant::now() + Duration::from_secs(7);
     let options = fetch_options(deadline);
 
     assert_eq!(options.deadline(), deadline);
     assert_eq!(options.traffic_class(), TrafficClass::LongPoll);
+    assert!(options.rejects_after_route_failure());
     assert_eq!(
         options.maximum_version(),
         Some(ApiVersion::new(FETCH_NAME_ROUTE_MAX_VERSION))
@@ -34,7 +35,7 @@ fn options_preserve_original_deadline_long_poll_lane_and_name_ceiling() {
 }
 
 #[test]
-fn broker_fetch_requires_the_topic_id_and_leader_hint_version() {
+fn broker_fetch_requires_topic_id_routing_without_partition_route_rejection() {
     let deadline = Instant::now() + Duration::from_secs(7);
     let options = broker_fetch_options_for_request(deadline, &FetchRequest::default());
 
@@ -47,6 +48,7 @@ fn broker_fetch_requires_the_topic_id_and_leader_hint_version() {
         Some(ApiVersion::new(FETCH_TOPIC_ID_ROUTE_VERSION))
     );
     assert_eq!(options.traffic_class(), TrafficClass::LongPoll);
+    assert!(!options.rejects_after_route_failure());
 }
 
 #[test]

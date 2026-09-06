@@ -1,5 +1,4 @@
 //! Unique ownership of the embedded `kafka-driver` reactor and its controls.
-
 mod delivery;
 #[cfg(test)]
 mod delivery_test;
@@ -26,9 +25,10 @@ pub(crate) use rpc::exports::{
     AdminListOffsetsCall, AdminListOffsetsDriverFailureKind, AdminListOffsetsTerminal,
     AdminListOffsetsTerminalFact, AlterPartitionReassignmentsCall,
     AlterPartitionReassignmentsDriverFailureKind, AlterPartitionReassignmentsTerminal,
-    AlterPartitionReassignmentsTerminalFact, BrokerFetchCallAdmission, BrokerFetchCloseCall,
-    BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId, ClassicGroupLeaveCall,
-    ClassicGroupLeaveCompletionError, ClassicGroupLeaveDriverFailureKind,
+    AlterPartitionReassignmentsTerminalFact, BrokerFetchCallAdmission,
+    BrokerFetchCausalRouteFailure, BrokerFetchCausalRouteFailureKind, BrokerFetchCloseCall,
+    BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId, BrokerRouteFailureToken,
+    ClassicGroupLeaveCall, ClassicGroupLeaveCompletionError, ClassicGroupLeaveDriverFailureKind,
     ClassicGroupLeaveResolution, ClassicGroupLeaveRoute, ClassicGroupPositionResetCall,
     ClassicGroupPositionResetCompletionError, ClassicGroupPositionResetOutcome,
     ClassicGroupPositionResetRoute, ConsumerGroupHeartbeatRoute, CreatePartitionsCompletionFailure,

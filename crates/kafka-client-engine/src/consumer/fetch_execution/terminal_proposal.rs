@@ -101,6 +101,18 @@ impl FetchTerminalProposal {
 }
 
 impl LeaderMovementFetchProposal {
+    pub(super) fn is_transport(&self) -> bool {
+        matches!(
+            &self.proposal.fact.action,
+            super::terminal::FetchTerminalAction::Apply(
+                kafka_client_core::AssignedConsumerInput::FetchFailed {
+                    failure: kafka_client_core::FetchFailure::Transport,
+                    ..
+                }
+            )
+        )
+    }
+
     pub(super) const fn leader(&self) -> Option<FetchLeader> {
         self.leader
     }

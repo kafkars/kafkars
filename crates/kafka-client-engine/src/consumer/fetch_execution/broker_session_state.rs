@@ -1,6 +1,8 @@
 //! Infallible broker Fetch-session membership commits after reserved admission.
 
-use kafka_client_core::{AssignedConsumerEffect, PositionFence};
+use kafka_client_core::{
+    AssignedConsumerEffect, PositionFence, partitioning::TopicMetadataGeneration,
+};
 
 use crate::{driver::BrokerId, protocol::fetch::FetchSessionRequest};
 
@@ -42,10 +44,19 @@ impl BrokerFetchSessions {
         self.entries.first().map(|entry| entry.broker_id)
     }
 
+    #[allow(
+        clippy::type_complexity,
+        reason = "the retained route tuple is immediately destructured by its sole production caller"
+    )]
     pub(super) fn route_for_position(
         &self,
         position: PositionFence,
-    ) -> Option<(BrokerId, [u8; 16], Option<i32>)> {
+    ) -> Option<(
+        BrokerId,
+        [u8; 16],
+        Option<i32>,
+        Option<TopicMetadataGeneration>,
+    )> {
         self.members
             .iter()
             .find(|retained| !retained.forgotten && retained.member.position() == position)
@@ -54,8 +65,26 @@ impl BrokerFetchSessions {
                     retained.broker_id,
                     retained.member.topic_id(),
                     retained.member.leader_epoch(),
+                    retained.member.metadata_generation(),
                 )
             })
+    }
+
+    pub(super) fn newer_route_generation(
+        &self,
+        position: PositionFence,
+        topic: &str,
+    ) -> Option<TopicMetadataGeneration> {
+        self.members
+            .iter()
+            .filter(|retained| retained.forgotten)
+            .filter(|retained| retained.member.topic() == topic)
+            .filter(|retained| retained.member.position().partition() == position.partition())
+            .filter(|retained| {
+                retained.member.position().assignment_epoch() != position.assignment_epoch()
+            })
+            .filter_map(|retained| retained.member.metadata_generation())
+            .max()
     }
 
     pub(super) fn has_forgotten_ready(&self) -> bool {

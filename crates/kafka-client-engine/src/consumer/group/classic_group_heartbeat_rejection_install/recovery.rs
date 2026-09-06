@@ -31,7 +31,7 @@ pub(super) fn install_recovery(
     now: Moment,
     coordinator: ClassicCoordinatorRecovery,
 ) -> Result<(), ClassicRejectionPostCore> {
-    if !waiting_state_matches(entry, schedule) {
+    let Some(revocation_deadline) = recovery_revocation_deadline(entry, schedule, now) else {
         return Err(post_recovery(
             assignment,
             generation,
@@ -39,7 +39,7 @@ pub(super) fn install_recovery(
             coordinator,
             MachineState,
         ));
-    }
+    };
     let (prepared_rediscovery, prepared_rejoin) = match prepare_recovery_install(
         &mut entry.rediscovery,
         &mut entry.rejoin,
@@ -110,7 +110,7 @@ pub(super) fn install_recovery(
         &mut entry.revocation,
         assignment,
         generation,
-        schedule.due(),
+        revocation_deadline,
         now,
     ) {
         drop(prepared_rejoin);
@@ -183,6 +183,20 @@ fn waiting_state_matches(entry: &GroupConsumerEntry, schedule: ClassicRejoinSche
         && !entry.rediscovery.blocks_join()
 }
 
+fn recovery_revocation_deadline(
+    entry: &GroupConsumerEntry,
+    schedule: ClassicRejoinSchedule,
+    now: Moment,
+) -> Option<kafka_client_core::Deadline> {
+    if !waiting_state_matches(entry, schedule) {
+        return None;
+    }
+    let ticks = u64::try_from(entry.classic.machine().timing().rebalance_timeout_ms())
+        .ok()?
+        .checked_mul(TICKS_PER_MILLISECOND)?;
+    now.checked_deadline_after(ticks)
+}
+
 fn post_recovery(
     assignment: LiveGroupAssignment,
     generation: ClassicGeneration,
@@ -205,3 +219,5 @@ use ClassicRejectionInstallFailure::{
     Assignment, FetchRetirement, GracefulRevocation, MachineState, ProcessingLease,
     ProcessingLeaseCycleUnavailable, RediscoveryState, RejoinState,
 };
+
+const TICKS_PER_MILLISECOND: u64 = 1_000_000;

@@ -44,8 +44,9 @@ pub(crate) use super::describe_topics_calls::{
 #[cfg(test)]
 pub(crate) use super::fetch::routed_response_broker_test::RoutedBroker;
 pub(crate) use super::fetch::{
-    BrokerFetchCallAdmission, BrokerFetchCloseCall, BrokerFetchRouteCall,
-    BrokerFetchRouteFailureKind, BrokerId, FetchBeginSettlementError, FetchCallAdmission,
+    BrokerFetchCallAdmission, BrokerFetchCausalRouteFailure, BrokerFetchCausalRouteFailureKind,
+    BrokerFetchCloseCall, BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId,
+    BrokerRouteFailureToken, FetchBeginSettlementError, FetchCallAdmission,
     FetchCompletionObservation, FetchConfirmationError, FetchControlPending, FetchPoll,
     FetchRecovery, FetchRouteRefresh, FetchRouteRefreshPoll, FetchTerminal,
     ForgottenFetchCompletionFailure, ForgottenFetchConfirmation, ForgottenFetchRequest,
