@@ -40,30 +40,12 @@ fn requested_close_without_retained_sessions_clears_and_leaves_local_close_runna
 
 #[test]
 fn initial_session_is_removed_locally_and_reports_progress() {
-    let (effect, _machine) = assignment();
-    let broker = BrokerId::new(3).unwrap_or_else(|error| panic!("broker ID: {error}"));
-    let member =
-        BrokerSessionMember::new(fetch_fence(effect).position(), Arc::from("events"), [7; 16]);
     let mut executor = DirectFetchExecutor::create_unbound(1, 1, 1_024);
     executor
         .try_enable_sessions(1)
         .unwrap_or_else(|()| panic!("reserve broker-session capacity"));
     configure_broker_sessions(&mut executor);
-    let initial = executor
-        .broker_sessions
-        .as_mut()
-        .unwrap_or_else(|| panic!("broker sessions"))
-        .try_begin(broker, vec![member])
-        .unwrap_or_else(|(error, _active)| panic!("initial plan: {error:?}"));
-    executor
-        .broker_sessions
-        .as_mut()
-        .unwrap_or_else(|| panic!("broker sessions"))
-        .complete(
-            initial,
-            FetchSessionUpdate::Continue(FetchSessionRequest::INITIAL),
-        )
-        .unwrap_or_else(|error| panic!("complete initial session: {error:?}"));
+    executor.install_retained_initial_session_for_test();
     executor.request_broker_session_close();
 
     let mut driver = owner();
@@ -76,4 +58,27 @@ fn initial_session_is_removed_locally_and_reports_progress() {
     assert_eq!(executor.broker_session_close_deadline(), None);
     assert_eq!(executor.retained_broker_sessions(), 0);
     shutdown(&mut driver);
+}
+
+impl DirectFetchExecutor {
+    pub(in crate::consumer) fn install_retained_initial_session_for_test(&mut self) {
+        let (effect, _machine) = assignment();
+        let broker = BrokerId::new(3).unwrap_or_else(|error| panic!("broker ID: {error}"));
+        let member =
+            BrokerSessionMember::new(fetch_fence(effect).position(), Arc::from("events"), [7; 16]);
+        let initial = self
+            .broker_sessions
+            .as_mut()
+            .unwrap_or_else(|| panic!("broker sessions"))
+            .try_begin(broker, vec![member])
+            .unwrap_or_else(|(error, _active)| panic!("initial plan: {error:?}"));
+        self.broker_sessions
+            .as_mut()
+            .unwrap_or_else(|| panic!("broker sessions"))
+            .complete(
+                initial,
+                FetchSessionUpdate::Continue(FetchSessionRequest::INITIAL),
+            )
+            .unwrap_or_else(|error| panic!("complete initial session: {error:?}"));
+    }
 }

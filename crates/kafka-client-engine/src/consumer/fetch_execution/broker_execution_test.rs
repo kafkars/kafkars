@@ -153,6 +153,87 @@ fn older_routed_fetch_deadline_is_not_hidden_by_later_broker_work() {
     shutdown(&mut driver);
 }
 
+#[test]
+fn waiting_recovery_does_not_starve_the_routed_fetch_that_releases_capacity() {
+    let (effects, mut machine) = assignment();
+    let mut executor = DirectFetchExecutor::create_unbound(2, 2, 8_192);
+    executor
+        .try_enable_sessions(1)
+        .unwrap_or_else(|()| panic!("one route slot"));
+    let broker = BrokerId::from_raw(1).unwrap_or_else(|error| panic!("broker: {error:?}"));
+    executor.restore_routed(broker, prepared(effects[0], 100, 4_096));
+    executor
+        .retain_topic_route_retry(prepared(effects[1], 200, 4_096))
+        .unwrap_or_else(|_| panic!("retain recovery waiting for the route slot"));
+    let mut driver = owner();
+    let clock = crate::clock::MonotonicClock::new();
+
+    let (transition, progressed) = executor
+        .drive_broker_fetches(&driver, &mut machine, &clock, Moment::from_tick(100))
+        .unwrap_or_else(|error| panic!("drain routed work ahead of recovery: {error:?}"));
+    assert!(
+        progressed,
+        "a blocked retry must not hide the runnable route"
+    );
+    assert_eq!(
+        transition
+            .unwrap_or_else(|| panic!("original routed deadline must settle"))
+            .effects(),
+        &[AssignedConsumerEffect::FetchFailed {
+            fence: fetch_fence(effects[0]),
+            failure: FetchFailure::DeadlineElapsed,
+        }]
+    );
+    assert!(executor.routed.is_empty());
+    assert_eq!(executor.leader_recovery.retained(), 1);
+    let (_, progressed) = executor
+        .drive_broker_fetches(&driver, &mut machine, &clock, Moment::from_tick(101))
+        .unwrap_or_else(|error| panic!("admit retained recovery: {error:?}"));
+    assert!(progressed);
+    assert_eq!(executor.route_calls.len(), 1);
+    assert_eq!(executor.leader_recovery.retained(), 0);
+    shutdown(&mut driver);
+}
+
+#[test]
+fn waiting_recovery_does_not_hide_an_admitted_metadata_terminal() {
+    let (effects, mut machine) = assignment();
+    let mut executor = DirectFetchExecutor::create_unbound(2, 2, 8_192);
+    executor
+        .try_enable_sessions(2)
+        .unwrap_or_else(|()| panic!("route capacity"));
+    let mut driver = owner();
+    assert!(matches!(
+        executor
+            .submit(
+                &driver,
+                &mut machine,
+                prepared(effects[0], 100, 4_096),
+                Moment::from_tick(0),
+            )
+            .unwrap_or_else(|error| panic!("admit metadata lookup: {error:?}")),
+        FetchSubmission::Accepted
+    ));
+    executor
+        .retain_topic_route_retry(prepared(effects[1], 200, 4_096))
+        .unwrap_or_else(|_| panic!("retain later recovery"));
+    shutdown(&mut driver);
+
+    let (_, progressed) = executor
+        .drive_broker_fetches(
+            &driver,
+            &mut machine,
+            &crate::clock::MonotonicClock::new(),
+            Moment::from_tick(1),
+        )
+        .unwrap_or_else(|error| panic!("drain terminal metadata lookup: {error:?}"));
+    assert!(
+        progressed,
+        "the existing metadata completion must be polled"
+    );
+    assert!(executor.route_calls.is_empty());
+}
+
 fn assignment() -> (Vec<AssignedConsumerEffect>, AssignedConsumerMachine) {
     let mut machine = AssignedConsumerMachine::new();
     let transition = machine

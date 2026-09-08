@@ -60,6 +60,7 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 
 [budgets]
 baseline = [
+  { path = "crates/kafka-client-engine/src/engine_host/mod.rs", lines = 82, reason = "the declarative host facade includes a separate regression module for identity-call shutdown ownership" },
   { path = "crates/kafkars/src/admin/handle.rs", lines = 365, reason = "the shared Admin handle retains the stable common builder surface after group and specialist methods moved into focused child seams" },
   { path = "crates/kafkars/src/admin/mod.rs", lines = 156, reason = "the declarative Admin facade explicitly names the complete Rust source-preview module and sibling-test surface" },
   { path = "crates/kafkars/src/admin/public_api.rs", lines = 255, reason = "the curated generated-free Admin reexport table keeps the complete Rust source-preview vocabulary explicit without globbing protocol or engine internals" },
@@ -139,7 +140,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs", lines = 247, reason = "route-less retry delegates to the existing consumer fencing owner while token-backed invalidation remains terminal-gated; this reduced exact baseline ratchets further growth" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_due.rs", lines = 248, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_install.rs", lines = 313, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/group/registry_close.rs", lines = 319, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/consumer/group/registry_close.rs", lines = 293, reason = "close admission and removal retain their mutation owner while the complete drain predicate lives in a focused child" },
   { path = "crates/kafka-client-engine/src/consumer/group/registry_delivery.rs", lines = 266, reason = "fresh-time processing progress and exact delivery transfer or reclaim remain one registry boundary" },
   { path = "crates/kafka-client-engine/src/consumer/group/registry_delivery_test.rs", lines = 367, reason = "group selection, contention, close, renewal, expiration, and reclaim scenarios exercise one delivery boundary" },
   { path = "crates/kafka-client-engine/src/consumer/group/registry_entry.rs", lines = 272, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -5929,7 +5930,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "submit_tracked_list_offsets"
 allowed_paths = [
-  "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter/call.rs",
   "crates/kafka-client-engine/src/driver/rpc/list_offsets_admission.rs",
 ]
 
@@ -6293,6 +6294,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs",
   "crates/kafka-client-engine/src/engine_host/cleanup.rs",
+  "crates/kafka-client-engine/src/engine_host/produce_turn.rs",
   "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
   "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
   "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
@@ -13453,15 +13455,19 @@ path = "crates/kafka-client-engine/src/consumer/group_registration.rs"
 
 [[linear_owners]]
 owner_type = "ClassicGroupPositionResetCall"
-path = "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter.rs"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter/call.rs"
+
+[[linear_owners]]
+owner_type = "ResetCallState"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter/call.rs"
 
 [[linear_owners]]
 owner_type = "ClassicGroupPositionResetOutcome"
-path = "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter.rs"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter/call.rs"
 
 [[linear_owners]]
 owner_type = "ClassicGroupPositionResetRoute"
-path = "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter.rs"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter/call.rs"
 
 [[mutation_owners]]
 owner_type = "GroupConsumerBatch"
@@ -13557,7 +13563,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter.rs"
+root = "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter/call.rs"
 forbidden = [
   "crate::admin",
   "crate::producer",
@@ -15008,6 +15014,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry_acknowledge.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_delivery.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_close/state.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_processing.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_unregister/owner.rs",
   "crates/kafka-client-engine/src/consumer/group/consumer_group_assignment_install.rs",
@@ -15022,6 +15029,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection_install.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection_install/recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_close/state.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_graceful_revocation.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_sync_install.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_graceful_revocation/consumer_group.rs",

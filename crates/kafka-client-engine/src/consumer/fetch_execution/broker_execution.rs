@@ -128,7 +128,12 @@ impl DirectFetchExecutor {
             return Ok((None, true));
         }
         if let Some(waiting) = self.leader_recovery.take_waiting() {
-            return self.drive_waiting_leader_route(driver, machine, waiting, now);
+            let outcome = self.drive_waiting_leader_route(driver, machine, waiting, now)?;
+            if outcome.0.is_some() || outcome.1 {
+                return Ok(outcome);
+            }
+            // A retained retry can need capacity owned by a route below. Keep
+            // draining that work when retry admission itself cannot progress.
         }
         let routed_before = self.routed.len();
         let route_calls_before = self.route_calls.len();

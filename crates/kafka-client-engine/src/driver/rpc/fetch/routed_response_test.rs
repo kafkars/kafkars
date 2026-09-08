@@ -119,7 +119,7 @@ fn routed_fetch() -> RoutedFetch {
         calls.try_submit_fetch(&driver, request(effect), Moment::from_tick(0),),
         FetchCallAdmission::Accepted
     ));
-    broker.install_topic(&mut driver);
+    broker.install_topic(&mut driver, 1);
     assert_eq!(broker.complete_fetch(&mut driver).value(), 12);
     wait_for_terminal(&mut driver, &mut calls, fence);
     RoutedFetch {

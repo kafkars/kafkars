@@ -13,10 +13,13 @@ const TOPIC_VIEW_ADAPTER: &str =
 const PRODUCER_TOPIC_VIEW_ADAPTER: &str =
     "crates/kafka-client-engine/src/driver/rpc/topic_view/producer.rs";
 const FETCH_TOPIC_VIEW_ADAPTER: &str = "crates/kafka-client-engine/src/driver/rpc/fetch/route.rs";
+const RESET_TOPIC_VIEW_ADAPTER: &str =
+    "crates/kafka-client-engine/src/driver/rpc/classic_group_position_reset_adapter/call.rs";
 const TOPIC_VIEW_ADAPTERS: &[&str] = &[
     TOPIC_VIEW_ADAPTER,
     PRODUCER_TOPIC_VIEW_ADAPTER,
     FETCH_TOPIC_VIEW_ADAPTER,
+    RESET_TOPIC_VIEW_ADAPTER,
 ];
 const TOPIC_VIEW_CAPABILITY: &str = "kafka_driver::TopicView";
 const CALL_OWNER: &str = "TopicPartitionCountCall";

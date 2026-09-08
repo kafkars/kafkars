@@ -55,7 +55,7 @@ fn topic_view_binds_exact_uuid_leader_epoch_and_broker_before_fetch_admission() 
     broker.install_cluster(&mut owner);
     let mut call = BrokerFetchRouteCall::submit(&owner, request("events"))
         .unwrap_or_else(|_failure| panic!("topic-view admission"));
-    broker.install_topic(&mut owner);
+    broker.install_topic(&mut owner, 1);
     let routed = settle_route(&mut call, &mut owner)
         .unwrap_or_else(|failure| panic!("Fetch route: {:?}", failure.into_parts().1));
     let (request, broker_id) = routed.into_parts();
@@ -70,6 +70,56 @@ fn topic_view_binds_exact_uuid_leader_epoch_and_broker_before_fetch_admission() 
     assert_eq!(route.topic_id(), [7; 16]);
     assert_eq!(route.leader_epoch(), Some(9));
     assert!(route.metadata_generation().is_some());
+    owner
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("driver shutdown: {error}"));
+}
+
+#[test]
+fn leaderless_view_retains_generation_for_a_fresh_route_under_the_original_deadline() {
+    let mut broker = RoutedBroker::new();
+    let mut owner = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
+        .unwrap_or_else(|error| panic!("build routed Fetch driver: {error}"));
+    RoutedBroker::await_seed(&mut owner);
+    broker.install_cluster(&mut owner);
+    let request = request("events");
+    let fence = request.fence();
+    let deadline = request.operation_deadline();
+    let mut call = BrokerFetchRouteCall::submit(&owner, request)
+        .unwrap_or_else(|_failure| panic!("topic-view admission"));
+    broker.install_topic(&mut owner, -1);
+    let failure = settle_route(&mut call, &mut owner)
+        .err()
+        .unwrap_or_else(|| panic!("leaderless metadata cannot route a Fetch"));
+    let (request, kind) = failure.into_parts();
+    assert_eq!(
+        kind,
+        BrokerFetchRouteFailureKind::Terminal(kafka_client_core::FetchFailure::Transport)
+    );
+    assert_eq!(request.fence(), fence);
+    assert_eq!(request.operation_deadline(), deadline);
+    let observed = request
+        .topic_route()
+        .and_then(super::topic_route::FetchTopicRoute::metadata_generation)
+        .unwrap_or_else(|| panic!("retry must retain the leaderless metadata generation"));
+
+    let mut retry = BrokerFetchRouteCall::submit_newer_than(&owner, request, observed)
+        .unwrap_or_else(|_failure| panic!("fresh topic-view admission"));
+    broker.install_topic(&mut owner, 1);
+    let routed = settle_route(&mut retry, &mut owner)
+        .unwrap_or_else(|failure| panic!("recovered route: {:?}", failure.into_parts().1));
+    let (request, _) = routed.into_parts();
+    let route = request
+        .topic_route()
+        .unwrap_or_else(|| panic!("topic route"));
+    assert!(
+        route
+            .metadata_generation()
+            .is_some_and(|current| current > observed)
+    );
+    assert_eq!(request.fence(), fence);
+    assert_eq!(request.operation_deadline(), deadline);
+    assert_eq!(route.topic_id(), [7; 16]);
     owner
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("driver shutdown: {error}"));

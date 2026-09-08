@@ -50,7 +50,7 @@ fn live_topic_view_retains_broker_issued_topic_identity() {
         Instant::now() + Duration::from_secs(60),
     )
     .unwrap_or_else(|error| panic!("submit topic view: {error}"));
-    broker.install_topic(&mut driver);
+    broker.install_topic(&mut driver, 1);
 
     let fact = (0..32)
         .find_map(|_| {

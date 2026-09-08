@@ -113,6 +113,13 @@ pub(in crate::consumer::group) fn install_ready_delivery_for_test(
     }
 }
 
+impl ClassicGroupFetchOwner {
+    pub(in crate::consumer::group) fn install_retained_initial_session_for_test(&mut self) {
+        self.fetches.install_retained_initial_session_for_test();
+        self.fetches.defer_broker_session_maintenance();
+    }
+}
+
 pub(in crate::consumer::group) fn install_retained_fetch_failure_for_test(
     owner: &mut ClassicGroupFetchOwner,
     catalog: &GroupSessionCatalog,

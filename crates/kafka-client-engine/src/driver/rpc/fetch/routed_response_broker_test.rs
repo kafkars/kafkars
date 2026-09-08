@@ -3,7 +3,7 @@
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use bytes::{Bytes, BytesMut};
@@ -12,12 +12,12 @@ use kafka_wire::{
     API_VERSIONS_API_DESCRIPTOR, ApiVersionsRequest, ApiVersionsResponse, FETCH_API_DESCRIPTOR,
     FetchRequest, FetchResponse, METADATA_API_DESCRIPTOR, MetadataRequest, MetadataResponse,
     RequestResponsePair, ResponseHeader,
-    api_versions_response::ApiVersion as AdvertisedApi,
-    metadata_response::{MetadataResponseBroker, MetadataResponsePartition, MetadataResponseTopic},
+    metadata_response::{MetadataResponsePartition, MetadataResponseTopic},
     response_header_version_for,
 };
 use kafka_wire_core::{KafkaEncode, StrBytes, Uuid};
 
+use super::routed_response_frame_test::{advertisement, broker};
 use crate::driver::DriverOwner;
 
 /// Opaque loopback peers kept alive for one routed-response scenario.
@@ -49,7 +49,8 @@ impl RoutedBroker {
     }
 
     pub(crate) fn await_seed(driver: &mut DriverOwner) {
-        for _turn in 0..32 {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while Instant::now() < deadline {
             drive(driver, Duration::from_millis(100), "resolve bootstrap seed");
             let snapshot = driver
                 .driver
@@ -70,15 +71,15 @@ impl RoutedBroker {
     pub(crate) fn install_cluster(&mut self, driver: &mut DriverOwner) {
         let mut seed = accept_after_driving(&self.listener, driver);
         complete_negotiation(&mut seed, driver);
-        respond_metadata(&mut seed, driver, self.port, false);
+        respond_metadata(&mut seed, driver, self.port, None);
         self.seed = Some(seed);
     }
 
-    pub(crate) fn install_topic(&mut self, driver: &mut DriverOwner) {
+    pub(crate) fn install_topic(&mut self, driver: &mut DriverOwner, leader: i32) {
         let Some(seed) = self.seed.as_mut() else {
             panic!("cluster connection must precede topic Metadata");
         };
-        respond_metadata(seed, driver, self.port, true);
+        respond_metadata(seed, driver, self.port, Some(leader));
     }
 
     pub(super) fn complete_fetch(&mut self, driver: &mut DriverOwner) -> ApiVersion {
@@ -142,7 +143,7 @@ fn respond_metadata(
     peer: &mut TcpStream,
     driver: &mut DriverOwner,
     port: u16,
-    include_partition: bool,
+    leader: Option<i32>,
 ) {
     wait_for_frame(peer, driver, "write Metadata request");
     let request = read_request(peer);
@@ -150,14 +151,14 @@ fn respond_metadata(
     let mut response = MetadataResponse::default();
     response.brokers.push(broker(port));
     response.controller_id = 1;
-    if include_partition {
+    if let Some(leader) = leader {
         let mut topic = MetadataResponseTopic::default();
         topic.name = Some(StrBytes::from("events"));
         topic.topic_id = Uuid::from_bytes([7; 16]);
         for partition_index in 0..=3 {
             let mut partition = MetadataResponsePartition::default();
             partition.partition_index = partition_index;
-            partition.leader_id = if partition_index == 3 { 1 } else { -1 };
+            partition.leader_id = if partition_index == 3 { leader } else { -1 };
             partition.leader_epoch = if partition_index == 3 { 9 } else { -1 };
             topic.partitions.push(partition);
         }
@@ -258,22 +259,6 @@ fn write_response<R, T>(
     peer.write_all(&length.to_be_bytes())
         .and_then(|()| peer.write_all(&body))
         .unwrap_or_else(|error| panic!("write response frame: {error}"));
-}
-
-fn advertisement(api_key: i16, min_version: i16, max_version: i16) -> AdvertisedApi {
-    let mut api = AdvertisedApi::default();
-    api.api_key = api_key;
-    api.min_version = min_version;
-    api.max_version = max_version;
-    api
-}
-
-fn broker(port: u16) -> MetadataResponseBroker {
-    let mut broker = MetadataResponseBroker::default();
-    broker.node_id = 1;
-    broker.host = StrBytes::from("127.0.0.1");
-    broker.port = i32::from(port);
-    broker
 }
 
 fn read_i16(bytes: &[u8], offset: usize) -> i16 {

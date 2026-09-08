@@ -56,10 +56,12 @@ fn concurrent_shutdown_callers_observe_one_retained_report() {
     let accepted = admit(&producer, timeout);
     let concurrent = engine.clone();
     let waiter = thread::spawn(move || concurrent.shutdown());
-    wait_until(|| engine.host_is_closing());
+    wait_until(|| engine.host_is_closing() || engine.host_is_closed());
 
     wait_for_closed_rejection(&producer, timeout);
-    assert!(engine.shutdown().is_ok());
+    engine
+        .shutdown()
+        .unwrap_or_else(|error| panic!("concurrent shutdown: {error:?}"));
     assert!(waiter.join().is_ok_and(|result| result.is_ok()));
     assert!(engine.host_is_closed());
     assert_execution_not_sent(accepted.into_observer().wait());
@@ -74,7 +76,7 @@ fn shutdown_settles_a_pending_record_then_its_flush_barrier() {
     let flush = admit_flush(&producer);
     let concurrent = engine.clone();
     let waiter = thread::spawn(move || concurrent.shutdown());
-    wait_until(|| engine.host_is_closing());
+    wait_until(|| engine.host_is_closing() || engine.host_is_closed());
 
     wait_for_closed_flush_rejection(&producer);
     assert!(waiter.join().is_ok_and(|result| result.is_ok()));

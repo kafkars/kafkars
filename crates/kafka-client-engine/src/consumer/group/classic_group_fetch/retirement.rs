@@ -51,6 +51,13 @@ pub(in crate::consumer::group) enum ClassicGroupFetchRetirementError {
 }
 
 impl ClassicGroupFetchOwner {
+    /// Close also drains sessions retained for a replacement that never activated.
+    pub(in crate::consumer::group) fn close_retained_sessions(&mut self) {
+        if !self.is_idle() {
+            self.fetches.request_broker_session_close();
+        }
+    }
+
     /// Retires the exact Fetch activation before its catalog assignment is revoked.
     ///
     /// Existing accepted Kafka Fetch calls are not cancelled. The queued

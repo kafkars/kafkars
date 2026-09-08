@@ -45,6 +45,8 @@ mod notifier_start;
 mod notifier_start_test;
 mod produce;
 #[cfg(test)]
+mod produce_shutdown_test;
+#[cfg(test)]
 mod produce_test;
 mod produce_turn;
 #[cfg(test)]

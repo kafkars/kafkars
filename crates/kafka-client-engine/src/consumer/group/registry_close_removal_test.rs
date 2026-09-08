@@ -85,6 +85,38 @@ fn static_identity_bytes_are_reclaimed_only_after_physical_removal() {
 }
 
 #[test]
+fn close_retires_cached_broker_sessions_after_the_assignment_has_already_been_lost() {
+    let mut registry = started_registry();
+    let group_id = register(&mut registry, "workers");
+    let entry = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("registered group"));
+    entry.fetch.install_retained_initial_session_for_test();
+    assert!(entry.fetch.activation().is_none());
+    assert!(
+        !entry.fetch.is_idle(),
+        "the previous broker session is still owned"
+    );
+    registry
+        .close_group(group_id)
+        .unwrap_or_else(|error| panic!("close admission: {error:?}"));
+    drive_local_close(&mut registry);
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver: {error}"));
+    drive_fetch_locally(&mut registry, &MonotonicClock::new(), &driver);
+    let removed = registry.remove_one_closed_group();
+    drop(driver);
+    stop_registry(&mut registry);
+    assert_eq!(
+        removed,
+        Ok(true),
+        "close must drain sessions retained for an abandoned rejoin"
+    );
+}
+
+#[test]
 fn external_batch_lease_blocks_removal_until_exact_reclaim() {
     let mut registry = started_registry();
     let group_id = register(&mut registry, "workers");

@@ -84,6 +84,7 @@ pub(super) fn drive(
         outcome: Some(outcome),
         unsettled: data
             .unsettled_completions()
+            .saturating_add(resources.producer_identity_calls.retained_count())
             .saturating_add(usize::from(resources.producer_partitioning_call.is_some()))
             .saturating_add(usize::from(
                 resources.producer_retry_identity_call.is_some(),

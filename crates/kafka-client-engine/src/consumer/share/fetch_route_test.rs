@@ -31,7 +31,7 @@ fn current_topic_uuid_and_partition_bind_the_driver_observed_broker() {
     let request = request(&catalog([7; 16]), &assignment(), capture);
     let mut call = ShareFetchPartitionRouteCall::submit(&driver, request, capture.now())
         .unwrap_or_else(|failure| panic!("route admission: {:?}", failure.kind()));
-    broker.install_topic(&mut driver);
+    broker.install_topic(&mut driver, 1);
 
     let routed = (0..32)
         .find_map(|_| {
@@ -65,7 +65,7 @@ fn changed_topic_identity_returns_the_exact_assignment_request() {
     let expected = request.partition();
     let mut call = ShareFetchPartitionRouteCall::submit(&driver, request, capture.now())
         .unwrap_or_else(|failure| panic!("route admission: {:?}", failure.kind()));
-    broker.install_topic(&mut driver);
+    broker.install_topic(&mut driver, 1);
 
     let failure = (0..32)
         .find_map(|_| {
@@ -98,7 +98,7 @@ fn missing_leader_retains_the_observed_generation_for_a_fresh_retry() {
     let request = request(&catalog([7; 16]), &assignment, capture);
     let mut call = ShareFetchPartitionRouteCall::submit(&driver, request, capture.now())
         .unwrap_or_else(|failure| panic!("route admission: {:?}", failure.kind()));
-    broker.install_topic(&mut driver);
+    broker.install_topic(&mut driver, 1);
 
     let failure = (0..32)
         .find_map(|_| {

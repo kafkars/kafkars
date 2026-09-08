@@ -36,7 +36,7 @@ impl GroupConsumerRegistry {
             return Ok(GroupConsumerPositionTurn::Progress);
         }
         if self
-            .settle_one_classic_group_position_reset(now)
+            .settle_one_classic_group_position_reset(now, driver)
             .map_err(ClassicGroupExecutionError::Position)?
             == ClassicGroupPositionResetTurn::Progress
         {

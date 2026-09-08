@@ -155,7 +155,7 @@ impl BrokerFetchRouteCall {
 }
 
 fn correlate_view(
-    request: PartitionFetchRequest,
+    mut request: PartitionFetchRequest,
     topic: &TopicName,
     view: &TopicView,
 ) -> Result<BrokerRoutedFetch, BrokerFetchRouteFailure> {
@@ -175,20 +175,24 @@ fn correlate_view(
             ));
         }
     };
+    let Some(topic_id) = view.topic_id() else {
+        return Err(BrokerFetchRouteFailure::terminal(
+            request,
+            FetchFailure::Compatibility,
+        ));
+    };
+    let generation = TopicMetadataGeneration::from_raw(view.generation().get());
     let Some((broker_id, leader_epoch)) = (0..view.available_len()).find_map(|index| {
         view.available_at(index)
             .filter(|entry| entry.partition().get() == partition)
             .map(|entry| (entry.broker_id(), entry.leader_epoch()))
     }) else {
+        // Retain the observed generation even without a leader. The exact
+        // unsent retry must request newer metadata under its original deadline.
+        request.bind_cached_topic_route(topic_id.to_bytes(), None, Some(generation));
         return Err(BrokerFetchRouteFailure::terminal(
             request,
             FetchFailure::Transport,
-        ));
-    };
-    let Some(topic_id) = view.topic_id() else {
-        return Err(BrokerFetchRouteFailure::terminal(
-            request,
-            FetchFailure::Compatibility,
         ));
     };
     super::route_correlation::bind_route(
@@ -196,7 +200,7 @@ fn correlate_view(
         broker_id,
         topic_id.to_bytes(),
         leader_epoch.map(|epoch| epoch.get()),
-        TopicMetadataGeneration::from_raw(view.generation().get()),
+        generation,
     )
 }
 

@@ -1,9 +1,28 @@
-//! Generated request decoding for the routed Fetch loopback broker.
+//! Generated request decoding and metadata facts for the routed Fetch loopback broker.
 
-use kafka_wire::{KafkaRequest, RequestHeader, request_header_version};
-use kafka_wire_core::{ApiVersion, DecodeLimits, Decoder, KafkaDecode};
+use kafka_wire::{
+    KafkaRequest, RequestHeader, api_versions_response::ApiVersion as AdvertisedApi,
+    metadata_response::MetadataResponseBroker, request_header_version,
+};
+use kafka_wire_core::{ApiVersion, DecodeLimits, Decoder, KafkaDecode, StrBytes};
 
 use super::routed_response_broker_test::RequestFrame;
+
+pub(super) fn advertisement(api_key: i16, min_version: i16, max_version: i16) -> AdvertisedApi {
+    let mut api = AdvertisedApi::default();
+    api.api_key = api_key;
+    api.min_version = min_version;
+    api.max_version = max_version;
+    api
+}
+
+pub(super) fn broker(port: u16) -> MetadataResponseBroker {
+    let mut broker = MetadataResponseBroker::default();
+    broker.node_id = 1;
+    broker.host = StrBytes::from("127.0.0.1");
+    broker.port = i32::from(port);
+    broker
+}
 
 impl RequestFrame {
     pub(super) fn decode<R>(&self) -> R

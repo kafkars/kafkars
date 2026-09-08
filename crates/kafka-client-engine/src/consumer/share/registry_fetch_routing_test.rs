@@ -229,7 +229,7 @@ pub(super) fn route_assignment(
             .unwrap_or_else(|error| panic!("submit routing: {error:?}")),
         ShareFetchRoutingHostTurn::Progress
     );
-    broker.install_topic(driver);
+    broker.install_topic(driver, 1);
     for _turn in 0..32 {
         let _turn = registry
             .turn_one_fetch_routing(capture.now(), clock, driver)

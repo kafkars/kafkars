@@ -51,17 +51,22 @@ impl GroupConsumerRegistry {
     pub(in crate::consumer::group) fn settle_one_classic_group_position_reset(
         &mut self,
         now: Moment,
+        driver: &DriverOwner,
     ) -> Result<ClassicGroupPositionResetTurn, ClassicGroupPositionExecutionError> {
         for entry in &mut self.entries {
             if entry.fault.is_some() {
                 continue;
             }
-            let result = match entry.position.state() {
+            let mut state = entry
+                .position
+                .replace(ClassicGroupPositionExecutionState::Dormant);
+            let result = match &mut state {
                 ClassicGroupPositionExecutionState::ResetDriverOwned(owner) => {
-                    owner.call.try_result()
+                    owner.call.try_result(driver)
                 }
                 _ => None,
             };
+            entry.position.set(state);
             if let Some(result) = result {
                 settle_reset(entry, now, result)?;
                 return Ok(ClassicGroupPositionResetTurn::Progress);

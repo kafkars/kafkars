@@ -38,7 +38,7 @@ fn complete_assignment_routes_into_one_broker_plan_under_the_original_boundary()
         owner.turn(&driver, capture.now()),
         ShareFetchRoutingTurn::Progress
     );
-    broker.install_topic(&mut driver);
+    broker.install_topic(&mut driver, 1);
     for _turn in 0..32 {
         if owner.turn(&driver, capture.now()) == ShareFetchRoutingTurn::Complete {
             break;
@@ -122,7 +122,7 @@ fn transient_leader_loss_retries_after_positive_delay_under_the_original_deadlin
         ShareFetchRoutingTurn::Progress
     );
 
-    broker.install_topic(&mut driver);
+    broker.install_topic(&mut driver, 1);
     for _turn in 0..32 {
         if owner.turn(&driver, Moment::from_tick(retry.tick())) == ShareFetchRoutingTurn::Complete {
             break;
