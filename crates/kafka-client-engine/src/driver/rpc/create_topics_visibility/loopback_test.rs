@@ -88,6 +88,61 @@ fn unknown_topic_after_create_waits_then_retries_until_causal_visibility() {
     assert_eq!(calls.retained_count(), 0);
 }
 
+#[test]
+fn recreated_topic_with_reset_leader_epoch_is_confirmed_by_direct_retry() {
+    let mut broker = LoopbackBroker::bind();
+    let config = EngineConfig::new(vec![broker.address()])
+        .with_client_id(Some("create-topics-recreated-topic-loopback".to_owned()));
+    let mut driver =
+        DriverOwner::build(&config).unwrap_or_else(|error| panic!("driver owner: {error}"));
+    broker.initialize(&mut driver);
+
+    let deadline = OperationDeadline::from_parts_for_test(
+        Deadline::from_tick(5_000_000_000),
+        Instant::now() + Duration::from_secs(30),
+    );
+    let operation_id = OperationId::from_raw(23);
+    let mut calls = TrackedCreateTopicsCalls::new(1);
+    calls
+        .try_reserve()
+        .unwrap_or_else(|| panic!("CreateTopics capacity must be available"))
+        .submit(
+            &driver,
+            operation_id,
+            deadline,
+            visibility_plan(),
+            64 * 1024,
+            Moment::from_tick(1),
+        )
+        .unwrap_or_else(|error| panic!("submit CreateTopics: {error:?}"));
+
+    broker.respond_create_topics(&mut driver);
+    let settled = poll_ready(&mut calls, &mut driver, "settle CreateTopics response");
+    assert!(settled.begin_visibility(&driver, operation_id, deadline, Moment::from_tick(1)));
+
+    // This is the deleted topic still visible with its old ID and high epoch.
+    broker.respond_stale_topic(&mut driver);
+    let stale_observed_at = Moment::from_tick(2);
+    assert!(calls.advance_one_visibility(&driver, stale_observed_at));
+    let retry_at = calls
+        .next_deadline()
+        .unwrap_or_else(|| panic!("stale topology must schedule a retry"));
+
+    assert!(calls.advance_one_visibility(&driver, Moment::from_tick(retry_at.tick())));
+    // The replacement has a new topic ID and reset epoch. Feeding this through
+    // the driver's old name/partition cache fence would reject it as regression.
+    broker.respond_visible_topic(&mut driver);
+    assert!(calls.advance_one_visibility(&driver, Moment::from_tick(retry_at.tick() + 1)));
+    let settled = calls
+        .poll_next_ready()
+        .unwrap_or_else(|error| panic!("poll recreated-topic metadata: {error}"))
+        .unwrap_or_else(|| panic!("recreated-topic visibility must be ready"));
+    assert_eq!(
+        settled.take_input(),
+        Some(CreateTopicsInput::VisibilityConfirmed)
+    );
+}
+
 fn visibility_plan() -> CreateTopicsPlan {
     CreateTopicsPlan::new(
         vec![

@@ -5923,6 +5923,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "submit_describe_topics"
 allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/create_topics_visibility/retry.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_calls.rs",
 ]
 

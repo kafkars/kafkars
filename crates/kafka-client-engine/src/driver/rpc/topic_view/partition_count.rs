@@ -3,8 +3,8 @@
 use std::{error::Error, fmt, time::Instant};
 
 use kafka_driver::{
-    Call, KafkaTopicId, MetadataGeneration, RouteFailureToken, SubmitError, TopicName,
-    TopicNameError, TopicView, TopicViewError,
+    Call, KafkaTopicId, RouteFailureToken, SubmitError, TopicName, TopicNameError, TopicView,
+    TopicViewError,
 };
 
 use super::super::super::DriverOwner;
@@ -56,26 +56,6 @@ impl TopicPartitionCountCall {
                 drop(token);
                 TopicPartitionCountAdmissionFailure::Driver(source)
             })?;
-        Ok(Self {
-            topic_view_topic: topic,
-            topic_view_driver_call: Some(call),
-        })
-    }
-
-    pub(crate) fn submit_newer_than(
-        driver: &DriverOwner,
-        topic: TopicName,
-        observed_generation: u64,
-        deadline: Instant,
-    ) -> Result<Self, TopicPartitionCountAdmissionFailure> {
-        let call = driver
-            .driver
-            .topic_view_newer_than(
-                topic.clone(),
-                MetadataGeneration::from_raw(observed_generation),
-                deadline,
-            )
-            .map_err(TopicPartitionCountAdmissionFailure::Driver)?;
         Ok(Self {
             topic_view_topic: topic,
             topic_view_driver_call: Some(call),

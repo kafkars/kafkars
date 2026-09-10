@@ -75,6 +75,15 @@ impl LoopbackBroker {
         );
     }
 
+    pub(super) fn respond_stale_topic(&mut self, driver: &mut DriverOwner) {
+        let port = self.listener.port();
+        self.seed_mut().respond::<MetadataRequest, _>(
+            driver,
+            &stale_topic_metadata(port),
+            "install deleted topic metadata",
+        );
+    }
+
     pub(super) fn assert_no_frame_before_retry(&self) {
         self.seed
             .as_ref()
@@ -126,8 +135,23 @@ fn visible_topic_metadata(port: u16) -> MetadataResponse {
         let mut partition = MetadataResponsePartition::default();
         partition.partition_index = partition_index;
         partition.leader_id = 1;
+        partition.leader_epoch = 0;
         topic.partitions.push(partition);
     }
+    let mut response = cluster_metadata(port);
+    response.topics.push(topic);
+    response
+}
+
+fn stale_topic_metadata(port: u16) -> MetadataResponse {
+    let mut topic = MetadataResponseTopic::default();
+    topic.name = Some(StrBytes::from("fresh"));
+    topic.topic_id = Uuid::from_bytes([3; 16]);
+    let mut partition = MetadataResponsePartition::default();
+    partition.partition_index = 0;
+    partition.leader_id = 1;
+    partition.leader_epoch = 9;
+    topic.partitions.push(partition);
     let mut response = cluster_metadata(port);
     response.topics.push(topic);
     response

@@ -13,18 +13,37 @@ use kafka_driver::RouteFailureToken;
 
 use crate::clock::OperationDeadline;
 
+use self::retry::DirectTopicPartitionCountCall;
 pub(super) use self::target::visibility_targets;
 use self::{retry::VisibilityRetry, target::CreateTopicVisibilityTarget};
-use super::{super::DriverOwner, topic_view::TopicPartitionCountCall};
+use super::{
+    super::DriverOwner,
+    topic_view::{TopicPartitionCountCall, TopicPartitionCountFailure},
+};
 
 pub(super) struct CreateTopicsVisibility {
     targets: Vec<CreateTopicVisibilityTarget>,
     current: usize,
     deadline: OperationDeadline,
-    causal_floor: Option<u64>,
-    call: Option<TopicPartitionCountCall>,
+    call: Option<VisibilityCall>,
     retry: Option<VisibilityRetry>,
     attempts: usize,
+}
+
+enum VisibilityCall {
+    Causal(TopicPartitionCountCall),
+    Direct(DirectTopicPartitionCountCall),
+}
+
+impl VisibilityCall {
+    fn try_terminal(&mut self) -> Option<Result<u32, TopicPartitionCountFailure>> {
+        match self {
+            Self::Causal(call) => call
+                .try_terminal()
+                .map(|result| result.map(|fact| fact.logical_partition_count)),
+            Self::Direct(call) => call.try_terminal(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

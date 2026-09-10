@@ -7,11 +7,9 @@ use crate::clock::OperationDeadline;
 
 use super::super::{super::DriverOwner, topic_view::TopicPartitionCountCall};
 use super::{
-    CreateTopicsVisibility, CreateTopicsVisibilityPoll,
-    retry::{
-        MAX_VISIBILITY_ATTEMPTS_PER_TOPIC, VisibilityRetry, VisibilityRetryKind,
-        visibility_failure_is_transient,
-    },
+    CreateTopicsVisibility, CreateTopicsVisibilityPoll, DirectTopicPartitionCountCall,
+    VisibilityCall,
+    retry::{MAX_VISIBILITY_ATTEMPTS_PER_TOPIC, VisibilityRetry, visibility_failure_is_transient},
     target::CreateTopicVisibilityTarget,
 };
 
@@ -43,8 +41,7 @@ impl CreateTopicsVisibility {
             targets,
             current: 0,
             deadline,
-            causal_floor: None,
-            call: Some(call),
+            call: Some(VisibilityCall::Causal(call)),
             retry: None,
             attempts: 1,
         })
@@ -58,61 +55,46 @@ impl CreateTopicsVisibility {
             if !retry.is_due(now) {
                 return CreateTopicsVisibilityPoll::Pending;
             }
-            return self.submit_retry(driver, retry);
+            return self.submit_retry(driver);
         }
-        let Some(result) = self
-            .call
-            .as_mut()
-            .and_then(TopicPartitionCountCall::try_terminal)
-        else {
+        let Some(result) = self.call.as_mut().and_then(VisibilityCall::try_terminal) else {
             return CreateTopicsVisibilityPoll::Pending;
         };
         drop(self.call.take());
         let Some(target) = self.targets.get(self.current) else {
             return CreateTopicsVisibilityPoll::Failed;
         };
-        let fact = match result {
-            Ok(fact) if fact.logical_partition_count == target.expected_partition_count => fact,
-            Ok(fact) => {
-                return self.schedule_retry(
-                    VisibilityRetryKind::NewerThan(fact.metadata_generation),
-                    now,
-                );
-            }
+        match result {
+            Ok(partition_count) if partition_count == target.expected_partition_count => {}
+            Ok(_partition_count) => return self.schedule_retry(now),
             Err(failure) if visibility_failure_is_transient(failure) => {
-                return self.schedule_retry(VisibilityRetryKind::Current, now);
+                return self.schedule_retry(now);
             }
             Err(_failure) => return CreateTopicsVisibilityPoll::Failed,
-        };
-        let causal_floor = *self.causal_floor.get_or_insert(fact.metadata_generation);
+        }
         self.current += 1;
         let Some(next) = self.targets.get(self.current) else {
             return CreateTopicsVisibilityPoll::Confirmed;
         };
         self.attempts = 1;
-        match TopicPartitionCountCall::submit_newer_than(
+        match DirectTopicPartitionCountCall::submit(
             driver,
             next.topic.clone(),
-            causal_floor,
             self.deadline.transport(),
         ) {
             Ok(call) => {
-                self.call = Some(call);
+                self.call = Some(VisibilityCall::Direct(call));
                 CreateTopicsVisibilityPoll::Progressed
             }
             Err(_error) => CreateTopicsVisibilityPoll::Failed,
         }
     }
 
-    fn schedule_retry(
-        &mut self,
-        kind: VisibilityRetryKind,
-        now: Moment,
-    ) -> CreateTopicsVisibilityPoll {
+    fn schedule_retry(&mut self, now: Moment) -> CreateTopicsVisibilityPoll {
         if self.attempts >= MAX_VISIBILITY_ATTEMPTS_PER_TOPIC {
             return CreateTopicsVisibilityPoll::Failed;
         }
-        let Some(retry) = VisibilityRetry::schedule(kind, now, self.deadline.core(), self.attempts)
+        let Some(retry) = VisibilityRetry::schedule(now, self.deadline.core(), self.attempts)
         else {
             return CreateTopicsVisibilityPoll::Failed;
         };
@@ -120,32 +102,18 @@ impl CreateTopicsVisibility {
         CreateTopicsVisibilityPoll::Progressed
     }
 
-    fn submit_retry(
-        &mut self,
-        driver: &DriverOwner,
-        retry: VisibilityRetry,
-    ) -> CreateTopicsVisibilityPoll {
+    fn submit_retry(&mut self, driver: &DriverOwner) -> CreateTopicsVisibilityPoll {
         let Some(target) = self.targets.get(self.current) else {
             return CreateTopicsVisibilityPoll::Failed;
         };
-        let submission = match retry.kind() {
-            VisibilityRetryKind::Current => TopicPartitionCountCall::submit(
-                driver,
-                target.topic.as_str(),
-                self.deadline.transport(),
-            ),
-            VisibilityRetryKind::NewerThan(generation) => {
-                TopicPartitionCountCall::submit_newer_than(
-                    driver,
-                    target.topic.clone(),
-                    generation,
-                    self.deadline.transport(),
-                )
-            }
-        };
+        let submission = DirectTopicPartitionCountCall::submit(
+            driver,
+            target.topic.clone(),
+            self.deadline.transport(),
+        );
         match submission {
             Ok(call) => {
-                self.call = Some(call);
+                self.call = Some(VisibilityCall::Direct(call));
                 self.retry = None;
                 self.attempts += 1;
                 CreateTopicsVisibilityPoll::Progressed
