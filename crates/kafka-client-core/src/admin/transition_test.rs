@@ -112,7 +112,22 @@ fn mixed_broker_results_are_terminal_once_in_request_order() {
         ),
     ];
 
-    let terminal = machine.apply(CreateTopicsInput::BrokerResponded { outcomes });
+    let visibility = machine.apply(CreateTopicsInput::BrokerResponded { outcomes });
+    assert!(visibility.is_ok());
+    let Ok(visibility) = visibility else {
+        return;
+    };
+    assert!(matches!(
+        visibility.effect(),
+        Some(CreateTopicsEffect::ConfirmVisibility {
+            operation_id,
+            deadline,
+        }) if *operation_id == OperationId::from_raw(7)
+            && *deadline == Deadline::from_tick(50)
+    ));
+    assert_eq!(machine.state(), CreateTopicsState::AwaitingVisibility);
+
+    let terminal = machine.apply(CreateTopicsInput::VisibilityConfirmed);
     assert!(terminal.is_ok());
     let Ok(terminal) = terminal else {
         return;
@@ -132,6 +147,85 @@ fn mixed_broker_results_are_terminal_once_in_request_order() {
         }),
         Err(CreateTopicsMachineError::AlreadyCompleted)
     );
+}
+
+#[test]
+fn visibility_failure_is_terminal_with_duplicate_risk() {
+    let mut machine = machine(50);
+    start_and_accept(&mut machine);
+    let outcomes = vec![
+        CreateTopicOutcome::created("orders"),
+        CreateTopicOutcome::created("audit"),
+    ];
+    let transition = machine.apply(CreateTopicsInput::BrokerResponded { outcomes });
+    assert!(matches!(
+        transition
+            .unwrap_or_else(|error| panic!("apply broker response: {error}"))
+            .into_effect(),
+        Some(CreateTopicsEffect::ConfirmVisibility { .. })
+    ));
+
+    let terminal = machine
+        .apply(CreateTopicsInput::VisibilityFailed)
+        .unwrap_or_else(|error| panic!("apply visibility failure: {error}"));
+    let Some(CreateTopicsEffect::Complete { terminal, .. }) = terminal.into_effect() else {
+        panic!("terminal completion expected");
+    };
+    let CreateTopicsTerminal::Failed(failure) = terminal else {
+        panic!("whole-operation failure expected");
+    };
+    assert_eq!(
+        failure.kind(),
+        CreateTopicsFailureKind::VisibilityUnconfirmed
+    );
+    assert_eq!(failure.delivery(), DeliveryStatus::PossiblySent);
+}
+
+#[test]
+fn validate_only_success_does_not_request_visibility() {
+    let plan = CreateTopicsPlan::new(
+        vec![CreateTopicSpecification::new("orders", 3, 2, Vec::new())],
+        true,
+    )
+    .unwrap_or_else(|error| panic!("valid validate-only plan: {error}"));
+    let mut machine =
+        CreateTopicsMachine::new(OperationId::from_raw(9), Deadline::from_tick(50), plan);
+    start_and_accept(&mut machine);
+
+    let terminal = machine
+        .apply(CreateTopicsInput::BrokerResponded {
+            outcomes: vec![CreateTopicOutcome::created("orders")],
+        })
+        .unwrap_or_else(|error| panic!("apply validate-only result: {error}"));
+    assert!(matches!(
+        terminal.into_effect(),
+        Some(CreateTopicsEffect::Complete {
+            terminal: CreateTopicsTerminal::Topics(_),
+            ..
+        })
+    ));
+}
+
+#[test]
+fn all_broker_rejections_complete_without_visibility_work() {
+    let mut machine = machine(50);
+    start_and_accept(&mut machine);
+    let code = NonZeroI16::new(36).unwrap_or_else(|| panic!("nonzero broker code"));
+    let outcomes = vec![
+        CreateTopicOutcome::failed("orders", CreateTopicBrokerError::new(code, None)),
+        CreateTopicOutcome::failed("audit", CreateTopicBrokerError::new(code, None)),
+    ];
+
+    let terminal = machine
+        .apply(CreateTopicsInput::BrokerResponded { outcomes })
+        .unwrap_or_else(|error| panic!("apply rejected outcomes: {error}"));
+    assert!(matches!(
+        terminal.into_effect(),
+        Some(CreateTopicsEffect::Complete {
+            terminal: CreateTopicsTerminal::Topics(_),
+            ..
+        })
+    ));
 }
 
 #[test]
@@ -159,6 +253,7 @@ fn malformed_normalized_order_does_not_consume_terminal_assignment() {
             })
             .is_ok()
     );
+    assert_eq!(machine.state(), CreateTopicsState::AwaitingVisibility);
 }
 
 #[test]

@@ -19,7 +19,7 @@ pub(super) fn drive(
     now: Moment,
 ) -> Result<CreateTopicsProgress, EngineHostError> {
     let Some(permit) = resources.create_topics_calls.try_reserve() else {
-        return snapshot(&resources.create_topics);
+        return snapshot(&resources.create_topics, &resources.create_topics_calls);
     };
     let mut host = match resources.create_topics.try_host() {
         Ok(host) => host,
@@ -44,12 +44,16 @@ pub(super) fn drive(
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
             match permit.submit(driver, operation_id, deadline, plan, retained_bytes, now) {
-                Ok(()) => host
-                    .apply(operation_id, CreateTopicsInput::DriverAccepted)
-                    .map_err(EngineHostError::CreateTopics)?,
-                Err(rejection) => host
-                    .apply(operation_id, rejection.core_input())
-                    .map_err(EngineHostError::CreateTopics)?,
+                Ok(()) => {
+                    let _visibility = host
+                        .apply(operation_id, CreateTopicsInput::DriverAccepted)
+                        .map_err(EngineHostError::CreateTopics)?;
+                }
+                Err(rejection) => {
+                    let _visibility = host
+                        .apply(operation_id, rejection.core_input())
+                        .map_err(EngineHostError::CreateTopics)?;
+                }
             }
             true
         }
@@ -57,12 +61,16 @@ pub(super) fn drive(
     Ok(CreateTopicsProgress {
         unsettled: host.unsettled(),
         driver_progress,
-        next_deadline: host.next_deadline(),
+        next_deadline: earliest(
+            host.next_deadline(),
+            resources.create_topics_calls.next_deadline(),
+        ),
     })
 }
 
 pub(super) fn apply_completions(
     resources: &mut EngineHostResources,
+    now: Moment,
 ) -> Result<bool, EngineHostError> {
     let mut host = match resources.create_topics.try_host() {
         Ok(host) => host,
@@ -73,6 +81,13 @@ pub(super) fn apply_completions(
     };
     let mut progress = false;
     for _attempt in 0..CREATE_TOPICS_COMPLETION_BUDGET {
+        let driver = resources
+            .driver
+            .as_ref()
+            .ok_or(EngineHostError::DriverOwnerMissing)?;
+        progress |= resources
+            .create_topics_calls
+            .advance_one_visibility(driver, now);
         let Some(settled) = resources
             .create_topics_calls
             .poll_next_ready()
@@ -84,9 +99,28 @@ pub(super) fn apply_completions(
         let input = settled.take_input().ok_or(EngineHostError::CreateTopics(
             crate::admin::CreateTopicsHostError::MissingTerminal,
         ))?;
-        host.apply(operation_id, input)
+        let visibility = host
+            .apply(operation_id, input)
             .map_err(EngineHostError::CreateTopics)?;
-        resources.create_topics_calls.discard_settled();
+        if let Some(submission) = visibility {
+            if settled.begin_visibility(
+                driver,
+                submission.operation_id(),
+                submission.deadline(),
+                now,
+            ) {
+                progress = true;
+                break;
+            }
+            let _visibility = host
+                .apply(operation_id, CreateTopicsInput::VisibilityFailed)
+                .map_err(EngineHostError::CreateTopics)?;
+        }
+        if !resources.create_topics_calls.discard_settled(operation_id) {
+            return Err(EngineHostError::CreateTopics(
+                crate::admin::CreateTopicsHostError::EffectMismatch,
+            ));
+        }
         progress = true;
     }
     Ok(progress)
@@ -94,6 +128,7 @@ pub(super) fn apply_completions(
 
 fn snapshot(
     owner: &crate::admin::CreateTopicsShardOwner,
+    calls: &crate::driver::TrackedCreateTopicsCalls,
 ) -> Result<CreateTopicsProgress, EngineHostError> {
     let host = match owner.try_host() {
         Ok(host) => host,
@@ -107,8 +142,17 @@ fn snapshot(
     Ok(CreateTopicsProgress {
         unsettled: host.unsettled(),
         driver_progress: false,
-        next_deadline: host.next_deadline(),
+        next_deadline: earliest(host.next_deadline(), calls.next_deadline()),
     })
+}
+
+const fn earliest(left: Option<Deadline>, right: Option<Deadline>) -> Option<Deadline> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(left.min(right)),
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (None, None) => None,
+    }
 }
 
 impl CreateTopicsProgress {

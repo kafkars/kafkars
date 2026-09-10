@@ -88,6 +88,7 @@ pub(super) fn translate_failure_parts(
         CreateTopicsFailureKind::DriverRejected => ErrorKind::Backpressure,
         CreateTopicsFailureKind::Transport => ErrorKind::Transport,
         CreateTopicsFailureKind::InvalidResponse => ErrorKind::Broker,
+        CreateTopicsFailureKind::VisibilityUnconfirmed => ErrorKind::Routing,
     };
     KafkaError::new(public, format!("CreateTopics failed: {kind:?}"))
         .with_delivery_status(translate_delivery(delivery))

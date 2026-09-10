@@ -87,8 +87,14 @@ fn inspect_permissions(root: &Mapping, violations: &mut Vec<String>) {
     else {
         return;
     };
-    if permissions.len() != 1 || scalar(permissions, "contents") != Some("read") {
-        violations.push("qualification workflow permissions must be contents read".to_owned());
+    if permissions.len() != 2
+        || scalar(permissions, "actions") != Some("read")
+        || scalar(permissions, "contents") != Some("read")
+    {
+        violations.push(
+            "qualification workflow permissions must be exactly actions read and contents read"
+                .to_owned(),
+        );
     }
 }
 

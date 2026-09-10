@@ -31,6 +31,7 @@ impl CreateTopicsHost {
                 CreateTopicsState::Submitted => CreateTopicsInput::TransportFailed {
                     delivery: DeliveryStatus::PossiblySent,
                 },
+                CreateTopicsState::AwaitingVisibility => CreateTopicsInput::VisibilityFailed,
                 CreateTopicsState::Completed => {
                     self.publish_terminal(0)?;
                     continue;

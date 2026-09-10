@@ -89,6 +89,12 @@ fn whole_failure_preserves_authoritative_delivery_certainty() {
             ErrorKind::Broker,
             DeliveryStatus::PossiblySent,
         ),
+        (
+            CreateTopicsFailureKind::VisibilityUnconfirmed,
+            CreateTopicsDeliveryStatus::PossiblySent,
+            ErrorKind::Routing,
+            DeliveryStatus::PossiblySent,
+        ),
     ];
     for (engine_kind, engine_delivery, public_kind, public_delivery) in cases {
         let error = translate_failure_parts(engine_kind, engine_delivery);

@@ -15,6 +15,8 @@ pub enum CreateTopicsState {
     AwaitingDriver,
     /// The driver owns the RPC attempt.
     Submitted,
+    /// Kafka acknowledged creation and causal topic visibility is being confirmed.
+    AwaitingVisibility,
     /// Core assigned the sole terminal outcome.
     Completed,
 }
@@ -38,6 +40,10 @@ pub enum CreateTopicsInput {
         /// Per-topic outcomes in original request order.
         outcomes: Vec<CreateTopicOutcome>,
     },
+    /// Reports that every successfully created topic is visible with its requested topology.
+    VisibilityConfirmed,
+    /// Reports that created-topic visibility could not be confirmed under the original deadline.
+    VisibilityFailed,
     /// Reports a driver-owned transport terminal.
     TransportFailed {
         /// Driver-authoritative delivery certainty.
@@ -58,6 +64,13 @@ pub enum CreateTopicsEffect {
         deadline: Deadline,
         /// Ordered semantic request facts.
         plan: CreateTopicsPlan,
+    },
+    /// Confirm every successful creation against causally newer topic metadata.
+    ConfirmVisibility {
+        /// Stable operation identity.
+        operation_id: OperationId,
+        /// Original public absolute deadline.
+        deadline: Deadline,
     },
     /// Publish the one terminal decision.
     Complete {
@@ -103,6 +116,7 @@ pub struct CreateTopicsMachine {
     pub(crate) deadline: Deadline,
     pub(crate) plan: CreateTopicsPlan,
     pub(crate) state: CreateTopicsState,
+    pub(crate) pending_outcomes: Option<Vec<CreateTopicOutcome>>,
 }
 
 impl CreateTopicsMachine {
@@ -117,6 +131,7 @@ impl CreateTopicsMachine {
             deadline,
             plan,
             state: CreateTopicsState::Ready,
+            pending_outcomes: None,
         }
     }
 
@@ -137,6 +152,8 @@ pub enum CreateTopicsMachineError {
     OutcomeCountMismatch,
     /// A normalized response is not in original request order.
     OutcomeTopicMismatch,
+    /// Visibility completed without the retained broker outcomes.
+    MissingBrokerOutcomes,
 }
 
 impl fmt::Display for CreateTopicsMachineError {
@@ -146,6 +163,7 @@ impl fmt::Display for CreateTopicsMachineError {
             Self::AlreadyCompleted => "CreateTopics operation is already terminal",
             Self::OutcomeCountMismatch => "CreateTopics response topic count does not match",
             Self::OutcomeTopicMismatch => "CreateTopics response topic order does not match",
+            Self::MissingBrokerOutcomes => "CreateTopics broker outcomes are not retained",
         })
     }
 }

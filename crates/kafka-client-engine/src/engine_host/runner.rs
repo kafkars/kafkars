@@ -158,7 +158,8 @@ pub(super) fn drive_host_turn(
         &mut resources.produce_calls,
         completion_now,
     )?;
-    let admin_completion_progress = admin::apply_completions(resources)?;
+    let admin_completion_now = resources.clock.now().map_err(EngineHostError::Clock)?;
+    let admin_completion_progress = admin::apply_completions(resources, admin_completion_now)?;
     progress.producer_completions_progressed = completion_progress;
     progress.admin_completions_progressed = admin_completion_progress;
     state.driver_more_work = driver_turn_more || completion_progress || admin_completion_progress;

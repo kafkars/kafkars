@@ -2,8 +2,8 @@
 
 use std::{error::Error, fmt};
 
-use kafka_client_core::{CreateTopicsInput, OperationId};
-use kafka_driver::{CompletionError, RouteFailureToken, RoutedCall};
+use kafka_client_core::{CreateTopicsInput, Deadline, Moment, OperationId};
+use kafka_driver::{CompletionError, RoutedCall};
 use kafka_wire::CreateTopicsResponse;
 
 use crate::{
@@ -14,8 +14,10 @@ use crate::{
 };
 
 use super::{
-    super::DriverOwner, create_topics_submission::CreateTopicsSubmitError,
+    super::DriverOwner,
+    create_topics_submission::CreateTopicsSubmitError,
     create_topics_terminal::normalize_terminal,
+    create_topics_visibility::{SettledCreateTopicsCall, visibility_targets},
 };
 
 struct TrackedCreateTopicsCall {
@@ -49,35 +51,6 @@ impl CreateTopicsCallPermit<'_> {
             call,
         });
         Ok(())
-    }
-}
-
-pub(crate) struct SettledCreateTopicsCall {
-    operation_id: OperationId,
-    input: Option<CreateTopicsInput>,
-    route_token: Option<RouteFailureToken>,
-}
-
-impl SettledCreateTopicsCall {
-    pub(crate) const fn operation_id(&self) -> OperationId {
-        self.operation_id
-    }
-
-    pub(crate) fn take_input(&mut self) -> Option<CreateTopicsInput> {
-        self.input.take()
-    }
-
-    fn discard(self) {
-        drop(self.route_token);
-    }
-
-    #[cfg(test)]
-    pub(super) fn from_input_for_test(input: CreateTopicsInput) -> Self {
-        Self {
-            operation_id: OperationId::from_raw(1),
-            input: Some(input),
-            route_token: None,
-        }
     }
 }
 
@@ -147,7 +120,7 @@ impl From<CreateTopicsSubmitError> for CreateTopicsAdmissionFailure {
 pub(crate) struct TrackedCreateTopicsCalls {
     capacity: usize,
     calls: Vec<TrackedCreateTopicsCall>,
-    settled: Option<SettledCreateTopicsCall>,
+    settled: Vec<SettledCreateTopicsCall>,
 }
 
 impl TrackedCreateTopicsCalls {
@@ -155,7 +128,7 @@ impl TrackedCreateTopicsCalls {
         Self {
             capacity,
             calls: Vec::with_capacity(capacity),
-            settled: None,
+            settled: Vec::with_capacity(capacity),
         }
     }
 
@@ -169,16 +142,23 @@ impl TrackedCreateTopicsCalls {
     }
 
     pub(crate) fn retained_count(&self) -> usize {
-        self.calls
-            .len()
-            .saturating_add(usize::from(self.settled.is_some()))
+        self.calls.len().saturating_add(self.settled.len())
+    }
+
+    pub(crate) fn advance_one_visibility(&mut self, driver: &DriverOwner, now: Moment) -> bool {
+        for settled in &mut self.settled {
+            if settled.poll_visibility(driver, now) {
+                return true;
+            }
+        }
+        false
     }
 
     pub(crate) fn poll_next_ready(
         &mut self,
     ) -> Result<Option<&mut SettledCreateTopicsCall>, CreateTopicsCompletionFailure> {
-        if self.settled.is_some() {
-            return Ok(self.settled.as_mut());
+        if let Some(index) = self.ready_settled_index() {
+            return Ok(self.settled.get_mut(index));
         }
         let Some((index, result)) = self
             .calls
@@ -200,22 +180,59 @@ impl TrackedCreateTopicsCalls {
                 source: None,
             },
         )?;
-        self.settled = Some(SettledCreateTopicsCall {
-            operation_id: call.operation_id,
-            input: Some(input),
+        let visibility_targets =
+            visibility_targets(&call.plan, &input).map_err(|()| CreateTopicsCompletionFailure {
+                operation_id: call.operation_id,
+                source: None,
+            })?;
+        self.settled.push(SettledCreateTopicsCall::new(
+            call.operation_id,
+            input,
             route_token,
-        });
-        Ok(self.settled.as_mut())
+            visibility_targets,
+        ));
+        Ok(self.settled.last_mut())
     }
 
-    pub(crate) fn discard_settled(&mut self) {
-        if let Some(settled) = self.settled.take() {
-            settled.discard();
-        }
+    pub(crate) fn discard_settled(&mut self, operation_id: OperationId) -> bool {
+        let Some(index) = self
+            .settled
+            .iter()
+            .position(|settled| settled.operation_id() == operation_id)
+        else {
+            return false;
+        };
+        self.settled.remove(index).discard();
+        true
     }
 
     pub(crate) fn discard_after_driver_shutdown(&mut self) {
         self.calls.clear();
-        self.discard_settled();
+        self.settled.clear();
+    }
+
+    pub(crate) fn next_deadline(&self) -> Option<Deadline> {
+        self.settled
+            .iter()
+            .filter_map(SettledCreateTopicsCall::next_deadline)
+            .min()
+    }
+
+    fn ready_settled_index(&self) -> Option<usize> {
+        self.settled
+            .iter()
+            .position(SettledCreateTopicsCall::input_ready)
+    }
+
+    #[cfg(test)]
+    pub(super) fn retain_settled_for_test(&mut self, settled: SettledCreateTopicsCall) {
+        self.settled.push(settled);
+    }
+
+    #[cfg(test)]
+    pub(super) fn take_ready_input_for_test(&mut self) -> Option<(OperationId, CreateTopicsInput)> {
+        let index = self.ready_settled_index()?;
+        let settled = self.settled.get_mut(index)?;
+        Some((settled.operation_id(), settled.take_input()?))
     }
 }

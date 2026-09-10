@@ -3,9 +3,9 @@
 use crate::DeliveryStatus;
 
 use super::{
-    CreateTopicOutcome, CreateTopicsEffect, CreateTopicsFailure, CreateTopicsInput,
-    CreateTopicsMachine, CreateTopicsMachineError, CreateTopicsState, CreateTopicsTerminal,
-    CreateTopicsTransition,
+    CreateTopicOutcome, CreateTopicResult, CreateTopicsEffect, CreateTopicsFailure,
+    CreateTopicsInput, CreateTopicsMachine, CreateTopicsMachineError, CreateTopicsState,
+    CreateTopicsTerminal, CreateTopicsTransition,
 };
 
 impl CreateTopicsMachine {
@@ -23,6 +23,8 @@ impl CreateTopicsMachine {
             CreateTopicsInput::DriverRejected => self.driver_rejected(),
             CreateTopicsInput::DeadlineElapsed => self.deadline_elapsed(),
             CreateTopicsInput::BrokerResponded { outcomes } => self.broker_responded(outcomes),
+            CreateTopicsInput::VisibilityConfirmed => self.visibility_confirmed(),
+            CreateTopicsInput::VisibilityFailed => self.visibility_failed(),
             CreateTopicsInput::TransportFailed { delivery } => self.transport_failed(delivery),
             CreateTopicsInput::InvalidResponse => self.invalid_response(),
         }
@@ -82,7 +84,42 @@ impl CreateTopicsMachine {
             return Err(CreateTopicsMachineError::InvalidState);
         }
         self.validate_outcomes(&outcomes)?;
+        let requires_visibility = !self.plan.validate_only()
+            && outcomes
+                .iter()
+                .any(|outcome| matches!(outcome.result(), CreateTopicResult::Created));
+        if !requires_visibility {
+            return Ok(self.finish(CreateTopicsTerminal::Topics(outcomes)));
+        }
+        self.pending_outcomes = Some(outcomes);
+        self.state = CreateTopicsState::AwaitingVisibility;
+        Ok(CreateTopicsTransition::one(
+            CreateTopicsEffect::ConfirmVisibility {
+                operation_id: self.operation_id,
+                deadline: self.deadline,
+            },
+        ))
+    }
+
+    fn visibility_confirmed(&mut self) -> Result<CreateTopicsTransition, CreateTopicsMachineError> {
+        if self.state != CreateTopicsState::AwaitingVisibility {
+            return Err(CreateTopicsMachineError::InvalidState);
+        }
+        let outcomes = self
+            .pending_outcomes
+            .take()
+            .ok_or(CreateTopicsMachineError::MissingBrokerOutcomes)?;
         Ok(self.finish(CreateTopicsTerminal::Topics(outcomes)))
+    }
+
+    fn visibility_failed(&mut self) -> Result<CreateTopicsTransition, CreateTopicsMachineError> {
+        if self.state != CreateTopicsState::AwaitingVisibility {
+            return Err(CreateTopicsMachineError::InvalidState);
+        }
+        self.pending_outcomes = None;
+        Ok(self.finish(CreateTopicsTerminal::Failed(
+            CreateTopicsFailure::visibility_unconfirmed(),
+        )))
     }
 
     fn transport_failed(

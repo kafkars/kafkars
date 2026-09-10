@@ -24,7 +24,7 @@ fn testlab_pin_verdict_and_evidence_bypasses_are_rejected() {
     for (broken, expected) in [
         (
             workflow.replace(
-                "kafkars/testlab@cb0a45b8bb3903a68fa3c82fdfc3d570a62c01ac",
+                "kafkars/testlab@148773785b1f6abac241e1fd3daf2b331b68a29f",
                 "kafkars/testlab@main",
             ),
             "must pin the exact Testlab revision",
@@ -39,11 +39,19 @@ fn testlab_pin_verdict_and_evidence_bypasses_are_rejected() {
         ),
         (
             workflow.replacen(
-                "uses: kafkars/testlab@cb0a45b8bb3903a68fa3c82fdfc3d570a62c01ac",
-                "continue-on-error: true\n        uses: kafkars/testlab@cb0a45b8bb3903a68fa3c82fdfc3d570a62c01ac",
+                "uses: kafkars/testlab@148773785b1f6abac241e1fd3daf2b331b68a29f",
+                "continue-on-error: true\n        uses: kafkars/testlab@148773785b1f6abac241e1fd3daf2b331b68a29f",
                 1,
             ),
             "contains unsupported key `continue-on-error`",
+        ),
+        (
+            workflow.replacen("actions: read", "actions: write", 1),
+            "permissions must be exactly actions read and contents read",
+        ),
+        (
+            workflow.replacen("  contents: read", "  checks: read\n  contents: read", 1),
+            "permissions must be exactly actions read and contents read",
         ),
     ] {
         let violations = qualification_workflow_violations(&broken);
@@ -58,9 +66,9 @@ fn testlab_pin_verdict_and_evidence_bypasses_are_rejected() {
 fn release_workflow_cannot_change_pin_skip_aggregation_or_swallow_failures() {
     let workflow = read(&workspace_root().join(".github/workflows/qualification.yml"));
     for broken in [
-        workflow.replace("testlab-ref: cb0a45b8bb3903a68fa3c82fdfc3d570a62c01ac", "testlab-ref: main"),
+        workflow.replace("testlab-ref: 148773785b1f6abac241e1fd3daf2b331b68a29f", "testlab-ref: main"),
         workflow.replace("    uses: kafkars/testlab/.github/workflows/qualification-release.yml@", "    continue-on-error: true\n    uses: kafkars/testlab/.github/workflows/qualification-release.yml@"),
-        workflow.replace("qualification-release.yml@cb0a45b8bb3903a68fa3c82fdfc3d570a62c01ac", "qualification-release.yml@main"),
+        workflow.replace("qualification-release.yml@148773785b1f6abac241e1fd3daf2b331b68a29f", "qualification-release.yml@main"),
         workflow.replace("    with:\n      testlab-ref:", "    strategy:\n      fail-fast: true\n    with:\n      testlab-ref:"),
     ] {
         assert!(!qualification_workflow_violations(&broken).is_empty());

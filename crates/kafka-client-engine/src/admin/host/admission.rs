@@ -87,6 +87,9 @@ fn start(
             operation.terminal = Some(terminal);
             Ok(true)
         }
+        Some(CreateTopicsEffect::ConfirmVisibility { .. }) => {
+            Err(CreateTopicsHostError::UnexpectedEffect)
+        }
         None => Err(CreateTopicsHostError::MissingSubmission),
     }
 }

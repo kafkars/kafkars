@@ -116,6 +116,8 @@ pub enum CreateTopicsFailureKind {
     Transport,
     /// A broker response could not be correlated to the requested topics.
     InvalidResponse,
+    /// Kafka acknowledged creation but requested topology was not causally observable.
+    VisibilityUnconfirmed,
 }
 
 /// Whole-operation failure with authoritative delivery certainty.
@@ -150,6 +152,13 @@ impl CreateTopicsFailure {
     pub(crate) const fn invalid_response() -> Self {
         Self {
             kind: CreateTopicsFailureKind::InvalidResponse,
+            delivery: DeliveryStatus::PossiblySent,
+        }
+    }
+
+    pub(crate) const fn visibility_unconfirmed() -> Self {
+        Self {
+            kind: CreateTopicsFailureKind::VisibilityUnconfirmed,
             delivery: DeliveryStatus::PossiblySent,
         }
     }

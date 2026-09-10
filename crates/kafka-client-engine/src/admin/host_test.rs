@@ -3,7 +3,8 @@
 use std::time::Instant;
 
 use kafka_client_core::{
-    CreateTopicSpecification, CreateTopicsInput, CreateTopicsPlan, DeliveryStatus,
+    CreateTopicOutcome, CreateTopicSpecification, CreateTopicsInput, CreateTopicsPlan,
+    DeliveryStatus,
 };
 
 use crate::clock::OperationDeadline;
@@ -162,6 +163,60 @@ fn recovery_after_submission_handoff_is_conservatively_possibly_sent() {
     let _progress = host
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim recovery terminal: {error}"));
+    stop(host, notifier);
+}
+
+#[test]
+fn acknowledged_creation_waits_for_visibility_and_recovers_as_uncertain() {
+    let (mut host, notifier) = create_topics_host();
+    let admission = host
+        .try_admit(
+            kafka_client_core::Moment::from_tick(1),
+            deadline(10),
+            plan(),
+            16 * 1024,
+        )
+        .unwrap_or_else(|error| panic!("admit CreateTopics: {error:?}"));
+    let CreateTopicsTurn::Submit(submission) = host
+        .turn(kafka_client_core::Moment::from_tick(2))
+        .unwrap_or_else(|error| panic!("take submission: {error}"))
+    else {
+        panic!("submission must cross the handoff boundary");
+    };
+    let operation_id = submission.operation_id;
+    let operation_deadline = submission.deadline;
+    host.apply(operation_id, CreateTopicsInput::DriverAccepted)
+        .unwrap_or_else(|error| panic!("apply driver acceptance: {error}"));
+    let visibility = host
+        .apply(
+            operation_id,
+            CreateTopicsInput::BrokerResponded {
+                outcomes: vec![CreateTopicOutcome::created("orders")],
+            },
+        )
+        .unwrap_or_else(|error| panic!("apply broker response: {error}"))
+        .unwrap_or_else(|| panic!("visibility submission expected"));
+    assert_eq!(visibility.operation_id(), operation_id);
+    assert_eq!(visibility.deadline(), operation_deadline);
+    assert_eq!(host.unsettled(), 1);
+
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover visibility wait: {error}"));
+    let outcome = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe visibility recovery: {error}"));
+    let CreateTopicsOutcome::Failed(failure) = outcome else {
+        panic!("visibility failure expected");
+    };
+    assert_eq!(
+        failure.kind(),
+        CreateTopicsFailureKind::VisibilityUnconfirmed
+    );
+    assert_eq!(failure.delivery(), CreateTopicsDeliveryStatus::PossiblySent);
+    let _progress = host
+        .turn(kafka_client_core::Moment::from_tick(3))
+        .unwrap_or_else(|error| panic!("reclaim visibility terminal: {error}"));
     stop(host, notifier);
 }
 

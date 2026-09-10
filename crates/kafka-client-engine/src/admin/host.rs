@@ -32,6 +32,21 @@ pub(crate) struct CreateTopicsSubmission {
     pub(crate) retained_bytes: usize,
 }
 
+pub(crate) struct CreateTopicsVisibilitySubmission {
+    pub(crate) operation_id: OperationId,
+    pub(crate) deadline: OperationDeadline,
+}
+
+impl CreateTopicsVisibilitySubmission {
+    pub(crate) const fn operation_id(&self) -> OperationId {
+        self.operation_id
+    }
+
+    pub(crate) const fn deadline(&self) -> OperationDeadline {
+        self.deadline
+    }
+}
+
 impl CreateTopicsSubmission {
     pub(crate) fn into_parts(self) -> (OperationId, OperationDeadline, CreateTopicsPlan, usize) {
         (
@@ -114,16 +129,34 @@ impl CreateTopicsHost {
         &mut self,
         operation_id: OperationId,
         input: CreateTopicsInput,
-    ) -> Result<(), CreateTopicsHostError> {
+    ) -> Result<Option<CreateTopicsVisibilitySubmission>, CreateTopicsHostError> {
         let index = self
             .operation_index(operation_id)
             .ok_or(CreateTopicsHostError::UnknownOperation)?;
         let transition = self.operations[index].machine.apply(input)?;
-        if let Some(CreateTopicsEffect::Complete { terminal, .. }) = transition.into_effect() {
-            self.operations[index].terminal = Some(terminal);
-            self.publish_terminal(index)?;
+        match transition.into_effect() {
+            Some(CreateTopicsEffect::Complete { terminal, .. }) => {
+                self.operations[index].terminal = Some(terminal);
+                self.publish_terminal(index)?;
+                Ok(None)
+            }
+            Some(CreateTopicsEffect::ConfirmVisibility {
+                operation_id: effect_operation_id,
+                deadline,
+            }) => {
+                if effect_operation_id != operation_id
+                    || deadline != self.operations[index].deadline.core()
+                {
+                    return Err(CreateTopicsHostError::EffectMismatch);
+                }
+                Ok(Some(CreateTopicsVisibilitySubmission {
+                    operation_id,
+                    deadline: self.operations[index].deadline,
+                }))
+            }
+            Some(CreateTopicsEffect::Submit { .. }) => Err(CreateTopicsHostError::UnexpectedEffect),
+            None => Ok(None),
         }
-        Ok(())
     }
 
     pub(crate) fn close_admission(&mut self) {
@@ -167,6 +200,8 @@ pub(crate) enum CreateTopicsHostError {
     UnknownOperation,
     MissingSubmission,
     MissingTerminal,
+    UnexpectedEffect,
+    EffectMismatch,
     ByteAccounting,
     Unsettled(usize),
     Wake,

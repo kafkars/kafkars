@@ -439,8 +439,9 @@ pub(super) fn drive_describe_then_capture_topics(
 
 pub(in crate::engine_host) fn apply_completions(
     resources: &mut EngineHostResources,
+    now: Moment,
 ) -> Result<bool, EngineHostError> {
-    let create = create_topics::apply_completions(resources)?;
+    let create = create_topics::apply_completions(resources, now)?;
     let delete = delete_topics::apply_completions(resources)?;
     let describe = describe_cluster::apply_completions(resources)?;
     let partitions = create_partitions::apply_completions(resources)?;

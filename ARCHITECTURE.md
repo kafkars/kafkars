@@ -162,6 +162,9 @@ Each admin API is a concrete deterministic machine and bounded engine owner.
 Request order, signed broker codes, delivery certainty, route evidence, and
 retained bytes survive normalization. Destructive calls do not gain an
 automatic retry merely because another admin call is safe to repeat.
+Successful `CreateTopics` outcomes are published only after a metadata query
+causally newer than the controller response confirms each created topic's
+requested partition count under the original public deadline.
 
 ### Transactions
 

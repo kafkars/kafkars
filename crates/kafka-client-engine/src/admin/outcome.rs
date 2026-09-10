@@ -81,6 +81,8 @@ pub enum CreateTopicsFailureKind {
     Transport,
     /// The broker response could not be correlated to the requested topics.
     InvalidResponse,
+    /// Kafka acknowledged creation but requested topology was not causally observable.
+    VisibilityUnconfirmed,
 }
 
 /// Whole-operation failure with authoritative delivery certainty.
@@ -159,6 +161,9 @@ pub(crate) fn translate_terminal(terminal: CreateTopicsTerminal) -> CreateTopics
                 CoreFailureKind::DriverRejected => CreateTopicsFailureKind::DriverRejected,
                 CoreFailureKind::Transport => CreateTopicsFailureKind::Transport,
                 CoreFailureKind::InvalidResponse => CreateTopicsFailureKind::InvalidResponse,
+                CoreFailureKind::VisibilityUnconfirmed => {
+                    CreateTopicsFailureKind::VisibilityUnconfirmed
+                }
             };
             CreateTopicsOutcome::Failed(CreateTopicsFailure {
                 kind,

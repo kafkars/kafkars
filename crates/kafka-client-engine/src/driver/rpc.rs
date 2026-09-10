@@ -100,6 +100,7 @@ mod create_topics_submission_test;
 mod create_topics_terminal;
 #[cfg(test)]
 mod create_topics_terminal_test;
+mod create_topics_visibility;
 mod delete_acls_call;
 mod delete_acls_submission;
 #[cfg(test)]
