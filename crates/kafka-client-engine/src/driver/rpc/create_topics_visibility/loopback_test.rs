@@ -59,7 +59,12 @@ fn unknown_topic_after_create_waits_then_retries_until_causal_visibility() {
 
     broker.respond_unknown_topic(&mut driver);
     let lag_observed_at = Moment::from_tick(2);
-    assert!(calls.advance_one_visibility(&driver, lag_observed_at));
+    advance_visibility_after_response(
+        &mut calls,
+        &mut driver,
+        lag_observed_at,
+        "observe lagging topic metadata",
+    );
     assert!(
         calls
             .poll_next_ready()
@@ -75,7 +80,12 @@ fn unknown_topic_after_create_waits_then_retries_until_causal_visibility() {
 
     assert!(calls.advance_one_visibility(&driver, Moment::from_tick(retry_at.tick())));
     broker.respond_visible_topic(&mut driver);
-    assert!(calls.advance_one_visibility(&driver, Moment::from_tick(retry_at.tick() + 1)));
+    advance_visibility_after_response(
+        &mut calls,
+        &mut driver,
+        Moment::from_tick(retry_at.tick() + 1),
+        "confirm created-topic visibility",
+    );
     let settled = calls
         .poll_next_ready()
         .unwrap_or_else(|error| panic!("confirm created-topic visibility: {error}"))
@@ -123,7 +133,12 @@ fn recreated_topic_with_reset_leader_epoch_is_confirmed_by_direct_retry() {
     // This is the deleted topic still visible with its old ID and high epoch.
     broker.respond_stale_topic(&mut driver);
     let stale_observed_at = Moment::from_tick(2);
-    assert!(calls.advance_one_visibility(&driver, stale_observed_at));
+    advance_visibility_after_response(
+        &mut calls,
+        &mut driver,
+        stale_observed_at,
+        "observe deleted-topic metadata",
+    );
     let retry_at = calls
         .next_deadline()
         .unwrap_or_else(|| panic!("stale topology must schedule a retry"));
@@ -132,7 +147,12 @@ fn recreated_topic_with_reset_leader_epoch_is_confirmed_by_direct_retry() {
     // The replacement has a new topic ID and reset epoch. Feeding this through
     // the driver's old name/partition cache fence would reject it as regression.
     broker.respond_visible_topic(&mut driver);
-    assert!(calls.advance_one_visibility(&driver, Moment::from_tick(retry_at.tick() + 1)));
+    advance_visibility_after_response(
+        &mut calls,
+        &mut driver,
+        Moment::from_tick(retry_at.tick() + 1),
+        "confirm recreated-topic visibility",
+    );
     let settled = calls
         .poll_next_ready()
         .unwrap_or_else(|error| panic!("poll recreated-topic metadata: {error}"))
@@ -175,4 +195,21 @@ fn poll_ready<'a>(
         }
     }
     panic!("{phase} did not settle in bounded turns")
+}
+
+fn advance_visibility_after_response(
+    calls: &mut TrackedCreateTopicsCalls,
+    driver: &mut DriverOwner,
+    now: Moment,
+    phase: &str,
+) {
+    for _turn in 0..32 {
+        driver
+            .turn(Duration::from_millis(100))
+            .unwrap_or_else(|error| panic!("{phase}: {error}"));
+        if calls.advance_one_visibility(driver, now) {
+            return;
+        }
+    }
+    panic!("{phase} did not advance in bounded turns")
 }
