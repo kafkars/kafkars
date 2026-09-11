@@ -33,7 +33,7 @@ commit and cell is eligible evidence for a compatibility claim.
 | Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | Configured round-trip, seek, pause/resume, offset reset, read-committed, shutdown, record fidelity, membership ownership, offset resume, broker restart, and session recovery |
 | KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Configured round-trip, seek, pause/resume, offset reset, read-committed, shutdown, record fidelity, membership ownership, offset resume, and session recovery in applicable Kafka 4.x cells |
 | Share-group consumer | Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Configured lifecycle, record fidelity, mixed release/reject, batch drop, maximum-record fetch, membership ownership, close uncertainty, leader recovery, and session recovery in applicable Kafka 4.x cells |
-| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | Configured topic create/validate/batch/partition/delete/describe/list lifecycles and failures; topic offset and configuration operations; cluster and group discovery; and consumer-group offset list/alter/delete plus group deletion |
+| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | Configured topic create/validate/batch/partition/delete/describe/list lifecycles and failures; topic configuration and caller-ordered offset queries; cluster, consumer-group, and generic group discovery; consumer-group offset list/alter/delete plus group deletion; and caller-ordered ACL lifecycle with independent state queries |
 | Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | Configured commit/abort, multi-record boundaries, successive transactions, fencing, and offset transfer for classic and KIP-848 groups |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
 | Foreign bindings | Not included | No ABI or compatibility promise |
@@ -78,7 +78,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`90cc27b10eaee875d9aee220b0a66bb2723782f1` defines the following gating cells.
+`0341a91df302a5c5b1c2180aa53fd20066694da3` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
@@ -102,6 +102,10 @@ partial, failed, or invalid gating cell cannot become a passing release.
 | `apache-kafka-4-3-1-three-scram-sha-256` | Apache Kafka 4.3.1 | Three brokers, plaintext with SCRAM-SHA-256 | `kafkars-three-broker-security` | 1 |
 | `apache-kafka-4-3-1-three-scram-sha-512` | Apache Kafka 4.3.1 | Three brokers, plaintext with SCRAM-SHA-512 | `kafkars-three-broker-security` | 1 |
 | `apache-kafka-4-3-1-three-plaintext` | Apache Kafka 4.3.1 | Three brokers, plaintext without SASL | `kafkars-three-broker-share` | 1 |
+| `apache-kafka-4-3-1-broker-role-failover` | Apache Kafka 4.3.1 | Three brokers, plaintext with controlled broker-role failover | `kafkars-broker-role-failover` | 1 |
+| `apache-kafka-4-3-1-broker-policy` | Apache Kafka 4.3.1 | Single broker, SASL/PLAIN with authorizer controls | `kafkars-broker-policy` | 1 |
+| `apache-kafka-4-3-1-network-faults` | Apache Kafka 4.3.1 | Single broker, plaintext through a controlled network proxy | `kafkars-network-faults` | 1 |
+| `protocol-adversary` | Scripted Kafka endpoint | External protocol adversary | `kafkars-protocol-adversary` | 1 |
 
 ## Transport and authentication
 
