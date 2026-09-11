@@ -187,11 +187,10 @@ impl Client {
         self.engine.metrics().map(Metrics::from_bridge)
     }
 
-    /// Begins construction of a thread-safe handle to this client's producer owner.
+    /// Begins a thread-safe handle to this client's producer owner.
     ///
-    /// Every producer built from the same client shares admission, flush, and
-    /// close state. Use a distinct client when independent producer lifecycle
-    /// ownership is required.
+    /// Handles from one client share admission, flush, and close state; use a
+    /// distinct client for independent producer lifecycle ownership.
     pub fn producer(&self) -> ProducerBuilder {
         ProducerBuilder::new(self.engine.producer())
     }
@@ -201,10 +200,8 @@ impl Client {
         ConsumerBuilder::new(self.engine.clone(), group_id.into())
     }
 
-    /// Begins construction of this client's sole directly assigned consumer.
-    ///
-    /// A second build from this client is rejected even after the first
-    /// consumer closes. Use a distinct client for an independent cursor set.
+    /// Begins this client's sole assigned consumer; later builds are rejected
+    /// even after close. Use a distinct client for an independent cursor set.
     pub fn assigned_consumer(&self) -> AssignedConsumerBuilder {
         AssignedConsumerBuilder::new(self.engine.clone())
     }
