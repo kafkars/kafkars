@@ -33,7 +33,7 @@ commit and cell is eligible evidence for a compatibility claim.
 | Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | Configured round-trip, seek, pause/resume, offset reset, read-committed, shutdown, record fidelity, membership ownership, offset resume, broker restart, and session recovery |
 | KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Configured round-trip, seek, pause/resume, offset reset, read-committed, shutdown, record fidelity, membership ownership, offset resume, and session recovery in applicable Kafka 4.x cells |
 | Share-group consumer | Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Configured lifecycle, record fidelity, mixed release/reject, batch drop, maximum-record fetch, membership ownership, close uncertainty, leader recovery, and session recovery in applicable Kafka 4.x cells |
-| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | Configured topic create/validate/batch/partition/delete/describe/list lifecycles and failures; topic configuration and caller-ordered offset queries; cluster, consumer-group, and generic group discovery; consumer-group offset list/alter/delete plus group deletion; caller-ordered ACL lifecycle; named-user producer/consumer byte-rate quota replacement, description, and removal; and named-user SCRAM-SHA-256/512 credential upsert, description, and deletion with independent state queries |
+| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | Configured topic create/validate/batch/partition/delete/describe/list lifecycles and failures; topic configuration and caller-ordered offset queries; cluster, consumer-group, and generic group discovery; active Share-group state and assignment description with an independent state and member-count query; consumer-group offset list/alter/delete plus group deletion; caller-ordered ACL lifecycle; named-user producer/consumer byte-rate quota replacement, description, and removal; and named-user SCRAM-SHA-256/512 credential upsert, description, and deletion with independent state queries |
 | Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | Configured commit/abort, multi-record boundaries, successive transactions, fencing, and offset transfer for classic and KIP-848 groups |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
 | Foreign bindings | Not included | No ABI or compatibility promise |
@@ -78,7 +78,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`40254dda636bfa3ea6fbb364d62d7c871ca2b92d` defines the following gating cells.
+`0644a7f6f58bb182d6863563a39e33df83f44e3c` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
