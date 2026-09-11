@@ -49,6 +49,10 @@ impl AdminListOffsetsMachine {
                 AdminListOffsetsFailureKind::Transport,
                 self.aggregate_delivery(delivery),
             ),
+            AdminListOffsetsInput::RoutingFailed { delivery } => self.finish_submitted(
+                AdminListOffsetsFailureKind::Routing,
+                self.aggregate_delivery(delivery),
+            ),
             AdminListOffsetsInput::InvalidResponse => self.finish_submitted(
                 AdminListOffsetsFailureKind::InvalidResponse,
                 DeliveryStatus::PossiblySent,

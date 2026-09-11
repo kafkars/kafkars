@@ -111,6 +111,35 @@ fn earliest_pending_upload_requires_v11_before_list_offsets_transport() {
     broker.assert_complete();
 }
 
+#[test]
+fn absent_partition_is_an_unsent_routing_failure_without_list_offsets_transport() {
+    let broker = ListOffsetsBroker::start(Workflow::MissingPartition);
+    let client = Client::builder()
+        .bootstrap_servers([broker.endpoint()])
+        .client_id("admin-list-offsets-missing-partition-loopback")
+        .build()
+        .unwrap_or_else(|error| panic!("build missing-partition ListOffsets client: {error}"));
+    wait_until_ready(&client, "missing-partition ListOffsets");
+
+    let error = client
+        .admin()
+        .list_offsets([ListOffsetsQuery::new("orders", 1, OffsetSpec::latest())])
+        .deadline_after(Duration::from_secs(5))
+        .submit()
+        .wait()
+        .expect_err("an absent partition must not reach ListOffsets transport");
+    assert_eq!(error.kind(), ErrorKind::Routing);
+    assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+    assert_eq!(error.broker_code(), None);
+
+    client
+        .shutdown()
+        .wait()
+        .unwrap_or_else(|error| panic!("missing-partition ListOffsets shutdown: {error}"));
+    drop(client);
+    broker.assert_complete();
+}
+
 fn wait_until_ready(client: &Client, context: &str) {
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {

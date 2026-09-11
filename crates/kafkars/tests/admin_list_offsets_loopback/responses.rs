@@ -28,7 +28,7 @@ pub(super) fn for_request(
 ) -> Vec<u8> {
     match request.api_key {
         API_VERSIONS => api_versions(request, workflow),
-        METADATA => metadata(request, bootstrap_port, leader_port),
+        METADATA => metadata(request, workflow, bootstrap_port, leader_port),
         DESCRIBE_CLUSTER => describe_cluster(request, bootstrap_port, leader_port),
         LIST_OFFSETS => list_offsets(request),
         other => panic!("unexpected Admin ListOffsets Kafka API key {other}"),
@@ -40,6 +40,7 @@ fn api_versions(request: &RequestFrame, workflow: Workflow) -> Vec<u8> {
     let maximum = match workflow {
         Workflow::Kafka43 => 11,
         Workflow::NoEarliestPendingUpload => 10,
+        Workflow::MissingPartition => 11,
     };
     let mut response = ApiVersionsResponse::default();
     response.api_keys = vec![
@@ -55,7 +56,12 @@ fn api_versions(request: &RequestFrame, workflow: Workflow) -> Vec<u8> {
     )
 }
 
-fn metadata(request: &RequestFrame, bootstrap_port: u16, leader_port: u16) -> Vec<u8> {
+fn metadata(
+    request: &RequestFrame,
+    workflow: Workflow,
+    bootstrap_port: u16,
+    leader_port: u16,
+) -> Vec<u8> {
     let decoded: MetadataRequest = request.decode();
     let include_orders = match decoded.topics.as_deref() {
         None => true,
@@ -74,7 +80,7 @@ fn metadata(request: &RequestFrame, bootstrap_port: u16, leader_port: u16) -> Ve
         metadata_broker(2, leader_port),
     ];
     if include_orders {
-        response.topics = vec![orders_topic()];
+        response.topics = vec![orders_topic(workflow)];
     }
     encoded_response::<MetadataRequest, _>(request.correlation_id, &response, request.api_version)
 }
@@ -133,10 +139,14 @@ fn list_offsets(request: &RequestFrame) -> Vec<u8> {
     )
 }
 
-fn orders_topic() -> MetadataResponseTopic {
+fn orders_topic(workflow: Workflow) -> MetadataResponseTopic {
     let mut topic = MetadataResponseTopic::default();
     topic.name = Some("orders".into());
-    topic.partitions = (0..4).map(orders_partition).collect();
+    let partition_count = match workflow {
+        Workflow::MissingPartition => 1,
+        Workflow::Kafka43 | Workflow::NoEarliestPendingUpload => 4,
+    };
+    topic.partitions = (0..partition_count).map(orders_partition).collect();
     topic
 }
 

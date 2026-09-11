@@ -59,6 +59,11 @@ pub enum AdminListOffsetsInput {
         /// Driver-authoritative delivery certainty.
         delivery: DeliveryStatus,
     },
+    /// Reports that current metadata could not route the requested partition.
+    RoutingFailed {
+        /// Driver-authoritative delivery certainty.
+        delivery: DeliveryStatus,
+    },
     /// Reports a broker response that cannot be normalized.
     InvalidResponse,
 }

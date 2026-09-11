@@ -19,6 +19,7 @@ use super::{frame::RequestFrame, responses};
 pub(crate) enum Workflow {
     Kafka43,
     NoEarliestPendingUpload,
+    MissingPartition,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -131,6 +132,10 @@ impl ListOffsetsBroker {
             }
             Workflow::NoEarliestPendingUpload => {
                 assert_eq!(calls, 0, "v11-only intent must fail before transport");
+                assert!(observations.is_empty());
+            }
+            Workflow::MissingPartition => {
+                assert_eq!(calls, 0, "an absent partition must fail before transport");
                 assert!(observations.is_empty());
             }
         }

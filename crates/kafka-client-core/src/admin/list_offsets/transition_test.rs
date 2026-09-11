@@ -153,6 +153,21 @@ fn original_deadline_and_driver_certainty_remain_terminal_without_retry() {
         AdminListOffsetsFailureKind::Transport,
         DeliveryStatus::PossiblySent,
     );
+
+    let mut unroutable = machine(20);
+    start(&mut unroutable);
+    unroutable
+        .apply(AdminListOffsetsInput::DriverAccepted)
+        .unwrap_or_else(|error| panic!("driver acceptance: {error}"));
+    assert_failure(
+        unroutable
+            .apply(AdminListOffsetsInput::RoutingFailed {
+                delivery: DeliveryStatus::NotSent,
+            })
+            .unwrap_or_else(|error| panic!("routing terminal: {error}")),
+        AdminListOffsetsFailureKind::Routing,
+        DeliveryStatus::NotSent,
+    );
 }
 
 fn machine(deadline: u64) -> AdminListOffsetsMachine {

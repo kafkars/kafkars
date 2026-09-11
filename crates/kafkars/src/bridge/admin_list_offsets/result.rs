@@ -109,6 +109,7 @@ fn translate_failure(failure: AdminListOffsetsFailure) -> KafkaError {
         AdminListOffsetsFailureKind::DriverRejected
         | AdminListOffsetsFailureKind::ResponseTooLarge => ErrorKind::Backpressure,
         AdminListOffsetsFailureKind::Transport => ErrorKind::Transport,
+        AdminListOffsetsFailureKind::Routing => ErrorKind::Routing,
         AdminListOffsetsFailureKind::Compatibility => ErrorKind::Compatibility,
         AdminListOffsetsFailureKind::InvalidResponse => ErrorKind::Broker,
     };

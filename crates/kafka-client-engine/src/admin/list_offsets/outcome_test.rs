@@ -63,14 +63,27 @@ fn throttle_order_optional_values_and_partition_error_translate_exactly() {
 
 #[test]
 fn whole_failure_and_delivery_translate_without_reclassification() {
-    let terminal = failed_terminal(CoreInput::ProtocolIncompatible {
-        delivery: DeliveryStatus::NotSent,
-    });
-    let AdminListOffsetsOutcome::Failed(failure) = translate_terminal(terminal) else {
-        panic!("whole-operation failure expected");
-    };
-    assert_eq!(failure.kind(), AdminListOffsetsFailureKind::Compatibility);
-    assert_eq!(failure.delivery(), AdminListOffsetsDeliveryStatus::NotSent);
+    for (input, expected) in [
+        (
+            CoreInput::ProtocolIncompatible {
+                delivery: DeliveryStatus::NotSent,
+            },
+            AdminListOffsetsFailureKind::Compatibility,
+        ),
+        (
+            CoreInput::RoutingFailed {
+                delivery: DeliveryStatus::NotSent,
+            },
+            AdminListOffsetsFailureKind::Routing,
+        ),
+    ] {
+        let AdminListOffsetsOutcome::Failed(failure) = translate_terminal(failed_terminal(input))
+        else {
+            panic!("whole-operation failure expected");
+        };
+        assert_eq!(failure.kind(), expected);
+        assert_eq!(failure.delivery(), AdminListOffsetsDeliveryStatus::NotSent);
+    }
 }
 
 fn failed_terminal(input: CoreInput) -> CoreTerminal {

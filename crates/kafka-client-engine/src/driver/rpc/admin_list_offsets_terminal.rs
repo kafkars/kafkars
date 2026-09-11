@@ -12,6 +12,7 @@ pub(crate) enum AdminListOffsetsDriverFailureKind {
     DeadlineElapsed,
     Compatibility,
     InvalidResponse,
+    Routing,
     Transport,
 }
 
@@ -109,6 +110,7 @@ fn failure_kind(error: &RequestError) -> AdminListOffsetsDriverFailureKind {
         | RequestError::VersionBoundsInvalid { .. } => {
             AdminListOffsetsDriverFailureKind::Compatibility
         }
+        RequestError::RouteUnavailable => AdminListOffsetsDriverFailureKind::Routing,
         _ => AdminListOffsetsDriverFailureKind::Transport,
     }
 }

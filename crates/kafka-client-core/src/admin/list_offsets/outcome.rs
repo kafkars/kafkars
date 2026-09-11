@@ -158,6 +158,8 @@ pub enum AdminListOffsetsFailureKind {
     DriverRejected,
     /// Transport failed after driver ownership.
     Transport,
+    /// Current cluster metadata could not route the requested partition.
+    Routing,
     /// A valid response exceeded admitted retained capacity.
     ResponseTooLarge,
     /// The selected broker version cannot represent the request.

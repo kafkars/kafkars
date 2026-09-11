@@ -88,6 +88,8 @@ pub enum AdminListOffsetsFailureKind {
     DriverRejected,
     /// Driver-owned transport execution failed.
     Transport,
+    /// Current cluster metadata could not route the requested partition.
+    Routing,
     /// A valid response exceeded the admitted retained envelope.
     ResponseTooLarge,
     /// The selected broker API cannot represent the request.
@@ -185,6 +187,7 @@ const fn failure_kind(kind: CoreFailureKind) -> AdminListOffsetsFailureKind {
         CoreFailureKind::DeadlineElapsed => AdminListOffsetsFailureKind::DeadlineElapsed,
         CoreFailureKind::DriverRejected => AdminListOffsetsFailureKind::DriverRejected,
         CoreFailureKind::Transport => AdminListOffsetsFailureKind::Transport,
+        CoreFailureKind::Routing => AdminListOffsetsFailureKind::Routing,
         CoreFailureKind::ResponseTooLarge => AdminListOffsetsFailureKind::ResponseTooLarge,
         CoreFailureKind::Compatibility => AdminListOffsetsFailureKind::Compatibility,
         CoreFailureKind::InvalidResponse => AdminListOffsetsFailureKind::InvalidResponse,

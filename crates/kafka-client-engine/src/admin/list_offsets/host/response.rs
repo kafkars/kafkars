@@ -29,6 +29,9 @@ pub(super) fn terminal_input(
             AdminListOffsetsDriverFailureKind::InvalidResponse => {
                 AdminListOffsetsInput::InvalidResponse
             }
+            AdminListOffsetsDriverFailureKind::Routing => {
+                AdminListOffsetsInput::RoutingFailed { delivery }
+            }
             AdminListOffsetsDriverFailureKind::Transport => {
                 AdminListOffsetsInput::TransportFailed { delivery }
             }
