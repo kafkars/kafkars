@@ -78,7 +78,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`1e54fb5b0a969041a0b197c72ff0ef061cd47cc0` defines the following gating cells.
+`c8a0e2b181834cc64dcb090c4a4bb2b554925ff4` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
@@ -101,6 +101,9 @@ partial, failed, or invalid gating cell cannot become a passing release.
 | `apache-kafka-4-3-1-three-sasl-plain` | Apache Kafka 4.3.1 | Three brokers, plaintext with SASL/PLAIN | `kafkars-three-broker-security` | 1 |
 | `apache-kafka-4-3-1-three-scram-sha-256` | Apache Kafka 4.3.1 | Three brokers, plaintext with SCRAM-SHA-256 | `kafkars-three-broker-security` | 1 |
 | `apache-kafka-4-3-1-three-scram-sha-512` | Apache Kafka 4.3.1 | Three brokers, plaintext with SCRAM-SHA-512 | `kafkars-three-broker-security` | 1 |
+| `apache-kafka-4-3-1-three-sasl-plain-tls` | Apache Kafka 4.3.1 | Three brokers, custom-root TLS with SASL/PLAIN | `kafkars-three-broker-security` | 1 |
+| `apache-kafka-4-3-1-three-scram-sha-256-tls` | Apache Kafka 4.3.1 | Three brokers, custom-root TLS with SCRAM-SHA-256 | `kafkars-three-broker-security` | 1 |
+| `apache-kafka-4-3-1-three-scram-sha-512-tls` | Apache Kafka 4.3.1 | Three brokers, custom-root TLS with SCRAM-SHA-512 | `kafkars-three-broker-security` | 1 |
 | `apache-kafka-4-3-1-three-plaintext` | Apache Kafka 4.3.1 | Three brokers, plaintext without SASL | `kafkars-three-broker-share` | 1 |
 | `apache-kafka-4-3-1-broker-role-failover` | Apache Kafka 4.3.1 | Three brokers, plaintext with controlled broker-role failover | `kafkars-broker-role-failover` | 1 |
 | `apache-kafka-4-3-1-broker-policy` | Apache Kafka 4.3.1 | Single broker, SASL/PLAIN with authorizer controls | `kafkars-broker-policy` | 1 |
@@ -115,11 +118,11 @@ partial, failed, or invalid gating cell cannot become a passing release.
 | TLS with platform roots | Present | Not configured in the release tier |
 | TLS with a custom PEM root bundle | Present | Configured without SASL for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
 | SASL/PLAIN over plain TCP | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
-| SASL/PLAIN over custom-root TLS | Present | Not configured in the release tier |
+| SASL/PLAIN over custom-root TLS | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
 | SCRAM-SHA-256 over plain TCP | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
-| SCRAM-SHA-256 over custom-root TLS | Present | Not configured in the release tier |
+| SCRAM-SHA-256 over custom-root TLS | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
 | SCRAM-SHA-512 over plain TCP | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
-| SCRAM-SHA-512 over custom-root TLS | Present | Not configured in the release tier |
+| SCRAM-SHA-512 over custom-root TLS | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
 | Mutual TLS client certificates | Not exposed | Unsupported |
 | SASL/OAUTHBEARER | Not exposed | Unsupported |
 | SASL/GSSAPI or Kerberos | Not exposed | Unsupported |
