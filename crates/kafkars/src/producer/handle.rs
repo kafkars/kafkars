@@ -6,7 +6,10 @@ use crate::{ErrorKind, KafkaError, Record, bridge::producer::ProducerEngine};
 
 use super::{CloseProducer, Delivery, Flush, Send, SendBatch, TrySendError};
 
-/// Builder for a bounded, batch-native producer.
+/// Builder for a bounded handle to one client's shared producer owner.
+///
+/// Separate builders obtained from the same client do not create independent
+/// producer lifecycles.
 #[derive(Debug, Clone)]
 pub struct ProducerBuilder {
     engine: ProducerEngine,

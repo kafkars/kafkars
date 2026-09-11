@@ -77,6 +77,37 @@ fn public_close_is_clone_shared_and_first_success_wins() {
     );
 }
 
+#[test]
+fn separately_built_handles_share_the_client_producer_close_fence() {
+    let result = Client::builder().bootstrap_servers(["127.0.0.1:1"]).build();
+    let Ok(client) = result else {
+        panic!("valid local client configuration should build")
+    };
+    let first = client
+        .producer()
+        .build()
+        .unwrap_or_else(|error| panic!("build first producer handle: {error}"));
+    let second = client
+        .producer()
+        .build()
+        .unwrap_or_else(|error| panic!("build second producer handle: {error}"));
+    let admission_deadline = Instant::now() + Duration::from_secs(1);
+
+    loop {
+        match first.close().wait() {
+            Ok(()) => break,
+            Err(error) if error.kind() == ErrorKind::Backpressure => {
+                assert!(Instant::now() < admission_deadline);
+                std::hint::spin_loop();
+            }
+            Err(error) => panic!("close shared producer owner: {error}"),
+        }
+    }
+
+    let error = state_after_contention(admission_deadline, || second.flush().wait());
+    assert_eq!(error.kind(), ErrorKind::State);
+}
+
 fn state_after_contention(
     deadline: Instant,
     mut attempt: impl FnMut() -> Result<(), KafkaError>,

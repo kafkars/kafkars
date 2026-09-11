@@ -43,6 +43,16 @@ engine owner and deterministic terminal path. An RFC statement, invariant,
 guardrail, fixture, simulation, benchmark description, or exported vocabulary
 alone is design evidence and must not be represented as broker support.
 
+### Child-handle ownership
+
+- One `Client` owns one clone-shared producer lifecycle. Every producer handle
+  built from that client shares admission, flush, and close state. Use another
+  client for an independently closable producer.
+- One `Client` admits one directly assigned consumer for its lifetime. Use
+  another client for an independent direct-consumer cursor set.
+- Group, Share, Admin, and transactional handles retain the ownership contracts
+  stated by their public builders and operations.
+
 ## Kafka broker versions
 
 No Kafka broker version is release-supported in this preview. The protocol
@@ -68,12 +78,12 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`cb0a45b8bb3903a68fa3c82fdfc3d570a62c01ac` defines the following gating cells.
+`90cc27b10eaee875d9aee220b0a66bb2723782f1` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
 PR qualification executes one pack pass. The pinned Testlab release workflow
-runs at most four cells concurrently, retains each cell's evidence for 90 days,
+runs at most eight cells concurrently, retains each cell's evidence for 90 days,
 and requires all expected cells and repetitions against identical packaged
 candidate checksums before sealing the complete release aggregate. A missing,
 partial, failed, or invalid gating cell cannot become a passing release.
