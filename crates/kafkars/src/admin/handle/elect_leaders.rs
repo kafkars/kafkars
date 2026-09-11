@@ -27,7 +27,8 @@ impl Admin {
     /// Builds an inert cluster-wide leader election.
     ///
     /// This explicit all-partitions selection is distinct from passing an
-    /// empty iterator to [`Self::elect_leaders`], which remains invalid.
+    /// empty iterator to [`Self::elect_leaders`], which remains invalid. The
+    /// result omits partitions that already had the requested leader.
     pub fn elect_all_leaders(&self, election_type: LeaderElectionType) -> ElectLeadersBuilder {
         ElectLeadersBuilder::new(
             self.engine.clone(),

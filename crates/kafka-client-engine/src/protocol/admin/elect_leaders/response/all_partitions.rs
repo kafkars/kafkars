@@ -58,15 +58,20 @@ fn validate_shape(response: &ElectLeadersResponse) -> Result<usize, ElectLeaders
         return Err(ElectLeadersProtocolFailure::TopicCount);
     }
     let mut partition_count = 0usize;
-    for topic in &response.replica_election_results {
+    for (index, topic) in response.replica_election_results.iter().enumerate() {
         if topic.topic.is_empty() {
             return Err(ElectLeadersProtocolFailure::EmptyTopic);
         }
         if topic.topic.len() > MAX_TOPIC_NAME_BYTES {
             return Err(ElectLeadersProtocolFailure::TopicNameTooLong);
         }
-        if topic.partition_result.is_empty() {
-            return Err(ElectLeadersProtocolFailure::EmptyTopicPartitions);
+        if response
+            .replica_election_results
+            .iter()
+            .take(index)
+            .any(|previous| previous.topic == topic.topic)
+        {
+            return Err(ElectLeadersProtocolFailure::DuplicateTopic);
         }
         partition_count = partition_count
             .checked_add(topic.partition_result.len())

@@ -29,7 +29,6 @@ pub(crate) enum ElectLeadersProtocolFailure {
     PartitionCount,
     EmptyTopic,
     TopicNameTooLong,
-    EmptyTopicPartitions,
     UnexpectedTopic,
     MissingTopic,
     DuplicateTopic,

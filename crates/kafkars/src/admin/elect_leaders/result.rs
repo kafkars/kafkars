@@ -27,12 +27,15 @@ impl ElectLeadersResult {
         self.throttle_time
     }
 
-    /// Returns per-partition outcomes in original caller order.
+    /// Returns selected outcomes in caller order or cluster-wide outcomes in canonical order.
+    ///
+    /// A cluster-wide response omits partitions whose requested leader was already active,
+    /// matching Kafka's `ElectLeaders` protocol.
     pub const fn partitions(&self) -> &BatchResult<TopicPartition, ()> {
         &self.partitions
     }
 
-    /// Consumes this result into caller-ordered per-partition outcomes.
+    /// Consumes this result into selected caller order or cluster-wide canonical order.
     pub fn into_partitions(self) -> BatchResult<TopicPartition, ()> {
         self.partitions
     }

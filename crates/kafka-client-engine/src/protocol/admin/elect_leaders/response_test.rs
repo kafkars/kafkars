@@ -85,9 +85,11 @@ fn all_partitions_accepts_empty_and_sorts_any_bounded_returned_set() {
     let mut audit = ReplicaElectionResult::default();
     audit.topic = "audit".into();
     audit.partition_result = vec![audit_zero];
+    let mut balanced = ReplicaElectionResult::default();
+    balanced.topic = "balanced".into();
     let mut response = ElectLeadersResponse::default();
     response.throttle_time_ms = 19;
-    response.replica_election_results = vec![orders, audit];
+    response.replica_election_results = vec![orders, balanced, audit];
 
     let ValidatedElectLeadersResponse::Batch(batch) = validate_elect_leaders_response(
         LeaderElectionType::Preferred,
@@ -138,7 +140,7 @@ fn all_partitions_rejects_malformed_or_duplicate_returned_identities() {
     first.partition_result = vec![partition.clone()];
     let mut second = ReplicaElectionResult::default();
     second.topic = "orders".into();
-    second.partition_result = vec![partition];
+    second.partition_result = Vec::new();
     response.replica_election_results = vec![first, second];
     assert_eq!(
         validate_elect_leaders_response(
