@@ -101,6 +101,14 @@ both consumer-only and generic listing builders, plus protocol-type filters
 through `Admin::list_groups`. Testlab retains each exact filter set and requires
 the public results to match independent broker group identity and state; a
 separate unfiltered listing remains the control.
+Admin group-description metadata coverage selects
+`include_authorized_operations(true)` through the dedicated classic, mixed
+classic/KIP-848, singleton Share, and plural Share builders. Testlab retains the
+exact option in each command, requires the public authorization bitfield on
+every successful description, and keeps live group identity and membership
+anchored to immediate Kafka CLI observations. The existing Streams-group
+lifecycle likewise requests authorization metadata together with its topology
+description.
 Admin transaction-discovery coverage retains all four
 `ListTransactionsBuilder` selectors: caller-ordered state and signed producer
 IDs, minimum running duration, and Kafka-owned transactional-ID pattern. Each
