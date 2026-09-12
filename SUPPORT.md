@@ -177,6 +177,19 @@ from both `OffsetSpec::earliest` and `OffsetSpec::latest`. Both paths remain
 configured qualification scope until archived evidence passes for an exact
 client commit.
 
+### Admin configuration description metadata
+
+The pinned Testlab protocol selects `include_synonyms(true)` and
+`include_documentation(true)` through both `DescribeConfigsBuilder` and
+`DescribeConfigResourcesBuilder`. Every successful selected entry retains the
+public `ConfigEntry` value, read-only flag, signed source, sensitive flag,
+ordered synonyms with their values and signed sources, optional configuration
+type, and optional documentation. Requested synonyms must include the effective
+value, requested documentation must include a type and nonempty text, and
+immediate independent configuration reads remain the value authority. This
+remains configured qualification scope until archived evidence passes for an
+exact client commit.
+
 ### Admin configuration mutation methods
 
 The pinned Testlab protocol selects `ConfigAlteration::set`, `delete`, `append`,
@@ -213,7 +226,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`7b70a8bddad5b806f07b3b5133ac307993b18dbe` defines the following gating cells.
+`422893759e51433d8dacea1ccb3c8de3d6b6c58b` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

@@ -109,6 +109,11 @@ Incremental configuration coverage selects `ConfigAlteration::set`, `delete`,
 builders. Delete sends no value, while Append and Subtract send only their list
 operand; named baselines and immediate independent reads retain the distinct
 final broker state outside those commands.
+DescribeConfigs metadata coverage selects `include_synonyms(true)` and
+`include_documentation(true)` through both public builders. Testlab retains each
+selected `ConfigEntry` value, read-only/source/sensitive facts, ordered
+`ConfigSynonym` values and sources, configuration type, and documentation while
+independent reads continue to prove the effective value.
 Legacy configuration coverage first replaces two snapshots through each public
 legacy surface, then selects `LegacyTopicConfigEntry::restore_default` for every
 key. The Testlab commands omit the expected broker default, while immediate
