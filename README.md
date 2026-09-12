@@ -25,6 +25,11 @@ the public delivery receipt, an independent Kafka observation, and the public
 assigned-consumer record. Automatic keyed-routing coverage separately omits an
 explicit partition and binds Kafkars's public receipt, independent broker
 placement, and direct consumer result to a Java-compatible partition oracle.
+Complete receipt coverage resolves a nonzero topic UUID through public Admin,
+applies it to each ordinary record before admission, and requires the public
+topic, UUID, optional leader epoch, partition, offset, timestamp, and nullable
+serialized key/value sizes to agree with scenario and independent Kafka truth.
+The paired records distinguish a null field from present empty bytes.
 Producer-admission coverage selects both immediate `Producer::try_send` and
 bounded FIFO `Producer::send`; the waiting-send scenario retains that exact
 public method through the Testlab command and independently observes its record
@@ -64,9 +69,9 @@ commit and abort scenarios retain the exact method and caller-ordered record set
 derive each staged offset from the public batch acknowledgment, and join the
 outcome to independent read-committed Kafka evidence.
 Topic-identity coverage obtains nonzero UUIDs through public Admin, applies
-`Record::expected_topic_uuid` to each staged topic, waits for
-`Transaction::validate_for_commit`, and requires the sealed IDs to match
-independent Kafka evidence before commit.
+`Record::expected_topic_uuid` to ordinary and staged records, checks ordinary
+receipts directly, and waits for `Transaction::validate_for_commit`; it requires
+the sealed IDs to match independent Kafka evidence before commit.
 Multi-topic Share coverage passes two caller-ordered topics through the public
 builder, observes assignments for both topics, and accepts one
 independently matched exact record from each.
