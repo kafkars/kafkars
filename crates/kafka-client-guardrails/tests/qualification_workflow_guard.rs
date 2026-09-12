@@ -24,7 +24,7 @@ fn testlab_pin_verdict_and_evidence_bypasses_are_rejected() {
     for (broken, expected) in [
         (
             workflow.replace(
-                "kafkars/testlab@aafbaa0cc3d2683fa6cb1828f64acfa98d6f0fef",
+                "kafkars/testlab@ff003598e9e15cf3c238dd02f5cc674912413a1c",
                 "kafkars/testlab@main",
             ),
             "must pin the exact Testlab revision",
@@ -39,8 +39,8 @@ fn testlab_pin_verdict_and_evidence_bypasses_are_rejected() {
         ),
         (
             workflow.replacen(
-                "uses: kafkars/testlab@aafbaa0cc3d2683fa6cb1828f64acfa98d6f0fef",
-                "continue-on-error: true\n        uses: kafkars/testlab@aafbaa0cc3d2683fa6cb1828f64acfa98d6f0fef",
+                "uses: kafkars/testlab@ff003598e9e15cf3c238dd02f5cc674912413a1c",
+                "continue-on-error: true\n        uses: kafkars/testlab@ff003598e9e15cf3c238dd02f5cc674912413a1c",
                 1,
             ),
             "contains unsupported key `continue-on-error`",
@@ -66,9 +66,9 @@ fn testlab_pin_verdict_and_evidence_bypasses_are_rejected() {
 fn release_workflow_cannot_change_pin_skip_aggregation_or_swallow_failures() {
     let workflow = read(&workspace_root().join(".github/workflows/qualification.yml"));
     for broken in [
-        workflow.replace("testlab-ref: aafbaa0cc3d2683fa6cb1828f64acfa98d6f0fef", "testlab-ref: main"),
+        workflow.replace("testlab-ref: ff003598e9e15cf3c238dd02f5cc674912413a1c", "testlab-ref: main"),
         workflow.replace("    uses: kafkars/testlab/.github/workflows/qualification-release.yml@", "    continue-on-error: true\n    uses: kafkars/testlab/.github/workflows/qualification-release.yml@"),
-        workflow.replace("qualification-release.yml@aafbaa0cc3d2683fa6cb1828f64acfa98d6f0fef", "qualification-release.yml@main"),
+        workflow.replace("qualification-release.yml@ff003598e9e15cf3c238dd02f5cc674912413a1c", "qualification-release.yml@main"),
         workflow.replace("    with:\n      testlab-ref:", "    strategy:\n      fail-fast: true\n    with:\n      testlab-ref:"),
     ] {
         assert!(!qualification_workflow_violations(&broken).is_empty());

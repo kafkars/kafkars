@@ -100,6 +100,11 @@ to exact independent broker records and bounding watermarks. The fixtures put
 the greatest timestamp before a later lower timestamp and a caller-selected
 timestamp after an earlier lower timestamp, so boundary substitutions cannot
 pass.
+Incremental configuration coverage selects `ConfigAlteration::set`, `delete`,
+`append`, and `subtract` through both topic-specific and generic-resource Admin
+builders. Delete sends no value, while Append and Subtract send only their list
+operand; named baselines and immediate independent reads retain the distinct
+final broker state outside those commands.
 Legacy configuration coverage first replaces two snapshots through each public
 legacy surface, then selects `LegacyTopicConfigEntry::restore_default` for every
 key. The Testlab commands omit the expected broker default, while immediate
