@@ -24,9 +24,10 @@ gate. The pinned release tier defines single-broker plaintext cells for Apache
 Kafka 3.7.2, 3.8.1, 3.9.2, 4.0.2, 4.1.2, 4.2.1, and 4.3.1, plus Apache Kafka
 4.3.1 three-broker plaintext, custom-root TLS, SASL/PLAIN, and
 SCRAM-SHA-256/512 cells, including every SASL mechanism over TLS and a dedicated
-authenticated delegation-token lifecycle cell. A configured cell or running workflow is not a
-qualification result; only archived passing evidence for the exact client
-commit and cell is eligible for a compatibility claim. This preview is
+authenticated delegation-token lifecycle cell, plus a dedicated modern
+Streams-group Admin lifecycle cell. A configured cell or running workflow is
+not a qualification result; only archived passing evidence for the exact
+client commit and cell is eligible for a compatibility claim. This preview is
 Rust-only; a future foreign interface will require its own versioned contract
 and qualification.
 See [support and compatibility](SUPPORT.md) for the exact boundary.
