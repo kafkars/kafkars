@@ -86,6 +86,11 @@ Share acknowledgement coverage selects both `ShareConsumerBatch::accept_all`
 and `ShareConsumerBatch::into_acknowledgement`; the all-Accept path consumes
 three exact acquisition ranges while explicit decisions retain mixed Accept,
 Release, and Reject behavior.
+Admin offset-selection coverage carries `OffsetSpec::earliest`,
+`OffsetSpec::latest`, and `OffsetSpec::for_timestamp` through exact Testlab
+commands. Timestamp selection joins the public offset and
+`ListOffsetsResultInfo::timestamp_ms()` to an exact independent broker record
+and bounding watermarks, so a boundary substitution cannot pass.
 Share rack-identity coverage also retains the optional public builder value and
 requires exact broker-reported rack IDs through singleton and plural public
 Admin descriptions.
