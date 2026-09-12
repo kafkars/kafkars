@@ -25,6 +25,10 @@ the public delivery receipt, an independent Kafka observation, and the public
 assigned-consumer record. Automatic keyed-routing coverage separately omits an
 explicit partition and binds Kafkars's public receipt, independent broker
 placement, and direct consumer result to a Java-compatible partition oracle.
+Producer-admission coverage selects both immediate `Producer::try_send` and
+bounded FIFO `Producer::send`; the waiting-send scenario retains that exact
+public method through the Testlab command and independently observes its record
+in Kafka.
 Explicit child-ownership coverage builds two private producers from one client
 configuration, closes one without stopping its sibling, replaces a closed
 producer, and proves two private directly assigned consumers retain separate
