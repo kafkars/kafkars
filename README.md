@@ -100,9 +100,9 @@ to exact independent broker records and bounding watermarks. The fixtures put
 the greatest timestamp before a later lower timestamp and a caller-selected
 timestamp after an earlier lower timestamp, so boundary substitutions cannot
 pass.
-Legacy configuration coverage first replaces two topic snapshots with explicit
-values, then selects `LegacyTopicConfigEntry::restore_default` for both keys.
-The Testlab command omits the expected broker default, while immediate
+Legacy configuration coverage first replaces two snapshots through each public
+legacy surface, then selects `LegacyTopicConfigEntry::restore_default` for every
+key. The Testlab commands omit the expected broker default, while immediate
 independent reads must prove the distinct restored values in caller order.
 Share rack-identity coverage also retains the optional public builder value and
 requires exact broker-reported rack IDs through singleton and plural public
