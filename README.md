@@ -61,6 +61,10 @@ cursors over the same records.
 Multi-topic group coverage passes two caller-ordered topics through the public
 builder, observes both assignments, and commits one independently matched
 record from each topic under both classic and KIP-848 membership.
+Group-transition coverage selects both waiting `Consumer::next_event` and
+immediate `Consumer::try_take_event` while stable assignments settle. Testlab
+retains the exact observer choice for classic and KIP-848 consumers beside
+their public transition, assignment, and independent broker evidence.
 Hosted group delivery coverage selects both waiting `Consumer::recv` and
 immediate `Consumer::try_take_batch`; Testlab retains the exact observer choice
 while both paths commit and join their records to independent Kafka evidence.
