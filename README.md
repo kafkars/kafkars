@@ -40,10 +40,12 @@ Direct-consumer delivery coverage selects both waiting
 `AssignedConsumer::recv` and immediate `AssignedConsumer::try_take_batch`;
 Testlab retains the exact observer choice and joins the returned batch to an
 independently observed Kafka record.
-Owned-record coverage consumes that batch through `RecordBatch::into_owned`,
-transfers one `OwnedConsumerRecord` into an ordinary producer record, and keeps
-the non-clone `RetainedSourceRecord` readable through the independently checked
-destination terminal without replacing any source header.
+Owned-record coverage converts that batch through both
+`RecordBatch::into_owned().into_records()` and the direct
+`RecordBatch::into_owned_records()` path. Each transfers one
+`OwnedConsumerRecord` into an ordinary producer record and keeps the non-clone
+`RetainedSourceRecord` readable through the independently checked destination
+terminal without replacing any source header.
 Fetch-evidence coverage retains the batch's broker-issued topic UUID, requested
 and next offsets, log bounds, high watermark, byte charge, and checkpoint, then
 joins them to independent Testlab topic-identity, watermark, and record facts.
