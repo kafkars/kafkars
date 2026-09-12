@@ -25,6 +25,10 @@ the public delivery receipt, an independent Kafka observation, and the public
 assigned-consumer record. Automatic keyed-routing coverage separately omits an
 explicit partition and binds Kafkars's public receipt, independent broker
 placement, and direct consumer result to a Java-compatible partition oracle.
+Explicit child-ownership coverage builds two private producers from one client
+configuration, closes one without stopping its sibling, replaces a closed
+producer, and proves two private directly assigned consumers retain separate
+cursors over the same records.
 The pinned release tier defines single-broker plaintext cells for Apache
 Kafka 3.7.2, 3.8.1, 3.9.2, 4.0.2, 4.1.2, 4.2.1, and 4.3.1, plus Apache Kafka
 4.3.1 three-broker plaintext, custom-root TLS, SASL/PLAIN, and

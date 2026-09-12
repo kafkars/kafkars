@@ -28,8 +28,8 @@ commit and cell is eligible evidence for a compatibility claim.
 | Area | Source status | Qualification status |
 | --- | --- | --- |
 | Rust facade | Concrete runtime-neutral builders, futures, blocking observation, and error vocabulary | Unit-tested; no stable API promise |
-| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, shared or explicitly independent execution ownership, and close paths | Configured round-trip, explicit timestamp receipt and broker fidelity, Java-compatible automatic keyed routing through the public receipt, independent broker placement, and a direct consumer, readiness/flush, null/empty, ordering, explicit partition-routing, batch, cancellation, every public compression mode, broker-restart, and rolling-restart scenarios, plus client metrics and shutdown isolation |
-| Direct consumer | Assignment, fetch, checkpoint, seek, events, immutable read isolation, shared-client one-shot or explicitly independent execution ownership, and close paths | Configured beginning/end/exact positioning, round-trip, explicit timestamp recovery, seek, pause/resume, incremental and multi-partition assignment, cursor continuity, replacement, record fidelity, and read-committed visibility after an independently verified aborted transaction |
+| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, shared or explicitly independent execution ownership, and close paths | Configured round-trip, explicit timestamp receipt and broker fidelity, Java-compatible automatic keyed routing through the public receipt, independent broker placement, and a direct consumer, readiness/flush, independent sibling-close and replacement owners, null/empty, ordering, explicit partition-routing, batch, cancellation, every public compression mode, broker-restart, and rolling-restart scenarios, plus client metrics and shutdown isolation |
+| Direct consumer | Assignment, fetch, checkpoint, seek, events, immutable read isolation, shared-client one-shot or explicitly independent execution ownership, and close paths | Configured beginning/end/exact positioning, round-trip, explicit timestamp recovery, seek, pause/resume, incremental and multi-partition assignment, cursor continuity, replacement, dual independent cursors over the same broker records, record fidelity, and read-committed visibility after an independently verified aborted transaction |
 | Classic group consumer | Dynamic and static membership, range and cooperative-sticky assignment, assignment events, fetch, checkpoint commit, seek, and close paths | Configured round-trip with broker-reported cooperative-sticky selection, seek, pause/resume, offset reset, read-committed, shutdown, static-member retention and administrative removal, record fidelity, membership ownership, offset resume, broker restart, and session recovery |
 | KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Configured round-trip, seek, pause/resume, offset reset, read-committed, shutdown, record fidelity, membership ownership, offset resume, and session recovery in applicable Kafka 4.x cells |
 | Share-group consumer | Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Configured lifecycle, record fidelity, mixed release/reject, batch drop, maximum-record fetch, membership ownership, close uncertainty, leader recovery, and session recovery in applicable Kafka 4.x cells |
@@ -56,6 +56,9 @@ alone is design evidence and must not be represented as broker support.
 - Independent owners are not included in the originating client's metrics or
   shutdown. Close them explicitly; dropping their final handle requests private
   engine shutdown.
+- The pinned Testlab protocol selects this path explicitly through the
+  `independent_handles` capability and verifies later sibling, replacement, or
+  dual-cursor operations rather than inferring ownership from construction.
 - Group, Share, Admin, and transactional handles retain the ownership contracts
   stated by their public builders and operations.
 
@@ -84,7 +87,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`f3edfb891d372ec2fb99abf6324e5bbd11543ca0` defines the following gating cells.
+`010844ce165ae729c363b66f38e47e383ca679e6` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
