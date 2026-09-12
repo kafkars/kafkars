@@ -63,6 +63,11 @@ single-broker operation and recovery while each broker is disrupted in turn.
 Shared group-runtime coverage passes non-default processing, membership-start,
 seek, and close deadlines through both classic and KIP-848 builders and
 requires exact public seek replay plus orderly close.
+Missing-offset coverage passes the public `OffsetReset::Error` policy through
+both classic and KIP-848 builders. A new group with no committed offset must
+return the correlated public `state` failure and no successful batch rather
+than silently selecting an initial position; earliest and latest behavior
+remain covered separately.
 Consumer Fetch-policy coverage passes every broker-request and retained-delivery
 capacity through the public assigned, classic, and KIP-848 builders at
 non-default values, then requires exact public delivery joined to independent
