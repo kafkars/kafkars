@@ -6,7 +6,7 @@ use crate::KafkaError;
 
 use super::AssignedConsumerBuilder;
 
-/// Failure to claim one client's directly assigned consumer.
+/// Failure to claim one directly assigned consumer.
 ///
 /// The exact consumed builder remains available because the engine did not
 /// transfer its unique assigned-consumer capability to this call.

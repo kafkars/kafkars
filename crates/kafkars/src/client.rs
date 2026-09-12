@@ -126,6 +126,7 @@ impl ClientBuilder {
             ));
         }
 
+        let configuration = std::sync::Arc::new(self.clone());
         let engine = ClientEngine::start_with_consumer_fetch(
             self.bootstrap_servers,
             self.client_id,
@@ -137,7 +138,10 @@ impl ClientBuilder {
             self.expected_cluster_id,
             identity_deadline,
         )?;
-        Ok(Client { engine })
+        Ok(Client {
+            engine,
+            configuration,
+        })
     }
 }
 
@@ -145,6 +149,7 @@ impl ClientBuilder {
 #[derive(Debug, Clone)]
 pub struct Client {
     engine: ClientEngine,
+    configuration: std::sync::Arc<ClientBuilder>,
 }
 
 impl Client {
@@ -189,10 +194,20 @@ impl Client {
 
     /// Begins a thread-safe handle to this client's producer owner.
     ///
-    /// Handles from one client share admission, flush, and close state; use a
-    /// distinct client for independent producer lifecycle ownership.
+    /// Handles from one client share admission, flush, and close state. Use
+    /// [`Client::independent_producer`] for a separate lifecycle owner.
     pub fn producer(&self) -> ProducerBuilder {
         ProducerBuilder::new(self.engine.producer())
+    }
+
+    /// Begins a producer with its own execution and close owner.
+    ///
+    /// Each successful build starts a private engine from this client's exact
+    /// configuration. Its admission, flush, close, and shutdown state is
+    /// independent of this client and every sibling producer. Expected cluster
+    /// identity, when configured, is proved again while the new engine starts.
+    pub fn independent_producer(&self) -> ProducerBuilder {
+        ProducerBuilder::independent(self.engine.producer(), self.configuration.as_ref().clone())
     }
 
     /// Begins construction of a uniquely controlled group consumer.
@@ -201,9 +216,20 @@ impl Client {
     }
 
     /// Begins this client's sole assigned consumer; later builds are rejected
-    /// even after close. Use a distinct client for an independent cursor set.
+    /// even after close. Use [`Client::independent_assigned_consumer`] for a
+    /// separate cursor owner.
     pub fn assigned_consumer(&self) -> AssignedConsumerBuilder {
         AssignedConsumerBuilder::new(self.engine.clone())
+    }
+
+    /// Begins a directly assigned consumer with its own execution owner.
+    ///
+    /// Each successful build starts a private engine from this client's exact
+    /// configuration and therefore owns an independent assignment and cursor
+    /// set. Expected cluster identity, when configured, is proved again while
+    /// the new engine starts.
+    pub fn independent_assigned_consumer(&self) -> AssignedConsumerBuilder {
+        AssignedConsumerBuilder::independent(self.configuration.as_ref().clone())
     }
 
     /// Begins construction of a unique Kafka share-group consumer.

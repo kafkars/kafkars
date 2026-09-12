@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::{Compression, ProducerLimits, ProducerRetryConfig};
 
-/// Complete configurable policy for the client's shared producer owner.
+/// Complete configurable policy inherited by each selected producer owner.
 ///
 /// The release-candidate producer is always idempotent and sends with `acks=all`;
 /// those durability guarantees cannot be silently weakened through this type.

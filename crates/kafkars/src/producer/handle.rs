@@ -6,18 +6,33 @@ use crate::{ErrorKind, KafkaError, Record, bridge::producer::ProducerEngine};
 
 use super::{CloseProducer, Delivery, Flush, Send, SendBatch, TrySendError};
 
-/// Builder for a bounded handle to one client's shared producer owner.
+/// Builder for a bounded producer handle.
 ///
-/// Separate builders obtained from the same client do not create independent
-/// producer lifecycles.
+/// [`Client::producer`](crate::Client::producer) selects the client's shared
+/// owner. [`Client::independent_producer`](crate::Client::independent_producer)
+/// selects a new execution and close owner for each successful build.
 #[derive(Debug, Clone)]
 pub struct ProducerBuilder {
     engine: ProducerEngine,
+    independent_client: Option<crate::client::ClientBuilder>,
 }
 
 impl ProducerBuilder {
     pub(crate) const fn new(engine: ProducerEngine) -> Self {
-        Self { engine }
+        Self {
+            engine,
+            independent_client: None,
+        }
+    }
+
+    pub(crate) const fn independent(
+        engine: ProducerEngine,
+        client: crate::client::ClientBuilder,
+    ) -> Self {
+        Self {
+            engine,
+            independent_client: Some(client),
+        }
     }
 
     /// Sets the duration used to create each record's absolute end-to-end deadline.
@@ -36,25 +51,39 @@ impl ProducerBuilder {
         self.engine.delivery_timeout()
     }
 
-    /// Builds the producer after local validation.
+    /// Builds the producer after validating its public timeout policy.
+    ///
+    /// An independent builder also starts its private execution owner here.
     pub fn build(self) -> Result<Producer, KafkaError> {
         let delivery_timeout = self.engine.delivery_timeout();
-        if delivery_timeout.is_zero() {
-            return Err(KafkaError::new(
-                ErrorKind::Configuration,
-                "producer delivery timeout must be nonzero",
-            ));
-        }
-        if u64::try_from(delivery_timeout.as_nanos()).is_err() {
-            return Err(KafkaError::new(
-                ErrorKind::Configuration,
-                "producer delivery timeout exceeds the supported range",
-            ));
+        validate_delivery_timeout(delivery_timeout)?;
+        if let Some(client) = self.independent_client {
+            return client
+                .build()?
+                .producer()
+                .delivery_timeout(delivery_timeout)
+                .build();
         }
         Ok(Producer {
             engine: self.engine,
         })
     }
+}
+
+fn validate_delivery_timeout(delivery_timeout: Duration) -> Result<(), KafkaError> {
+    if delivery_timeout.is_zero() {
+        return Err(KafkaError::new(
+            ErrorKind::Configuration,
+            "producer delivery timeout must be nonzero",
+        ));
+    }
+    if u64::try_from(delivery_timeout.as_nanos()).is_err() {
+        return Err(KafkaError::new(
+            ErrorKind::Configuration,
+            "producer delivery timeout exceeds the supported range",
+        ));
+    }
+    Ok(())
 }
 
 /// Cheaply cloneable, thread-safe producer handle.

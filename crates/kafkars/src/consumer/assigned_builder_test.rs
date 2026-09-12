@@ -62,6 +62,29 @@ fn rejected_claim_returns_the_same_engine_builder_without_disturbing_the_winner(
         .unwrap_or_else(|error| panic!("close assigned consumer: {error}"));
 }
 
+#[test]
+fn independent_builder_clones_claim_distinct_cursor_owners() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("start client: {error}"));
+    let first_builder = client.independent_assigned_consumer();
+    let second_builder = first_builder.clone();
+    let mut first = first_builder
+        .build()
+        .unwrap_or_else(|error| panic!("claim first independent consumer: {error}"));
+    let mut second = second_builder
+        .build()
+        .unwrap_or_else(|error| panic!("claim second independent consumer: {error}"));
+
+    close_when_admitted(&mut first)
+        .wait()
+        .unwrap_or_else(|error| panic!("close first independent consumer: {error}"));
+    close_when_admitted(&mut second)
+        .wait()
+        .unwrap_or_else(|error| panic!("close second independent consumer: {error}"));
+}
+
 fn close_when_admitted(consumer: &mut AssignedConsumer) -> CloseAssignedConsumer {
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {

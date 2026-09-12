@@ -61,6 +61,23 @@ fn empty_flush_completes_through_the_public_named_operation() {
 }
 
 #[test]
+fn independent_producer_builders_have_distinct_close_fences() {
+    let client = build_client();
+    let first_builder = client.independent_producer();
+    let second_builder = first_builder.clone();
+    let first = first_builder
+        .build()
+        .unwrap_or_else(|error| panic!("build first independent producer: {error}"));
+    let second = second_builder
+        .build()
+        .unwrap_or_else(|error| panic!("build second independent producer: {error}"));
+
+    close_when_admitted(&first);
+    flush_when_admitted(&second);
+    close_when_admitted(&second);
+}
+
+#[test]
 fn zero_delivery_timeout_is_rejected_when_the_producer_builds() {
     let result = build_client()
         .producer()
@@ -182,6 +199,32 @@ fn admit_with_backpressure_retry(
                 std::hint::spin_loop();
             }
             Err(rejection) => panic!("valid record admission failed: {}", rejection.error()),
+        }
+    }
+}
+
+fn flush_when_admitted(producer: &Producer) {
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        match producer.flush().wait() {
+            Ok(()) => return,
+            Err(error) if error.kind() == ErrorKind::Backpressure && Instant::now() < deadline => {
+                std::hint::spin_loop();
+            }
+            Err(error) => panic!("flush independent producer: {error}"),
+        }
+    }
+}
+
+fn close_when_admitted(producer: &Producer) {
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        match producer.close().wait() {
+            Ok(()) => return,
+            Err(error) if error.kind() == ErrorKind::Backpressure && Instant::now() < deadline => {
+                std::hint::spin_loop();
+            }
+            Err(error) => panic!("close independent producer: {error}"),
         }
     }
 }

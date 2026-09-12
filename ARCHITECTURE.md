@@ -185,9 +185,12 @@ not require validation.
 ## Threads and callbacks
 
 One engine host thread owns one driver reactor. Logical shards are fairness and
-ownership boundaries, not extra reactors. Dedicated bounded notifier workers
-run Rust wakers away from network I/O. Compression uses explicit workers where
-configured. No application callback runs on a reactor thread.
+ownership boundaries, not extra reactors. An explicitly independent producer
+or directly assigned consumer starts a separate engine from the originating
+client's retained configuration; that owner therefore has a separate reactor,
+close state, metrics domain, and shutdown lifecycle. Dedicated bounded notifier
+workers run Rust wakers away from network I/O. Compression uses explicit workers
+where configured. No application callback runs on a reactor thread.
 
 ## Shutdown and recovery
 

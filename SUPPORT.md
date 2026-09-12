@@ -28,8 +28,8 @@ commit and cell is eligible evidence for a compatibility claim.
 | Area | Source status | Qualification status |
 | --- | --- | --- |
 | Rust facade | Concrete runtime-neutral builders, futures, blocking observation, and error vocabulary | Unit-tested; no stable API promise |
-| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | Configured round-trip, explicit timestamp receipt and broker fidelity, Java-compatible automatic keyed routing through the public receipt, independent broker placement, and a direct consumer, readiness/flush, null/empty, ordering, explicit partition-routing, batch, cancellation, every public compression mode, broker-restart, and rolling-restart scenarios, plus client metrics and shutdown isolation |
-| Direct consumer | Assignment, fetch, checkpoint, seek, events, immutable read isolation, and close paths | Configured beginning/end/exact positioning, round-trip, explicit timestamp recovery, seek, pause/resume, incremental and multi-partition assignment, cursor continuity, replacement, record fidelity, and read-committed visibility after an independently verified aborted transaction |
+| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, shared or explicitly independent execution ownership, and close paths | Configured round-trip, explicit timestamp receipt and broker fidelity, Java-compatible automatic keyed routing through the public receipt, independent broker placement, and a direct consumer, readiness/flush, null/empty, ordering, explicit partition-routing, batch, cancellation, every public compression mode, broker-restart, and rolling-restart scenarios, plus client metrics and shutdown isolation |
+| Direct consumer | Assignment, fetch, checkpoint, seek, events, immutable read isolation, shared-client one-shot or explicitly independent execution ownership, and close paths | Configured beginning/end/exact positioning, round-trip, explicit timestamp recovery, seek, pause/resume, incremental and multi-partition assignment, cursor continuity, replacement, record fidelity, and read-committed visibility after an independently verified aborted transaction |
 | Classic group consumer | Dynamic and static membership, range and cooperative-sticky assignment, assignment events, fetch, checkpoint commit, seek, and close paths | Configured round-trip with broker-reported cooperative-sticky selection, seek, pause/resume, offset reset, read-committed, shutdown, static-member retention and administrative removal, record fidelity, membership ownership, offset resume, broker restart, and session recovery |
 | KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Configured round-trip, seek, pause/resume, offset reset, read-committed, shutdown, record fidelity, membership ownership, offset resume, and session recovery in applicable Kafka 4.x cells |
 | Share-group consumer | Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Configured lifecycle, record fidelity, mixed release/reject, batch drop, maximum-record fetch, membership ownership, close uncertainty, leader recovery, and session recovery in applicable Kafka 4.x cells |
@@ -45,11 +45,17 @@ alone is design evidence and must not be represented as broker support.
 
 ### Child-handle ownership
 
-- One `Client` owns one clone-shared producer lifecycle. Every producer handle
-  built from that client shares admission, flush, and close state. Use another
-  client for an independently closable producer.
-- One `Client` admits one directly assigned consumer for its lifetime. Use
-  another client for an independent direct-consumer cursor set.
+- `Client::producer` selects one clone-shared producer lifecycle. Every handle
+  built through that path shares admission, flush, and close state.
+  `Client::independent_producer` instead starts a private execution and close
+  owner from the same configuration for each successful build.
+- `Client::assigned_consumer` admits one directly assigned consumer for the
+  shared client lifetime. Each successful
+  `Client::independent_assigned_consumer` build starts a private execution owner
+  with its own assignment and cursor set.
+- Independent owners are not included in the originating client's metrics or
+  shutdown. Close them explicitly; dropping their final handle requests private
+  engine shutdown.
 - Group, Share, Admin, and transactional handles retain the ownership contracts
   stated by their public builders and operations.
 

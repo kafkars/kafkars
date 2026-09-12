@@ -79,9 +79,12 @@ kafka-wire -----------> kafka-driver -> kafka-client-engine ---> kafkars
 
 The core owns semantic time, retained-byte accounting, cancellation, and
 terminal decisions without owning networking or an async runtime. Each client
-owns one private native reactor thread through the engine. Runtime-neutral means
-that Kafkars embeds no async executor; it does not mean threadless. The engine
-also owns bounded execution, protocol adaptation, shutdown, and recovery.
+owns one private native reactor thread through the engine. Explicit independent
+producer and directly assigned consumer builders start an additional private
+engine from the same client configuration, giving each successful build its own
+close and cursor owner. Runtime-neutral means that Kafkars embeds no async
+executor; it does not mean threadless. The engine also owns bounded execution,
+protocol adaptation, shutdown, and recovery.
 `kafkars` exposes the curated public Rust API.
 
 `kafka-client-sim` supplies virtual-time execution, and
