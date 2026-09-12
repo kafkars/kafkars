@@ -28,7 +28,7 @@ commit and cell is eligible evidence for a compatibility claim.
 | Area | Source status | Qualification status |
 | --- | --- | --- |
 | Rust facade | Concrete runtime-neutral builders, futures, blocking observation, and error vocabulary | Unit-tested; no stable API promise |
-| Producer | Immediate `try_send`, bounded FIFO waiting `send`, partitioning, batching, retry, cancellation, flush, shared or explicitly independent execution ownership, and close paths | Configured exact method selection for immediate and waiting sends, round-trip, explicit timestamp receipt and broker fidelity, Java-compatible automatic keyed routing through the public receipt, independent broker placement, and a direct consumer, readiness/flush, independent sibling-close and replacement owners, null/empty, ordering, explicit partition-routing, batch, cancellation, every public compression mode, broker-restart, and rolling-restart scenarios, plus client metrics and shutdown isolation |
+| Producer | Immediate `try_send`, bounded FIFO waiting `send`, partitioning, batching, retry, cancellation, flush, shared or explicitly independent execution ownership, and close paths | Configured exact method selection for immediate and waiting sends, round-trip, explicit timestamp receipt and broker fidelity, Java-compatible automatic keyed routing through the public receipt, independent broker placement, and a direct consumer, readiness/flush, independent sibling-close and replacement owners, null/empty, ordering, explicit partition-routing, batch, stage-aware cancellation on both retained delivery and waiting-send observers, every public compression mode, broker-restart, and rolling-restart scenarios, plus client metrics and shutdown isolation |
 | Direct consumer | Assignment, complete broker Fetch policy, bounded Fetch-call and retained-delivery capacity, checkpoint, seek, events, immutable read isolation, shared-client one-shot or explicitly independent execution ownership, and close paths | Configured beginning/end/exact positioning, round-trip, explicit timestamp recovery, seek, pause/resume, incremental and multi-partition assignment, cursor continuity, replacement, dual independent cursors over the same broker records, record fidelity, and read-committed visibility with every non-default Fetch and capacity value after an independently verified aborted transaction |
 | Classic group consumer | Dynamic and static membership, caller-ordered multi-topic subscription, complete broker Fetch policy, bounded Fetch-call and retained-delivery capacity, complete session, rebalance, heartbeat, and rejoin timing, explicit processing, membership-start, seek, and close durations, range and cooperative-sticky assignment, assignment events, fetch, checkpoint commit, seek, and close paths | Configured round-trip with every public membership-timing value, broker-reported cooperative-sticky selection, exact two-topic assignment and record delivery, seek replay under every non-default Fetch, capacity, and shared runtime value, pause/resume, offset reset, read-committed, shutdown, static-member retention and administrative removal, record fidelity, membership ownership, offset resume, broker restart, and non-default-timing recovery while every broker is disrupted in turn |
 | KIP-848 consumer group | Caller-ordered multi-topic subscription, complete broker Fetch policy, bounded Fetch-call and retained-delivery capacity, explicit processing, membership-start, seek, and close durations, topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Configured round-trip with exact two-topic assignment and record delivery, seek replay under every non-default Fetch, capacity, and shared runtime value, pause/resume, offset reset, read-committed, shutdown, record fidelity, membership ownership, offset resume, and session recovery in applicable Kafka 4.x cells |
@@ -70,8 +70,11 @@ to a bounded FIFO waiting operation under the configured waiting-record and
 waiting-byte limits, without requiring an application retry loop. The pinned
 Testlab protocol retains which method a scenario selected, and its dedicated
 waiting-send scenario requires the exact public terminal and an independently
-observed Kafka record. This remains configured qualification scope until
-archived evidence passes for an exact client commit.
+observed Kafka record. Its cancellation scenario carries the same selection
+through the command, invokes either `Delivery::cancel` or `Send::cancel` twice
+on the retained observer, and preserves stage uncertainty through terminal and
+broker truth. This remains configured qualification scope until archived
+evidence passes for an exact client commit.
 
 ## Kafka broker versions
 
@@ -98,7 +101,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`03cac18f2ac9e0f71a472d25b0c5bf00a8172446` defines the following gating cells.
+`dd1f209947cae5340c9afc6b190cddfe8a2366a6` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

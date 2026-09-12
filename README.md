@@ -28,7 +28,9 @@ placement, and direct consumer result to a Java-compatible partition oracle.
 Producer-admission coverage selects both immediate `Producer::try_send` and
 bounded FIFO `Producer::send`; the waiting-send scenario retains that exact
 public method through the Testlab command and independently observes its record
-in Kafka.
+in Kafka. Cancellation coverage carries the same selection through the command,
+invokes the matching public observer twice, and preserves stage uncertainty
+through terminal and independent broker truth.
 Explicit child-ownership coverage builds two private producers from one client
 configuration, closes one without stopping its sibling, replaces a closed
 producer, and proves two private directly assigned consumers retain separate
