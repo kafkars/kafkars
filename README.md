@@ -22,7 +22,10 @@ real-broker qualification authority; this repository chooses pull-request or
 release qualification, retains the resulting evidence, and applies the required
 gate. Record-fidelity coverage carries an explicit producer timestamp through
 the public delivery receipt, an independent Kafka observation, and the public
-assigned-consumer record. The pinned release tier defines single-broker plaintext cells for Apache
+assigned-consumer record. Automatic keyed-routing coverage separately omits an
+explicit partition and binds Kafkars's public receipt, independent broker
+placement, and direct consumer result to a Java-compatible partition oracle.
+The pinned release tier defines single-broker plaintext cells for Apache
 Kafka 3.7.2, 3.8.1, 3.9.2, 4.0.2, 4.1.2, 4.2.1, and 4.3.1, plus Apache Kafka
 4.3.1 three-broker plaintext, custom-root TLS, SASL/PLAIN, and
 SCRAM-SHA-256/512 cells, including every SASL mechanism over TLS and a dedicated
