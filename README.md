@@ -50,6 +50,10 @@ record from each topic under both classic and KIP-848 membership.
 Hosted group delivery coverage selects both waiting `Consumer::recv` and
 immediate `Consumer::try_take_batch`; Testlab retains the exact observer choice
 while both paths commit and join their records to independent Kafka evidence.
+Processing-liveness coverage retains one batch beyond its original configured
+processing window, calls `Consumer::acknowledge` midway with an
+assignment-fenced checkpoint, and commits that same exact record under both
+classic and KIP-848 membership.
 Transaction staging coverage preserves the distinction between per-record
 `Transaction::send` and one homogeneous `Transaction::send_batch`. Dedicated
 commit and abort scenarios retain the exact method and caller-ordered record set,
