@@ -34,7 +34,7 @@ commit and cell is eligible evidence for a compatibility claim.
 | KIP-848 consumer group | Caller-ordered multi-topic subscription, waiting `recv` and immediate `try_take_batch`, complete broker Fetch policy, bounded Fetch-call and retained-delivery capacity, explicit processing, membership-start, seek, and close durations, fail-closed, earliest, and latest missing-offset policy, topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Configured round-trip through both batch observers with exact two-topic assignment and record delivery, seek replay under every non-default Fetch, capacity, and shared runtime value, pause/resume, correlated fail-closed missing-offset failure, earliest and latest offset reset, read-committed, shutdown, record fidelity, membership ownership, offset resume, and session recovery in applicable Kafka 4.x cells |
 | Share-group consumer | Caller-ordered multi-topic subscription, complete broker long-poll, byte, record, acquisition-range, and attempt-timeout policy, explicit membership-start and close durations, optional rack identity, Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Configured exact two-topic assignment and record acquisition, every non-default Fetch and runtime value through exact bounded public batches, exact broker-reported rack identity through singleton and plural Admin descriptions, lifecycle, record fidelity, mixed release/reject, batch drop, membership ownership, close uncertainty, leader recovery, and session recovery in applicable Kafka 4.x cells |
 | Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes, broker unregistration, and dynamic metadata-quorum voter changes | Configured topic create/validate/batch/partition/delete/list lifecycles and failures, including caller-ordered name-based plural deletion with mixed outcomes and independent before/after metadata, plus caller-ordered topic-ID description and deletion with independent UUID and topology fencing; singleton topic description plus caller-ordered detailed name-based plural topic descriptions with mixed outcomes; singleton and caller-ordered plural selected topic-configuration descriptions and mutations, caller-ordered generic topic-resource descriptions and incremental mutations, caller-ordered legacy full-snapshot replacement through both topic and generic-resource surfaces, Kafka 4.1+ generic configuration-resource discovery, and dedicated client-metrics resource discovery with exact pinned-CLI state, plus caller-ordered offset queries; singleton and caller-ordered plural record deletion with explicit and high-watermark boundaries plus independent before/after ranges; caller-ordered partition reassignment with replication-factor change and exact converged replica/ISR metadata, followed by selected and all-active listing against pinned CLI state; selected and cluster-wide preferred leader elections that restore separately disrupted leaders after exact full-ISR recovery; cluster identity, feature and canonical metadata-quorum discovery, reversible stopped-broker unregistration with exact immediate remaining membership and same-cluster restoration, Kafka 4.3.1 validation-only finalized-feature updates with caller-ordered outcomes and exact unchanged pinned-CLI state and epoch, authenticated delegation-token create/describe/renew/expire with secret-free independent absence, and all seven modern Streams-group description, stable-offset, offset-mutation, and deletion methods with caller-ordered public results plus independent final absence; exact active partition producer state, selected-partition broker log directories and exact per-broker replica placements plus caller-ordered two-directory replica alteration with exact settled targets and no future copy, canonical cluster transaction listing, caller-ordered exact transaction descriptions, active-transaction force termination, and broker-derived single-partition transaction abort with pre-cleanup pinned CLI evidence, plus consumer-group and generic group discovery and caller-ordered detailed mixed classic/KIP-848 descriptions including broker-selected assignors; singleton and caller-ordered plural active Share-group state and assignment descriptions, singleton and caller-ordered plural selected Share-group offset listings, Share-group offset alteration/deletion, and caller-ordered Share-group deletion with independent CLI queries; consumer-group offset list/alter/delete, singleton and caller-ordered plural empty-group deletion, and caller-ordered static-member removal after retained offline-member proof, all with independent before/after group state; caller-ordered ACL lifecycle; named-user producer/consumer byte-rate quota replacement, description, and removal; and named-user SCRAM-SHA-256/512 credential upsert, description, and deletion with independent state queries |
-| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | Configured commit/abort, multi-record boundaries, successive transactions, fencing, and offset transfer for classic and KIP-848 groups |
+| Transactions | Initialization, begin, per-record and homogeneous batch produce, offset transfer, commit, abort, fencing, and close paths | Configured commit/abort through both individual `send` and homogeneous `send_batch`, multi-record boundaries, successive transactions, fencing, and offset transfer for classic and KIP-848 groups |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
 | Foreign bindings | Not included | No ABI or compatibility promise |
 
@@ -75,6 +75,18 @@ through the command, invokes either `Delivery::cancel` or `Send::cancel` twice
 on the retained observer, and preserves stage uncertainty through terminal and
 broker truth. This remains configured qualification scope until archived
 evidence passes for an exact client commit.
+
+### Transaction staging methods
+
+`Transaction::send` stages one record and returns its sole public observer.
+`Transaction::send_batch` admits one nonempty caller-ordered record set sharing
+a topic and explicit partition, then returns one batch acknowledgment with its
+exact offset range. The pinned Testlab protocol retains which method was
+selected. Dedicated commit and abort scenarios require one exact batch command,
+expand the public offset range into one staged terminal per record, and compare
+the whole outcome with independent read-committed broker truth. This remains
+configured qualification scope until archived evidence passes for an exact
+client commit.
 
 ### Direct-consumer batch observers
 
@@ -124,7 +136,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`752c03522d089b63656e4992317c752d3028a71c` defines the following gating cells.
+`e1891de5e1591e13383813a6c15f78fe73d96327` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
