@@ -54,6 +54,10 @@ Processing-liveness coverage retains one batch beyond its original configured
 processing window, calls `Consumer::acknowledge` midway with an
 assignment-fenced checkpoint, and commits that same exact record under both
 classic and KIP-848 membership.
+Partial-checkpoint coverage receives two ordered records in one retained batch,
+marks only the processed prefix through `CheckpointBuilder::mark_processed`,
+independently proves the prefix offset, and requires a replacement classic or
+KIP-848 member to receive the exact unprocessed suffix.
 Transaction staging coverage preserves the distinction between per-record
 `Transaction::send` and one homogeneous `Transaction::send_batch`. Dedicated
 commit and abort scenarios retain the exact method and caller-ordered record set,
