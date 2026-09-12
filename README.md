@@ -38,6 +38,9 @@ independently matched exact record from each.
 Share rack-identity coverage also retains the optional public builder value and
 requires exact broker-reported rack IDs through singleton and plural public
 Admin descriptions.
+Classic membership-timing coverage passes non-default session, rebalance,
+heartbeat, and rejoin values through the public builder, then requires live
+single-broker operation and recovery while each broker is disrupted in turn.
 The pinned release tier defines single-broker plaintext cells for Apache
 Kafka 3.7.2, 3.8.1, 3.9.2, 4.0.2, 4.1.2, 4.2.1, and 4.3.1, plus Apache Kafka
 4.3.1 three-broker plaintext, custom-root TLS, SASL/PLAIN, and
