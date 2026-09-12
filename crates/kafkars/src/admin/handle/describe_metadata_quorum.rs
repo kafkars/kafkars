@@ -4,7 +4,7 @@ use super::Admin;
 use crate::admin::DescribeMetadataQuorumBuilder;
 
 impl Admin {
-    /// Builds an inert query for Kafka's fixed metadata quorum.
+    /// Builds an inert query for Kafka's metadata quorum.
     ///
     /// No timeout starts and no operation is admitted until
     /// [`DescribeMetadataQuorumBuilder::submit`] is called.

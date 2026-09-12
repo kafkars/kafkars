@@ -2,7 +2,7 @@
 
 use super::{MetadataQuorumNode, MetadataQuorumReplica};
 
-/// Successful bounded description of Kafka's fixed metadata quorum.
+/// Successful bounded description of Kafka's metadata quorum.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MetadataQuorumDescription {
     leader_id: Option<i32>,

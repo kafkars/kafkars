@@ -4,8 +4,8 @@ use super::Admin;
 use crate::admin::UnregisterBrokerBuilder;
 
 impl Admin {
-    /// Builds inert intent to unregister one nonnegative broker ID from Kafka's
-    /// metadata quorum.
+    /// Builds inert intent to unregister one nonnegative broker ID from the
+    /// Kafka cluster.
     ///
     /// No timeout starts and no operation is admitted until
     /// [`UnregisterBrokerBuilder::submit`] is called. A negative broker ID is

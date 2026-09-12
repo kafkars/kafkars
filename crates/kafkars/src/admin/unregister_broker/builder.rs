@@ -6,7 +6,7 @@ use crate::bridge::admin::AdminEngine;
 
 use super::UnregisterBroker;
 
-/// Inert request to unregister one nonnegative broker ID from Kafka's metadata quorum.
+/// Inert request to unregister one nonnegative broker ID from the Kafka cluster.
 #[must_use = "call submit to admit the UnregisterBroker operation"]
 pub struct UnregisterBrokerBuilder {
     engine: AdminEngine,

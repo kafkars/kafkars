@@ -6,7 +6,7 @@ use crate::bridge::admin::AdminEngine;
 
 use super::DescribeMetadataQuorum;
 
-/// Inert request to describe Kafka's fixed metadata quorum.
+/// Inert request to describe Kafka's metadata quorum.
 #[must_use = "call submit to admit the DescribeMetadataQuorum operation"]
 pub struct DescribeMetadataQuorumBuilder {
     engine: AdminEngine,

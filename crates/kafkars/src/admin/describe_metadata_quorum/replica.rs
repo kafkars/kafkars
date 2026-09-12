@@ -1,6 +1,6 @@
 //! Stable metadata-quorum voter and observer facts.
 
-/// One voter or observer in the fixed metadata quorum.
+/// One voter or observer in the metadata quorum.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MetadataQuorumReplica {
     replica_id: i32,

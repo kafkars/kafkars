@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-/// Successful removal of one broker from Kafka's metadata quorum.
+/// Successful unregistration of one broker from the Kafka cluster.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct UnregisterBrokerResult {
     throttle_time: Duration,
