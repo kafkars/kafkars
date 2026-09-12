@@ -106,9 +106,10 @@ broker observations.
 Classic membership-timing coverage passes non-default session, rebalance,
 heartbeat, and rejoin values through the public builder, then requires live
 single-broker operation and recovery while each broker is disrupted in turn.
-Shared group-runtime coverage passes non-default processing, membership-start,
-seek, and close deadlines through both classic and KIP-848 builders and
-requires exact public seek replay plus orderly close.
+Shared group-runtime coverage passes non-default processing and membership-start
+deadlines plus seek and close durations through both the individual setters and
+aggregate `ConsumerBuilder::operation_config` path across classic and KIP-848
+groups, then requires exact public seek replay plus orderly close.
 Missing-offset coverage passes the public `OffsetReset::Error` policy through
 both classic and KIP-848 builders. A new group with no committed offset must
 return the correlated public `state` failure and no successful batch rather
