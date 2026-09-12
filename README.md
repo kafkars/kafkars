@@ -47,6 +47,9 @@ cursors over the same records.
 Multi-topic group coverage passes two caller-ordered topics through the public
 builder, observes both assignments, and commits one independently matched
 record from each topic under both classic and KIP-848 membership.
+Hosted group delivery coverage selects both waiting `Consumer::recv` and
+immediate `Consumer::try_take_batch`; Testlab retains the exact observer choice
+while both paths commit and join their records to independent Kafka evidence.
 Multi-topic Share coverage passes two caller-ordered topics through the public
 builder, observes assignments for both topics, and accepts one
 independently matched exact record from each.
