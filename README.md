@@ -96,6 +96,11 @@ Share acknowledgement coverage selects both `ShareConsumerBatch::accept_all`
 and `ShareConsumerBatch::into_acknowledgement`; the all-Accept path consumes
 three exact acquisition ranges while explicit decisions retain mixed Accept,
 Release, and Reject behavior.
+Admin group-discovery coverage carries state and group-type filters through
+both consumer-only and generic listing builders, plus protocol-type filters
+through `Admin::list_groups`. Testlab retains each exact filter set and requires
+the public results to match independent broker group identity and state; a
+separate unfiltered listing remains the control.
 Admin offset-selection coverage carries `OffsetSpec::earliest`,
 `OffsetSpec::latest`, `OffsetSpec::max_timestamp`, and
 `OffsetSpec::for_timestamp` through exact Testlab commands. Record-timestamp

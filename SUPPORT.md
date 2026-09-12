@@ -158,6 +158,17 @@ and joins restored direct-consumer progress to an independent broker record.
 This remains configured qualification scope until archived evidence passes for
 an exact client commit.
 
+### Admin group-listing filters
+
+The pinned Testlab protocol selects state and group-type filters through both
+`ListConsumerGroupsBuilder` and `ListGroupsBuilder`, and protocol-type filters
+through the generic `ListGroupsBuilder`. The exact caller-provided filter sets
+must survive into the Testlab command, and the public group identity, type,
+protocol, and state must agree with independent broker observations. A separate
+unfiltered consumer-group listing remains in the release pack as a control.
+This remains configured qualification scope until archived evidence passes for
+an exact client commit.
+
 ### Admin record-timestamp offset selection
 
 `OffsetSpec::max_timestamp` selects the record carrying the greatest timestamp.
@@ -226,7 +237,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`422893759e51433d8dacea1ccb3c8de3d6b6c58b` defines the following gating cells.
+`c54831a30c219279f00f788a65b39c34ac5cb619` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
