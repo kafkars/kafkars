@@ -32,6 +32,9 @@ cursors over the same records.
 Multi-topic group coverage passes two caller-ordered topics through the public
 builder, observes both assignments, and commits one independently matched
 record from each topic under both classic and KIP-848 membership.
+Multi-topic Share coverage passes two caller-ordered topics through the public
+builder, observes assignments for both topics, and accepts one
+independently matched exact record from each.
 The pinned release tier defines single-broker plaintext cells for Apache
 Kafka 3.7.2, 3.8.1, 3.9.2, 4.0.2, 4.1.2, 4.2.1, and 4.3.1, plus Apache Kafka
 4.3.1 three-broker plaintext, custom-root TLS, SASL/PLAIN, and
