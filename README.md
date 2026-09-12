@@ -101,6 +101,13 @@ both consumer-only and generic listing builders, plus protocol-type filters
 through `Admin::list_groups`. Testlab retains each exact filter set and requires
 the public results to match independent broker group identity and state; a
 separate unfiltered listing remains the control.
+Admin transaction-discovery coverage retains all four
+`ListTransactionsBuilder` selectors: caller-ordered state and signed producer
+IDs, minimum running duration, and Kafka-owned transactional-ID pattern. Each
+filtered result must strictly narrow an earlier nonempty unfiltered public
+baseline while an immediate pinned CLI query proves the complete transaction
+set is unchanged. State, producer-ID, and duration selectors run across their
+compatible broker cells; pattern selection stays on Kafka 4.3 gating cells.
 Admin offset-selection coverage carries `OffsetSpec::earliest`,
 `OffsetSpec::latest`, `OffsetSpec::max_timestamp`, and
 `OffsetSpec::for_timestamp` through exact Testlab commands. Record-timestamp
