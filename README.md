@@ -109,6 +109,12 @@ every successful description, and keeps live group identity and membership
 anchored to immediate Kafka CLI observations. The existing Streams-group
 lifecycle likewise requests authorization metadata together with its topology
 description.
+Admin topic-description metadata coverage selects
+`include_authorized_operations(true)` through both `DescribeTopicsBuilder` and
+`DescribeTopicsByIdBuilder`. Testlab retains the exact option, requires the
+public authorization bitfield on every successful description, and keeps topic
+identity and topology anchored to immediate metadata or pinned Kafka CLI
+observations.
 Admin transaction-discovery coverage retains all four
 `ListTransactionsBuilder` selectors: caller-ordered state and signed producer
 IDs, minimum running duration, and Kafka-owned transactional-ID pattern. Each
