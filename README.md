@@ -44,6 +44,10 @@ single-broker operation and recovery while each broker is disrupted in turn.
 Shared group-runtime coverage passes non-default processing, membership-start,
 seek, and close deadlines through both classic and KIP-848 builders and
 requires exact public seek replay plus orderly close.
+Consumer Fetch-policy coverage passes every broker-request and retained-delivery
+capacity through the public assigned, classic, and KIP-848 builders at
+non-default values, then requires exact public delivery joined to independent
+broker observations.
 The pinned release tier defines single-broker plaintext cells for Apache
 Kafka 3.7.2, 3.8.1, 3.9.2, 4.0.2, 4.1.2, 4.2.1, and 4.3.1, plus Apache Kafka
 4.3.1 three-broker plaintext, custom-root TLS, SASL/PLAIN, and
