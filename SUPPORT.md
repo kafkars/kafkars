@@ -29,7 +29,7 @@ commit and cell is eligible evidence for a compatibility claim.
 | --- | --- | --- |
 | Rust facade | Concrete runtime-neutral builders, futures, blocking observation, and error vocabulary | Unit-tested; no stable API promise |
 | Producer | Immediate `try_send`, bounded FIFO waiting `send`, partitioning, batching, retry, cancellation, flush, shared or explicitly independent execution ownership, and close paths | Configured exact method selection for immediate and waiting sends, round-trip, explicit timestamp receipt and broker fidelity, Java-compatible automatic keyed routing through the public receipt, independent broker placement, and a direct consumer, readiness/flush, independent sibling-close and replacement owners, null/empty, ordering, explicit partition-routing, batch, stage-aware cancellation on both retained delivery and waiting-send observers, every public compression mode, broker-restart, and rolling-restart scenarios, plus client metrics and shutdown isolation |
-| Direct consumer | Assignment, complete broker Fetch policy, bounded Fetch-call and retained-delivery capacity, checkpoint, seek, events, immutable read isolation, shared-client one-shot or explicitly independent execution ownership, and close paths | Configured beginning/end/exact positioning, round-trip, explicit timestamp recovery, seek, pause/resume, incremental and multi-partition assignment, cursor continuity, replacement, dual independent cursors over the same broker records, record fidelity, and read-committed visibility with every non-default Fetch and capacity value after an independently verified aborted transaction |
+| Direct consumer | Assignment, complete broker Fetch policy, bounded Fetch-call and retained-delivery capacity, checkpoint, seek, events, immutable read isolation, shared-client one-shot or explicitly independent execution ownership, and close paths | Configured beginning/end/exact positioning, round-trip through both waiting `recv` and immediate `try_take_batch`, explicit timestamp recovery, seek, pause/resume, incremental and multi-partition assignment, cursor continuity, replacement, dual independent cursors over the same broker records, record fidelity, and read-committed visibility with every non-default Fetch and capacity value after an independently verified aborted transaction |
 | Classic group consumer | Dynamic and static membership, caller-ordered multi-topic subscription, complete broker Fetch policy, bounded Fetch-call and retained-delivery capacity, complete session, rebalance, heartbeat, and rejoin timing, explicit processing, membership-start, seek, and close durations, range and cooperative-sticky assignment, assignment events, fetch, checkpoint commit, seek, and close paths | Configured round-trip with every public membership-timing value, broker-reported cooperative-sticky selection, exact two-topic assignment and record delivery, seek replay under every non-default Fetch, capacity, and shared runtime value, pause/resume, offset reset, read-committed, shutdown, static-member retention and administrative removal, record fidelity, membership ownership, offset resume, broker restart, and non-default-timing recovery while every broker is disrupted in turn |
 | KIP-848 consumer group | Caller-ordered multi-topic subscription, complete broker Fetch policy, bounded Fetch-call and retained-delivery capacity, explicit processing, membership-start, seek, and close durations, topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Configured round-trip with exact two-topic assignment and record delivery, seek replay under every non-default Fetch, capacity, and shared runtime value, pause/resume, offset reset, read-committed, shutdown, record fidelity, membership ownership, offset resume, and session recovery in applicable Kafka 4.x cells |
 | Share-group consumer | Caller-ordered multi-topic subscription, complete broker long-poll, byte, record, acquisition-range, and attempt-timeout policy, explicit membership-start and close durations, optional rack identity, Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Configured exact two-topic assignment and record acquisition, every non-default Fetch and runtime value through exact bounded public batches, exact broker-reported rack identity through singleton and plural Admin descriptions, lifecycle, record fidelity, mixed release/reject, batch drop, membership ownership, close uncertainty, leader recovery, and session recovery in applicable Kafka 4.x cells |
@@ -76,6 +76,16 @@ on the retained observer, and preserves stage uncertainty through terminal and
 broker truth. This remains configured qualification scope until archived
 evidence passes for an exact client commit.
 
+### Direct-consumer batch observers
+
+`AssignedConsumer::recv` waits for one retained background Fetch delivery.
+`AssignedConsumer::try_take_batch` instead takes one already-authorized batch
+only when it is immediately available. The pinned Testlab protocol retains
+which observer a scenario selected, repeatedly invokes the immediate method
+within the scenario bound, and joins its returned record to independent broker
+truth. This remains configured qualification scope until archived evidence
+passes for an exact client commit.
+
 ## Kafka broker versions
 
 No Kafka broker version is release-supported in this preview. The protocol
@@ -101,7 +111,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`dd1f209947cae5340c9afc6b190cddfe8a2366a6` defines the following gating cells.
+`50833ff9334cd7d327ac37188043652d8df03f01` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

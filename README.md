@@ -31,6 +31,10 @@ public method through the Testlab command and independently observes its record
 in Kafka. Cancellation coverage carries the same selection through the command,
 invokes the matching public observer twice, and preserves stage uncertainty
 through terminal and independent broker truth.
+Direct-consumer delivery coverage selects both waiting
+`AssignedConsumer::recv` and immediate `AssignedConsumer::try_take_batch`;
+Testlab retains the exact observer choice and joins the returned batch to an
+independently observed Kafka record.
 Explicit child-ownership coverage builds two private producers from one client
 configuration, closes one without stopping its sibling, replaces a closed
 producer, and proves two private directly assigned consumers retain separate
