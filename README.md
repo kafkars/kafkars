@@ -35,6 +35,11 @@ Direct-consumer delivery coverage selects both waiting
 `AssignedConsumer::recv` and immediate `AssignedConsumer::try_take_batch`;
 Testlab retains the exact observer choice and joins the returned batch to an
 independently observed Kafka record.
+Direct-consumer event coverage selects both waiting
+`AssignedConsumer::next_event` and immediate
+`AssignedConsumer::try_take_event`; an independently applied topic READ deny
+must surface the exact public position fence and `Broker(29)` failure before
+policy removal restores an independently observed record.
 Explicit child-ownership coverage builds two private producers from one client
 configuration, closes one without stopping its sibling, replaces a closed
 producer, and proves two private directly assigned consumers retain separate
