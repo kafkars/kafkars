@@ -44,6 +44,9 @@ Owned-record coverage consumes that batch through `RecordBatch::into_owned`,
 transfers one `OwnedConsumerRecord` into an ordinary producer record, and keeps
 the non-clone `RetainedSourceRecord` readable through the independently checked
 destination terminal without replacing any source header.
+Fetch-evidence coverage retains the batch's broker-issued topic UUID, requested
+and next offsets, log bounds, high watermark, byte charge, and checkpoint, then
+joins them to independent Testlab topic-identity, watermark, and record facts.
 Direct-consumer event coverage selects both waiting
 `AssignedConsumer::next_event` and immediate
 `AssignedConsumer::try_take_event`; an independently applied topic READ deny
