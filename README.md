@@ -38,6 +38,10 @@ independently matched exact record from each.
 Share rack-identity coverage also retains the optional public builder value and
 requires exact broker-reported rack IDs through singleton and plural public
 Admin descriptions.
+Complete Share-configuration coverage passes non-default long-poll, byte,
+record, acquisition-range, attempt-timeout, membership-start, and close values
+through the public builder, then requires exact public batches and independent
+broker observations.
 Classic membership-timing coverage passes non-default session, rebalance,
 heartbeat, and rejoin values through the public builder, then requires live
 single-broker operation and recovery while each broker is disrupted in turn.
