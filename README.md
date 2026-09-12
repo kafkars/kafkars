@@ -64,6 +64,10 @@ record from each topic under both classic and KIP-848 membership.
 Hosted group delivery coverage selects both waiting `Consumer::recv` and
 immediate `Consumer::try_take_batch`; Testlab retains the exact observer choice
 while both paths commit and join their records to independent Kafka evidence.
+Full-batch checkpoint coverage separately retains both canonical
+`ConsumerBatch::checkpoint` and compatibility
+`ConsumerBatch::into_checkpoint`; the classic round trip selects the alias and
+the KIP-848 round trip retains the canonical path.
 Processing-liveness coverage retains one batch beyond its original configured
 processing window, calls `Consumer::acknowledge` midway with an
 assignment-fenced checkpoint, and commits that same exact record under both
