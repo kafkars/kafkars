@@ -40,6 +40,10 @@ Direct-consumer delivery coverage selects both waiting
 `AssignedConsumer::recv` and immediate `AssignedConsumer::try_take_batch`;
 Testlab retains the exact observer choice and joins the returned batch to an
 independently observed Kafka record.
+Owned-record coverage consumes that batch through `RecordBatch::into_owned`,
+transfers one `OwnedConsumerRecord` into an ordinary producer record, and keeps
+the non-clone `RetainedSourceRecord` readable through the independently checked
+destination terminal without replacing any source header.
 Direct-consumer event coverage selects both waiting
 `AssignedConsumer::next_event` and immediate
 `AssignedConsumer::try_take_event`; an independently applied topic READ deny
