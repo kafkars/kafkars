@@ -63,6 +63,10 @@ Transaction staging coverage preserves the distinction between per-record
 commit and abort scenarios retain the exact method and caller-ordered record set,
 derive each staged offset from the public batch acknowledgment, and join the
 outcome to independent read-committed Kafka evidence.
+Topic-identity coverage obtains nonzero UUIDs through public Admin, applies
+`Record::expected_topic_uuid` to each staged topic, waits for
+`Transaction::validate_for_commit`, and requires the sealed IDs to match
+independent Kafka evidence before commit.
 Multi-topic Share coverage passes two caller-ordered topics through the public
 builder, observes assignments for both topics, and accepts one
 independently matched exact record from each.
