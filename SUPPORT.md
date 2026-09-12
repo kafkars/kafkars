@@ -28,8 +28,8 @@ commit and cell is eligible evidence for a compatibility claim.
 | Area | Source status | Qualification status |
 | --- | --- | --- |
 | Rust facade | Concrete runtime-neutral builders, futures, blocking observation, and error vocabulary | Unit-tested; no stable API promise |
-| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | Configured round-trip, readiness/flush, null/empty, ordering, partition-routing, batch, cancellation, every public compression mode, broker-restart, and rolling-restart scenarios, plus client metrics and shutdown isolation |
-| Direct consumer | Assignment, fetch, checkpoint, seek, events, immutable read isolation, and close paths | Configured beginning/end/exact positioning, round-trip, seek, pause/resume, incremental and multi-partition assignment, cursor continuity, replacement, record fidelity, and read-committed visibility after an independently verified aborted transaction |
+| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | Configured round-trip, explicit timestamp receipt and broker fidelity, readiness/flush, null/empty, ordering, partition-routing, batch, cancellation, every public compression mode, broker-restart, and rolling-restart scenarios, plus client metrics and shutdown isolation |
+| Direct consumer | Assignment, fetch, checkpoint, seek, events, immutable read isolation, and close paths | Configured beginning/end/exact positioning, round-trip, explicit timestamp recovery, seek, pause/resume, incremental and multi-partition assignment, cursor continuity, replacement, record fidelity, and read-committed visibility after an independently verified aborted transaction |
 | Classic group consumer | Dynamic and static membership, range and cooperative-sticky assignment, assignment events, fetch, checkpoint commit, seek, and close paths | Configured round-trip with broker-reported cooperative-sticky selection, seek, pause/resume, offset reset, read-committed, shutdown, static-member retention and administrative removal, record fidelity, membership ownership, offset resume, broker restart, and session recovery |
 | KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Configured round-trip, seek, pause/resume, offset reset, read-committed, shutdown, record fidelity, membership ownership, offset resume, and session recovery in applicable Kafka 4.x cells |
 | Share-group consumer | Share heartbeat membership, broker-local acquisition sessions, delivery counts, linear batches, and explicit Accept, Release, or Reject acknowledgement | Configured lifecycle, record fidelity, mixed release/reject, batch drop, maximum-record fetch, membership ownership, close uncertainty, leader recovery, and session recovery in applicable Kafka 4.x cells |
@@ -78,7 +78,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`6ef70a23a747bac44a03eca8ef4007c00be81a8c` defines the following gating cells.
+`8312a8664fcaf83cb993a5f8effe8cd7399d9f41` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

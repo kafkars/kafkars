@@ -20,7 +20,9 @@ admin, transaction, metrics, security, and shutdown APIs. There is no stable
 API promise. External [Testlab](https://github.com/kafkars/testlab) is the Kafka
 real-broker qualification authority; this repository chooses pull-request or
 release qualification, retains the resulting evidence, and applies the required
-gate. The pinned release tier defines single-broker plaintext cells for Apache
+gate. Record-fidelity coverage carries an explicit producer timestamp through
+the public delivery receipt, an independent Kafka observation, and the public
+assigned-consumer record. The pinned release tier defines single-broker plaintext cells for Apache
 Kafka 3.7.2, 3.8.1, 3.9.2, 4.0.2, 4.1.2, 4.2.1, and 4.3.1, plus Apache Kafka
 4.3.1 three-broker plaintext, custom-root TLS, SASL/PLAIN, and
 SCRAM-SHA-256/512 cells, including every SASL mechanism over TLS and a dedicated
