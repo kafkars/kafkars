@@ -57,8 +57,10 @@ alone is design evidence and must not be represented as broker support.
   shutdown. Close them explicitly; dropping their final handle requests private
   engine shutdown.
 - The pinned Testlab protocol selects this path explicitly through the
-  `independent_handles` capability and verifies later sibling, replacement, or
-  dual-cursor operations rather than inferring ownership from construction.
+  `independent_handles` capability, requires one exact client, child identity,
+  and ownership command for every ordinary producer and assigned consumer, and
+  verifies later sibling, replacement, or dual-cursor operations. Another child
+  kind or a duplicate creation cannot satisfy the requested construction path.
 - Group, Share, Admin, and transactional handles retain the ownership contracts
   stated by their public builders and operations.
 
@@ -428,7 +430,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`d97c5d0c31a23aced55b8fcdcc57f4ea949bddc9` defines the following gating cells.
+`9580ab0d6cd1dbd3a45321ec4b4af538fba0dd5b` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

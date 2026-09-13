@@ -66,7 +66,9 @@ policy removal restores an independently observed record.
 Explicit child-ownership coverage builds two private producers from one client
 configuration, closes one without stopping its sibling, replaces a closed
 producer, and proves two private directly assigned consumers retain separate
-cursors over the same records.
+cursors over the same records. Every ordinary producer and assigned consumer
+also requires one exact creation command retaining its client, child identity,
+and shared or independent public construction path.
 Multi-topic group coverage passes two caller-ordered topics through the public
 builder, observes both assignments, and commits one independently matched
 record from each topic under both classic and KIP-848 membership.
