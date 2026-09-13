@@ -132,6 +132,9 @@ Transaction staging coverage preserves the distinction between per-record
 commit and abort scenarios retain the exact method and caller-ordered record set,
 derive each staged offset from the public batch acknowledgment, and join the
 outcome to independent read-committed Kafka evidence.
+Every ordinary, consume-transform-produce, and fencing transaction command also
+preserves its complete method, identities, records, disposition, UUID-validation
+selection, replacement policy, deadlines, multiplicity, and scenario order.
 Topic-identity coverage obtains nonzero UUIDs through public Admin, applies
 `Record::expected_topic_uuid` to ordinary and staged records, checks ordinary
 receipts directly, and waits for `Transaction::validate_for_commit`; it requires

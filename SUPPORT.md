@@ -145,6 +145,13 @@ the whole outcome with independent read-committed broker truth. This remains
 configured qualification scope until archived evidence passes for an exact
 client commit.
 
+The exact transaction command stream additionally covers per-record execution,
+consume-transform-produce, replacement-initialization fencing, and public Admin
+force-termination fencing. It retains every public method, identity,
+caller-ordered record, disposition, UUID-validation selection, replacement
+policy, and deadline in scenario order while input-record and topic-ID evidence
+references remain Testlab-side.
+
 ### Transaction topic identities
 
 `Record::expected_topic_uuid` makes a nonzero broker-issued topic identity part
@@ -521,7 +528,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`51b207dcb5812cb1dab9b79b265b35d1e3b987c0` defines the following gating cells.
+`02932511cb6e47f67782b6b0dc076eb579410d7a` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
