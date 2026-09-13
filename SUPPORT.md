@@ -73,6 +73,15 @@ an independent Kafka cluster query.
 - Group, Share, Admin, and transactional handles retain the ownership contracts
   stated by their public builders and operations.
 
+### Lifecycle request streams
+
+The pinned Testlab protocol requires every readiness probe, producer flush or
+close, client shutdown, assigned or group consumer close, group abandonment,
+and transactional-producer close exactly once in scenario order with its
+resource identity. Correlated public terminals then prove each issued request
+settled; they cannot conceal a missing, substituted, reordered, or duplicate
+request.
+
 ### Transactional producer construction
 
 `Client::transactional_producer` retains the transactional identity while
@@ -505,7 +514,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`b00c3904c51b6b8ac4b7351ef8c7ff387279ea9c` defines the following gating cells.
+`99f49ea4d89232e486e8ac0e52a85aeee8d4b5f4` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

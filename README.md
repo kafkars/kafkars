@@ -83,6 +83,10 @@ producer, and proves two private directly assigned consumers retain separate
 cursors over the same records. Every ordinary producer and assigned consumer
 also requires one exact creation command retaining its client, child identity,
 and shared or independent public construction path.
+Repeated lifecycle qualification requires every readiness probe, producer
+flush or close, client shutdown, assigned or group consumer close, group
+abandonment, and transactional-producer close in exact scenario order with its
+resource identity before correlated terminal evidence applies.
 Multi-topic group coverage passes two caller-ordered topics through the public
 builder, observes both assignments, and commits one independently matched
 record from each topic under both classic and KIP-848 membership.
