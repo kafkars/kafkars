@@ -297,9 +297,10 @@ and KIP-848 transactional transforms whose outputs and checkpoints commit, plus
 the same cursor, group, and Share handles consuming exact records produced after
 that observed cut.
 The broker-role cell independently identifies and stops each exact partition
-leader, then requires the same directly assigned, classic-group, or KIP-848
-group consumer to return and, for groups, commit its exact new record after
-replacement election and before original-owner restoration.
+leader, then requires exact ordinary and transactional-batch production plus
+directly assigned, classic, KIP-848, and Share public receive progress after
+replacement election and before original-owner restoration; group checkpoints
+and the transaction must commit in that window.
 Shared group-runtime coverage passes non-default processing and membership-start
 deadlines plus seek and close durations through both the individual setters and
 aggregate `ConsumerBuilder::operation_config` path across classic and KIP-848
