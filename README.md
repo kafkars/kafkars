@@ -115,6 +115,12 @@ Admin manual topic-placement coverage constructs
 broker list in the command, then immediate independent metadata requires the
 exact complete partition set, each replica order, a leader within its replicas,
 and the full replica set in sync on three-broker release cells.
+Admin manual partition-expansion coverage constructs `NewPartitions::new` and
+selects `with_replica_assignments` with one caller-ordered broker list per new
+partition. Testlab keeps the exact prior count outside the wire command, maps
+each list to its new partition index, and requires the complete expanded topic,
+exact replica order, a replica leader, and full ISR on three-broker release
+cells.
 Admin topic-description metadata coverage selects
 `include_authorized_operations(true)` through both `DescribeTopicsBuilder` and
 `DescribeTopicsByIdBuilder`. Testlab retains the exact option, requires the
