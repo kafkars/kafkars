@@ -560,7 +560,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`e237c254e33a5ed63948c8218f53b178bdbb49e7` defines the following gating cells.
+`8e3189c01695da3b5f79a08d362061f2349086ea` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
@@ -686,7 +686,12 @@ maximum-record, acquisition-range, and attempt-timeout policy plus explicit
 membership-start and close durations. The pinned scenarios supply every value
 at a non-default setting, prove one-record delivery and acquisition-range
 boundaries through retained public batches, and join every record to independent
-broker evidence. This remains configured qualification scope until archived
+broker evidence. On the successful registration attempt, the adapter records
+`selected_rack`, `selected_fetch_config`, `selected_membership_start_timeout`,
+and `selected_close_timeout`. Testlab requires the explicit rack, Fetch, and
+close values exactly; it retains the positive retry-adjusted membership duration
+in nanoseconds and bounds it by the original command deadline. This remains
+configured qualification scope until archived
 evidence passes for an exact client commit.
 
 ### Share acknowledgement methods

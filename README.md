@@ -306,7 +306,10 @@ Admin descriptions.
 Complete Share-configuration coverage passes non-default long-poll, byte,
 record, acquisition-range, attempt-timeout, membership-start, and close values
 through the public builder, then requires exact public batches and independent
-broker observations.
+broker observations. The successful registration attempt also records
+`selected_rack`, `selected_fetch_config`, `selected_membership_start_timeout`,
+and `selected_close_timeout`; Testlab requires exact explicit policy and retains
+the retry-adjusted membership duration without rounding.
 Classic membership-timing coverage passes non-default session, rebalance,
 heartbeat, and rejoin values through the public builder, then requires live
 single-broker operation and recovery while each broker is disrupted in turn.
