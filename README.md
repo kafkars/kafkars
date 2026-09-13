@@ -126,6 +126,11 @@ Admin client-quota validation coverage selects
 producer rate. Testlab keeps the required current rate outside the wire command,
 requires a distinct public validation completion, and immediately queries
 Kafka's CLI to prove the prior rate remained unchanged.
+Admin delegation-token expiry coverage selects
+`ExpireDelegationTokenBuilder::expire_after(Duration::ZERO)` instead of the
+omitted immediate-expiry sentinel. Testlab retains that exact zero delay without
+secret bytes and requires an immediate sanitized Kafka CLI query to report no
+live token for the owner.
 Admin topic-description metadata coverage selects
 `include_authorized_operations(true)` through both `DescribeTopicsBuilder` and
 `DescribeTopicsByIdBuilder`. Testlab retains the exact option, requires the
