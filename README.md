@@ -48,7 +48,11 @@ Producer-configuration coverage retains one exact complete policy command and
 selects both `ClientBuilder::producer_config` and the equivalent
 `producer_delivery_timeout`, `producer_compression`, `producer_retry`, and
 `producer_limits` setters across the five compression scenarios. Ordinary
-producer evidence still supplies the independent broker-visible result.
+producer evidence still supplies the independent broker-visible result. At
+successful configured-client creation, Testlab reads the complete
+`ClientBuilder::selected_producer_config` value and all four individual
+`selected_producer_*` views, requires those public getters to agree, and matches
+every selected value to the command exactly.
 Producer-handle construction separately preserves explicit
 `ProducerBuilder::delivery_timeout` selection or exact omission. The common
 round trip selects a non-default handle timeout, while configured-client

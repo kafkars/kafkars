@@ -116,7 +116,12 @@ applied through `producer_delivery_timeout`, `producer_compression`,
 `producer_retry`, and `producer_limits`. The pinned Testlab protocol retains
 the full policy and exact selected path in one client-creation command, exercises
 both paths across the five compression scenarios, and keeps broker-visible
-delivery under the ordinary producer contracts.
+delivery under the ordinary producer contracts. On successful configured-client
+creation, the adapter reads `selected_producer_config`,
+`selected_producer_delivery_timeout`, `selected_producer_compression`,
+`selected_producer_retry`, and `selected_producer_limits`. Testlab requires the
+aggregate and individual public views to agree and every selected value to
+match the command exactly.
 
 `ProducerBuilder::delivery_timeout` can override that inherited policy for one
 ordinary producer handle. The pinned common round trip selects a non-default
@@ -555,7 +560,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`262e409611c37c36411ad2db05206f5ee7c30b20` defines the following gating cells.
+`138b5fa2cf50637a6b631f9aaf0896357f706a93` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
