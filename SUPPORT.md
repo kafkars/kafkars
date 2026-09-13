@@ -193,17 +193,20 @@ topology without substituting for the option-specific public result. This
 remains configured qualification scope until archived evidence passes for an
 exact client commit.
 
-### Admin all-topic listing metadata
+### Admin all-topic listing metadata and internal filtering
 
 The pinned Testlab protocol selects
-`ListTopicsBuilder::include_authorized_operations(true)` alongside an explicit
-`include_internal(false)`. Both options must survive into the command, and the
-byte-sorted public result retains every detailed success or normalized resource
-error. Each success must carry Kafka's authorization bitfield, while immediate
-metadata independently proves the exact error-free partition topology of every
-required topic. This does not claim exhaustive listing, behavioral
-internal-topic filtering, independently verified topic IDs or internal markers,
-or replica topology. This remains configured qualification scope until archived
+`ListTopicsBuilder::include_authorized_operations(true)` alongside paired
+`include_internal(false)` and `include_internal(true)` calls. Both options must
+survive into each command, and each byte-sorted public result retains every
+detailed success or normalized resource error. Every success must carry Kafka's
+authorization bitfield, while immediate metadata independently proves the exact
+error-free partition topology of each included expectation. A classic group
+commit materializes canonical `__consumer_offsets`; metadata must prove it
+exists around both public calls, which first omit it, then include it with the
+internal marker. This does not claim exhaustive listing, independently verified
+topic IDs, replica topology, or internal-marker correctness beyond that
+canonical topic. This remains configured qualification scope until archived
 evidence passes for an exact client commit.
 
 ### Admin cluster-description authorization metadata
@@ -298,7 +301,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`ea386a92e3aa61cf7ec9678adf3a00597cb6e811` defines the following gating cells.
+`a2f8065a147cd0b0e963a270eee2c009e95eb283` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
