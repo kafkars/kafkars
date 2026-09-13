@@ -177,8 +177,9 @@ The pinned Testlab protocol selects `include_authorized_operations(true)` on
 must survive into each command, and every successful public description must
 retain Kafka's authorization bitfield. Immediate independent Kafka CLI queries
 continue to establish each live group identity and member count without
-substituting for the option-specific public result. The Streams-group lifecycle
-also requests authorization metadata alongside the full topology description.
+substituting for the option-specific public result. Paired Streams-group
+lifecycles select authorization metadata, full topology description, and stable
+offset reads both true and false across the singular and plural builders.
 `DescribeConsumerGroupsBuilder` additionally runs as paired singleton calls
 with the bitfield excluded then included over unchanged live membership.
 This remains configured qualification scope until archived evidence passes for
@@ -365,7 +366,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`a75aadfb2d40314dbd2f7fa953bae7897ee7ee70` defines the following gating cells.
+`37ee6d75e2e9507392f1a7377bbfd050a1183fb4` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

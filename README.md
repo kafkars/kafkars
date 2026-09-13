@@ -106,9 +106,10 @@ Admin group-description metadata coverage selects
 classic/KIP-848, singleton Share, and plural Share builders. Testlab retains the
 exact option in each command, requires the public authorization bitfield on
 every successful description, and keeps live group identity and membership
-anchored to immediate Kafka CLI observations. The existing Streams-group
-lifecycle likewise requests authorization metadata together with its topology
-description. `DescribeConsumerGroupsBuilder` is exercised both by paired
+anchored to immediate Kafka CLI observations. Paired Streams-group lifecycles
+select authorization metadata, full topology description, and stable offset
+reads both true and false across the singular and plural builders.
+`DescribeConsumerGroupsBuilder` is exercised both by paired
 singleton exclusion/inclusion calls and a caller-ordered mixed-protocol call.
 Admin manual topic-placement coverage constructs
 `NewTopic::with_replica_assignments` from caller-ordered
