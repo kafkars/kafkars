@@ -209,15 +209,19 @@ topic IDs, replica topology, or internal-marker correctness beyond that
 canonical topic. This remains configured qualification scope until archived
 evidence passes for an exact client commit.
 
-### Admin cluster-description authorization metadata
+### Admin cluster-description options and fenced brokers
 
 The pinned Testlab protocol selects
-`DescribeClusterBuilder::include_authorized_operations(true)`. The exact option
-must survive into the command and the public description must retain Kafka's
-cluster authorization bitfield. An immediate independent metadata query remains
-the authority for cluster identity and broker membership without substituting
-for the option-specific public result. This remains configured qualification
-scope until archived evidence passes for an exact client commit.
+`DescribeClusterBuilder::include_authorized_operations(true)` and paired
+`include_fenced_brokers(false)` / `include_fenced_brokers(true)` calls. The
+exact options must survive into each command and the public descriptions must
+retain Kafka's authorization bitfield. In the disposable plaintext
+three-broker cell, Testlab gracefully stops broker 3; the disabled call must
+omit it, while the enabled call must include it with the public fenced marker.
+Both results are checked against an immediate independent two-broker metadata
+snapshot before a restart restores full membership. This proves one
+graceful-stop fencing path and remains configured qualification scope until
+archived evidence passes for an exact client commit.
 
 ### Admin record-timestamp offset selection
 
@@ -301,7 +305,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`a2f8065a147cd0b0e963a270eee2c009e95eb283` defines the following gating cells.
+`2f2d6099af5f57995109b39c665d38a16808e40c` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

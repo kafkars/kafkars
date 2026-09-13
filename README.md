@@ -125,11 +125,13 @@ proves it exists around both public calls, which first omit it, then include it
 with the internal marker. This does not claim exhaustive listing, independently
 verified topic IDs, replica topology, or internal-marker correctness beyond
 that canonical topic.
-Admin cluster-description metadata coverage selects
-`DescribeClusterBuilder::include_authorized_operations(true)`. Testlab retains
-the exact option, requires the public cluster authorization bitfield, and keeps
-cluster identity and broker membership anchored to an immediate independent
-metadata observation.
+Admin cluster-description coverage retains both
+`DescribeClusterBuilder::include_authorized_operations` and
+`include_fenced_brokers`. On a disposable three-broker cell, Testlab describes
+the full baseline, gracefully stops broker 3, and pairs fenced-broker exclusion
+and inclusion. The disabled result must omit broker 3; the enabled result must
+return it with the public fenced marker; both must match an immediate
+independent active-broker snapshot. A restart restores the complete membership.
 Admin transaction-discovery coverage retains all four
 `ListTransactionsBuilder` selectors: caller-ordered state and signed producer
 IDs, minimum running duration, and Kafka-owned transactional-ID pattern. Each
