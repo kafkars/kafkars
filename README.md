@@ -114,6 +114,11 @@ Active-producer description likewise covers automatic leader routing and
 single-broker release cell, with the same immediate exact Kafka CLI state.
 `DescribeConsumerGroupsBuilder` is exercised both by paired
 singleton exclusion/inclusion calls and a caller-ordered mixed-protocol call.
+Admin configured topic-creation coverage applies every caller-ordered entry
+through `NewTopic::config`. Testlab preserves the complete ordered list in the
+wire command, proves the created topology, then requires an exact public
+configuration description and immediate independent librdkafka value for each
+selected non-sensitive entry.
 Admin manual topic-placement coverage constructs
 `NewTopic::with_replica_assignments` from caller-ordered
 `TopicReplicaAssignment` values. Testlab retains every partition index and
