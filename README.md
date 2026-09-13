@@ -289,9 +289,9 @@ Classic membership-timing coverage passes non-default session, rebalance,
 heartbeat, and rejoin values through the public builder, then requires live
 single-broker operation and recovery while each broker is disrupted in turn.
 The controlled network-proxy cell first establishes directly assigned, classic,
-and KIP-848 progress on independent public clients, externally cuts every live
-broker connection, and then requires the same cursor and group handles to
-consume exact records produced after that observed cut.
+KIP-848, and Share progress on independent public clients, externally cuts every
+live broker connection, and then requires the same cursor, group, and Share
+handles to consume exact records produced after that observed cut.
 Shared group-runtime coverage passes non-default processing and membership-start
 deadlines plus seek and close durations through both the individual setters and
 aggregate `ConsumerBuilder::operation_config` path across classic and KIP-848
