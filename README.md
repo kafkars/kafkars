@@ -291,9 +291,10 @@ single-broker operation and recovery while each broker is disrupted in turn.
 The controlled network-proxy cell first establishes producer plus directly
 assigned, classic, KIP-848, and Share progress on independent public clients,
 externally cuts every live broker connection, and then requires exact
-single-record and complete-batch producer acknowledgements plus the same cursor,
-group, and Share handles consuming exact records produced after that observed
-cut.
+single-record and complete-batch producer acknowledgements, an exact
+transactional batch whose complete record set stages and commits, plus the same
+cursor, group, and Share handles consuming exact records produced after that
+observed cut.
 The broker-role cell independently identifies and stops each exact partition
 leader, then requires the same directly assigned, classic-group, or KIP-848
 group consumer to return and, for groups, commit its exact new record after
