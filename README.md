@@ -94,6 +94,12 @@ Partial-checkpoint coverage receives two ordered records in one retained batch,
 marks only the processed prefix through `CheckpointBuilder::mark_processed`,
 independently proves the prefix offset, and requires a replacement classic or
 KIP-848 member to receive the exact unprocessed suffix.
+Transactional-producer initialization requires one exact command retaining the
+client, producer, and transactional identities plus the selected
+`TransactionalProducerBuilder::transaction_timeout` and `deadline_after`
+values.
+The authorization-recovery scenario must reuse the same complete construction
+after the denied attempt.
 Transaction staging coverage preserves the distinction between per-record
 `Transaction::send` and one homogeneous `Transaction::send_batch`. Dedicated
 commit and abort scenarios retain the exact method and caller-ordered record set,

@@ -64,6 +64,16 @@ alone is design evidence and must not be represented as broker support.
 - Group, Share, Admin, and transactional handles retain the ownership contracts
   stated by their public builders and operations.
 
+### Transactional producer construction
+
+`Client::transactional_producer` retains the transactional identity while
+`TransactionalProducerBuilder::transaction_timeout` and `deadline_after`
+select the broker timeout and initialization deadline. The pinned Testlab
+protocol requires one exact client, producer, transactional identity, and
+timeout command. The authorization-recovery scenario repeats that same command
+after the denied attempt, so a different identity, timeout, ordinary producer,
+or duplicate initialization cannot satisfy the requested construction path.
+
 ### Producer configuration methods
 
 `ClientBuilder::producer_config` applies delivery timeout, compression, retry,
@@ -430,7 +440,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`9580ab0d6cd1dbd3a45321ec4b4af538fba0dd5b` defines the following gating cells.
+`a7adc811b7ad627838bc5951b366ada194c0517b` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
