@@ -53,6 +53,9 @@ Producer-handle construction separately preserves explicit
 `ProducerBuilder::delivery_timeout` selection or exact omission. The common
 round trip selects a non-default handle timeout, while configured-client
 scenarios omit it and therefore inherit their exact client-wide policy.
+Every successful construction also records
+`ProducerBuilder::selected_delivery_timeout`; Testlab requires the readback to
+match explicit and inherited policy exactly.
 Every ordinary producer call preserves its exact ordered `try_send`, waiting
 `send`, or `send_batch` command, including producer and operation identities,
 partition and topic-UUID choices, and complete record input. Individual calls

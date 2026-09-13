@@ -124,6 +124,10 @@ handle value and retains it in the exact creation command. Configured-client
 scenarios omit the override, so the adapter now preserves rather than replaces
 their selected client-wide timeout. Both explicit selection and omission remain
 joined to ordinary public delivery and independent broker evidence.
+Immediately before building the handle, the adapter records
+`ProducerBuilder::selected_delivery_timeout`. The pinned Testlab verifier
+requires an explicit override or inherited configured-client value to match
+that public readback exactly.
 
 ### Ordinary producer commands
 
@@ -551,7 +555,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`07f6a26f8e41722968d925bcbf67a13b0f260867` defines the following gating cells.
+`262e409611c37c36411ad2db05206f5ee7c30b20` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
