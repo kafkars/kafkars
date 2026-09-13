@@ -109,6 +109,9 @@ every successful description, and keeps live group identity and membership
 anchored to immediate Kafka CLI observations. Paired Streams-group lifecycles
 select authorization metadata, full topology description, and stable offset
 reads both true and false across the singular and plural builders.
+Active-producer description likewise covers automatic leader routing and
+`DescribeProducersBuilder::broker_id(1)` on every fixed broker-one
+single-broker release cell, with the same immediate exact Kafka CLI state.
 `DescribeConsumerGroupsBuilder` is exercised both by paired
 singleton exclusion/inclusion calls and a caller-ordered mixed-protocol call.
 Admin manual topic-placement coverage constructs
