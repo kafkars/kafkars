@@ -176,7 +176,10 @@ pass. A paired fixture also retains exact
 `ListOffsetsBuilder::read_isolation` selections: `ReadUncommitted` for the
 earliest query and `ReadCommitted` for the latest query, with both results
 matched to immediate independent watermarks. It uses ordinary committed
-records and does not claim unresolved-transaction last-stable-offset behavior.
+records. A separate caller-ordered batch retains one exact `ReadUncommitted`
+selection for the whole request and matches every result to contiguous
+independent watermarks. Neither fixture claims unresolved-transaction
+last-stable-offset behavior.
 Incremental configuration coverage selects `ConfigAlteration::set`, `delete`,
 `append`, and `subtract` through both topic-specific and generic-resource Admin
 builders. Delete sends no value, while Append and Subtract send only their list
