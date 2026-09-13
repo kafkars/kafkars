@@ -103,6 +103,9 @@ record from each topic under both classic and KIP-848 membership.
 Every group member also requires one exact registration command retaining its
 client, member, and group identities, caller-ordered topics, selected protocol,
 and complete optional public policy.
+Every successful registration additionally records the exact group ID and
+caller-ordered subscription read through `Consumer::group_id` and
+`Consumer::subscription` on the returned public handle.
 Group-transition coverage selects both waiting `Consumer::next_event` and
 immediate `Consumer::try_take_event` while stable assignments settle. Testlab
 retains the exact observer choice for classic and KIP-848 consumers beside
@@ -157,6 +160,10 @@ independently matched exact record from each.
 Every Share member also requires one exact registration command retaining its
 identities, caller-ordered topics, optional rack, membership and close
 deadlines, and complete optional acquisition policy.
+Every successful registration additionally records the exact group ID,
+caller-ordered subscription, and optional rack read through
+`ShareConsumer::group_id`, `subscription`, and `rack` on the returned public
+handle.
 Every `ShareConsumer::recv` call likewise requires one exact command retaining
 its consumer, linear batch identity, timeout, multiplicity, and scenario order
 before the public batch and independent record evidence apply.
