@@ -172,7 +172,11 @@ selection joins the public offset and `ListOffsetsResultInfo::timestamp_ms()`
 to exact independent broker records and bounding watermarks. The fixtures put
 the greatest timestamp before a later lower timestamp and a caller-selected
 timestamp after an earlier lower timestamp, so boundary substitutions cannot
-pass.
+pass. A paired fixture also retains exact
+`ListOffsetsBuilder::read_isolation` selections: `ReadUncommitted` for the
+earliest query and `ReadCommitted` for the latest query, with both results
+matched to immediate independent watermarks. It uses ordinary committed
+records and does not claim unresolved-transaction last-stable-offset behavior.
 Incremental configuration coverage selects `ConfigAlteration::set`, `delete`,
 `append`, and `subtract` through both topic-specific and generic-resource Admin
 builders. Delete sends no value, while Append and Subtract send only their list
