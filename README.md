@@ -240,18 +240,23 @@ live token for the owner.
 Admin topic-description metadata coverage selects
 `include_authorized_operations(true)` through both `DescribeTopicsBuilder` and
 `DescribeTopicsByIdBuilder`. Testlab retains the exact option, requires the
-public authorization bitfield on every successful description, and keeps topic
-identity and topology anchored to immediate metadata or pinned Kafka CLI
-observations.
+public authorization bitfield on every successful description, and retains
+every applicable public partition error, leader, epoch, replica, ISR, and
+offline-replica getter. Topic identity and the partition set remain anchored to
+immediate metadata or pinned Kafka CLI observations.
 Admin topic-partition pagination coverage selects an exact
 `response_partition_limit`, retains every public page boundary and returned
-cursor, and separately submits each cursor only when requested. Testlab joins
-the final partition aggregate to an immediate independent metadata snapshot.
+cursor, and separately submits each cursor only when requested. Each API-75
+partition also retains eligible-leader and last-known-eligible getters, and the
+verifier requires exact aggregate/page agreement. Testlab joins the final
+partition set—not the additional public topology fields—to an immediate
+independent metadata snapshot.
 Admin all-topic listing coverage selects
 `ListTopicsBuilder::include_authorized_operations(true)` together with paired
 `include_internal(false)` and `include_internal(true)` calls. Testlab retains
 both options and every detailed public outcome, requires the authorization
-bitfield on each success, and matches expected partitions to immediate metadata.
+bitfield and complete applicable public partition topology on each success, and
+matches expected partition sets to immediate metadata.
 A classic group commit materializes canonical `__consumer_offsets`; metadata
 proves it exists around both public calls, which first omit it, then include it
 with the internal marker. This does not claim exhaustive listing, independently
