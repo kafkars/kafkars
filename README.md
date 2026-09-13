@@ -109,6 +109,12 @@ every successful description, and keeps live group identity and membership
 anchored to immediate Kafka CLI observations. The existing Streams-group
 lifecycle likewise requests authorization metadata together with its topology
 description.
+Admin manual topic-placement coverage constructs
+`NewTopic::with_replica_assignments` from caller-ordered
+`TopicReplicaAssignment` values. Testlab retains every partition index and
+broker list in the command, then immediate independent metadata requires the
+exact complete partition set, each replica order, a leader within its replicas,
+and the full replica set in sync on three-broker release cells.
 Admin topic-description metadata coverage selects
 `include_authorized_operations(true)` through both `DescribeTopicsBuilder` and
 `DescribeTopicsByIdBuilder`. Testlab retains the exact option, requires the
