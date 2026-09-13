@@ -46,6 +46,10 @@ selects both `ClientBuilder::producer_config` and the equivalent
 `producer_delivery_timeout`, `producer_compression`, `producer_retry`, and
 `producer_limits` setters across the five compression scenarios. Ordinary
 producer evidence still supplies the independent broker-visible result.
+Producer-handle construction separately preserves explicit
+`ProducerBuilder::delivery_timeout` selection or exact omission. The common
+round trip selects a non-default handle timeout, while configured-client
+scenarios omit it and therefore inherit their exact client-wide policy.
 Every ordinary producer call preserves its exact ordered `try_send`, waiting
 `send`, or `send_batch` command, including producer and operation identities,
 partition and topic-UUID choices, and complete record input. Individual calls

@@ -109,6 +109,13 @@ the full policy and exact selected path in one client-creation command, exercise
 both paths across the five compression scenarios, and keeps broker-visible
 delivery under the ordinary producer contracts.
 
+`ProducerBuilder::delivery_timeout` can override that inherited policy for one
+ordinary producer handle. The pinned common round trip selects a non-default
+handle value and retains it in the exact creation command. Configured-client
+scenarios omit the override, so the adapter now preserves rather than replaces
+their selected client-wide timeout. Both explicit selection and omission remain
+joined to ordinary public delivery and independent broker evidence.
+
 ### Ordinary producer commands
 
 `Producer::try_send`, `Producer::send`, and `Producer::send_batch` remain
@@ -528,7 +535,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`02932511cb6e47f67782b6b0dc076eb579410d7a` defines the following gating cells.
+`4431ed9a703ecc3ee078137f061862817d98e7cc` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
