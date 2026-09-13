@@ -179,6 +179,8 @@ retain Kafka's authorization bitfield. Immediate independent Kafka CLI queries
 continue to establish each live group identity and member count without
 substituting for the option-specific public result. The Streams-group lifecycle
 also requests authorization metadata alongside the full topology description.
+`DescribeConsumerGroupsBuilder` additionally runs as paired singleton calls
+with the bitfield excluded then included over unchanged live membership.
 This remains configured qualification scope until archived evidence passes for
 an exact client commit.
 
@@ -363,7 +365,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`6fe7876844c822b28f0d008465c907e0882afcd7` defines the following gating cells.
+`a75aadfb2d40314dbd2f7fa953bae7897ee7ee70` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

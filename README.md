@@ -108,7 +108,8 @@ exact option in each command, requires the public authorization bitfield on
 every successful description, and keeps live group identity and membership
 anchored to immediate Kafka CLI observations. The existing Streams-group
 lifecycle likewise requests authorization metadata together with its topology
-description.
+description. `DescribeConsumerGroupsBuilder` is exercised both by paired
+singleton exclusion/inclusion calls and a caller-ordered mixed-protocol call.
 Admin manual topic-placement coverage constructs
 `NewTopic::with_replica_assignments` from caller-ordered
 `TopicReplicaAssignment` values. Testlab retains every partition index and
