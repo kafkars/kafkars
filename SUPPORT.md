@@ -102,6 +102,11 @@ protocol requires one exact client, producer, transactional identity, and
 timeout command. The authorization-recovery scenario repeats that same command
 after the denied attempt, so a different identity, timeout, ordinary producer,
 or duplicate initialization cannot satisfy the requested construction path.
+Every successful original or fencing-replacement initialization then reads the
+returned handle's exact `transactional_id`, broker-issued producer ID and epoch
+through `identity`, and `is_active` state. Testlab requires one later correlated
+observation with the requested transactional ID, nonnegative Kafka identity and
+epoch, and active owner.
 
 ### Producer configuration methods
 
@@ -539,7 +544,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`934c455bffec14dba1035b057e05c98b951090b7` defines the following gating cells.
+`e88e17ccdcd251d35bd12324bf830001024adf8c` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

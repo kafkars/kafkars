@@ -134,6 +134,11 @@ client, producer, and transactional identities plus the selected
 values.
 The authorization-recovery scenario must reuse the same complete construction
 after the denied attempt.
+Every successful original or fencing-replacement initialization also reads the
+exact transactional ID, broker-issued producer ID and epoch, and active-owner
+state through `TransactionalProducer::transactional_id`, `identity`, and
+`is_active`; Testlab requires one later correlated observation with those
+values.
 Transaction staging coverage preserves the distinction between per-record
 `Transaction::send` and one homogeneous `Transaction::send_batch`. Dedicated
 commit and abort scenarios retain the exact method and caller-ordered record set,
