@@ -13,7 +13,7 @@ pub struct AssignedConsumerBuilder {
 #[derive(Debug, Clone)]
 enum AssignedConsumerSource {
     Shared(ClientEngine),
-    Independent(crate::client::ClientBuilder),
+    Independent(Box<crate::client::ClientBuilder>),
 }
 
 impl AssignedConsumerBuilder {
@@ -23,9 +23,9 @@ impl AssignedConsumerBuilder {
         }
     }
 
-    pub(crate) const fn independent(client: crate::client::ClientBuilder) -> Self {
+    pub(crate) fn independent(client: crate::client::ClientBuilder) -> Self {
         Self {
-            source: AssignedConsumerSource::Independent(client),
+            source: AssignedConsumerSource::Independent(Box::new(client)),
         }
     }
 
@@ -40,7 +40,7 @@ impl AssignedConsumerBuilder {
                 engine.claim_assigned_consumer().map(AssignedConsumer::new)
             }
             AssignedConsumerSource::Independent(configuration) => {
-                configuration.build().and_then(|client| {
+                (*configuration).build().and_then(|client| {
                     client
                         .assigned_consumer()
                         .build()

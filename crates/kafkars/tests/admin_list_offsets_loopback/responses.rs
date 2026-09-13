@@ -38,9 +38,8 @@ pub(super) fn for_request(
 fn api_versions(request: &RequestFrame, workflow: Workflow) -> Vec<u8> {
     let _decoded: ApiVersionsRequest = request.decode();
     let maximum = match workflow {
-        Workflow::Kafka43 => 11,
+        Workflow::Kafka43 | Workflow::MissingPartition => 11,
         Workflow::NoEarliestPendingUpload => 10,
-        Workflow::MissingPartition => 11,
     };
     let mut response = ApiVersionsResponse::default();
     response.api_keys = vec![
