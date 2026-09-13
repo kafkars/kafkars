@@ -7,9 +7,9 @@ use super::super::shared::{
 };
 
 const CHECKOUT: &str = "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803";
-const TESTLAB: &str = "kafkars/testlab@1781d39db5b0e8649cd3d40c853a0100dad8b580";
-const TESTLAB_REF: &str = "1781d39db5b0e8649cd3d40c853a0100dad8b580";
-const RELEASE: &str = "kafkars/testlab/.github/workflows/qualification-release.yml@1781d39db5b0e8649cd3d40c853a0100dad8b580";
+const TESTLAB: &str = "kafkars/testlab@b00c3904c51b6b8ac4b7351ef8c7ff387279ea9c";
+const TESTLAB_REF: &str = "b00c3904c51b6b8ac4b7351ef8c7ff387279ea9c";
+const RELEASE: &str = "kafkars/testlab/.github/workflows/qualification-release.yml@b00c3904c51b6b8ac4b7351ef8c7ff387279ea9c";
 const UPLOAD: &str = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a";
 
 pub(super) fn inspect_release(jobs: &Mapping, violations: &mut Vec<String>) {

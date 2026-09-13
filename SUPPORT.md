@@ -43,6 +43,15 @@ engine owner and deterministic terminal path. An RFC statement, invariant,
 guardrail, fixture, simulation, benchmark description, or exported vocabulary
 alone is design evidence and must not be represented as broker support.
 
+### Expected cluster identity
+
+`ClientBuilder::expected_cluster_id` binds construction and later readiness to
+one broker-issued cluster identity. The pinned Testlab protocol requires every
+baseline client creation command exactly once in scenario order with that
+optional guard. Its release scenario rejects a mismatched ID, reuses the same
+client identity with the correct ID, then joins the public Admin description to
+an independent Kafka cluster query.
+
 ### Child-handle ownership
 
 - `Client::producer` selects one clone-shared producer lifecycle. Every handle
@@ -496,7 +505,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`1781d39db5b0e8649cd3d40c853a0100dad8b580` defines the following gating cells.
+`b00c3904c51b6b8ac4b7351ef8c7ff387279ea9c` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
