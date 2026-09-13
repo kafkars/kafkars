@@ -45,6 +45,10 @@ Configured direct-consumer coverage requires one exact client-creation command
 containing immutable read isolation, complete broker Fetch policy, and all
 retained-delivery limits. The read-committed scenario keeps its aborted
 transaction and visible record independently observable.
+Direct beginning-assignment coverage preserves every exact
+`AssignedConsumer::try_replace_assignment` request in scenario order, including
+the single topic-partition path and caller-ordered batch path with its complete
+deadline. Substituted, reordered, or duplicate requests cannot qualify.
 Direct-consumer delivery coverage selects both waiting
 `AssignedConsumer::recv` and immediate `AssignedConsumer::try_take_batch`;
 Testlab retains the exact observer choice and joins the returned batch to an

@@ -142,6 +142,16 @@ a plain or producer-configured client with the same ID is not equivalent. Its
 read-committed scenario separately proves visible and aborted transaction truth
 through public and independent broker evidence.
 
+### Direct-consumer beginning assignment
+
+`AssignedConsumer::try_replace_assignment` accepts one caller-ordered set of
+`TopicPartition` values with explicit `StartPosition::Beginning` positions and
+a bounded completion deadline. The pinned Testlab protocol requires the exact
+single or batch assignment command sequence, preserving every consumer,
+topic-partition, command kind, batch order, and batch timeout. Reordering,
+single/batch substitution, altered fields, or extra commands cannot satisfy the
+later lifecycle and independently observed record evidence.
+
 ### Direct-consumer batch observers
 
 `AssignedConsumer::recv` waits for one retained background Fetch delivery.
@@ -440,7 +450,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`a7adc811b7ad627838bc5951b366ada194c0517b` defines the following gating cells.
+`3c4054bbb6a33aae3f132b2b68be485732e8814b` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
