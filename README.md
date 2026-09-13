@@ -115,6 +115,11 @@ Admin topic-description metadata coverage selects
 public authorization bitfield on every successful description, and keeps topic
 identity and topology anchored to immediate metadata or pinned Kafka CLI
 observations.
+Admin cluster-description metadata coverage selects
+`DescribeClusterBuilder::include_authorized_operations(true)`. Testlab retains
+the exact option, requires the public cluster authorization bitfield, and keeps
+cluster identity and broker membership anchored to an immediate independent
+metadata observation.
 Admin transaction-discovery coverage retains all four
 `ListTransactionsBuilder` selectors: caller-ordered state and signed producer
 IDs, minimum running duration, and Kafka-owned transactional-ID pattern. Each
