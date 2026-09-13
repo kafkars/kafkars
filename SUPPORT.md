@@ -235,15 +235,17 @@ It proves the requested mutation and retention selection, not eventual offset
 expiry. This remains configured qualification scope until archived evidence
 passes for an exact client commit.
 
-### Admin configured topic creation
+### Admin configured singleton and batch topic creation
 
 The pinned Testlab protocol retains every caller-ordered topic configuration in
-the creation command and applies it through `NewTopic::config`. Immediate
-metadata must prove the created topology, after which an exact public
-configuration description and immediate independent librdkafka query must prove
-each selected non-sensitive value in order. Scenario validation rejects a
-missing or reordered proof chain before execution. This remains configured
-qualification scope until archived evidence passes for an exact client commit.
+singleton and batch creation commands and applies it through `NewTopic::config`.
+Immediate metadata must prove each successful configured item's topology, while
+the batch completion retains every caller position and partial outcome. An exact
+public configuration description and immediate independent librdkafka query must
+then prove each selected non-sensitive value in order. Scenario validation
+rejects a missing or reordered proof chain before execution. This remains
+configured qualification scope until archived evidence passes for an exact
+client commit.
 
 ### Admin manual topic replica placement
 
@@ -426,7 +428,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`0b850ae063afa0f40d1a65c578eadece77c74a8f` defines the following gating cells.
+`d97c5d0c31a23aced55b8fcdcc57f4ea949bddc9` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

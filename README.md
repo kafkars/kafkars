@@ -135,10 +135,11 @@ Testlab preserves that exact non-default choice in the adapter command while
 the existing ordered public outcomes, distinct baselines, and immediate
 independent offsets prove the mutation; eventual expiry is not claimed.
 Admin configured topic-creation coverage applies every caller-ordered entry
-through `NewTopic::config`. Testlab preserves the complete ordered list in the
-wire command, proves the created topology, then requires an exact public
-configuration description and immediate independent librdkafka value for each
-selected non-sensitive entry.
+through `NewTopic::config` for singleton calls and successful items in a
+partial-result batch. Testlab preserves each complete ordered list in the wire
+command, proves the created topology and per-item outcome, then requires an
+exact public configuration description and immediate independent librdkafka
+value for each selected non-sensitive entry.
 Admin manual topic-placement coverage constructs
 `NewTopic::with_replica_assignments` from caller-ordered
 `TopicReplicaAssignment` values. Testlab retains every partition index and
