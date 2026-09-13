@@ -288,10 +288,12 @@ broker observations.
 Classic membership-timing coverage passes non-default session, rebalance,
 heartbeat, and rejoin values through the public builder, then requires live
 single-broker operation and recovery while each broker is disrupted in turn.
-The controlled network-proxy cell first establishes directly assigned, classic,
-KIP-848, and Share progress on independent public clients, externally cuts every
-live broker connection, and then requires the same cursor, group, and Share
-handles to consume exact records produced after that observed cut.
+The controlled network-proxy cell first establishes producer plus directly
+assigned, classic, KIP-848, and Share progress on independent public clients,
+externally cuts every live broker connection, and then requires exact
+single-record and complete-batch producer acknowledgements plus the same cursor,
+group, and Share handles consuming exact records produced after that observed
+cut.
 The broker-role cell independently identifies and stops each exact partition
 leader, then requires the same directly assigned, classic-group, or KIP-848
 group consumer to return and, for groups, commit its exact new record after
