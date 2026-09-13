@@ -34,7 +34,10 @@ Cluster-identity coverage requires every baseline client creation command in
 scenario order, including the exact optional `ClientBuilder::expected_cluster_id`
 guard. The release scenario rejects the wrong ID, reuses the same client
 identity with the correct guard, and joins public Admin to independent cluster
-metadata.
+metadata. Every successful client construction additionally reads back its
+public client ID, ordered bootstrap servers, and optional expected cluster ID;
+Testlab requires those values to match the exact creation command and session
+endpoints.
 Producer-admission coverage selects both immediate `Producer::try_send` and
 bounded FIFO `Producer::send`; the waiting-send scenario retains that exact
 public method through the Testlab command and independently observes its record

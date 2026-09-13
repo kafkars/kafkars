@@ -50,7 +50,11 @@ one broker-issued cluster identity. The pinned Testlab protocol requires every
 baseline client creation command exactly once in scenario order with that
 optional guard. Its release scenario rejects a mismatched ID, reuses the same
 client identity with the correct ID, then joins the public Admin description to
-an independent Kafka cluster query.
+an independent Kafka cluster query. Every successful baseline, producer-
+configured, or assigned-consumer-configured construction now also retains the
+values read through `Client::client_id`, `Client::bootstrap_servers`, and
+`Client::expected_cluster_id`; those values must exactly match the creation
+command and the session's ordered broker endpoints.
 
 ### Client metrics observations
 
@@ -535,7 +539,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`adf305587fac071fc7b385848952134cd21578ed` defines the following gating cells.
+`934c455bffec14dba1035b057e05c98b951090b7` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
