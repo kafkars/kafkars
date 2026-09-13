@@ -121,6 +121,11 @@ partition. Testlab keeps the exact prior count outside the wire command, maps
 each list to its new partition index, and requires the complete expanded topic,
 exact replica order, a replica leader, and full ISR on three-broker release
 cells.
+Admin client-quota validation coverage selects
+`AlterClientQuotasBuilder::validate_only(true)` with an exact proposed named-user
+producer rate. Testlab keeps the required current rate outside the wire command,
+requires a distinct public validation completion, and immediately queries
+Kafka's CLI to prove the prior rate remained unchanged.
 Admin topic-description metadata coverage selects
 `include_authorized_operations(true)` through both `DescribeTopicsBuilder` and
 `DescribeTopicsByIdBuilder`. Testlab retains the exact option, requires the
