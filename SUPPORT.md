@@ -231,6 +231,12 @@ acknowledgement plan, processed prefix, and timeout. Expected records remain
 scenario-side, and public commit plus independent Kafka evidence remain the
 delivery authority.
 
+Multi-member qualification also preserves each aggregate receive identity,
+caller-ordered live consumer set, structural record count, and complete timeout
+exactly once in scenario order. The adapter then round-robins public
+`Consumer::recv` calls and commits every assignment-fenced checkpoint; expected
+record identities remain scenario-side.
+
 ### Share-consumer registration
 
 Each `ShareConsumerBuilder` registration fixes its originating client, member
@@ -481,7 +487,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`19b076e99dea82114021b48936125811b1a66298` defines the following gating cells.
+`d5255a504c4473af3b131fb4dcd5001e0219a21b` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

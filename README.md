@@ -93,6 +93,10 @@ immediate `Consumer::try_take_batch`; Testlab requires every exact consumer,
 receive identity, observer, checkpoint conversion, processing plan, and timeout
 command once in scenario order while both paths commit and join their records to
 independent Kafka evidence.
+Multi-member qualification likewise fixes each aggregate receive identity,
+caller-ordered live consumer set, structural record count, and timeout exactly
+once before the adapter round-robins public receives and commits their fenced
+checkpoints. Expected record identities remain harness-only.
 Full-batch checkpoint coverage separately retains both canonical
 `ConsumerBatch::checkpoint` and compatibility
 `ConsumerBatch::into_checkpoint`; the classic round trip selects the alias and
