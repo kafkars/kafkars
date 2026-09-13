@@ -41,6 +41,10 @@ selects both `ClientBuilder::producer_config` and the equivalent
 `producer_delivery_timeout`, `producer_compression`, `producer_retry`, and
 `producer_limits` setters across the five compression scenarios. Ordinary
 producer evidence still supplies the independent broker-visible result.
+Every ordinary producer call preserves its exact ordered `try_send`, waiting
+`send`, or `send_batch` command, including producer and operation identities,
+partition and topic-UUID choices, and complete record input. Individual calls
+cannot substitute for a requested batch.
 Configured direct-consumer coverage requires one exact client-creation command
 containing immutable read isolation, complete broker Fetch policy, and all
 retained-delivery limits. The read-committed scenario keeps its aborted

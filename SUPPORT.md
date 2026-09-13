@@ -84,6 +84,16 @@ the full policy and exact selected path in one client-creation command, exercise
 both paths across the five compression scenarios, and keeps broker-visible
 delivery under the ordinary producer contracts.
 
+### Ordinary producer commands
+
+`Producer::try_send`, `Producer::send`, and `Producer::send_batch` remain
+distinct public calls. The pinned Testlab protocol requires their complete
+command sequence exactly once in scenario order, retaining producer and
+operation identities, method, partition and topic-UUID choices, and every
+caller-ordered record. An individual call, altered record, or duplicate command
+cannot substitute for a requested batch; public terminals and independent
+Kafka records remain the delivery authority.
+
 ### Producer admission methods
 
 `Producer::try_send` attempts immediate bounded admission and returns the exact
@@ -450,7 +460,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`3c4054bbb6a33aae3f132b2b68be485732e8814b` defines the following gating cells.
+`6ed3a09a3f7142b2435186eeabc01b383fabdd0b` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
