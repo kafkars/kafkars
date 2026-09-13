@@ -220,6 +220,17 @@ registration once in the issued command and rejects a same-ID direct or Share
 consumer, altered fields, or duplicate creation. Assignment, checkpoint, and
 record behavior remain proved by their public and independent broker evidence.
 
+### Group-consumer receive commands
+
+`Consumer::recv` and `Consumer::try_take_batch` select waiting and immediate
+batch observation, while `ConsumerBatch::checkpoint` and `into_checkpoint`
+select the full-batch checkpoint conversion. The pinned Testlab protocol requires
+every hosted receive command exactly once in scenario order, retaining its
+consumer, receive identity, observer, checkpoint conversion, processing
+acknowledgement plan, processed prefix, and timeout. Expected records remain
+scenario-side, and public commit plus independent Kafka evidence remain the
+delivery authority.
+
 ### Share-consumer registration
 
 Each `ShareConsumerBuilder` registration fixes its originating client, member
@@ -461,7 +472,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`acfbd1113d875363bd9fb9ab25d1e1538ff85efe` defines the following gating cells.
+`d99615170cc3dea8f1a330bdd935808239370279` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

@@ -89,8 +89,10 @@ immediate `Consumer::try_take_event` while stable assignments settle. Testlab
 retains the exact observer choice for classic and KIP-848 consumers beside
 their public transition, assignment, and independent broker evidence.
 Hosted group delivery coverage selects both waiting `Consumer::recv` and
-immediate `Consumer::try_take_batch`; Testlab retains the exact observer choice
-while both paths commit and join their records to independent Kafka evidence.
+immediate `Consumer::try_take_batch`; Testlab requires every exact consumer,
+receive identity, observer, checkpoint conversion, processing plan, and timeout
+command once in scenario order while both paths commit and join their records to
+independent Kafka evidence.
 Full-batch checkpoint coverage separately retains both canonical
 `ConsumerBatch::checkpoint` and compatibility
 `ConsumerBatch::into_checkpoint`; the classic round trip selects the alias and
