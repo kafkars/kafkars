@@ -36,6 +36,11 @@ public method through the Testlab command and independently observes its record
 in Kafka. Cancellation coverage carries the same selection through the command,
 invokes the matching public observer twice, and preserves stage uncertainty
 through terminal and independent broker truth.
+Producer-configuration coverage retains one exact complete policy command and
+selects both `ClientBuilder::producer_config` and the equivalent
+`producer_delivery_timeout`, `producer_compression`, `producer_retry`, and
+`producer_limits` setters across the five compression scenarios. Ordinary
+producer evidence still supplies the independent broker-visible result.
 Direct-consumer delivery coverage selects both waiting
 `AssignedConsumer::recv` and immediate `AssignedConsumer::try_take_batch`;
 Testlab retains the exact observer choice and joins the returned batch to an
