@@ -52,6 +52,13 @@ optional guard. Its release scenario rejects a mismatched ID, reuses the same
 client identity with the correct ID, then joins the public Admin description to
 an independent Kafka cluster query.
 
+### Client metrics observations
+
+`Client::metrics` returns the complete public calls, failures, mailbox, latency,
+and producer snapshot. The pinned Testlab protocol preserves every observation
+command's client and operation identities exactly once in scenario order before
+checking counter coherence and scenario-only producer-state expectations.
+
 ### Child-handle ownership
 
 - `Client::producer` selects one clone-shared producer lifecycle. Every handle
@@ -514,7 +521,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`99f49ea4d89232e486e8ac0e52a85aeee8d4b5f4` defines the following gating cells.
+`51b207dcb5812cb1dab9b79b265b35d1e3b987c0` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

@@ -87,6 +87,9 @@ Repeated lifecycle qualification requires every readiness probe, producer
 flush or close, client shutdown, assigned or group consumer close, group
 abandonment, and transactional-producer close in exact scenario order with its
 resource identity before correlated terminal evidence applies.
+Client-metrics qualification also preserves every `Client::metrics` observation
+command's exact client and operation identities, multiplicity, and order before
+checking the complete public snapshot and scenario-only state expectations.
 Multi-topic group coverage passes two caller-ordered topics through the public
 builder, observes both assignments, and commits one independently matched
 record from each topic under both classic and KIP-848 membership.
