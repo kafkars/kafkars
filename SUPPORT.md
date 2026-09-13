@@ -256,6 +256,15 @@ observation timeout. Expected producer identities and acquisition counts remain
 scenario-side; the public batch and independent Kafka records remain the
 delivery authority.
 
+### Share-consumer lifecycle commands
+
+Dropping a retained `ShareConsumerBatch` and consuming a `ShareConsumer` through
+`try_close` are linear terminal choices. The pinned Testlab protocol requires
+every explicit batch-drop and consumer-close command exactly once in scenario
+order, retaining its command kind, consumer, and applicable batch identity.
+Redelivery and close certainty remain proved by their public and independent
+Kafka evidence.
+
 ### Admin group-listing filters
 
 The pinned Testlab protocol selects state and group-type filters through both
@@ -487,7 +496,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`13ad8ab9e83bb9af40a1cce1832d23d97caf0931` defines the following gating cells.
+`1781d39db5b0e8649cd3d40c853a0100dad8b580` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 

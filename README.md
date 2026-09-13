@@ -133,6 +133,9 @@ deadlines, and complete optional acquisition policy.
 Every `ShareConsumer::recv` call likewise requires one exact command retaining
 its consumer, linear batch identity, timeout, multiplicity, and scenario order
 before the public batch and independent record evidence apply.
+Explicit linear-batch drop and `ShareConsumer::try_close` qualification also
+retain their exact command kind, consumer, applicable batch identity,
+multiplicity, and order before redelivery or close-certainty evidence applies.
 Share acknowledgement coverage selects both `ShareConsumerBatch::accept_all`
 and `ShareConsumerBatch::into_acknowledgement`; the all-Accept path consumes
 three exact acquisition ranges while explicit decisions retain mixed Accept,
