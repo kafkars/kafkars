@@ -114,6 +114,11 @@ Active-producer description likewise covers automatic leader routing and
 single-broker release cell, with the same immediate exact Kafka CLI state.
 `DescribeConsumerGroupsBuilder` is exercised both by paired
 singleton exclusion/inclusion calls and a caller-ordered mixed-protocol call.
+Plural consumer-group offset alteration selects
+`AlterConsumerGroupOffsetsBuilder::retention_time(Duration::from_millis(86_400_000))`.
+Testlab preserves that exact non-default choice in the adapter command while
+the existing ordered public outcomes, distinct baselines, and immediate
+independent offsets prove the mutation; eventual expiry is not claimed.
 Admin configured topic-creation coverage applies every caller-ordered entry
 through `NewTopic::config`. Testlab preserves the complete ordered list in the
 wire command, proves the created topology, then requires an exact public
