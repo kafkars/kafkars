@@ -115,6 +115,12 @@ Admin topic-description metadata coverage selects
 public authorization bitfield on every successful description, and keeps topic
 identity and topology anchored to immediate metadata or pinned Kafka CLI
 observations.
+Admin all-topic listing metadata coverage selects
+`ListTopicsBuilder::include_authorized_operations(true)` together with an
+explicit `include_internal(false)`. Testlab retains both options and every
+detailed public outcome, requires the authorization bitfield on each success,
+and matches every required topic's error-free partitions to immediate metadata.
+Behavioral internal-topic filtering remains outside this claim.
 Admin cluster-description metadata coverage selects
 `DescribeClusterBuilder::include_authorized_operations(true)`. Testlab retains
 the exact option, requires the public cluster authorization bitfield, and keeps

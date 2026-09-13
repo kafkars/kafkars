@@ -193,6 +193,19 @@ topology without substituting for the option-specific public result. This
 remains configured qualification scope until archived evidence passes for an
 exact client commit.
 
+### Admin all-topic listing metadata
+
+The pinned Testlab protocol selects
+`ListTopicsBuilder::include_authorized_operations(true)` alongside an explicit
+`include_internal(false)`. Both options must survive into the command, and the
+byte-sorted public result retains every detailed success or normalized resource
+error. Each success must carry Kafka's authorization bitfield, while immediate
+metadata independently proves the exact error-free partition topology of every
+required topic. This does not claim exhaustive listing, behavioral
+internal-topic filtering, independently verified topic IDs or internal markers,
+or replica topology. This remains configured qualification scope until archived
+evidence passes for an exact client commit.
+
 ### Admin cluster-description authorization metadata
 
 The pinned Testlab protocol selects
@@ -285,7 +298,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`eca621ae6d95452aff6ed3c4625f7202b6db26f9` defines the following gating cells.
+`ea386a92e3aa61cf7ec9678adf3a00597cb6e811` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
