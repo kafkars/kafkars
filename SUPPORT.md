@@ -560,7 +560,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`138b5fa2cf50637a6b631f9aaf0896357f706a93` defines the following gating cells.
+`e237c254e33a5ed63948c8218f53b178bdbb49e7` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
@@ -717,6 +717,14 @@ setters or `GroupConsumerOperationConfig`. The pinned classic scenario selects
 setters. Both set every duration to a non-default value, establish live
 membership, replay one exact independently observed record through public seek,
 and close the same member.
+Before each successful registration, the pinned adapter records
+`selected_group_protocol`, `offset_reset`, `selected_read_isolation`,
+`selected_fetch_config`, `selected_limits`, every selected lifecycle duration,
+`selected_group_instance_id`, `selected_classic_group_assignor`, and
+`selected_classic_group_config`. Testlab requires every explicitly configured
+value to match its creation command exactly and checks the aggregate operation
+configuration against the individual seek and close views. Omitted optional
+values do not become portable default claims.
 The pinned classic round trip converts its full retained batch through
 `ConsumerBatch::into_checkpoint`; the paired KIP-848 round trip retains
 canonical `ConsumerBatch::checkpoint`. Exact Testlab command evidence rejects

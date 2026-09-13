@@ -326,7 +326,11 @@ and the transaction must commit in that window.
 Shared group-runtime coverage passes non-default processing and membership-start
 deadlines plus seek and close durations through both the individual setters and
 aggregate `ConsumerBuilder::operation_config` path across classic and KIP-848
-groups, then requires exact public seek replay plus orderly close.
+groups, then requires exact public seek replay plus orderly close. Successful
+registration also records `selected_group_protocol`, `offset_reset`, and every
+explicit `selected_*` group-policy view before build; Testlab requires those
+values to match the exact command while leaving omitted implementation defaults
+unclaimed.
 Missing-offset coverage passes the public `OffsetReset::Error` policy through
 both classic and KIP-848 builders. A new group with no committed offset must
 return the correlated public `state` failure and no successful batch rather
