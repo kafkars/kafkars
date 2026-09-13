@@ -104,6 +104,9 @@ the sealed IDs to match independent Kafka evidence before commit.
 Multi-topic Share coverage passes two caller-ordered topics through the public
 builder, observes assignments for both topics, and accepts one
 independently matched exact record from each.
+Every Share member also requires one exact registration command retaining its
+identities, caller-ordered topics, optional rack, membership and close
+deadlines, and complete optional acquisition policy.
 Share acknowledgement coverage selects both `ShareConsumerBatch::accept_all`
 and `ShareConsumerBatch::into_acknowledgement`; the all-Accept path consumes
 three exact acquisition ranges while explicit decisions retain mixed Accept,
