@@ -55,8 +55,9 @@ the single topic-partition path and caller-ordered batch path with its complete
 deadline. Substituted, reordered, or duplicate requests cannot qualify.
 Direct-consumer delivery coverage selects both waiting
 `AssignedConsumer::recv` and immediate `AssignedConsumer::try_take_batch`;
-Testlab retains the exact observer choice and joins the returned batch to an
-independently observed Kafka record.
+Testlab requires every exact consumer, receive identity, observer, and timeout
+command once in scenario order, then joins the returned batch to an independently
+observed Kafka record.
 Owned-record coverage converts that batch through both
 `RecordBatch::into_owned().into_records()` and the direct
 `RecordBatch::into_owned_records()` path. Each transfers one

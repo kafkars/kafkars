@@ -167,10 +167,11 @@ later lifecycle and independently observed record evidence.
 `AssignedConsumer::recv` waits for one retained background Fetch delivery.
 `AssignedConsumer::try_take_batch` instead takes one already-authorized batch
 only when it is immediately available. The pinned Testlab protocol retains
-which observer a scenario selected, repeatedly invokes the immediate method
-within the scenario bound, and joins its returned record to independent broker
-truth. This remains configured qualification scope until archived evidence
-passes for an exact client commit.
+every consumer, receive identity, observer, and timeout command exactly once in
+scenario order, repeatedly invokes the immediate method within the same bound,
+and joins its returned record to independent broker truth. The expected producer
+operation stays outside the adapter command. This remains configured
+qualification scope until archived evidence passes for an exact client commit.
 
 ### Owned direct-consumer record transfer
 
@@ -460,7 +461,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`6ed3a09a3f7142b2435186eeabc01b383fabdd0b` defines the following gating cells.
+`acfbd1113d875363bd9fb9ab25d1e1538ff85efe` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
