@@ -115,6 +115,10 @@ Admin topic-description metadata coverage selects
 public authorization bitfield on every successful description, and keeps topic
 identity and topology anchored to immediate metadata or pinned Kafka CLI
 observations.
+Admin topic-partition pagination coverage selects an exact
+`response_partition_limit`, retains every public page boundary and returned
+cursor, and separately submits each cursor only when requested. Testlab joins
+the final partition aggregate to an immediate independent metadata snapshot.
 Admin all-topic listing coverage selects
 `ListTopicsBuilder::include_authorized_operations(true)` together with paired
 `include_internal(false)` and `include_internal(true)` calls. Testlab retains
