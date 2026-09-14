@@ -10,7 +10,7 @@ use super::{
 };
 
 impl UnregisterBrokerMachine {
-    /// Applies one normalized fact without hidden I/O, retry, or cancellation.
+    /// Applies one normalized fact without hidden I/O or cancellation.
     pub fn apply(
         &mut self,
         input: UnregisterBrokerInput,
@@ -31,6 +31,9 @@ impl UnregisterBrokerMachine {
             ),
             UnregisterBrokerInput::DriverDeadlineElapsed { delivery } => {
                 self.finish_submitted(UnregisterBrokerFailureKind::DeadlineElapsed, delivery)
+            }
+            UnregisterBrokerInput::ControllerRouteUnavailable { now } => {
+                self.controller_route_unavailable(now)
             }
             UnregisterBrokerInput::BrokerResponded { success } => {
                 self.finish_submitted_terminal(UnregisterBrokerTerminal::Unregistered(success))
@@ -125,6 +128,36 @@ impl UnregisterBrokerMachine {
             return Err(UnregisterBrokerMachineError::InvalidState);
         }
         Ok(self.finish(terminal))
+    }
+
+    fn controller_route_unavailable(
+        &mut self,
+        now: crate::Moment,
+    ) -> Result<UnregisterBrokerTransition, UnregisterBrokerMachineError> {
+        if self.state != UnregisterBrokerState::Submitted {
+            return Err(UnregisterBrokerMachineError::InvalidState);
+        }
+        if self.deadline.is_elapsed_at(now) {
+            return Ok(self.finish_failure(
+                UnregisterBrokerFailureKind::DeadlineElapsed,
+                DeliveryStatus::NotSent,
+            ));
+        }
+        if self.controller_retry_used {
+            return Ok(self.finish_failure(
+                UnregisterBrokerFailureKind::Transport,
+                DeliveryStatus::NotSent,
+            ));
+        }
+        self.controller_retry_used = true;
+        self.state = UnregisterBrokerState::AwaitingDriver;
+        Ok(UnregisterBrokerTransition::one(
+            UnregisterBrokerEffect::Submit {
+                operation_id: self.operation_id,
+                deadline: self.deadline,
+                plan: self.plan,
+            },
+        ))
     }
 
     fn finish_failure(

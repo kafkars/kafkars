@@ -124,9 +124,9 @@ pub(crate) use rpc::{
     RecoveredRenewDelegationTokenCall, RemoveRaftVoterCall, RemoveRaftVoterDriverFailureKind,
     RemoveRaftVoterRawTerminal, RemoveRaftVoterTerminalFact, RenewDelegationTokenCall,
     RenewDelegationTokenDriverFailureKind, RenewDelegationTokenRawTerminal,
-    RenewDelegationTokenTerminalFact, UnregisterBrokerCall, UnregisterBrokerDriverFailureKind,
-    UnregisterBrokerRawTerminal, UnregisterBrokerTerminalFact, UpdateFeaturesCall,
-    UpdateFeaturesControllerRefreshPoll, UpdateFeaturesDriverFailureKind,
+    RenewDelegationTokenTerminalFact, UnregisterBrokerCall, UnregisterBrokerControllerRefreshPoll,
+    UnregisterBrokerDriverFailureKind, UnregisterBrokerRawTerminal, UnregisterBrokerTerminalFact,
+    UpdateFeaturesCall, UpdateFeaturesControllerRefreshPoll, UpdateFeaturesDriverFailureKind,
     UpdateFeaturesRawTerminal, UpdateFeaturesTerminalFact,
 };
 pub(crate) use rpc::{

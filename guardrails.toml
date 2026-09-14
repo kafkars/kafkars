@@ -162,7 +162,6 @@ baseline = [
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs", lines = 268, reason = "AddPartitionsToTxn retains exact response correlation, coordinator-refresh eligibility, and retry-safety evidence in one terminal owner" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs", lines = 296, reason = "AddOffsetsToTxn retains one explicit call, causal coordinator refresh, terminal delivery, and abort-required ownership state machine" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs", lines = 254, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/driver/rpc/unregister_broker_terminal.rs", lines = 242, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/rpc.rs", lines = 671, reason = "the declarative driver RPC facade explicitly names the bounded group-commit coordinator-retry owner, causal CreateTopics visibility, ShareGroupHeartbeat, and ShareAcknowledge beside every concrete source-preview tracked lane without a glob capability bypass" },
   { path = "crates/kafka-client-engine/src/engine.rs", lines = 338, reason = "the engine composition root retains common configuration and admission ports while Admin and shutdown admission live in focused child seams" },
   { path = "crates/kafka-client-engine/src/engine_host/admin/recovery.rs", lines = 251, reason = "the Admin recovery dispatcher exhaustively returns each concrete tracked owner to its exact bounded host after driver shutdown" },
@@ -19299,7 +19298,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/share_fetch/route_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/remove_raft_voter_terminal.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_init_call.rs",
-  "crates/kafka-client-engine/src/driver/rpc/unregister_broker_terminal.rs",
+  "crates/kafka-client-engine/src/driver/rpc/unregister_broker_terminal/refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/update_features_terminal/refresh.rs",
 ]
 

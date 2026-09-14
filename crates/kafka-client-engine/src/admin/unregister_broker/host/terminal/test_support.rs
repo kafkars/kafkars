@@ -5,6 +5,16 @@ use kafka_client_core::UnregisterBrokerPlan;
 use super::super::{UnregisterBrokerHost, UnregisterBrokerHostError};
 
 impl UnregisterBrokerHost {
+    pub(in crate::admin::unregister_broker) fn replace_call_with_controller_route_failure_for_test(
+        &mut self,
+        plan: UnregisterBrokerPlan,
+    ) {
+        drop(self.operations[0].call.take());
+        self.operations[0].raw_terminal = Some(
+            crate::driver::UnregisterBrokerRawTerminal::controller_route_unavailable_for_test(plan),
+        );
+    }
+
     pub(in crate::admin::unregister_broker) fn retain_recovered_call_for_test(
         &mut self,
         plan: UnregisterBrokerPlan,

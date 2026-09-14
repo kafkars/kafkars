@@ -52,9 +52,11 @@ pub(super) fn normalized_input(
         Some(code) => UnregisterBrokerInput::BrokerRejected {
             error: CoreBrokerError::new(throttle_time_ms, code, message, message_truncated),
         },
-        None if message.is_none() && !message_truncated => UnregisterBrokerInput::BrokerResponded {
-            success: UnregisterBrokerSuccess::new(throttle_time_ms),
-        },
+        None if message.as_deref().is_none_or(str::is_empty) && !message_truncated => {
+            UnregisterBrokerInput::BrokerResponded {
+                success: UnregisterBrokerSuccess::new(throttle_time_ms),
+            }
+        }
         None => UnregisterBrokerInput::InvalidResponse,
     }
 }

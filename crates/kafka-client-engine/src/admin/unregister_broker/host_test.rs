@@ -208,6 +208,58 @@ fn completion_fault_retains_call_and_broker_correlation_until_recovery() {
     stop_notifier(&mut notifier);
 }
 
+#[test]
+fn stopped_follower_route_failure_refreshes_and_retries_the_controller_request() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = UnregisterBrokerHost::new(ports.unregister_broker);
+    let capture = deadline();
+    let admission = host
+        .try_admit(capture.now(), capture.operation_deadline(), plan(3))
+        .unwrap_or_else(|error| panic!("admit unregistration: {error:?}"));
+    let UnregisterBrokerTurn::Submit(submission) = host
+        .turn(capture.now(), None)
+        .unwrap_or_else(|error| panic!("first submission turn: {error}"))
+    else {
+        panic!("first submission expected");
+    };
+    let (operation_id, submitted_deadline, submitted_plan, result_limit) = submission.into_parts();
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver owner: {error}"));
+    let call =
+        UnregisterBrokerCall::submit(&driver, submitted_plan, submitted_deadline.transport())
+            .unwrap_or_else(|_error| panic!("accepted first call"));
+    host.accept_call(operation_id, call)
+        .unwrap_or_else(|error| panic!("first host acceptance: {error}"));
+    host.replace_call_with_controller_route_failure_for_test(plan(3));
+
+    for _step in 0..3 {
+        assert!(matches!(
+            host.turn(capture.now(), Some(&driver)),
+            Ok(UnregisterBrokerTurn::Progress)
+        ));
+    }
+    let UnregisterBrokerTurn::Submit(retry) = host
+        .turn(capture.now(), Some(&driver))
+        .unwrap_or_else(|error| panic!("retry submission turn: {error}"))
+    else {
+        panic!("retry submission expected");
+    };
+    let (retry_id, retry_deadline, retry_plan, retry_limit) = retry.into_parts();
+    assert_eq!(retry_id, operation_id);
+    assert_eq!(retry_deadline, submitted_deadline);
+    assert_eq!(retry_plan, submitted_plan);
+    assert_eq!(retry_limit, result_limit);
+
+    drop(admission.observer);
+    host.reject_handoff(retry_id)
+        .unwrap_or_else(|error| panic!("reject inspected retry: {error}"));
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover host: {error}"));
+    drop((driver, host));
+    stop_notifier(&mut notifier);
+}
+
 fn plan(broker_id: i32) -> kafka_client_core::UnregisterBrokerPlan {
     kafka_client_core::UnregisterBrokerPlan::new(broker_id)
         .unwrap_or_else(|error| panic!("plan: {error}"))

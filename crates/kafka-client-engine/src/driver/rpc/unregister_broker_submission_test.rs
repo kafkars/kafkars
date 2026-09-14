@@ -3,7 +3,9 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::UnregisterBrokerPlan;
-use kafka_driver::{ApiVersion, CompletionError, Route, TrafficClass};
+use kafka_driver::{
+    ApiVersion, CallFailure, CompletionError, Delivery, RequestError, Route, TrafficClass,
+};
 use kafka_wire::UnregisterBrokerResponse;
 
 use crate::{EngineConfig, driver::DriverOwner};
@@ -12,7 +14,8 @@ use super::{
     UnregisterBrokerCall,
     unregister_broker_submission::{unregister_broker_options, unregister_broker_route},
     unregister_broker_terminal::{
-        UnregisterBrokerTerminalFact, response_requires_controller_refresh,
+        UnregisterBrokerControllerRefreshPoll, UnregisterBrokerTerminalFact,
+        request_requires_controller_retry, response_requires_controller_refresh,
         retain_unregister_broker_terminal,
     },
 };
@@ -27,6 +30,7 @@ fn mutation_uses_controller_and_preserves_original_deadline() {
     assert_eq!(options.traffic_class(), TrafficClass::Interactive);
     assert_eq!(options.minimum_version(), Some(ApiVersion::new(0)));
     assert_eq!(options.maximum_version(), Some(ApiVersion::new(0)));
+    assert!(options.rejects_after_route_failure());
 }
 
 #[test]
@@ -49,14 +53,36 @@ fn only_exact_v0_not_controller_response_requests_refresh() {
 }
 
 #[test]
+fn only_definitely_unsent_observed_route_failure_requests_retry() {
+    assert!(request_requires_controller_retry(&Err(
+        RequestError::Rejected {
+            failure: CallFailure::NotReady,
+            delivery: Delivery::NotSent,
+        }
+    )));
+    assert!(!request_requires_controller_retry(&Err(
+        RequestError::Rejected {
+            failure: CallFailure::NotReady,
+            delivery: Delivery::PossiblySent,
+        }
+    )));
+    assert!(!request_requires_controller_retry(&Err(
+        RequestError::RouteUnavailable
+    )));
+}
+
+#[test]
 fn no_refresh_terminal_is_ready_without_driver_or_route_evidence() {
     let mut ordinary = terminal(42);
-    assert_eq!(ordinary.poll_controller_refresh(None), Some(true));
+    assert_eq!(
+        ordinary.poll_controller_refresh(None),
+        UnregisterBrokerControllerRefreshPoll::Ready
+    );
 
     let mut missing_route_evidence = terminal(41);
     assert_eq!(
         missing_route_evidence.poll_controller_refresh(None),
-        Some(true),
+        UnregisterBrokerControllerRefreshPoll::Ready,
         "a broker code alone cannot forge an invalidation capability"
     );
 }
@@ -64,10 +90,13 @@ fn no_refresh_terminal_is_ready_without_driver_or_route_evidence() {
 #[test]
 fn barrier_retains_known_terminal_through_driver_loss_and_completes_once() {
     let mut terminal = terminal(41);
-    terminal.arm_controller_refresh_for_test();
+    terminal.arm_controller_refresh_for_test(false);
 
     for _attempt in 0..2 {
-        assert_eq!(terminal.poll_controller_refresh(None), None);
+        assert_eq!(
+            terminal.poll_controller_refresh(None),
+            UnregisterBrokerControllerRefreshPoll::DriverMissing
+        );
         let UnregisterBrokerTerminalFact::Response {
             selected_version,
             response,
@@ -81,13 +110,44 @@ fn barrier_retains_known_terminal_through_driver_loss_and_completes_once() {
 
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver owner: {error}"));
-    assert_eq!(terminal.poll_controller_refresh(Some(&driver)), Some(false));
-    assert_eq!(terminal.poll_controller_refresh(Some(&driver)), Some(false));
-    assert_eq!(terminal.poll_controller_refresh(Some(&driver)), Some(true));
     assert_eq!(
         terminal.poll_controller_refresh(Some(&driver)),
-        Some(true),
+        UnregisterBrokerControllerRefreshPoll::Pending
+    );
+    assert_eq!(
+        terminal.poll_controller_refresh(Some(&driver)),
+        UnregisterBrokerControllerRefreshPoll::Pending
+    );
+    assert_eq!(
+        terminal.poll_controller_refresh(Some(&driver)),
+        UnregisterBrokerControllerRefreshPoll::Ready
+    );
+    assert_eq!(
+        terminal.poll_controller_refresh(Some(&driver)),
+        UnregisterBrokerControllerRefreshPoll::Ready,
         "completed refresh authority cannot submit a second invalidation"
+    );
+    terminal.discard();
+}
+
+#[test]
+fn definitely_unsent_route_failure_becomes_retryable_only_after_refresh() {
+    let mut terminal = terminal(0);
+    terminal.arm_controller_refresh_for_test(true);
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver owner: {error}"));
+
+    assert_eq!(
+        terminal.poll_controller_refresh(Some(&driver)),
+        UnregisterBrokerControllerRefreshPoll::Pending
+    );
+    assert_eq!(
+        terminal.poll_controller_refresh(Some(&driver)),
+        UnregisterBrokerControllerRefreshPoll::Pending
+    );
+    assert_eq!(
+        terminal.poll_controller_refresh(Some(&driver)),
+        UnregisterBrokerControllerRefreshPoll::RetryReady
     );
     terminal.discard();
 }

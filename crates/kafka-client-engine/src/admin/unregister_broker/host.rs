@@ -87,7 +87,7 @@ impl UnregisterBrokerHost {
         if let Some(error) = self.health {
             return Err(error);
         }
-        if self.reclaim_one()? || self.poll_one_call(driver)? {
+        if self.reclaim_one()? || self.poll_one_call(now, driver)? {
             return Ok(UnregisterBrokerTurn::Progress);
         }
         let Some(index) = self

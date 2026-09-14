@@ -60,7 +60,7 @@ fn pre_handoff_expiry_and_rejection_are_definitely_unsent() {
 }
 
 #[test]
-fn post_handoff_mechanism_failures_preserve_delivery_certainty_without_retry() {
+fn ordinary_post_handoff_failures_preserve_delivery_certainty_without_retry() {
     for (input, kind, delivery) in [
         (
             UnregisterBrokerInput::DriverDeadlineElapsed {
@@ -103,6 +103,49 @@ fn post_handoff_mechanism_failures_preserve_delivery_certainty_without_retry() {
         assert_eq!(failure.kind(), kind);
         assert_eq!(failure.delivery(), DeliveryStatus::PossiblySent);
     }
+}
+
+#[test]
+fn definitely_unsent_controller_failure_retries_once_under_original_deadline() {
+    let mut machine = submitted_machine();
+    assert_eq!(
+        effect(
+            &mut machine,
+            UnregisterBrokerInput::ControllerRouteUnavailable {
+                now: Moment::from_tick(25),
+            },
+        ),
+        UnregisterBrokerEffect::Submit {
+            operation_id: OperationId::from_raw(64),
+            deadline: Deadline::from_tick(100),
+            plan: plan(),
+        }
+    );
+    assert_eq!(machine.state(), UnregisterBrokerState::AwaitingDriver);
+    machine
+        .apply(UnregisterBrokerInput::DriverAccepted)
+        .unwrap_or_else(|error| panic!("retry accepted: {error}"));
+
+    let exhausted = failure(effect(
+        &mut machine,
+        UnregisterBrokerInput::ControllerRouteUnavailable {
+            now: Moment::from_tick(50),
+        },
+    ));
+    assert_eq!(exhausted.kind(), UnregisterBrokerFailureKind::Transport);
+    assert_eq!(exhausted.delivery(), DeliveryStatus::NotSent);
+}
+
+#[test]
+fn original_deadline_stops_controller_route_retry() {
+    let elapsed = failure(effect(
+        &mut submitted_machine(),
+        UnregisterBrokerInput::ControllerRouteUnavailable {
+            now: Moment::from_tick(100),
+        },
+    ));
+    assert_eq!(elapsed.kind(), UnregisterBrokerFailureKind::DeadlineElapsed);
+    assert_eq!(elapsed.delivery(), DeliveryStatus::NotSent);
 }
 
 #[test]

@@ -1,16 +1,13 @@
 //! Call polling, publication, reclamation, and recovery routing.
 
 mod recovery;
-
 #[cfg(test)]
 mod test_support;
-
-use kafka_client_core::UnregisterBrokerEffect;
-
 use crate::{
     completion::{CompletionRegistryError, ReclaimStatus},
-    driver::DriverOwner,
+    driver::{DriverOwner, UnregisterBrokerControllerRefreshPoll},
 };
+use kafka_client_core::{Moment, UnregisterBrokerEffect, UnregisterBrokerInput};
 
 use super::{
     UnregisterBrokerHost, UnregisterBrokerHostError, UnregisterBrokerOperation,
@@ -20,6 +17,7 @@ use super::{
 impl UnregisterBrokerHost {
     pub(super) fn poll_one_call(
         &mut self,
+        now: Moment,
         driver: Option<&DriverOwner>,
     ) -> Result<bool, UnregisterBrokerHostError> {
         if let Some(index) = self
@@ -27,14 +25,20 @@ impl UnregisterBrokerHost {
             .iter()
             .position(|operation| operation.raw_terminal.is_some())
         {
-            let ready = self.operations[index]
+            let refresh = self.operations[index]
                 .raw_terminal
                 .as_mut()
                 .ok_or(UnregisterBrokerHostError::MissingTerminal)?
-                .poll_controller_refresh(driver)
-                .ok_or(UnregisterBrokerHostError::DriverMissing)?;
-            if ready {
-                self.settle_raw(index)?;
+                .poll_controller_refresh(driver);
+            match refresh {
+                UnregisterBrokerControllerRefreshPoll::Ready => self.settle_raw(index)?,
+                UnregisterBrokerControllerRefreshPoll::RetryReady => {
+                    self.retry_after_controller_refresh(index, now)?;
+                }
+                UnregisterBrokerControllerRefreshPoll::Pending => {}
+                UnregisterBrokerControllerRefreshPoll::DriverMissing => {
+                    return Err(UnregisterBrokerHostError::DriverMissing);
+                }
             }
             return Ok(true);
         }
@@ -70,6 +74,51 @@ impl UnregisterBrokerHost {
             .ok_or(UnregisterBrokerHostError::UnknownOperation)?;
         settle_operation(operation)?;
         self.publish_terminal(index)
+    }
+
+    fn retry_after_controller_refresh(
+        &mut self,
+        index: usize,
+        now: Moment,
+    ) -> Result<(), UnregisterBrokerHostError> {
+        let operation = self
+            .operations
+            .get_mut(index)
+            .ok_or(UnregisterBrokerHostError::UnknownOperation)?;
+        let transition = operation
+            .machine
+            .apply(UnregisterBrokerInput::ControllerRouteUnavailable { now })?;
+        let raw = operation
+            .raw_terminal
+            .take()
+            .ok_or(UnregisterBrokerHostError::MissingTerminal)?;
+        raw.discard();
+        match transition.into_effect() {
+            Some(UnregisterBrokerEffect::Submit {
+                operation_id,
+                deadline,
+                plan,
+            }) if operation_id == operation.operation_id
+                && deadline == operation.deadline.core() =>
+            {
+                operation.handoff = super::UnregisterBrokerHandoff::Untouched;
+                operation.submission = Some(super::UnregisterBrokerSubmission {
+                    operation_id,
+                    deadline: operation.deadline,
+                    plan,
+                    result_limit: operation.remaining_result_bytes,
+                });
+                Ok(())
+            }
+            Some(UnregisterBrokerEffect::Complete {
+                operation_id,
+                terminal,
+            }) if operation_id == operation.operation_id => {
+                operation.terminal = Some(terminal);
+                self.publish_terminal(index)
+            }
+            _ => Err(UnregisterBrokerHostError::SubmissionMismatch),
+        }
     }
 
     pub(super) fn publish_terminal(

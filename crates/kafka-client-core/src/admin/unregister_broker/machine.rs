@@ -1,4 +1,4 @@
-//! Single-attempt lifecycle vocabulary for one Admin `UnregisterBroker` request.
+//! Bounded lifecycle vocabulary for one Admin `UnregisterBroker` request.
 
 use core::fmt;
 
@@ -14,9 +14,9 @@ use super::{
 pub enum UnregisterBrokerState {
     /// Accepted after terminal and retained-byte capacity was reserved.
     Ready,
-    /// The sole destructive request awaits driver admission.
+    /// One bounded request attempt awaits driver admission.
     AwaitingDriver,
-    /// The driver owns the sole destructive request attempt.
+    /// The driver owns the current request attempt.
     Submitted,
     /// Core assigned the sole terminal decision.
     Completed,
@@ -30,7 +30,7 @@ pub enum UnregisterBrokerInput {
         /// Current monotonic observation supplied by the engine.
         now: Moment,
     },
-    /// Reports driver ownership of the sole destructive request.
+    /// Reports driver ownership of the current request attempt.
     DriverAccepted,
     /// Reports definite rejection before driver ownership.
     DriverRejected,
@@ -40,6 +40,11 @@ pub enum UnregisterBrokerInput {
     DriverDeadlineElapsed {
         /// Driver-authoritative delivery certainty.
         delivery: DeliveryStatus,
+    },
+    /// Reports a definitely-unsent controller-route failure after its causal refresh.
+    ControllerRouteUnavailable {
+        /// Current monotonic observation supplied by the engine.
+        now: Moment,
     },
     /// Reports one successful protocol-normalized API-64 response.
     BrokerResponded {
@@ -70,7 +75,7 @@ pub enum UnregisterBrokerInput {
 /// One concrete mechanism request emitted by broker-unregistration policy.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum UnregisterBrokerEffect {
-    /// Submit the exact broker identity once through the controller route.
+    /// Submit the exact broker identity through the controller route.
     Submit {
         /// Stable identity reserved before machine construction.
         operation_id: OperationId,
@@ -118,6 +123,7 @@ pub struct UnregisterBrokerMachine {
     pub(crate) deadline: Deadline,
     pub(crate) plan: UnregisterBrokerPlan,
     pub(crate) state: UnregisterBrokerState,
+    pub(crate) controller_retry_used: bool,
 }
 
 impl UnregisterBrokerMachine {
@@ -132,6 +138,7 @@ impl UnregisterBrokerMachine {
             deadline,
             plan,
             state: UnregisterBrokerState::Ready,
+            controller_retry_used: false,
         }
     }
 

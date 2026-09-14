@@ -1,4 +1,4 @@
-//! Single-attempt controller submission policy for Admin `UnregisterBroker`.
+//! Bounded controller submission policy for Admin `UnregisterBroker`.
 
 use std::{error::Error, fmt, time::Instant};
 
@@ -32,7 +32,7 @@ impl Error for UnregisterBrokerSubmitError {
 }
 
 impl DriverOwner {
-    /// Submits one broker unregistration without automatic replay policy.
+    /// Submits one broker unregistration with explicit route-failure settlement.
     pub(crate) fn submit_tracked_unregister_broker(
         &self,
         request: UnregisterBrokerRequest,
@@ -57,4 +57,5 @@ pub(super) const fn unregister_broker_options(deadline: Instant) -> RequestOptio
         .with_traffic_class(TrafficClass::Interactive)
         .with_minimum_version(UNREGISTER_BROKER_VERSION)
         .with_maximum_version(UNREGISTER_BROKER_VERSION)
+        .with_route_failure_rejection()
 }

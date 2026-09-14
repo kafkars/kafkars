@@ -661,8 +661,8 @@ pub(crate) use renew_delegation_token_terminal::{
 };
 pub(crate) use unregister_broker_call::UnregisterBrokerCall;
 pub(crate) use unregister_broker_terminal::{
-    RecoveredUnregisterBrokerCall, UnregisterBrokerDriverFailureKind, UnregisterBrokerRawTerminal,
-    UnregisterBrokerTerminalFact,
+    RecoveredUnregisterBrokerCall, UnregisterBrokerControllerRefreshPoll,
+    UnregisterBrokerDriverFailureKind, UnregisterBrokerRawTerminal, UnregisterBrokerTerminalFact,
 };
 pub(crate) use update_features_call::UpdateFeaturesCall;
 pub(crate) use update_features_terminal::{

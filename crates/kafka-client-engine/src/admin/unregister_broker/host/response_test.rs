@@ -14,6 +14,14 @@ fn success_preserves_nonnegative_throttle() {
 }
 
 #[test]
+fn kafka_empty_success_diagnostic_is_equivalent_to_absent() {
+    assert!(matches!(
+        normalized_input(0, 0, Some(String::new()), false),
+        UnregisterBrokerInput::BrokerResponded { .. }
+    ));
+}
+
+#[test]
 fn signed_nonzero_broker_error_preserves_diagnostic() {
     let UnregisterBrokerInput::BrokerRejected { error } =
         normalized_input(23, -32_000, Some("controller said no".to_owned()), true)
