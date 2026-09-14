@@ -12,6 +12,9 @@ pub const EXECUTION_STOP_EFFECTS_PER_RECORD: usize = 4;
 /// Maximum execution-stop terminal effects emitted per retained flush.
 pub const EXECUTION_STOP_EFFECTS_PER_FLUSH: usize = 1;
 
+/// Maximum effects emitted when cancelling the sole identity-waiting record.
+const IDENTITY_CANCELLATION_EFFECTS: usize = 5;
+
 /// Computes the combined record-plus-flush execution-stop transition bound.
 pub const fn execution_stop_effect_capacity(
     record_capacity: usize,
@@ -29,8 +32,9 @@ pub const fn execution_stop_effect_capacity(
 
 /// Computes the maximum effects emitted by any one public producer transition.
 ///
-/// Execution stop owns the general `4R + F` fan-out. An immediately settled
-/// flush emits both acceptance and completion even when `R` is zero.
+/// Execution stop owns the general `4R + F` fan-out. Cancelling the sole
+/// identity waiter emits five effects, while an immediately settled flush
+/// emits both acceptance and completion even when `R` is zero.
 pub const fn producer_transition_effect_capacity(
     record_capacity: usize,
     flush_capacity: usize,
@@ -40,10 +44,20 @@ pub const fn producer_transition_effect_capacity(
         return None;
     };
     let immediate_flush = if flush_capacity == 0 { 0 } else { 2 };
-    Some(if execution_stop > immediate_flush {
+    let identity_cancellation = if record_capacity == 0 {
+        0
+    } else {
+        IDENTITY_CANCELLATION_EFFECTS
+    };
+    let nonterminal = if immediate_flush > identity_cancellation {
+        immediate_flush
+    } else {
+        identity_cancellation
+    };
+    Some(if execution_stop > nonterminal {
         execution_stop
     } else {
-        immediate_flush
+        nonterminal
     })
 }
 
@@ -86,6 +100,14 @@ pub enum ProducerEffect {
         deadline_operation_id: OperationId,
         /// Earliest waiting batch deadline captured at admission.
         deadline: Deadline,
+    },
+    /// Cancel an identity request that has not crossed into driver ownership.
+    ///
+    /// A request already owned by the driver remains generation-fenced and may
+    /// complete later. The engine removes only an exact queued acquisition.
+    CancelProducerIdentityRequest {
+        /// Generation that no longer has a live identity-waiting batch.
+        generation: ProducerIdentityGeneration,
     },
     /// Retain one same-purpose identity retry until its explicit backoff expires.
     ArmProducerIdentityRetry {

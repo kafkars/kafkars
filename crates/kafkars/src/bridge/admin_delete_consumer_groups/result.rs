@@ -17,7 +17,10 @@ use crate::{
 use super::operation::AdminDeleteConsumerGroupsResult;
 
 pub(super) fn translate_admission_error(error: DeleteConsumerGroupsAdmissionError) -> KafkaError {
-    let kind = error.kind();
+    translate_admission_kind(error.kind())
+}
+
+pub(super) fn translate_admission_kind(kind: DeleteConsumerGroupsAdmissionErrorKind) -> KafkaError {
     let public = match kind {
         DeleteConsumerGroupsAdmissionErrorKind::InvalidRequest
         | DeleteConsumerGroupsAdmissionErrorKind::InvalidDeadline => ErrorKind::Configuration,
@@ -33,6 +36,7 @@ pub(super) fn translate_admission_error(error: DeleteConsumerGroupsAdmissionErro
         format!("DeleteConsumerGroups admission failed: {kind:?}"),
     )
     .with_delivery_status(DeliveryStatus::NotSent)
+    .with_safe_retry_if(public == ErrorKind::Backpressure)
 }
 
 pub(super) fn translate_accepted_fault(fault: DeleteConsumerGroupsAcceptedFaultKind) -> KafkaError {

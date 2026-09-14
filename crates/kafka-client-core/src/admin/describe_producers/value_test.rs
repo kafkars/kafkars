@@ -20,10 +20,10 @@ fn producer_state_preserves_all_api_61_v0_facts() {
 
 #[test]
 fn initial_sentinels_are_stable_but_lower_or_negative_identity_values_are_invalid() {
-    assert!(AdminProducerState::new(1, 0, -1, -1, 0, None).is_well_formed());
+    assert!(AdminProducerState::new(1, 0, -1, -1, -1, None).is_well_formed());
     assert!(!AdminProducerState::new(-1, 0, -1, -1, 0, None).is_well_formed());
     assert!(!AdminProducerState::new(1, -1, -1, -1, 0, None).is_well_formed());
     assert!(!AdminProducerState::new(1, 0, -2, -1, 0, None).is_well_formed());
     assert!(!AdminProducerState::new(1, 0, -1, -2, 0, None).is_well_formed());
-    assert!(!AdminProducerState::new(1, 0, -1, -1, -1, None).is_well_formed());
+    assert!(!AdminProducerState::new(1, 0, -1, -1, -2, None).is_well_formed());
 }

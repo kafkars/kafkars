@@ -13,7 +13,7 @@ use super::idempotence_lease::SequenceLeaseState;
 /// Global nontransactional identity acquisition phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProducerIdentityState {
-    Uninitialized,
+    Uninitialized(ProducerIdentityGeneration),
     Acquiring(ProducerIdentityGeneration),
     RetryWaiting(ProducerIdentityRetrySchedule),
     Ready(ProducerIdentity),
@@ -32,7 +32,7 @@ pub(crate) struct IdempotentProducer {
 impl IdempotentProducer {
     pub(crate) const fn new(sequence_capacity: usize) -> Self {
         Self {
-            state: ProducerIdentityState::Uninitialized,
+            state: ProducerIdentityState::Uninitialized(ProducerIdentityGeneration::initial()),
             sequence_capacity,
             next_sequences: BTreeMap::new(),
             sequence_leases: BTreeMap::new(),
@@ -42,7 +42,7 @@ impl IdempotentProducer {
     pub(crate) const fn identity(&self) -> Option<ProducerIdentity> {
         match self.state {
             ProducerIdentityState::Ready(identity) => Some(identity),
-            ProducerIdentityState::Uninitialized
+            ProducerIdentityState::Uninitialized(_)
             | ProducerIdentityState::Acquiring(_)
             | ProducerIdentityState::RetryWaiting(_)
             | ProducerIdentityState::Fenced => None,
@@ -52,7 +52,7 @@ impl IdempotentProducer {
     pub(crate) const fn acquisition(&self) -> Option<ProducerIdentityGeneration> {
         match self.state {
             ProducerIdentityState::Acquiring(generation) => Some(generation),
-            ProducerIdentityState::Uninitialized
+            ProducerIdentityState::Uninitialized(_)
             | ProducerIdentityState::RetryWaiting(_)
             | ProducerIdentityState::Ready(_)
             | ProducerIdentityState::Fenced => None,
@@ -60,7 +60,7 @@ impl IdempotentProducer {
     }
 
     pub(crate) const fn is_uninitialized(&self) -> bool {
-        matches!(self.state, ProducerIdentityState::Uninitialized)
+        matches!(self.state, ProducerIdentityState::Uninitialized(_))
     }
 
     pub(crate) const fn is_fenced(&self) -> bool {
@@ -70,7 +70,7 @@ impl IdempotentProducer {
     pub(crate) const fn retry_schedule(&self) -> Option<ProducerIdentityRetrySchedule> {
         match self.state {
             ProducerIdentityState::RetryWaiting(schedule) => Some(schedule),
-            ProducerIdentityState::Uninitialized
+            ProducerIdentityState::Uninitialized(_)
             | ProducerIdentityState::Acquiring(_)
             | ProducerIdentityState::Ready(_)
             | ProducerIdentityState::Fenced => None,
@@ -78,7 +78,9 @@ impl IdempotentProducer {
     }
 
     pub(crate) fn begin_acquisition(&mut self) -> ProducerIdentityGeneration {
-        let generation = ProducerIdentityGeneration::initial();
+        let ProducerIdentityState::Uninitialized(generation) = self.state else {
+            unreachable!("identity acquisition must begin from the uninitialized state")
+        };
         self.state = ProducerIdentityState::Acquiring(generation);
         generation
     }
@@ -114,7 +116,30 @@ impl IdempotentProducer {
     }
 
     pub(crate) fn cancel_retry(&mut self) {
-        self.state = ProducerIdentityState::Uninitialized;
+        let next = match self.state {
+            ProducerIdentityState::RetryWaiting(schedule) => schedule.retry_generation(),
+            ProducerIdentityState::Acquiring(generation)
+            | ProducerIdentityState::Uninitialized(generation) => generation,
+            ProducerIdentityState::Ready(_) | ProducerIdentityState::Fenced => return,
+        };
+        self.state = ProducerIdentityState::Uninitialized(next);
+    }
+
+    /// Fences an acquisition that may still be driver-owned.
+    ///
+    /// Returns whether the generation domain was exhausted and the producer
+    /// therefore had to remain fenced.
+    pub(crate) fn abandon_request(&mut self) -> bool {
+        let ProducerIdentityState::Acquiring(generation) = self.state else {
+            return false;
+        };
+        if let Some(next) = generation.checked_next() {
+            self.state = ProducerIdentityState::Uninitialized(next);
+            false
+        } else {
+            self.state = ProducerIdentityState::Fenced;
+            true
+        }
     }
 
     pub(crate) fn fence(&mut self) {

@@ -104,8 +104,8 @@ fn producer_sentinels_and_nonnegative_identifiers_are_validated() {
             DescribeProducersProtocolFailure::InvalidLastTimestamp { actual: -2 },
         ),
         (
-            producer(1, 0, 0, 0, -1, -1),
-            DescribeProducersProtocolFailure::NegativeCoordinatorEpoch { actual: -1 },
+            producer(1, 0, 0, 0, -2, -1),
+            DescribeProducersProtocolFailure::NegativeCoordinatorEpoch { actual: -2 },
         ),
         (
             producer(1, 0, 0, 0, 0, -2),

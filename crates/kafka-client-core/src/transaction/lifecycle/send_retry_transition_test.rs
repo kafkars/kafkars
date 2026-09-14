@@ -6,12 +6,13 @@ use super::send_retry_test_support::{
 use super::test_support::{accept, begin, effect, owner, send};
 use super::{
     TransactionLifecycleEffect, TransactionLifecycleInput, TransactionLifecycleMachineError,
-    TransactionLifecycleState, TransactionSendAttempt, TransactionSendOutcome,
+    TransactionLifecycleState, TransactionSendAttempt, TransactionSendAttemptFailure,
+    TransactionSendOutcome,
 };
 use crate::{Deadline, PartitionIndex, ProducerBrokerFailureKind, TopicId};
 
 #[test]
-fn routing_replacement_is_bounded_and_preserves_exact_send_authority() {
+fn driver_and_broker_routing_replacements_are_bounded_and_preserve_exact_send_authority() {
     let owner_id = owner(20);
     let mut machine = retry_machine(owner_id, 2, 10);
     let epoch = begin(&mut machine, owner_id);
@@ -27,7 +28,7 @@ fn routing_replacement_is_bounded_and_preserves_exact_send_authority() {
         send_id,
         TransactionSendAttempt::initial(),
         5,
-        broker_failure(ProducerBrokerFailureKind::Routing, 6),
+        TransactionSendAttemptFailure::RouteUnavailable,
     )
     .unwrap_or_else(|error| panic!("first routing failure: {error}"))
     .into_effect()

@@ -1,7 +1,5 @@
 //! Identity acquisition, sequence assignment, and conservative fencing transitions.
 
-use core::num::NonZeroI16;
-
 use crate::{
     BatchId, Moment, ProducerEffect, ProducerFailure, ProducerIdentityGeneration,
     ProducerMachineError, ProducerTransition,
@@ -97,27 +95,6 @@ impl ProducerMachine {
             ));
         }
         Ok(ProducerTransition::from_effects(effects))
-    }
-
-    pub(crate) fn producer_identity_failed(
-        &mut self,
-        generation: ProducerIdentityGeneration,
-        broker_code: Option<NonZeroI16>,
-        now: Moment,
-    ) -> Result<ProducerTransition, ProducerMachineError> {
-        if !self.idempotence.acquisition_is_current(generation) {
-            return Ok(ProducerTransition::none());
-        }
-        if broker_code.is_some_and(|code| code.get() == 14) {
-            return self.retry_producer_identity_coordinator_load(generation, now);
-        }
-        let failures =
-            self.pre_driver_batch_failures(ProducerFailure::producer_identity(broker_code));
-        let plan = self.plan_batch_failures(&failures)?;
-        let transition = self.commit_batch_failures(plan)?;
-        self.idempotence.fence();
-        self.admission_open = false;
-        Ok(transition)
     }
 
     pub(crate) fn settle_uncertain_delivery(

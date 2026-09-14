@@ -84,6 +84,27 @@ fn broker_failure_response_is_possibly_sent_and_preserves_normalized_code() {
 }
 
 #[test]
+fn access_rejection_proves_the_batch_was_not_sent() {
+    let mut response = response();
+    sole_partition_mut(&mut response).error_code = 29;
+
+    let Err(failure) = normalize_explicit_produce_response(&response, TOPIC, PARTITION) else {
+        panic!("topic authorization rejection should fail normalization");
+    };
+    let ProduceResponseFailure::Broker {
+        failure: broker,
+        delivery,
+    } = failure
+    else {
+        panic!("topic authorization should remain a broker fact");
+    };
+    assert_eq!(delivery, DeliveryStatus::NotSent);
+    assert_eq!(failure.delivery(), DeliveryStatus::NotSent);
+    assert_eq!(broker.kind(), ProducerBrokerFailureKind::AccessRejected);
+    assert_eq!(broker.code(), 29);
+}
+
+#[test]
 fn nonzero_broker_error_remains_authoritative_over_diagnostic_fields() {
     let mut response = response();
     let partition = sole_partition_mut(&mut response);

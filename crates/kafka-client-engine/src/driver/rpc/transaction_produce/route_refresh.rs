@@ -103,13 +103,22 @@ pub(super) const fn invalidation_rejection_is_retryable(reason: &SubmitError) ->
 }
 
 const fn is_routing_failure(fact: TransactionProduceTerminalFact) -> bool {
-    matches!(
-        fact,
-        TransactionProduceTerminalFact::AbortRequired { failure, .. }
-            if matches!(
-                failure.kind(),
-                TransactionProduceFailureKind::Broker(failure)
-                    if matches!(failure.kind(), ProducerBrokerFailureKind::Routing)
-            )
-    )
+    let TransactionProduceTerminalFact::AbortRequired { failure, .. } = fact else {
+        return false;
+    };
+    match failure.kind() {
+        TransactionProduceFailureKind::Broker(failure) => {
+            matches!(failure.kind(), ProducerBrokerFailureKind::Routing)
+        }
+        TransactionProduceFailureKind::Driver(
+            kafka_client_core::ProducerAttemptFailureKind::RouteUnavailable,
+        ) => matches!(
+            failure.delivery(),
+            kafka_client_core::DeliveryStatus::NotSent
+        ),
+        TransactionProduceFailureKind::Protocol(_)
+        | TransactionProduceFailureKind::Driver(_)
+        | TransactionProduceFailureKind::CompletionLost
+        | TransactionProduceFailureKind::DriverShutdown => false,
+    }
 }

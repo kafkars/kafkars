@@ -1,8 +1,8 @@
-//! Atomic preflight and commit of one or more failed producer batches.
+//! Atomic preflight and commit of failed batches and abandoned identity work.
 
 use crate::{
-    BatchId, OperationId, ProducerCompletion, ProducerEffect, ProducerFailure,
-    ProducerMachineError, ProducerTransition,
+    BatchId, Moment, OperationId, ProducerCompletion, ProducerEffect, ProducerFailure,
+    ProducerIdentityGeneration, ProducerMachineError, ProducerTransition,
 };
 
 use super::{BatchState, ProducerMachine, lifecycle::Settlement};
@@ -20,6 +20,67 @@ struct FailedBatch {
 }
 
 impl ProducerMachine {
+    /// Reports whether no batch retains producer execution ownership.
+    pub(super) fn has_no_retained_batches(&self) -> bool {
+        self.batches.is_empty()
+    }
+
+    /// Plans cancellation of an acquisition owned only by the batch being removed.
+    pub(super) fn identity_request_abandoned_by(
+        &self,
+        removed_batch_id: BatchId,
+    ) -> Option<ProducerIdentityGeneration> {
+        let generation = self.idempotence.acquisition()?;
+        self.batches
+            .iter()
+            .all(|(batch_id, batch)| {
+                *batch_id == removed_batch_id || batch.state != BatchState::AwaitingIdentity
+            })
+            .then_some(generation)
+    }
+
+    /// Commits a generation fence before asking the engine to cancel queued work.
+    pub(super) fn abandon_identity_request(
+        &mut self,
+        generation: ProducerIdentityGeneration,
+    ) -> ProducerEffect {
+        debug_assert_eq!(self.idempotence.acquisition(), Some(generation));
+        if self.idempotence.abandon_request() {
+            self.admission_open = false;
+        }
+        ProducerEffect::CancelProducerIdentityRequest { generation }
+    }
+
+    /// Classifies every pre-driver batch under one identity-request terminal.
+    pub(super) fn identity_request_terminal_failures(
+        &self,
+        now: Moment,
+    ) -> Result<Vec<(BatchId, ProducerFailure)>, ProducerMachineError> {
+        self.batches
+            .iter()
+            .filter_map(|(batch_id, batch)| {
+                matches!(
+                    batch.state,
+                    BatchState::Open
+                        | BatchState::AwaitingIdentity
+                        | BatchState::Materializing
+                        | BatchState::AwaitingDriver
+                        | BatchState::RetryWaiting
+                )
+                .then_some((*batch_id, batch.earliest_deadline()))
+            })
+            .map(|(batch_id, deadline)| {
+                let deadline = deadline.ok_or(ProducerMachineError::UnknownBatch)?;
+                let failure = if deadline.is_elapsed_at(now) {
+                    ProducerFailure::deadline_elapsed()
+                } else {
+                    ProducerFailure::producer_identity(None)
+                };
+                Ok((batch_id, failure))
+            })
+            .collect()
+    }
+
     pub(crate) fn settle_batch_failed(
         &mut self,
         batch_id: BatchId,

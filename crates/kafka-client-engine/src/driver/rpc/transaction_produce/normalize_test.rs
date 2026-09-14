@@ -10,7 +10,7 @@ use kafka_client_core::{
     TransactionEndOutcome, TransactionEpoch, TransactionLifecycleEffect, TransactionLifecycleInput,
     TransactionLifecycleMachine, TransactionSendAttempt, TransactionSendId, TransactionalOwnerId,
 };
-use kafka_driver::{CallFailure, Delivery, RequestError};
+use kafka_driver::{CallFailure, Delivery, RequestError, RouteKind};
 use kafka_wire::{
     ProduceResponse,
     produce_response::{PartitionProduceResponse, TopicProduceResponse},
@@ -20,7 +20,7 @@ use crate::protocol::produce_response::ProduceResponseProtocolFailure;
 
 use super::{
     model::{RouteEvidence, TransactionProduceFailureKind, TransactionProduceTerminalFact},
-    normalize::{TransactionProduceResult, normalize_terminal},
+    normalize::{TransactionProduceResult, normalize_driver_failure_kind, normalize_terminal},
 };
 
 const TOPIC: &str = "orders";
@@ -47,7 +47,7 @@ fn definitely_non_appended_broker_rejection_requires_abort() {
         panic!("authorization rejection must require abort");
     };
     assert_eq!(failure.broker_code(), Some(29));
-    assert_eq!(failure.delivery(), DeliveryStatus::PossiblySent);
+    assert_eq!(failure.delivery(), DeliveryStatus::NotSent);
 }
 
 #[test]
@@ -111,6 +111,40 @@ fn driver_certainty_separates_abort_required_from_fatal() {
         panic!("transport ambiguity must fence sequence identity");
     };
     assert_eq!(failure.delivery(), DeliveryStatus::PossiblySent);
+}
+
+#[test]
+fn only_definitely_unsent_partition_route_failures_gain_route_replacement_semantics() {
+    assert_eq!(
+        normalize_driver_failure_kind(
+            ProducerAttemptFailureKind::ConnectionUnavailable,
+            DeliveryStatus::NotSent,
+            Some(RouteKind::PartitionLeader),
+        ),
+        ProducerAttemptFailureKind::RouteUnavailable
+    );
+    for (kind, delivery, route_kind) in [
+        (
+            ProducerAttemptFailureKind::ConnectionUnavailable,
+            DeliveryStatus::PossiblySent,
+            Some(RouteKind::PartitionLeader),
+        ),
+        (
+            ProducerAttemptFailureKind::ConnectionUnavailable,
+            DeliveryStatus::NotSent,
+            Some(RouteKind::Coordinator),
+        ),
+        (
+            ProducerAttemptFailureKind::Permanent,
+            DeliveryStatus::NotSent,
+            Some(RouteKind::PartitionLeader),
+        ),
+    ] {
+        assert_eq!(
+            normalize_driver_failure_kind(kind, delivery, route_kind),
+            kind
+        );
+    }
 }
 
 #[test]

@@ -10,8 +10,6 @@ mod settlement_normalize_test;
 #[cfg(test)]
 mod settlement_test;
 
-#[cfg(test)]
-use kafka_client_core::ProducerInput;
 use kafka_client_core::{BatchExecutionId, Deadline, Moment};
 use kafka_driver::RoutedCall;
 use kafka_wire::ProduceResponse;
@@ -53,6 +51,7 @@ impl ProduceCallPermit<'_> {
             partition,
             request,
             deadline.transport(),
+            true,
         )?;
         self.calls.push(TrackedProduceCall {
             entries: TrackedProduceEntries::Single(TrackedProduceEntry {
@@ -94,7 +93,7 @@ impl TrackedProduceCalls {
     pub(crate) fn with_submit_then_pending_refresh_for_test(
         execution: BatchExecutionId,
         deadline: Deadline,
-        input: ProducerInput,
+        input: kafka_client_core::ProducerInput,
     ) -> Self {
         Self {
             capacity: 1,
@@ -113,7 +112,7 @@ impl TrackedProduceCalls {
     pub(crate) fn with_missing_route_refresh_for_test(
         execution: BatchExecutionId,
         deadline: Deadline,
-        input: ProducerInput,
+        input: kafka_client_core::ProducerInput,
     ) -> Self {
         Self {
             capacity: 1,

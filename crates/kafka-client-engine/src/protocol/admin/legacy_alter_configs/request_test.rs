@@ -12,7 +12,7 @@ use kafka_wire_core::{
 use super::request::legacy_alter_configs_request;
 
 #[test]
-fn request_preserves_full_snapshot_order_nullable_values_and_validate_only() {
+fn request_omits_default_restoration_markers_and_preserves_present_values() {
     let request = legacy_alter_configs_request(&plan());
 
     assert!(request.validate_only);
@@ -27,7 +27,7 @@ fn request_preserves_full_snapshot_order_nullable_values_and_validate_only() {
             .iter()
             .map(|config| config.name.as_str())
             .collect::<Vec<_>>(),
-        vec!["cleanup.policy", "retention.ms", "segment.bytes"]
+        vec!["cleanup.policy", "segment.bytes"]
     );
     assert_eq!(
         request.resources[0]
@@ -35,12 +35,12 @@ fn request_preserves_full_snapshot_order_nullable_values_and_validate_only() {
             .iter()
             .map(|config| config.value.as_ref().map(StrBytes::as_str))
             .collect::<Vec<_>>(),
-        vec![Some("compact"), None, Some("")]
+        vec![Some("compact"), Some("")]
     );
 }
 
 #[test]
-fn nullable_values_round_trip_in_v0_v1_and_flexible_v2() {
+fn restoration_omissions_round_trip_in_v0_v1_and_flexible_v2() {
     let request = legacy_alter_configs_request(&plan());
     for version in [0, 1, 2] {
         assert_round_trip(&request, ApiVersion::new(version));
@@ -75,7 +75,7 @@ fn generic_request_preserves_exact_known_future_resource_types_and_empty_snapsho
             .map(StrBytes::as_str),
         Some("")
     );
-    assert!(request.resources[3].configs[0].value.is_none());
+    assert!(request.resources[3].configs.is_empty());
     for version in [0, 1, 2] {
         assert_round_trip(&request, ApiVersion::new(version));
     }

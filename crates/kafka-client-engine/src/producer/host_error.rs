@@ -10,7 +10,8 @@ use crate::{clock::BatchTimerError, completion::CompletionRegistryError};
 
 use super::{
     ProducerStoreError, binding::OperationBindingError, cancellation::ProducerRevisionError,
-    execution::PreparedExecutionError, flush::FlushBindingError, reclaim::CompletionReclaimError,
+    execution::PreparedExecutionError, flush::FlushBindingError,
+    identity_submission::ProducerIdentityHandoffError, reclaim::CompletionReclaimError,
 };
 
 /// Invalid synchronization between core and engine capacity owners.
@@ -162,6 +163,7 @@ pub(crate) enum ProducerHostInvariantError {
     Prepared(PreparedExecutionError),
     Compression(super::compression::CompressionPollError),
     Revision(ProducerRevisionError),
+    IdentityHandoff(ProducerIdentityHandoffError),
     MissingAdmissionIdentity,
     MissingCancellationOutcome,
     UnexpectedCancellationEffect,

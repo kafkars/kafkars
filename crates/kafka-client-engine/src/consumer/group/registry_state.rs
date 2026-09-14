@@ -62,17 +62,25 @@ impl GroupConsumerRegistry {
             .iter()
             .find(|entry| entry.group_id() == group_id)
             .ok_or(GroupConsumerStateSnapshotError::UnknownGroup)?;
-        if entry.protocol != GroupConsumerProtocol::Consumer {
-            return Ok(None);
+        match entry.protocol {
+            GroupConsumerProtocol::Classic => Ok(entry
+                .catalog
+                .classic_generation()
+                .is_none()
+                .then(|| entry.classic.machine().fatal())
+                .flatten()
+                .map(|fatal| GroupConsumerStartupFailureKind::from_classic_core(fatal.reason()))),
+            GroupConsumerProtocol::Consumer => {
+                let execution = entry
+                    .consumer
+                    .as_ref()
+                    .ok_or(GroupConsumerStateSnapshotError::EntryFault)?;
+                Ok(execution
+                    .machine()
+                    .startup_fatal()
+                    .map(|fatal| GroupConsumerStartupFailureKind::from_core(fatal.failure())))
+            }
         }
-        let execution = entry
-            .consumer
-            .as_ref()
-            .ok_or(GroupConsumerStateSnapshotError::EntryFault)?;
-        Ok(execution
-            .machine()
-            .startup_fatal()
-            .map(|fatal| GroupConsumerStartupFailureKind::from_core(fatal.failure())))
     }
 
     pub(in crate::consumer::group) fn group_state(

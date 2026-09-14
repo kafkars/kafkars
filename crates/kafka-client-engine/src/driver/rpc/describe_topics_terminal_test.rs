@@ -5,7 +5,7 @@ use kafka_driver::{ApiKey, CallFailure, Delivery, RequestError};
 use kafka_wire::{MetadataResponse, metadata_response::MetadataResponseTopic};
 use kafka_wire_core::{ApiVersion, EncodeError};
 
-use super::describe_topics_terminal::normalize_terminal;
+use super::describe_topics_terminal::normalize_terminal_at;
 
 #[test]
 fn valid_generated_response_becomes_ordered_core_results() {
@@ -15,7 +15,7 @@ fn valid_generated_response_becomes_ordered_core_results() {
     response.topics = vec![topic];
 
     assert!(matches!(
-        normalize_terminal(&plan(), 128 * 1024, Ok(response)),
+        normalize_terminal_at(&plan(), 128 * 1024, false, Ok(response)),
         DescribeTopicsInput::BrokerResponded { .. }
     ));
 }
@@ -24,7 +24,7 @@ fn valid_generated_response_becomes_ordered_core_results() {
 fn malformed_and_valid_over_budget_responses_remain_distinct() {
     let response = MetadataResponse::default();
     assert_eq!(
-        normalize_terminal(&plan(), 128 * 1024, Ok(response.clone())),
+        normalize_terminal_at(&plan(), 128 * 1024, false, Ok(response.clone())),
         DescribeTopicsInput::InvalidResponse
     );
 
@@ -33,16 +33,17 @@ fn malformed_and_valid_over_budget_responses_remain_distinct() {
     let mut response = response;
     response.topics = vec![topic];
     assert_eq!(
-        normalize_terminal(&plan(), 1, Ok(response)),
+        normalize_terminal_at(&plan(), 1, false, Ok(response)),
         DescribeTopicsInput::ResponseTooLarge
     );
 }
 
 #[test]
 fn driver_deadline_remains_timeout_with_authoritative_certainty() {
-    let input = normalize_terminal(
+    let input = normalize_terminal_at(
         &plan(),
         128 * 1024,
+        false,
         Err(RequestError::Rejected {
             failure: CallFailure::DeadlineExceeded,
             delivery: Delivery::PossiblySent,
@@ -57,10 +58,35 @@ fn driver_deadline_remains_timeout_with_authoritative_certainty() {
 }
 
 #[test]
-fn old_broker_auto_creation_field_failure_is_local_compatibility() {
-    let input = normalize_terminal(
+fn original_deadline_wins_when_a_transport_terminal_arrives_late() {
+    let input = normalize_terminal_at(
         &plan(),
         128 * 1024,
+        true,
+        Err(RequestError::RouteUnavailable),
+    );
+    assert_eq!(
+        input,
+        DescribeTopicsInput::DriverDeadlineElapsed {
+            delivery: DeliveryStatus::NotSent,
+        }
+    );
+
+    let input = normalize_terminal_at(&plan(), 128 * 1024, true, Ok(MetadataResponse::default()));
+    assert_eq!(
+        input,
+        DescribeTopicsInput::DriverDeadlineElapsed {
+            delivery: DeliveryStatus::PossiblySent,
+        }
+    );
+}
+
+#[test]
+fn old_broker_auto_creation_field_failure_is_local_compatibility() {
+    let input = normalize_terminal_at(
+        &plan(),
+        128 * 1024,
+        false,
         Err(RequestError::Encode(EncodeError::FieldNotRepresentable {
             message: "MetadataRequest",
             field: "AllowAutoTopicCreation",
@@ -72,9 +98,10 @@ fn old_broker_auto_creation_field_failure_is_local_compatibility() {
 
 #[test]
 fn all_topic_read_only_policy_failure_is_local_compatibility() {
-    let input = normalize_terminal(
+    let input = normalize_terminal_at(
         &DescribeTopicsPlan::all(false),
         4 * 1024 * 1024,
+        false,
         Err(RequestError::Encode(EncodeError::FieldNotRepresentable {
             message: "MetadataRequest",
             field: "AllowAutoTopicCreation",
@@ -100,7 +127,7 @@ fn version_floor_and_bounds_fail_before_metadata_transport() {
         },
     ] {
         assert_eq!(
-            normalize_terminal(&plan(), 128 * 1024, Err(failure)),
+            normalize_terminal_at(&plan(), 128 * 1024, false, Err(failure)),
             DescribeTopicsInput::ProtocolIncompatible
         );
     }
@@ -109,9 +136,10 @@ fn version_floor_and_bounds_fail_before_metadata_transport() {
 #[test]
 fn old_broker_cannot_silently_drop_requested_authorized_operations() {
     let plan = plan().with_authorized_operations(true);
-    let input = normalize_terminal(
+    let input = normalize_terminal_at(
         &plan,
         128 * 1024,
+        false,
         Err(RequestError::VersionFloorUnavailable {
             api_key: ApiKey::new(3),
             minimum: ApiVersion::new(8),

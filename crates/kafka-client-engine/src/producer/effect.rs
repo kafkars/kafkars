@@ -48,6 +48,9 @@ impl ProducerHost {
                 self.retain_pending(pending)?;
                 Ok(())
             }
+            ProducerEffect::CancelProducerIdentityRequest { generation } => self
+                .cancel_pending_identity_request(generation)
+                .map_err(ProducerHostInvariantError::IdentityHandoff),
             pending @ ProducerEffect::ArmProducerIdentityRetry { .. } => {
                 self.retain_pending(pending)?;
                 Ok(())

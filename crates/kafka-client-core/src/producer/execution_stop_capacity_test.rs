@@ -79,6 +79,11 @@ fn empty_producer_capacity_covers_immediate_flush_acceptance_and_completion() {
 }
 
 #[test]
+fn one_record_capacity_covers_identity_waiter_cancellation() {
+    assert_eq!(producer_transition_effect_capacity(1, 0), Some(5));
+}
+
+#[test]
 fn unrepresentable_transition_capacity_rejects_before_dispatch() {
     let mut producer = ProducerMachine::new(ByteCount::new(0), usize::MAX);
 

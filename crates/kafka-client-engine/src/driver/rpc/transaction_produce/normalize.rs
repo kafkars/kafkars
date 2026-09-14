@@ -3,10 +3,10 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    DeliveryStatus, ProducerBrokerFailure, ProducerBrokerFailureKind, TransactionEpoch,
-    TransactionSendAttempt, TransactionSendId,
+    DeliveryStatus, ProducerAttemptFailureKind, ProducerBrokerFailure, ProducerBrokerFailureKind,
+    TransactionEpoch, TransactionSendAttempt, TransactionSendId,
 };
-use kafka_driver::RequestError;
+use kafka_driver::{RequestError, RouteKind};
 use kafka_wire::ProduceResponse;
 
 use crate::{
@@ -47,9 +47,15 @@ pub(super) fn normalize_terminal(
             normalize_response(epoch, send_id, topic.as_ref(), partition, &response)
         }
         TransactionProduceResult::Driver(error) => {
+            let delivery = request_failure_delivery(&error);
+            let kind = normalize_driver_failure_kind(
+                request_failure_kind(&error),
+                delivery,
+                evidence.route_kind(),
+            );
             let failure = TransactionProduceFailure::new(
-                TransactionProduceFailureKind::Driver(request_failure_kind(&error)),
-                request_failure_delivery(&error),
+                TransactionProduceFailureKind::Driver(kind),
+                delivery,
             );
             failure_fact(
                 epoch,
@@ -84,6 +90,25 @@ pub(super) fn normalize_terminal(
         fact,
         evidence,
     )
+}
+
+pub(super) const fn normalize_driver_failure_kind(
+    kind: ProducerAttemptFailureKind,
+    delivery: DeliveryStatus,
+    route_kind: Option<RouteKind>,
+) -> ProducerAttemptFailureKind {
+    if matches!(delivery, DeliveryStatus::NotSent)
+        && matches!(
+            kind,
+            ProducerAttemptFailureKind::RouteUnavailable
+                | ProducerAttemptFailureKind::ConnectionUnavailable
+        )
+        && matches!(route_kind, Some(RouteKind::PartitionLeader))
+    {
+        ProducerAttemptFailureKind::RouteUnavailable
+    } else {
+        kind
+    }
 }
 
 fn normalize_response(

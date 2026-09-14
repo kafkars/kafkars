@@ -31,6 +31,7 @@ pub(in crate::transaction::send) struct FakeProducePort {
     pub(in crate::transaction::send) observed_deadlines: Vec<crate::clock::OperationDeadline>,
     pub(in crate::transaction::send) observed_transactional_ids: Vec<String>,
     pub(in crate::transaction::send) observed_attempts: Vec<TransactionSendAttempt>,
+    pub(in crate::transaction::send) observed_route_failure_rejections: Vec<bool>,
     pub(in crate::transaction::send) observed_records: Vec<Bytes>,
     pub(in crate::transaction::send) submit_count: usize,
     pub(in crate::transaction::send) terminal_attempt: Option<TransactionSendAttempt>,
@@ -58,6 +59,7 @@ impl FakeProducePort {
             observed_deadlines: Vec::new(),
             observed_transactional_ids: Vec::new(),
             observed_attempts: Vec::new(),
+            observed_route_failure_rejections: Vec::new(),
             observed_records: Vec::new(),
             submit_count: 0,
             terminal_attempt: None,
@@ -79,6 +81,8 @@ impl TransactionSendProducePort for FakeProducePort {
         self.observed_transactional_ids
             .push(request.transactional_id.to_owned());
         self.observed_attempts.push(request.attempt);
+        self.observed_route_failure_rejections
+            .push(request.reject_after_route_failure);
         self.observed_records
             .push(request.materialized.encoded_records().clone());
         self.submit_count = self.submit_count.saturating_add(1);

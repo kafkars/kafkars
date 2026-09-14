@@ -6,7 +6,7 @@ use kafka_client_engine::{
     AlterConsumerGroupOffsetsObserverError,
 };
 
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 use super::alter_result::{
     partition_error, translate_accepted_fault, translate_admission_kind, translate_failure_parts,
@@ -53,6 +53,19 @@ fn every_admission_observer_and_accepted_fault_category_is_stable() {
         let error = translate_admission_kind(kind);
         assert_eq!(error.kind(), expected);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        assert_eq!(
+            error.retry_advice(),
+            if matches!(
+                kind,
+                AlterConsumerGroupOffsetsAdmissionErrorKind::Contended
+                    | AlterConsumerGroupOffsetsAdmissionErrorKind::Capacity
+                    | AlterConsumerGroupOffsetsAdmissionErrorKind::RetainedBytes
+            ) {
+                RetryAdvice::RetrySafe
+            } else {
+                RetryAdvice::DoNotRetry
+            }
+        );
     }
     assert_eq!(
         translate_observer_error(AlterConsumerGroupOffsetsObserverError::AlreadyObserved).kind(),

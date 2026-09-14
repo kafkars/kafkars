@@ -16,7 +16,7 @@ use super::{
 #[test]
 fn produce_options_preserve_deadline_lane_and_name_route_version_ceiling() {
     let deadline = Instant::now() + Duration::from_secs(7);
-    let options = produce_options(deadline, false);
+    let options = produce_options(deadline, true);
 
     assert_eq!(options.deadline(), deadline);
     assert_eq!(options.traffic_class(), TrafficClass::Bulk);
@@ -26,15 +26,12 @@ fn produce_options_preserve_deadline_lane_and_name_route_version_ceiling() {
 }
 
 #[test]
-fn transactional_produce_keeps_deadline_bounded_connection_waiting() {
+fn produce_options_retain_waiting_when_the_caller_cannot_replace_the_route() {
     let deadline = Instant::now() + Duration::from_secs(7);
-    let options = produce_options(deadline, true);
+    let options = produce_options(deadline, false);
 
     assert_eq!(options.deadline(), deadline);
-    assert_eq!(options.traffic_class(), TrafficClass::Bulk);
     assert!(!options.rejects_after_route_failure());
-    assert_eq!(options.minimum_version(), Some(ApiVersion::new(3)));
-    assert_eq!(options.maximum_version(), Some(ApiVersion::new(12)));
 }
 
 #[test]
@@ -42,7 +39,7 @@ fn accepted_submission_returns_the_token_retaining_tracked_call() {
     let mut owner = owner();
     let deadline = Instant::now() + Duration::from_secs(1);
     let call = owner
-        .submit_tracked_produce("orders", 3, ProduceRequest::default(), deadline)
+        .submit_tracked_produce("orders", 3, ProduceRequest::default(), deadline, true)
         .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"));
 
     assert!(call.try_result().is_none());
@@ -58,7 +55,7 @@ fn invalid_route_and_closed_driver_rejections_are_not_sent() {
     let mut owner = owner();
     let deadline = Instant::now() + Duration::from_secs(1);
     let invalid = owner
-        .submit_tracked_produce("", 0, ProduceRequest::default(), deadline)
+        .submit_tracked_produce("", 0, ProduceRequest::default(), deadline, true)
         .err()
         .unwrap_or_else(|| panic!("empty topic must be rejected"));
     assert_eq!(invalid.delivery(), DeliveryStatus::NotSent);
@@ -71,7 +68,7 @@ fn invalid_route_and_closed_driver_rejections_are_not_sent() {
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
     let closed = owner
-        .submit_tracked_produce("orders", 0, ProduceRequest::default(), deadline)
+        .submit_tracked_produce("orders", 0, ProduceRequest::default(), deadline, true)
         .err()
         .unwrap_or_else(|| panic!("closed driver must reject admission"));
     assert!(matches!(closed, ProduceSubmitError::Driver(_)));

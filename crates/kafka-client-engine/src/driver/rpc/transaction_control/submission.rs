@@ -53,7 +53,7 @@ impl DriverOwner {
         let route = transaction_control_route(transactional_id)
             .map_err(TransactionControlSubmitError::InvalidTransactionalId)?;
         self.driver
-            .request_tracked_with(route, request, transaction_control_options(deadline))
+            .request_tracked_with(route, request, add_partitions_options(deadline))
             .map_err(TransactionControlSubmitError::Driver)
     }
 
@@ -83,4 +83,8 @@ pub(super) const fn transaction_control_options(deadline: Instant) -> RequestOpt
         .with_traffic_class(TrafficClass::Interactive)
         .with_minimum_version(TRANSACTION_CONTROL_VERSION)
         .with_maximum_version(TRANSACTION_CONTROL_VERSION)
+}
+
+pub(super) const fn add_partitions_options(deadline: Instant) -> RequestOptions {
+    transaction_control_options(deadline).with_route_failure_rejection()
 }

@@ -145,6 +145,8 @@ impl TransactionSendIdentity {
 pub enum TransactionSendAttemptFailure {
     /// A correlated Kafka broker rejection with exact semantic classification.
     Broker(ProducerBrokerFailure),
+    /// The driver proved this attempt was not sent on the exact failed partition route.
+    RouteUnavailable,
     /// No correlated broker response proves that retrying the exact shape is safe.
     Uncertain,
 }

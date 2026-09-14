@@ -40,7 +40,7 @@ impl AbortPartitionTransactionPlan {
         if producer_epoch < 0 {
             return Err(AbortPartitionTransactionPlanError::NegativeProducerEpoch);
         }
-        if coordinator_epoch < 0 {
+        if coordinator_epoch < -1 {
             return Err(AbortPartitionTransactionPlanError::NegativeCoordinatorEpoch);
         }
         Ok(Self {
@@ -85,7 +85,7 @@ impl AbortPartitionTransactionPlan {
         self.producer_epoch
     }
 
-    /// Returns Kafka's exact nonnegative transaction-coordinator epoch.
+    /// Returns the coordinator epoch, including Kafka's `-1` administrative-marker sentinel.
     pub const fn coordinator_epoch(&self) -> i32 {
         self.coordinator_epoch
     }
@@ -126,7 +126,7 @@ pub enum AbortPartitionTransactionPlanError {
     NegativeProducerId,
     /// Kafka producer epochs cannot be negative.
     NegativeProducerEpoch,
-    /// Kafka transaction-coordinator epochs cannot be negative.
+    /// Kafka transaction-coordinator epochs cannot be below the `-1` admin sentinel.
     NegativeCoordinatorEpoch,
     /// Kafka transaction-marker versions cannot be negative.
     NegativeTransactionVersion,

@@ -40,6 +40,7 @@ pub(super) fn translate_admission_kind(
         format!("DeleteConsumerGroupOffsets admission failed: {kind:?}"),
     )
     .with_delivery_status(DeliveryStatus::NotSent)
+    .with_safe_retry_if(public == ErrorKind::Backpressure)
 }
 
 pub(super) fn translate_accepted_fault(

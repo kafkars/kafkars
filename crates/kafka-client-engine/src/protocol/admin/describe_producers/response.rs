@@ -91,7 +91,11 @@ pub(crate) fn normalize_describe_producers_response(
     })?;
     let partition = correlated_partition(target, response)?;
     let (result, retained_bytes) = if partition.error_code == 0 {
-        if partition.error_message.is_some() {
+        if partition
+            .error_message
+            .as_ref()
+            .is_some_and(|message| !message.is_empty())
+        {
             return Err(DescribeProducersProtocolFailure::DiagnosticOnSuccess);
         }
         let (states, retained) = normalized_states(&partition.active_producers, retained_limit)?;

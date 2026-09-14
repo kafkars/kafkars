@@ -93,6 +93,7 @@ impl TransactionSendOwner {
             materialized: &materialized,
             now,
             deadline: pending.deadline,
+            reject_after_route_failure: pending.expected_topic_uuid.is_none(),
         };
         match port.submit(request) {
             Ok(call) => {

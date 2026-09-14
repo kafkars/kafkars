@@ -43,6 +43,7 @@ fn accepted_call_retains_exact_transaction_send_and_partition_correlation() {
         &materialized("orders", 3),
         Moment::from_tick(10),
         deadline(),
+        true,
     )
     .unwrap_or_else(|error| panic!("transactional Produce admission: {error}"));
 
@@ -71,6 +72,7 @@ fn local_route_rejection_is_explicitly_definitely_unsent() {
         &materialized("", 0),
         Moment::from_tick(10),
         deadline(),
+        true,
     )
     .err()
     .unwrap_or_else(|| panic!("empty route topic must reject"));
@@ -100,6 +102,7 @@ fn driver_shutdown_recovery_is_correlated_and_fatal() {
         &materialized("orders", 5),
         Moment::from_tick(10),
         deadline(),
+        true,
     )
     .unwrap_or_else(|error| panic!("transactional Produce admission: {error}"));
     driver

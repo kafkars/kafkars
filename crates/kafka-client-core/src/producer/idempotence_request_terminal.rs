@@ -1,12 +1,41 @@
 //! Identity-request terminal classification and atomic producer fencing.
 
+use core::num::NonZeroI16;
+
 use crate::{
     Moment, ProducerFailure, ProducerIdentityGeneration, ProducerMachineError, ProducerTransition,
 };
 
-use super::{BatchState, ProducerMachine};
+use super::ProducerMachine;
 
 impl ProducerMachine {
+    pub(crate) fn producer_identity_failed(
+        &mut self,
+        generation: ProducerIdentityGeneration,
+        broker_code: Option<NonZeroI16>,
+        now: Moment,
+    ) -> Result<ProducerTransition, ProducerMachineError> {
+        if !self.idempotence.acquisition_is_current(generation) {
+            return Ok(ProducerTransition::none());
+        }
+        if self.has_no_retained_batches() {
+            if self.idempotence.abandon_request() {
+                self.admission_open = false;
+            }
+            return Ok(ProducerTransition::none());
+        }
+        if broker_code.is_some_and(|code| code.get() == 14) {
+            return self.retry_producer_identity_coordinator_load(generation, now);
+        }
+        let failures =
+            self.pre_driver_batch_failures(ProducerFailure::producer_identity(broker_code));
+        let plan = self.plan_batch_failures(&failures)?;
+        let transition = self.commit_batch_failures(plan)?;
+        self.idempotence.fence();
+        self.admission_open = false;
+        Ok(transition)
+    }
+
     pub(crate) fn producer_identity_deadline_elapsed(
         &mut self,
         generation: ProducerIdentityGeneration,
@@ -49,28 +78,13 @@ impl ProducerMachine {
         &mut self,
         now: Moment,
     ) -> Result<ProducerTransition, ProducerMachineError> {
-        let mut failures = Vec::new();
-        for (batch_id, batch) in &self.batches {
-            if !matches!(
-                batch.state,
-                BatchState::Open
-                    | BatchState::AwaitingIdentity
-                    | BatchState::Materializing
-                    | BatchState::AwaitingDriver
-                    | BatchState::RetryWaiting
-            ) {
-                continue;
+        if self.has_no_retained_batches() {
+            if self.idempotence.abandon_request() {
+                self.admission_open = false;
             }
-            let deadline = batch
-                .earliest_deadline()
-                .ok_or(ProducerMachineError::UnknownBatch)?;
-            let failure = if deadline.is_elapsed_at(now) {
-                ProducerFailure::deadline_elapsed()
-            } else {
-                ProducerFailure::producer_identity(None)
-            };
-            failures.push((*batch_id, failure));
+            return Ok(ProducerTransition::none());
         }
+        let failures = self.identity_request_terminal_failures(now)?;
         let plan = self.plan_batch_failures(&failures)?;
         let transition = self.commit_batch_failures(plan)?;
         self.idempotence.fence();

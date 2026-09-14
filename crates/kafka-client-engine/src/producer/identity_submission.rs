@@ -24,7 +24,7 @@ impl ProducerIdentitySubmission {
 }
 
 /// Disagreement between core identity effects and admission bindings.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum ProducerIdentityHandoffError {
     UnknownDeadlineOperation(OperationId),
     DeadlineMismatch {
@@ -33,6 +33,10 @@ pub(crate) enum ProducerIdentityHandoffError {
         bound: Deadline,
     },
     DuplicateAcquisition,
+    CancellationGenerationMismatch {
+        requested: ProducerIdentityGeneration,
+        pending: ProducerIdentityGeneration,
+    },
 }
 
 impl fmt::Display for ProducerIdentityHandoffError {
@@ -58,6 +62,12 @@ impl fmt::Display for ProducerIdentityHandoffError {
             Self::DuplicateAcquisition => {
                 formatter.write_str("multiple producer identity acquisitions are pending")
             }
+            Self::CancellationGenerationMismatch { requested, pending } => write!(
+                formatter,
+                "producer identity cancellation generation {} disagreed with pending generation {}",
+                requested.get(),
+                pending.get(),
+            ),
         }
     }
 }
@@ -104,6 +114,40 @@ impl ProducerHost {
                 _ => None,
             })
             .min()
+    }
+
+    /// Removes an exact queued identity acquisition before driver ownership.
+    ///
+    /// Absence is valid because the tracked driver call may already own it.
+    pub(super) fn cancel_pending_identity_request(
+        &mut self,
+        generation: ProducerIdentityGeneration,
+    ) -> Result<(), ProducerIdentityHandoffError> {
+        let mut found = None;
+        for (index, effect) in self.pending_effects.iter().copied().enumerate() {
+            let ProducerEffect::AcquireProducerIdentity {
+                generation: pending,
+                ..
+            } = effect
+            else {
+                continue;
+            };
+            if pending != generation {
+                return Err(
+                    ProducerIdentityHandoffError::CancellationGenerationMismatch {
+                        requested: generation,
+                        pending,
+                    },
+                );
+            }
+            if found.replace(index).is_some() {
+                return Err(ProducerIdentityHandoffError::DuplicateAcquisition);
+            }
+        }
+        if let Some(index) = found {
+            self.pending_effects.remove(index);
+        }
+        Ok(())
     }
 
     pub(crate) fn take_identity_submission(

@@ -3,7 +3,7 @@
 use kafka_client_engine::AssignedConsumerTryTakeBatchErrorKind as Kind;
 
 use super::batch_result::translate_assigned_batch_observation_kind;
-use crate::ErrorKind;
+use crate::{ErrorKind, RetryAdvice};
 
 #[test]
 fn every_engine_batch_observation_kind_has_one_stable_facade_category() {
@@ -16,9 +16,15 @@ fn every_engine_batch_observation_kind_has_one_stable_facade_category() {
     ];
 
     for (engine, facade) in cases {
+        let error = translate_assigned_batch_observation_kind(engine);
+        assert_eq!(error.kind(), facade);
         assert_eq!(
-            translate_assigned_batch_observation_kind(engine).kind(),
-            facade
+            error.retry_advice(),
+            if matches!(engine, Kind::Contended | Kind::Pending) {
+                RetryAdvice::RetrySafe
+            } else {
+                RetryAdvice::DoNotRetry
+            }
         );
     }
 }

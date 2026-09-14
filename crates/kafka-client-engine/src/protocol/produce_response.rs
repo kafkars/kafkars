@@ -1,6 +1,8 @@
 //! Structural normalization of one explicit-partition generated Produce response.
 
-use kafka_client_core::{DeliveryStatus, ProducerBatchSuccess, ProducerBrokerFailure};
+use kafka_client_core::{
+    DeliveryStatus, ProducerBatchSuccess, ProducerBrokerFailure, ProducerBrokerFailureKind,
+};
 use kafka_wire::ProduceResponse;
 use kafka_wire::produce_response::PartitionProduceResponse;
 
@@ -29,7 +31,10 @@ impl ProduceResponseFailure {
     pub(super) const fn broker(failure: ProducerBrokerFailure) -> Self {
         Self::Broker {
             failure,
-            delivery: DeliveryStatus::PossiblySent,
+            delivery: match failure.kind() {
+                ProducerBrokerFailureKind::AccessRejected => DeliveryStatus::NotSent,
+                _ => DeliveryStatus::PossiblySent,
+            },
         }
     }
 
@@ -98,8 +103,11 @@ pub(crate) enum ProduceResponseProtocolFailure {
 
 /// Normalizes one generated response for one expected topic and partition.
 ///
-/// The driver already owns this request, so every failure is conservatively
-/// `PossiblySent`. Generated protocol values do not cross the returned boundary.
+/// The driver already owns this request, so structural failures and broker
+/// failures without an authoritative rejection remain conservatively
+/// `PossiblySent`. An access rejection proves Kafka did not append the batch and
+/// is therefore `NotSent`. Generated protocol values do not cross the returned
+/// boundary.
 pub(crate) fn normalize_explicit_produce_response(
     response: &ProduceResponse,
     expected_topic: &str,

@@ -46,6 +46,15 @@ fn explicit_zero_transaction_version_retains_v1_compatibility() {
 }
 
 #[test]
+fn administrative_marker_coordinator_sentinel_is_preserved() {
+    let plan = AbortPartitionTransactionPlan::new("orders".to_owned(), 2, 91, 7, -1)
+        .unwrap_or_else(|error| panic!("admin marker plan: {error}"));
+
+    assert_eq!(plan.coordinator_epoch(), -1);
+    assert_eq!(plan.into_parts().4, -1);
+}
+
+#[test]
 fn negative_transaction_versions_are_rejected_before_machine_construction() {
     for transaction_version in [i8::MIN, -1] {
         let plan = AbortPartitionTransactionPlan::new("orders".to_owned(), 2, 91, 7, 11)
@@ -87,7 +96,7 @@ fn plan_rejects_every_invalid_identity_before_machine_construction() {
             AbortPartitionTransactionPlanError::NegativeProducerEpoch,
         ),
         (
-            AbortPartitionTransactionPlan::new("orders".to_owned(), 0, 1, 1, -1),
+            AbortPartitionTransactionPlan::new("orders".to_owned(), 0, 1, 1, -2),
             AbortPartitionTransactionPlanError::NegativeCoordinatorEpoch,
         ),
     ] {

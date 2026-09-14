@@ -1,8 +1,9 @@
-//! Stable nullable entry for one legacy full-snapshot topic replacement.
+//! Stable value or omission directive for one legacy full-snapshot replacement.
 
 /// One configuration key and its exact value in a legacy topic snapshot.
 ///
-/// A null value asks Kafka to restore that key's default. An empty string is a
+/// A null value asks the request builder to omit that dynamic override from the
+/// complete snapshot so Kafka restores its default. An empty string is a
 /// present value and remains distinct from null.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LegacyTopicConfigEntry {
@@ -11,7 +12,7 @@ pub struct LegacyTopicConfigEntry {
 }
 
 impl LegacyTopicConfigEntry {
-    /// Creates one snapshot entry with an exact nullable value.
+    /// Creates one snapshot entry with an exact value or omission directive.
     pub fn new(key: impl Into<String>, value: Option<String>) -> Self {
         Self {
             key: key.into(),
@@ -24,7 +25,7 @@ impl LegacyTopicConfigEntry {
         Self::new(key, Some(value.into()))
     }
 
-    /// Creates one null snapshot entry that restores Kafka's default.
+    /// Creates one omission directive that restores Kafka's default.
     pub fn restore_default(key: impl Into<String>) -> Self {
         Self::new(key, None)
     }
@@ -34,7 +35,7 @@ impl LegacyTopicConfigEntry {
         &self.key
     }
 
-    /// Returns the exact nullable configuration value.
+    /// Returns the value, or `None` for a default-restoration directive.
     pub fn value(&self) -> Option<&str> {
         self.value.as_deref()
     }

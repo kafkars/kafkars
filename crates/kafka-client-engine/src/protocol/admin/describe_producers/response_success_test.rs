@@ -37,6 +37,19 @@ fn success_preserves_scalars_sentinels_and_strict_producer_order() {
 }
 
 #[test]
+fn unseen_coordinator_epoch_sentinel_is_preserved() {
+    let normalized = normalize(
+        &response(0, 0, None, vec![producer(2, 1, 0, 1_234, -1, 0)]),
+        RETAINED_LIMIT,
+    )
+    .unwrap_or_else(|error| panic!("unseen coordinator epoch: {error:?}"));
+    let NormalizedDescribeProducerResult::Described(states) = normalized.result() else {
+        panic!("success became broker error");
+    };
+    assert_eq!(states[0].into_parts(), (2, 1, 0, 1_234, -1, Some(0)));
+}
+
+#[test]
 fn empty_active_producer_set_is_a_valid_bounded_success() {
     let normalized = normalize(&response(0, 0, None, Vec::new()), RETAINED_LIMIT)
         .unwrap_or_else(|error| panic!("empty producer set: {error:?}"));
@@ -51,6 +64,20 @@ fn empty_active_producer_set_is_a_valid_bounded_success() {
         NormalizedDescribeProducerResult::Described(states) if states.is_empty()
     ));
     assert!(retained > 0);
+}
+
+#[test]
+fn empty_success_diagnostic_is_the_same_as_absence() {
+    let normalized = normalize(
+        &response(0, 0, Some(String::new()), Vec::new()),
+        RETAINED_LIMIT,
+    )
+    .unwrap_or_else(|error| panic!("empty success diagnostic: {error:?}"));
+
+    assert!(matches!(
+        normalized.result(),
+        NormalizedDescribeProducerResult::Described(states) if states.is_empty()
+    ));
 }
 
 pub(super) fn target() -> AdminDescribeProducerTarget {

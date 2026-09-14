@@ -25,6 +25,7 @@ pub(in crate::transaction) struct TransactionSendProduceRequest<'a> {
     pub(in crate::transaction) materialized: &'a MaterializedProduce,
     pub(in crate::transaction) now: Moment,
     pub(in crate::transaction) deadline: OperationDeadline,
+    pub(in crate::transaction) reject_after_route_failure: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -82,6 +83,7 @@ impl TransactionSendProducePort for DriverTransactionSendProducePort<'_> {
             request.materialized,
             request.now,
             request.deadline,
+            request.reject_after_route_failure,
         )
         .map(|call| Box::new(DriverTransactionSendProduceCall(call)) as Box<_>)
         .map_err(|failure| TransactionSendProduceSubmissionFailure {

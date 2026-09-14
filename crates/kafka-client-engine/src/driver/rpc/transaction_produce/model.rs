@@ -7,7 +7,7 @@ use kafka_client_core::{
     DeliveryStatus, ProducerAttemptFailureKind, ProducerBatchSuccess, ProducerBrokerFailure,
     TransactionEpoch, TransactionSendAttempt, TransactionSendId,
 };
-use kafka_driver::RouteFailureToken;
+use kafka_driver::{RouteFailureToken, RouteKind};
 
 use crate::protocol::produce_response::ProduceResponseProtocolFailure;
 
@@ -89,6 +89,14 @@ pub(super) enum RouteEvidence {
 impl RouteEvidence {
     pub(super) const fn driver(token: Option<RouteFailureToken>) -> Self {
         Self::Driver(token)
+    }
+
+    pub(super) fn route_kind(&self) -> Option<RouteKind> {
+        match self {
+            Self::Driver(token) => token.as_ref().map(RouteFailureToken::kind),
+            #[cfg(test)]
+            Self::Test(_) => None,
+        }
     }
 
     pub(super) fn discard(self) {

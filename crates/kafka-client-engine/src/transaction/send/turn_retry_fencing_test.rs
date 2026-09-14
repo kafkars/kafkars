@@ -150,6 +150,7 @@ fn identity_bound_routing_failure_never_retries_without_a_fresh_uuid_proof() {
     drive(&mut owner, &mut aggregate, &driver, &mut port, 6);
 
     assert_eq!(port.submit_count, 1);
+    assert_eq!(port.observed_route_failure_rejections, [false]);
     assert!(
         port.route_refresh_polls
             .lock()

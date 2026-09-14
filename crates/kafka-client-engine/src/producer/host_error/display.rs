@@ -37,6 +37,9 @@ impl fmt::Display for ProducerHostInvariantError {
             Self::Revision(error) => {
                 write!(formatter, "producer execution revision failed: {error}")
             }
+            Self::IdentityHandoff(error) => {
+                write!(formatter, "producer identity handoff failed: {error}")
+            }
             Self::MissingAdmissionIdentity => {
                 formatter.write_str("accepted producer transition omitted its operation identity")
             }

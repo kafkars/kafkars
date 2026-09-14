@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 
 use super::{LegacyAlterConfigsPlanError, LegacyAlterConfigsRoute};
 
-/// One exact key/value entry in a topic's replacement snapshot.
+/// One key/value entry or default-restoration directive in a replacement snapshot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LegacyConfigEntry {
     key: String,
@@ -12,7 +12,7 @@ pub struct LegacyConfigEntry {
 }
 
 impl LegacyConfigEntry {
-    /// Creates one entry, preserving Kafka's nullable value representation.
+    /// Creates one entry, preserving a nullable local restoration directive.
     pub const fn new(key: String, value: Option<String>) -> Self {
         Self { key, value }
     }
@@ -22,7 +22,7 @@ impl LegacyConfigEntry {
         &self.key
     }
 
-    /// Returns the exact nullable replacement value.
+    /// Returns the replacement value, or `None` when the key must be omitted.
     pub fn value(&self) -> Option<&str> {
         self.value.as_deref()
     }

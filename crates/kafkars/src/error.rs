@@ -136,6 +136,14 @@ impl Error {
         self
     }
 
+    pub(crate) const fn with_safe_retry_if(self, condition: bool) -> Self {
+        if condition {
+            self.with_safe_retry()
+        } else {
+            self
+        }
+    }
+
     pub(crate) const fn with_duplicate_risk(mut self) -> Self {
         if !matches!(self.delivery_status, Some(DeliveryStatus::PossiblySent)) {
             return self;

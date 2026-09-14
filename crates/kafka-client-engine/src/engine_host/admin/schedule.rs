@@ -445,7 +445,7 @@ pub(in crate::engine_host) fn apply_completions(
     let delete = delete_topics::apply_completions(resources)?;
     let describe = describe_cluster::apply_completions(resources)?;
     let partitions = create_partitions::apply_completions(resources)?;
-    let topics = describe_topics::apply_completions(resources)?;
+    let topics = describe_topics::apply_completions(resources, now)?;
     let configs = describe_configs::apply_completions(resources)?;
     let alter_configs = incremental_alter_configs::apply_completions(resources)?;
     Ok(create || delete || describe || partitions || topics || configs || alter_configs)

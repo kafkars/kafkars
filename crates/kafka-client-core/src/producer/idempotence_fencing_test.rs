@@ -170,6 +170,60 @@ fn identity_request_failure_fences_mixed_deadlines_and_ignores_stale_facts() {
     );
 }
 
+#[test]
+fn request_failure_after_every_identity_waiter_cancels_allows_fresh_acquisition() {
+    assert_cancelled_identity_terminal_reopens(|generation| {
+        ProducerInput::ProducerIdentityRequestFailed {
+            generation,
+            now: Moment::from_tick(2),
+        }
+    });
+}
+
+#[test]
+fn broker_failure_after_every_identity_waiter_cancels_allows_fresh_acquisition() {
+    assert_cancelled_identity_terminal_reopens(|generation| {
+        ProducerInput::ProducerIdentityFailed {
+            generation,
+            broker_code: core::num::NonZeroI16::new(42),
+            now: Moment::from_tick(2),
+        }
+    });
+}
+
+fn assert_cancelled_identity_terminal_reopens(
+    terminal: impl Fn(ProducerIdentityGeneration) -> ProducerInput,
+) {
+    let mut producer = ProducerMachine::new(ByteCount::new(64), 2);
+    let (cancelled, batch_id) = admit(&mut producer, 1, 0, 20);
+    accumulate(&mut producer, cancelled, batch_id, 1);
+    let cancelled_transition = producer
+        .apply(ProducerInput::CancelRequested {
+            operation_id: cancelled,
+        })
+        .unwrap_or_else(|error| panic!("identity waiter cancellation failed: {error}"));
+    assert!(cancelled_transition.effects().iter().any(|effect| matches!(
+        effect,
+        ProducerEffect::CancelProducerIdentityRequest { generation }
+            if *generation == ProducerIdentityGeneration::initial()
+    )));
+
+    let settled = producer
+        .apply(terminal(ProducerIdentityGeneration::initial()))
+        .unwrap_or_else(|error| panic!("unowned identity terminal failed: {error}"));
+    assert!(settled.effects().is_empty());
+    assert!(producer.idempotence.is_uninitialized());
+    assert!(producer.admission_is_open());
+
+    let (next, next_batch) = admit(&mut producer, 2, 0, 30);
+    let transition = accumulate(&mut producer, next, next_batch, 3);
+    assert!(transition.effects().iter().any(|effect| matches!(
+        effect,
+        ProducerEffect::AcquireProducerIdentity { generation, .. }
+            if generation.get() == 2
+    )));
+}
+
 fn assert_mixed_identity_terminal(
     input: impl Fn(ProducerIdentityGeneration, Moment) -> ProducerInput,
     context: &str,

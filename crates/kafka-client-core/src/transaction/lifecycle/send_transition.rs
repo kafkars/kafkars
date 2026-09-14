@@ -75,11 +75,7 @@ impl TransactionLifecycleMachine {
             .identity
             .ok_or(TransactionLifecycleMachineError::SendNotPrepared { send_id })?;
         if self.state != TransactionLifecycleState::Active
-            || !matches!(
-                failure,
-                TransactionSendAttemptFailure::Broker(failure)
-                    if failure.kind() == ProducerBrokerFailureKind::Routing
-            )
+            || !failure_allows_replacement(failure)
             || send.replacements_started >= self.send_retry_policy.max_retries()
             || identity.deadline().is_elapsed_at(now)
         {
@@ -168,5 +164,15 @@ impl TransactionLifecycleMachine {
                 }
             }
         }
+    }
+}
+
+const fn failure_allows_replacement(failure: TransactionSendAttemptFailure) -> bool {
+    match failure {
+        TransactionSendAttemptFailure::Broker(failure) => {
+            matches!(failure.kind(), ProducerBrokerFailureKind::Routing)
+        }
+        TransactionSendAttemptFailure::RouteUnavailable => true,
+        TransactionSendAttemptFailure::Uncertain => false,
     }
 }

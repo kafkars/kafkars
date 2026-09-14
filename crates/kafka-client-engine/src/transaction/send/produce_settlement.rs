@@ -1,8 +1,8 @@
 //! Attempt-correlated Produce settlement and core-authorized replacement.
 
 use kafka_client_core::{
-    DeliveryStatus, Moment, ProducerBrokerFailureKind, TransactionSendAttemptFailure,
-    TransactionSequenceSettlement,
+    DeliveryStatus, Moment, ProducerAttemptFailureKind, ProducerBrokerFailureKind,
+    TransactionSendAttemptFailure, TransactionSequenceSettlement,
 };
 
 use crate::{
@@ -114,7 +114,7 @@ impl TransactionSendOwner {
             pending.send_id,
             attempt,
             now,
-            TransactionSendAttemptFailure::Broker(failure),
+            failure,
         ) {
             Ok(replacement) => replacement,
             Err(error) => {
@@ -155,13 +155,18 @@ fn retry_failure_delivery(
 
 const fn routing_failure(
     fact: TransactionProduceTerminalFact,
-) -> Option<kafka_client_core::ProducerBrokerFailure> {
+) -> Option<TransactionSendAttemptFailure> {
     match fact {
         TransactionProduceTerminalFact::AbortRequired { failure, .. } => match failure.kind() {
             TransactionProduceFailureKind::Broker(failure)
                 if matches!(failure.kind(), ProducerBrokerFailureKind::Routing) =>
             {
-                Some(failure)
+                Some(TransactionSendAttemptFailure::Broker(failure))
+            }
+            TransactionProduceFailureKind::Driver(ProducerAttemptFailureKind::RouteUnavailable)
+                if matches!(failure.delivery(), DeliveryStatus::NotSent) =>
+            {
+                Some(TransactionSendAttemptFailure::RouteUnavailable)
             }
             _ => None,
         },

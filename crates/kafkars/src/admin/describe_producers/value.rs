@@ -50,7 +50,7 @@ impl ProducerState {
         self.last_timestamp
     }
 
-    /// Returns Kafka's exact nonnegative transaction coordinator epoch.
+    /// Returns the coordinator epoch, including Kafka's `-1` unseen sentinel.
     pub const fn coordinator_epoch(&self) -> i32 {
         self.coordinator_epoch
     }

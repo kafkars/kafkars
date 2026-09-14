@@ -6,7 +6,7 @@ use kafka_client_engine::{
     DeleteConsumerGroupOffsetsObserverError,
 };
 
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 use super::admin_group_offset_delete_result::{
     partition_error, translate_accepted_fault, translate_admission_kind, translate_failure_parts,
@@ -19,6 +19,16 @@ fn admission_observer_and_accepted_fault_categories_remain_distinct() {
         translate_admission_kind(DeleteConsumerGroupOffsetsAdmissionErrorKind::InvalidRequest)
             .kind(),
         ErrorKind::Configuration
+    );
+    assert_eq!(
+        translate_admission_kind(DeleteConsumerGroupOffsetsAdmissionErrorKind::InvalidRequest)
+            .retry_advice(),
+        RetryAdvice::DoNotRetry
+    );
+    assert_eq!(
+        translate_admission_kind(DeleteConsumerGroupOffsetsAdmissionErrorKind::RetainedBytes)
+            .retry_advice(),
+        RetryAdvice::RetrySafe
     );
     assert_eq!(
         translate_observer_error(DeleteConsumerGroupOffsetsObserverError::AlreadyObserved).kind(),

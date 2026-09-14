@@ -45,13 +45,20 @@ impl TransactionProduceCall {
         materialized: &MaterializedProduce,
         now: Moment,
         deadline: OperationDeadline,
+        reject_after_route_failure: bool,
     ) -> Result<Self, TransactionProduceCallAdmissionFailure> {
         let topic = materialized.topic_owner();
         let partition = materialized.partition();
         let request =
             materialized.transactional_name_routed_request(transactional_id, now, deadline);
         let call = driver
-            .submit_tracked_produce(topic.as_ref(), partition, request, deadline.transport())
+            .submit_tracked_produce(
+                topic.as_ref(),
+                partition,
+                request,
+                deadline.transport(),
+                reject_after_route_failure,
+            )
             .map_err(|source| TransactionProduceCallAdmissionFailure {
                 #[cfg(test)]
                 epoch,

@@ -1,19 +1,49 @@
 //! Scenarios for facade-owned engine startup and child-handle retention.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use kafka_client_engine::{
     ConsumerReadIsolation as EngineReadIsolation, EngineSaslMechanism, EngineSecurity,
 };
 
 use super::{
-    client::{ClientEngine, engine_security},
+    client::{
+        ClientEngine, IdentityProbeFailureDecision, engine_security,
+        identity_probe_failure_decision,
+    },
     consumer_configuration::engine_read_isolation,
 };
 use crate::{
-    ConsumerFetchConfig, ConsumerLimits, ErrorKind, Sasl, Security, Tls,
+    ConsumerFetchConfig, ConsumerLimits, DeliveryStatus, ErrorKind, KafkaError, RetryAdvice, Sasl,
+    Security, Tls,
     producer::{ProducerConfig, ProducerRetryConfig},
 };
+
+#[test]
+fn identity_preflight_retries_only_safe_unsent_failures_before_its_deadline() {
+    let now = Instant::now();
+    let deadline = now + Duration::from_millis(10);
+    let safe = KafkaError::new(ErrorKind::Backpressure, "contended")
+        .with_delivery_status(DeliveryStatus::NotSent)
+        .with_safe_retry();
+    assert_eq!(safe.retry_advice(), RetryAdvice::RetrySafe);
+    assert_eq!(
+        identity_probe_failure_decision(&safe, now, deadline),
+        IdentityProbeFailureDecision::Retry(Duration::from_millis(1))
+    );
+    assert_eq!(
+        identity_probe_failure_decision(&safe, deadline, deadline),
+        IdentityProbeFailureDecision::DeadlineElapsed
+    );
+
+    let uncertain = KafkaError::new(ErrorKind::Transport, "uncertain")
+        .with_delivery_status(DeliveryStatus::PossiblySent)
+        .with_duplicate_risk();
+    assert_eq!(
+        identity_probe_failure_decision(&uncertain, now, deadline),
+        IdentityProbeFailureDecision::Return
+    );
+}
 
 #[test]
 fn client_bridge_retains_validated_endpoints_and_builds_a_producer() {

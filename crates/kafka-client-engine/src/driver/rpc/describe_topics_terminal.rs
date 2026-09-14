@@ -1,6 +1,6 @@
 //! Semantic terminal normalization for plain transient Metadata calls.
 
-use kafka_client_core::{DescribeTopicsInput, DescribeTopicsPlan};
+use kafka_client_core::{DeliveryStatus, DescribeTopicsInput, DescribeTopicsPlan};
 use kafka_driver::{CallFailure, RequestError};
 use kafka_wire::MetadataResponse;
 
@@ -8,11 +8,19 @@ use crate::protocol::admin::describe_topics_response::{
     DescribeTopicsProtocolFailure, normalize_describe_topics_response,
 };
 
-pub(super) fn normalize_terminal(
+pub(super) fn normalize_terminal_at(
     plan: &DescribeTopicsPlan,
     retained_bytes: usize,
+    deadline_elapsed: bool,
     result: Result<MetadataResponse, RequestError>,
 ) -> DescribeTopicsInput {
+    if deadline_elapsed {
+        let delivery = result.as_ref().err().map_or(
+            DeliveryStatus::PossiblySent,
+            super::super::request_failure_delivery,
+        );
+        return DescribeTopicsInput::DriverDeadlineElapsed { delivery };
+    }
     let response = match result {
         Ok(response) => response,
         Err(

@@ -60,7 +60,8 @@ impl VirtualProducerState {
 
     pub(crate) fn interpret(&mut self, effect: ProducerEffect) -> Result<(), SimulationError> {
         match effect {
-            ProducerEffect::AcquireProducerIdentity { .. } => {}
+            ProducerEffect::AcquireProducerIdentity { .. }
+            | ProducerEffect::CancelProducerIdentityRequest { .. } => {}
             ProducerEffect::ArmProducerIdentityRetry { schedule } => {
                 if self.identity_retry.is_some() {
                     return Err(SimulationError::DuplicateProducerIdentityRetry);

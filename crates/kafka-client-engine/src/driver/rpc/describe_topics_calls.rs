@@ -3,7 +3,7 @@
 use std::{error::Error, fmt};
 
 use kafka_client_core::{
-    DescribeTopicsInput, DescribeTopicsPlan, DescribeTopicsSelection, OperationId,
+    Deadline, DescribeTopicsInput, DescribeTopicsPlan, DescribeTopicsSelection, Moment, OperationId,
 };
 use kafka_driver::{ApiVersion, Call, CompletionError, RequestError};
 use kafka_wire::MetadataResponse;
@@ -16,11 +16,12 @@ use super::{
         DESCRIBE_TOPICS_AUTHORIZED_OPERATIONS_MIN_VERSION, DESCRIBE_TOPICS_ID_MIN_VERSION,
         DESCRIBE_TOPICS_MIN_VERSION, DescribeTopicsSubmitError,
     },
-    describe_topics_terminal::normalize_terminal,
+    describe_topics_terminal::normalize_terminal_at,
 };
 
 struct DescribeTopicsCall {
     operation_id: OperationId,
+    deadline: Deadline,
     plan: DescribeTopicsPlan,
     retained_bytes: usize,
     call: Call<Result<MetadataResponse, RequestError>>,
@@ -44,6 +45,7 @@ impl DescribeTopicsCallPermit<'_> {
         let call = driver.submit_describe_topics(request, deadline.transport(), minimum_version)?;
         self.calls.push(DescribeTopicsCall {
             operation_id,
+            deadline: deadline.core(),
             plan,
             retained_bytes,
             call,
@@ -152,6 +154,7 @@ impl DescribeTopicsCalls {
 
     pub(crate) fn poll_next_ready(
         &mut self,
+        now: Moment,
     ) -> Result<Option<&mut SettledDescribeTopicsCall>, DescribeTopicsCompletionFailure> {
         if self.settled.is_some() {
             return Ok(self.settled.as_mut());
@@ -169,7 +172,12 @@ impl DescribeTopicsCalls {
             operation_id: call.operation_id,
             source,
         })?;
-        let input = normalize_terminal(&call.plan, call.retained_bytes, result);
+        let input = normalize_terminal_at(
+            &call.plan,
+            call.retained_bytes,
+            call.deadline.is_elapsed_at(now),
+            result,
+        );
         self.settled = Some(SettledDescribeTopicsCall {
             operation_id: call.operation_id,
             input: Some(input),

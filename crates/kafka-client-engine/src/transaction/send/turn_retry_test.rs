@@ -38,7 +38,7 @@ fn core_authorized_route_replacement_reuses_exact_bytes_and_original_deadline_wi
     aggregate.enrolled();
     let mut driver = driver();
     let mut port = FakeProducePort::success(&aggregate, send_id);
-    port.fact = Some(routing_failure(epoch, send_id));
+    port.fact = Some(driver_route_failure(epoch, send_id));
     port.replacement_fact = Some(TransactionProduceTerminalFact::Succeeded {
         epoch,
         send_id,
@@ -110,6 +110,7 @@ fn core_authorized_route_replacement_reuses_exact_bytes_and_original_deadline_wi
         port.observed_transactional_ids,
         ["writer".to_owned(), "writer".to_owned()]
     );
+    assert_eq!(port.observed_route_failure_rejections, [true, true]);
     assert_eq!(port.observed_records.len(), 2);
     assert_eq!(
         port.observed_records[0].as_ptr(),
@@ -205,6 +206,22 @@ fn routing_failure(
                 NonZeroI16::new(6).unwrap_or_else(|| panic!("nonzero broker code")),
             )),
             DeliveryStatus::PossiblySent,
+        ),
+    }
+}
+
+fn driver_route_failure(
+    epoch: kafka_client_core::TransactionEpoch,
+    send_id: kafka_client_core::TransactionSendId,
+) -> TransactionProduceTerminalFact {
+    TransactionProduceTerminalFact::AbortRequired {
+        epoch,
+        send_id,
+        failure: produce_failure(
+            TransactionProduceFailureKind::Driver(
+                kafka_client_core::ProducerAttemptFailureKind::RouteUnavailable,
+            ),
+            DeliveryStatus::NotSent,
         ),
     }
 }

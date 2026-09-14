@@ -5,7 +5,7 @@ use std::time::Duration;
 use super::{GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory, GroupConsumerPort};
 use crate::clock::DeadlineCapture;
 
-/// Exact retained terminal cause for an accepted consumer-protocol membership start.
+/// Exact retained terminal cause for an accepted group-membership start.
 #[doc(hidden)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GroupConsumerStartupFailureKind {
@@ -39,6 +39,21 @@ impl GroupConsumerStartupFailureKind {
             }
             kafka_client_core::ConsumerGroupHeartbeatFailure::DeadlineElapsed => {
                 Self::DeadlineElapsed
+            }
+        }
+    }
+
+    pub(in crate::consumer) const fn from_classic_core(
+        failure: kafka_client_core::ClassicGroupFatalReason,
+    ) -> Self {
+        match failure {
+            kafka_client_core::ClassicGroupFatalReason::Broker { error, .. } => {
+                Self::Broker(error.code())
+            }
+            kafka_client_core::ClassicGroupFatalReason::ScheduleDeadlineOverflow
+            | kafka_client_core::ClassicGroupFatalReason::CycleExhausted
+            | kafka_client_core::ClassicGroupFatalReason::AttemptDeadlineOverflow => {
+                Self::Execution
             }
         }
     }

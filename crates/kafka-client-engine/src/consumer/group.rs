@@ -334,6 +334,8 @@ mod registry_session_test;
 #[cfg(test)]
 mod registry_shard_test;
 #[cfg(test)]
+mod registry_state_test;
+#[cfg(test)]
 mod registry_test;
 #[cfg(test)]
 mod registry_test_support;

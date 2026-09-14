@@ -10,13 +10,23 @@ use super::list_result::{
     partition_error, translate_accepted_fault, translate_admission_kind, translate_failure_parts,
     translate_observer_error,
 };
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 #[test]
 fn admission_observer_and_accepted_fault_categories_remain_distinct() {
     assert_eq!(
         translate_admission_kind(ListConsumerGroupOffsetsAdmissionErrorKind::InvalidRequest).kind(),
         ErrorKind::Configuration
+    );
+    assert_eq!(
+        translate_admission_kind(ListConsumerGroupOffsetsAdmissionErrorKind::InvalidRequest)
+            .retry_advice(),
+        RetryAdvice::DoNotRetry
+    );
+    assert_eq!(
+        translate_admission_kind(ListConsumerGroupOffsetsAdmissionErrorKind::RetainedBytes)
+            .retry_advice(),
+        RetryAdvice::RetrySafe
     );
     assert_eq!(
         translate_observer_error(ListConsumerGroupOffsetsObserverError::AlreadyObserved).kind(),

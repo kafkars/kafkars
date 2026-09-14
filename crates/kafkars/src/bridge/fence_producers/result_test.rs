@@ -4,7 +4,7 @@
     reason = "the test asserts a broker rejection result"
 )]
 
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 use super::{
     engine::{
@@ -82,6 +82,14 @@ fn admission_categories_are_exhaustive_and_definitely_unsent() {
         let error = translate_admission_kind(kind);
         assert_eq!(error.kind(), expected);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        assert_eq!(
+            error.retry_advice(),
+            if expected == ErrorKind::Backpressure {
+                RetryAdvice::RetrySafe
+            } else {
+                RetryAdvice::DoNotRetry
+            }
+        );
     }
 }
 

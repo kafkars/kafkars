@@ -15,7 +15,7 @@ pub(crate) fn translate_assigned_batch_observation(
 pub(crate) fn translate_assigned_batch_observation_kind(
     kind: AssignedConsumerTryTakeBatchErrorKind,
 ) -> KafkaError {
-    let (kind, message) = match kind {
+    let (public, message) = match kind {
         AssignedConsumerTryTakeBatchErrorKind::Contended => (
             ErrorKind::Backpressure,
             "assigned-consumer batch observation is contended",
@@ -36,5 +36,5 @@ pub(crate) fn translate_assigned_batch_observation_kind(
             "assigned-consumer delivery ownership is inconsistent",
         ),
     };
-    KafkaError::new(kind, message)
+    KafkaError::new(public, message).with_safe_retry_if(public == ErrorKind::Backpressure)
 }

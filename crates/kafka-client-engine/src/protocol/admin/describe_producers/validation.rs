@@ -67,7 +67,7 @@ fn validate_state(state: &ProducerState) -> Result<(), DescribeProducersProtocol
             actual: state.last_timestamp,
         });
     }
-    if state.coordinator_epoch < 0 {
+    if state.coordinator_epoch < -1 {
         return Err(DescribeProducersProtocolFailure::NegativeCoordinatorEpoch {
             actual: state.coordinator_epoch,
         });

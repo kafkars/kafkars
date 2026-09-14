@@ -58,7 +58,7 @@ impl AbortTransactionSpec {
         self.producer_epoch
     }
 
-    /// Returns the transaction coordinator epoch that authorized the marker.
+    /// Returns the coordinator epoch, including Kafka's `-1` administrative-marker sentinel.
     pub const fn coordinator_epoch(&self) -> i32 {
         self.coordinator_epoch
     }

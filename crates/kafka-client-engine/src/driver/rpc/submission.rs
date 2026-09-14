@@ -89,28 +89,30 @@ impl DriverOwner {
         partition: i32,
         request: ProduceRequest,
         deadline: Instant,
+        reject_after_route_failure: bool,
     ) -> Result<RoutedCall<ProduceResponse>, ProduceSubmitError> {
         let topic = TopicName::new(topic.to_owned()).map_err(ProduceSubmitError::InvalidTopic)?;
         let partition =
             PartitionId::new(partition).map_err(ProduceSubmitError::InvalidPartition)?;
         let route = Route::PartitionLeader { topic, partition };
-        let options = produce_options(deadline, request.transactional_id.is_some());
+        let options = produce_options(deadline, reject_after_route_failure);
         self.driver
             .request_tracked_with(route, request, options)
             .map_err(ProduceSubmitError::Driver)
     }
 }
 
-pub(super) const fn produce_options(deadline: Instant, transactional: bool) -> RequestOptions {
+pub(super) const fn produce_options(
+    deadline: Instant,
+    reject_after_route_failure: bool,
+) -> RequestOptions {
     let options = RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Bulk)
         .with_minimum_version(PRODUCE_MIN_VERSION)
         .with_maximum_version(PRODUCE_MAX_VERSION);
-    // Only ordinary Produce owns replacement after a causal unsent rejection.
-    // Transactions keep the same queued call under its original deadline.
-    if transactional {
-        options
-    } else {
+    if reject_after_route_failure {
         options.with_route_failure_rejection()
+    } else {
+        options
     }
 }

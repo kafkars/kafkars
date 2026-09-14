@@ -1,8 +1,24 @@
 //! Public-facade scenarios for partial Admin `DeleteConsumerGroups` terminals.
 
-use crate::{DeliveryStatus, ErrorKind, KafkaError};
+use kafka_client_engine::DeleteConsumerGroupsAdmissionErrorKind;
 
-use super::result::{partial_result, translate_group_error};
+use crate::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice};
+
+use super::result::{partial_result, translate_admission_kind, translate_group_error};
+
+#[test]
+fn bounded_unsent_admission_failures_are_retry_safe() {
+    assert_eq!(
+        translate_admission_kind(DeleteConsumerGroupsAdmissionErrorKind::RetainedBytes)
+            .retry_advice(),
+        RetryAdvice::RetrySafe
+    );
+    assert_eq!(
+        translate_admission_kind(DeleteConsumerGroupsAdmissionErrorKind::InvalidRequest)
+            .retry_advice(),
+        RetryAdvice::DoNotRetry
+    );
+}
 
 #[test]
 fn group_broker_diagnostic_and_truncation_reach_public_error() {

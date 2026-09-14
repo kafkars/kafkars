@@ -29,6 +29,7 @@ pub(in crate::bridge) fn translate_admission_error(error: AdmissionError) -> Kaf
     translate_admission_kind(error.kind())
 }
 
+// Every public backpressure case here precedes transport ownership.
 pub(super) fn translate_admission_kind(kind: AdmissionErrorKind) -> KafkaError {
     let public = match kind {
         AdmissionErrorKind::InvalidRequest | AdmissionErrorKind::InvalidDeadline => {
@@ -47,6 +48,7 @@ pub(super) fn translate_admission_kind(kind: AdmissionErrorKind) -> KafkaError {
         format!("DescribeStreamsGroup admission failed: {kind:?}"),
     )
     .with_delivery_status(PublicDeliveryStatus::NotSent)
+    .with_safe_retry_if(public == ErrorKind::Backpressure)
 }
 
 pub(in crate::bridge) fn translate_accepted_fault(fault: AcceptedFaultKind) -> KafkaError {
@@ -84,9 +86,7 @@ pub(super) fn translate_observation(
     }
 }
 
-pub(in crate::bridge) fn translate_description(
-    description: Description,
-) -> StreamsGroupDescription {
+pub(in crate::bridge) fn translate_description(value: Description) -> StreamsGroupDescription {
     let (
         group_id,
         state,
@@ -97,7 +97,7 @@ pub(in crate::bridge) fn translate_description(
         authorized_operations,
         topology_description,
         topology_description_status,
-    ) = description.into_parts();
+    ) = value.into_parts();
     StreamsGroupDescription::new(
         group_id,
         state,

@@ -40,5 +40,22 @@ pub(crate) fn settle_waiting_identity_expiry(
     machine: &mut ProducerMachine,
     batch_id: BatchId,
 ) -> Result<ProducerTransition, ProducerMachineError> {
-    machine.settle_batch_failed(batch_id, ProducerFailure::deadline_elapsed())
+    let abandoned_identity = machine.identity_request_abandoned_by(batch_id);
+    let transition = machine.settle_batch_failed(batch_id, ProducerFailure::deadline_elapsed())?;
+    let Some(generation) = abandoned_identity else {
+        return Ok(transition);
+    };
+    let mut effects = transition.into_effects();
+    let insertion = effects
+        .iter()
+        .position(|effect| {
+            matches!(
+                effect,
+                ProducerEffect::ReleaseBatch { batch_id: released } if *released == batch_id
+            )
+        })
+        .map_or(0, |index| index.saturating_add(1));
+    let cancellation = machine.abandon_identity_request(generation);
+    effects.insert(insertion, cancellation);
+    Ok(ProducerTransition::from_effects(effects))
 }

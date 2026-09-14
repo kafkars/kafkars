@@ -7,7 +7,7 @@ use kafka_client_core::{
 
 use super::{canonical_string, canonical_vec};
 
-/// One exact nullable configuration entry in a legacy replacement snapshot.
+/// One configuration value or omission directive in a legacy replacement snapshot.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LegacyConfigEntry {
     key: String,

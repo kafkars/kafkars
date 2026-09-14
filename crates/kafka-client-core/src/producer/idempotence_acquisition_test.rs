@@ -77,6 +77,52 @@ fn identity_result_after_public_deadline_never_materializes() {
 }
 
 #[test]
+fn identity_waiter_expiry_cancels_queued_acquisition_and_advances_its_fence() {
+    let mut producer = ProducerMachine::new(ByteCount::new(64), 2);
+    let (operation_id, batch_id) = admit(&mut producer, 1, 0, 5);
+    let sealed = accumulate(&mut producer, operation_id, batch_id, 1);
+    let generation = sealed
+        .effects()
+        .iter()
+        .find_map(|effect| match effect {
+            ProducerEffect::ArmBatchTimer { generation, .. } => Some(*generation),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("identity waiter timer must be armed"));
+
+    let expired = producer
+        .apply(ProducerInput::BatchTimerFired {
+            batch_id,
+            generation,
+            now: Moment::from_tick(5),
+        })
+        .unwrap_or_else(|error| panic!("identity waiter expiry failed: {error}"));
+
+    assert!(matches!(
+        expired.effects(),
+        [
+            ProducerEffect::CancelBatchTimer { .. },
+            ProducerEffect::ReleaseBatch { .. },
+            ProducerEffect::CancelProducerIdentityRequest {
+                generation: cancelled,
+            },
+            ProducerEffect::ReleasePayload { .. },
+            ProducerEffect::Complete { .. },
+        ] if *cancelled == ProducerIdentityGeneration::initial()
+    ));
+    assert!(producer.admission_is_open());
+    assert!(producer.idempotence.is_uninitialized());
+
+    let (next, next_batch) = admit(&mut producer, 2, 0, 20);
+    let next_sealed = accumulate(&mut producer, next, next_batch, 6);
+    assert!(next_sealed.effects().iter().any(|effect| matches!(
+        effect,
+        ProducerEffect::AcquireProducerIdentity { generation, .. }
+            if generation.get() == 2
+    )));
+}
+
+#[test]
 fn invalid_identity_preflight_has_no_partial_mutation() {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
     let (operation_id, batch_id) = admit(&mut producer, 1, 0, 20);

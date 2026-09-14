@@ -63,6 +63,7 @@ pub(super) fn drive(
 
 pub(super) fn apply_completions(
     resources: &mut EngineHostResources,
+    now: Moment,
 ) -> Result<bool, EngineHostError> {
     let mut host = match resources.describe_topics.try_host() {
         Ok(host) => host,
@@ -75,7 +76,7 @@ pub(super) fn apply_completions(
     for _attempt in 0..DESCRIBE_TOPICS_COMPLETION_BUDGET {
         let Some(settled) = resources
             .describe_topics_calls
-            .poll_next_ready()
+            .poll_next_ready(now)
             .map_err(EngineHostError::DescribeTopicsCompletion)?
         else {
             break;

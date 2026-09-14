@@ -4,7 +4,7 @@
     reason = "the test asserts required error and cursor variants"
 )]
 
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 use super::{
     engine::{
@@ -36,6 +36,19 @@ fn admission_categories_are_exhaustive_and_definitely_unsent() {
         let error = translate_admission_kind(kind);
         assert_eq!(error.kind(), expected);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        assert_eq!(
+            error.retry_advice(),
+            if matches!(
+                kind,
+                AdmissionErrorKind::Contended
+                    | AdmissionErrorKind::Capacity
+                    | AdmissionErrorKind::RetainedBytes
+            ) {
+                RetryAdvice::RetrySafe
+            } else {
+                RetryAdvice::DoNotRetry
+            }
+        );
     }
 }
 

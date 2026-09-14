@@ -2,6 +2,8 @@
 
 mod configuration;
 mod identity;
+#[cfg(test)]
+pub(super) use identity::{IdentityProbeFailureDecision, identity_probe_failure_decision};
 pub(crate) mod metrics;
 mod share_consumer;
 

@@ -32,6 +32,7 @@ pub(super) fn translate_admission_kind(kind: AdmissionErrorKind) -> KafkaError {
         format!("AbortPartitionTransaction admission failed: {kind:?}"),
     )
     .with_delivery_status(PublicDeliveryStatus::NotSent)
+    .with_safe_retry_if(public == ErrorKind::Backpressure)
 }
 
 pub(super) fn translate_accepted_fault(fault: AcceptedFaultKind) -> KafkaError {

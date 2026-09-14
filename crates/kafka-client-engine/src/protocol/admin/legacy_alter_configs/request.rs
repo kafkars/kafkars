@@ -7,6 +7,10 @@ use kafka_wire::{
 };
 
 /// Builds one full-snapshot resource request without fallback or transport authority.
+///
+/// Kafka restores a legacy snapshot key by omitting its dynamic override from
+/// the complete replacement. The nullable model value is therefore a local
+/// restoration directive, not a null value to transmit to the broker.
 pub(crate) fn legacy_alter_configs_request(plan: &LegacyAlterConfigsPlan) -> AlterConfigsRequest {
     let mut request = AlterConfigsRequest::default();
     request.resources = plan
@@ -19,11 +23,12 @@ pub(crate) fn legacy_alter_configs_request(plan: &LegacyAlterConfigsPlan) -> Alt
             resource.configs = planned
                 .configs()
                 .iter()
-                .map(|entry| {
+                .filter_map(|entry| {
+                    let value = entry.value()?;
                     let mut config = AlterableConfig::default();
                     config.name = entry.key().into();
-                    config.value = entry.value().map(Into::into);
-                    config
+                    config.value = Some(value.into());
+                    Some(config)
                 })
                 .collect();
             resource

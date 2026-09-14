@@ -4,7 +4,9 @@ use std::time::{Duration, Instant};
 
 use kafka_driver::{ApiVersion, CoordinatorKind, Route, TrafficClass};
 
-use super::submission::{transaction_control_options, transaction_control_route};
+use super::submission::{
+    add_partitions_options, transaction_control_options, transaction_control_route,
+};
 
 #[test]
 fn route_uses_transaction_coordinator_authority() {
@@ -25,4 +27,12 @@ fn options_preserve_deadline_lane_and_exact_v3_bounds() {
     assert_eq!(options.traffic_class(), TrafficClass::Interactive);
     assert_eq!(options.minimum_version(), Some(ApiVersion::new(3)));
     assert_eq!(options.maximum_version(), Some(ApiVersion::new(3)));
+    assert!(!options.rejects_after_route_failure());
+
+    let add_partitions = add_partitions_options(deadline);
+    assert_eq!(add_partitions.deadline(), deadline);
+    assert_eq!(add_partitions.traffic_class(), TrafficClass::Interactive);
+    assert_eq!(add_partitions.minimum_version(), Some(ApiVersion::new(3)));
+    assert_eq!(add_partitions.maximum_version(), Some(ApiVersion::new(3)));
+    assert!(add_partitions.rejects_after_route_failure());
 }

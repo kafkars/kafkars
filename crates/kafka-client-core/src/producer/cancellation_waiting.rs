@@ -19,6 +19,11 @@ impl ProducerMachine {
         previous_timer: crate::BatchTimerGeneration,
     ) -> Result<ProducerTransition, ProducerMachineError> {
         let replacement = revision.replacement;
+        let abandoned_identity = revision
+            .members
+            .is_empty()
+            .then(|| self.identity_request_abandoned_by(batch_id))
+            .flatten();
         let timer_plan = if revision.members.is_empty() {
             None
         } else {
@@ -58,6 +63,9 @@ impl ProducerMachine {
                 generation: previous_timer,
             });
             effects.push(ProducerEffect::ReleaseBatch { batch_id });
+            if let Some(generation) = abandoned_identity {
+                effects.push(self.abandon_identity_request(generation));
+            }
         }
         effects.append(&mut terminal);
         effects.extend(self.settle_ready_flushes());

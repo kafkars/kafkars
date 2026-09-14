@@ -51,7 +51,7 @@ impl AdminProducerState {
         self.last_timestamp
     }
 
-    /// Returns Kafka's producer-group coordinator epoch.
+    /// Returns Kafka's producer-group coordinator epoch, including the `-1` unseen sentinel.
     pub const fn coordinator_epoch(self) -> i32 {
         self.coordinator_epoch
     }
@@ -78,7 +78,7 @@ impl AdminProducerState {
             && self.producer_epoch >= 0
             && self.last_sequence >= -1
             && self.last_timestamp >= -1
-            && self.coordinator_epoch >= 0
+            && self.coordinator_epoch >= -1
             && match self.current_transaction_start_offset {
                 Some(offset) => offset >= 0,
                 None => true,
