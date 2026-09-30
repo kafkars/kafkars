@@ -1,4 +1,8 @@
 /target/
+/evidence/
+/results/
+/reports/
+/.qualification/
 **/*.class
 .idea/
 .vscode/

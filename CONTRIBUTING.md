@@ -73,5 +73,8 @@ OpenPGP and do not add co-author trailers. The maintainer may curate accepted
 changes into signed reference-history checkpoints.
 
 Never include credentials, private endpoints, broker data, generated build
-artifacts, or local dependency overrides in a contribution. Security findings
+artifacts, or local dependency overrides in a contribution. Keep generated
+qualification evidence, run receipts, and reports under ignored `target/` or
+in external artifact storage, not in source history. Reproducible test fixtures
+and normative contracts remain source. Security findings
 belong in the private process described in `SECURITY.md`.

@@ -43,7 +43,7 @@ Examples: [producer](crates/kafkars/examples/producer.rs) ·
 
 - [Architecture](ARCHITECTURE.md) — core, driver, engine, and public API.
 - [Support and compatibility](SUPPORT.md) — API status and release boundaries.
-- [Qualification coverage](docs/QUALIFICATION.md) — detailed real-broker scenarios.
+- [Testlab](https://github.com/kafkars/testlab) — real-broker scenarios and qualification evidence.
 - [Share consumers](SHARE_CONSUMER.md) — acquisition and acknowledgement semantics.
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md).
 
