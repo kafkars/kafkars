@@ -15,9 +15,9 @@ use std::{
 use admin_list_offsets_loopback::{ListOffsetsBroker, Workflow};
 use kafkars::{
     Client,
-    admin::{ListOffsetsQuery, OffsetSpec},
+    admin::{ListOffsetsQuery, ListOffsetsResult, OffsetSpec},
     consumer::ReadIsolation,
-    error::{DeliveryStatus, ErrorKind, RetryAdvice},
+    error::{DeliveryStatus, Error, ErrorKind, RetryAdvice},
 };
 
 #[test]
@@ -30,20 +30,18 @@ fn kafka_43_selectors_preserve_order_isolation_fencing_and_leader_routing() {
         .unwrap_or_else(|error| panic!("build Kafka 4.3 ListOffsets client: {error}"));
     wait_until_ready(&client, "Kafka 4.3 ListOffsets");
 
-    let result = client
-        .admin()
-        .list_offsets([
+    let result = list_offsets_within(
+        &client,
+        &[
             ListOffsetsQuery::new("orders", 0, OffsetSpec::max_timestamp())
                 .current_leader_epoch(41),
             ListOffsetsQuery::new("orders", 1, OffsetSpec::earliest_local()),
             ListOffsetsQuery::new("orders", 2, OffsetSpec::latest_tiered()),
             ListOffsetsQuery::new("orders", 3, OffsetSpec::earliest_pending_upload()),
-        ])
-        .read_isolation(ReadIsolation::ReadCommitted)
-        .deadline_after(Duration::from_secs(5))
-        .submit()
-        .wait()
-        .unwrap_or_else(|error| panic!("complete Kafka 4.3 ListOffsets: {error}"));
+        ],
+        ReadIsolation::ReadCommitted,
+    )
+    .unwrap_or_else(|error| panic!("complete Kafka 4.3 ListOffsets: {error}"));
 
     assert_eq!(result.throttle_time(), Duration::from_millis(11));
     let entries = result.into_offsets().into_entries();
@@ -89,17 +87,16 @@ fn earliest_pending_upload_requires_v11_before_list_offsets_transport() {
         .unwrap_or_else(|error| panic!("build v10 ListOffsets client: {error}"));
     wait_until_ready(&client, "v10 ListOffsets");
 
-    let error = client
-        .admin()
-        .list_offsets([ListOffsetsQuery::new(
+    let error = list_offsets_within(
+        &client,
+        &[ListOffsetsQuery::new(
             "orders",
             0,
             OffsetSpec::earliest_pending_upload(),
-        )])
-        .deadline_after(Duration::from_secs(5))
-        .submit()
-        .wait()
-        .expect_err("v11-only selector must reject a v10 broker");
+        )],
+        ReadIsolation::ReadUncommitted,
+    )
+    .expect_err("v11-only selector must reject a v10 broker");
     assert_eq!(error.kind(), ErrorKind::Compatibility);
     assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
 
@@ -121,13 +118,12 @@ fn absent_partition_is_an_unsent_routing_failure_without_list_offsets_transport(
         .unwrap_or_else(|error| panic!("build missing-partition ListOffsets client: {error}"));
     wait_until_ready(&client, "missing-partition ListOffsets");
 
-    let error = client
-        .admin()
-        .list_offsets([ListOffsetsQuery::new("orders", 1, OffsetSpec::latest())])
-        .deadline_after(Duration::from_secs(5))
-        .submit()
-        .wait()
-        .expect_err("an absent partition must not reach ListOffsets transport");
+    let error = list_offsets_within(
+        &client,
+        &[ListOffsetsQuery::new("orders", 1, OffsetSpec::latest())],
+        ReadIsolation::ReadUncommitted,
+    )
+    .expect_err("an absent partition must not reach ListOffsets transport");
     assert_eq!(error.kind(), ErrorKind::Routing);
     assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
     assert_eq!(error.broker_code(), None);
@@ -138,6 +134,38 @@ fn absent_partition_is_an_unsent_routing_failure_without_list_offsets_transport(
         .unwrap_or_else(|error| panic!("missing-partition ListOffsets shutdown: {error}"));
     drop(client);
     broker.assert_complete();
+}
+
+fn list_offsets_within(
+    client: &Client,
+    queries: &[ListOffsetsQuery],
+    isolation: ReadIsolation,
+) -> Result<ListOffsetsResult, Error> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let now = Instant::now();
+        assert!(
+            now < deadline,
+            "ListOffsets admission exceeded the original test deadline"
+        );
+        let result = client
+            .admin()
+            .list_offsets(queries.iter().cloned())
+            .read_isolation(isolation)
+            .deadline_after(deadline.saturating_duration_since(now))
+            .submit()
+            .wait();
+        match result {
+            Err(error)
+                if error.kind() == ErrorKind::Backpressure
+                    && error.retry_advice() == RetryAdvice::RetrySafe
+                    && Instant::now() < deadline =>
+            {
+                thread::sleep(Duration::from_millis(1));
+            }
+            result => return result,
+        }
+    }
 }
 
 fn wait_until_ready(client: &Client, context: &str) {
