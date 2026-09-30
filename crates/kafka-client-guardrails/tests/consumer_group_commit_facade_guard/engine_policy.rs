@@ -85,6 +85,7 @@ fn engine_channel_invalidation_and_facade_baselines_are_exact() {
             "crates/kafka-client-engine/src/driver/rpc/add_raft_voter_terminal/refresh.rs",
             "crates/kafka-client-engine/src/driver/rpc/calls/route_refresh.rs",
             "crates/kafka-client-engine/src/driver/rpc/create_partitions_refresh.rs",
+            "crates/kafka-client-engine/src/driver/rpc/create_topics_controller_refresh.rs",
             "crates/kafka-client-engine/src/driver/rpc/delete_topics_refresh.rs",
             "crates/kafka-client-engine/src/driver/rpc/elect_leaders_terminal.rs",
             "crates/kafka-client-engine/src/driver/rpc/fetch/route_refresh.rs",
