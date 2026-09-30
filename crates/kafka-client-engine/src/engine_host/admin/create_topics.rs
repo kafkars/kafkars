@@ -87,7 +87,7 @@ pub(super) fn apply_completions(
             .ok_or(EngineHostError::DriverOwnerMissing)?;
         progress |= resources
             .create_topics_calls
-            .advance_one_visibility(driver, now);
+            .advance_one_settlement(driver, now);
         let Some(settled) = resources
             .create_topics_calls
             .poll_next_ready()

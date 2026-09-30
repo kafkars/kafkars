@@ -156,7 +156,13 @@ impl UnregisterBrokerHost {
     pub(crate) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
         self.operations
             .iter()
-            .filter(|operation| operation.submission.is_some())
+            .filter(|operation| {
+                operation.submission.is_some()
+                    || operation
+                        .raw_terminal
+                        .as_ref()
+                        .is_some_and(UnregisterBrokerRawTerminal::controller_retry_eligible)
+            })
             .map(|operation| operation.deadline.core())
             .min()
     }

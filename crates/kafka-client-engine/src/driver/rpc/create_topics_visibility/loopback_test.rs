@@ -1,6 +1,8 @@
 //! Real driver-wire evidence for delayed visibility after a successful creation.
 
 mod broker;
+#[cfg(test)]
+mod controller_test;
 
 use std::time::{Duration, Instant};
 
@@ -75,10 +77,10 @@ fn unknown_topic_after_create_waits_then_retries_until_causal_visibility() {
         .next_deadline()
         .unwrap_or_else(|| panic!("lagging metadata must schedule a retry"));
     assert_eq!(retry_at, Deadline::from_tick(25_000_002));
-    assert!(!calls.advance_one_visibility(&driver, Moment::from_tick(retry_at.tick() - 1)));
+    assert!(!calls.advance_one_settlement(&driver, Moment::from_tick(retry_at.tick() - 1)));
     broker.assert_no_frame_before_retry();
 
-    assert!(calls.advance_one_visibility(&driver, Moment::from_tick(retry_at.tick())));
+    assert!(calls.advance_one_settlement(&driver, Moment::from_tick(retry_at.tick())));
     broker.respond_visible_topic(&mut driver);
     advance_visibility_after_response(
         &mut calls,
@@ -143,7 +145,7 @@ fn recreated_topic_with_reset_leader_epoch_is_confirmed_by_direct_retry() {
         .next_deadline()
         .unwrap_or_else(|| panic!("stale topology must schedule a retry"));
 
-    assert!(calls.advance_one_visibility(&driver, Moment::from_tick(retry_at.tick())));
+    assert!(calls.advance_one_settlement(&driver, Moment::from_tick(retry_at.tick())));
     // The replacement has a new topic ID and reset epoch. Feeding this through
     // the driver's old name/partition cache fence would reject it as regression.
     broker.respond_visible_topic(&mut driver);
@@ -207,7 +209,7 @@ fn advance_visibility_after_response(
         driver
             .turn(Duration::from_millis(100))
             .unwrap_or_else(|error| panic!("{phase}: {error}"));
-        if calls.advance_one_visibility(driver, now) {
+        if calls.advance_one_settlement(driver, now) {
             return;
         }
     }

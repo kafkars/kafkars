@@ -35,6 +35,11 @@ pub enum CreateTopicsInput {
     DriverRejected,
     /// Reports that the original deadline elapsed before driver ownership.
     DeadlineElapsed,
+    /// Reports a definitely-unsent controller failure after causal refresh when routed.
+    ControllerRouteUnavailable {
+        /// Current monotonic observation, still bounded by the original deadline.
+        now: Moment,
+    },
     /// Reports ordered protocol-normalized per-topic results.
     BrokerResponded {
         /// Per-topic outcomes in original request order.
@@ -117,6 +122,7 @@ pub struct CreateTopicsMachine {
     pub(crate) plan: CreateTopicsPlan,
     pub(crate) state: CreateTopicsState,
     pub(crate) pending_outcomes: Option<Vec<CreateTopicOutcome>>,
+    pub(crate) controller_retry_used: bool,
 }
 
 impl CreateTopicsMachine {
@@ -132,6 +138,7 @@ impl CreateTopicsMachine {
             plan,
             state: CreateTopicsState::Ready,
             pending_outcomes: None,
+            controller_retry_used: false,
         }
     }
 

@@ -15,6 +15,7 @@ use crate::{
 
 use super::{
     super::DriverOwner,
+    create_topics_controller_refresh::CreateTopicsControllerRefresh,
     create_topics_submission::CreateTopicsSubmitError,
     create_topics_terminal::normalize_terminal,
     create_topics_visibility::{SettledCreateTopicsCall, visibility_targets},
@@ -24,6 +25,7 @@ struct TrackedCreateTopicsCall {
     operation_id: OperationId,
     plan: kafka_client_core::CreateTopicsPlan,
     retained_bytes: usize,
+    deadline: OperationDeadline,
     call: RoutedCall<CreateTopicsResponse>,
 }
 
@@ -48,6 +50,7 @@ impl CreateTopicsCallPermit<'_> {
             operation_id,
             plan,
             retained_bytes,
+            deadline,
             call,
         });
         Ok(())
@@ -145,9 +148,10 @@ impl TrackedCreateTopicsCalls {
         self.calls.len().saturating_add(self.settled.len())
     }
 
-    pub(crate) fn advance_one_visibility(&mut self, driver: &DriverOwner, now: Moment) -> bool {
+    pub(crate) fn advance_one_settlement(&mut self, driver: &DriverOwner, now: Moment) -> bool {
         for settled in &mut self.settled {
-            if settled.poll_visibility(driver, now) {
+            if settled.poll_controller_refresh(driver, now) || settled.poll_visibility(driver, now)
+            {
                 return true;
             }
         }
@@ -173,7 +177,9 @@ impl TrackedCreateTopicsCalls {
             operation_id: call.operation_id,
             source: Some(source),
         })?;
-        let (result, _selected_version, route_token) = outcome.into_parts();
+        let (result, _selected_version, mut route_token) = outcome.into_parts();
+        let refresh =
+            CreateTopicsControllerRefresh::from_terminal(&result, &mut route_token, call.deadline);
         let input = normalize_terminal(&call.plan, call.retained_bytes, result).map_err(
             |_retained_accounting| CreateTopicsCompletionFailure {
                 operation_id: call.operation_id,
@@ -190,8 +196,12 @@ impl TrackedCreateTopicsCalls {
             input,
             route_token,
             visibility_targets,
+            refresh,
         ));
-        Ok(self.settled.last_mut())
+        Ok(self
+            .settled
+            .last_mut()
+            .filter(|settled| settled.input_ready()))
     }
 
     pub(crate) fn discard_settled(&mut self, operation_id: OperationId) -> bool {

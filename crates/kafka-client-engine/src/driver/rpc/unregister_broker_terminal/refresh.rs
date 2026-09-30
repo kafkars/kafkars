@@ -10,6 +10,7 @@ use crate::driver::DriverOwner;
 
 pub(super) enum UnregisterBrokerControllerRefresh {
     None,
+    Unrouted,
     Queued {
         route_token: RouteFailureToken,
         retry: bool,
@@ -50,6 +51,7 @@ impl UnregisterBrokerControllerRefresh {
                 Some(route_token) if route_token.kind() == RouteKind::Controller => {
                     Self::Queued { route_token, retry }
                 }
+                None if matches!(result, Err(RequestError::RouteUnavailable)) => Self::Unrouted,
                 route_token => {
                     drop(route_token);
                     Self::None
@@ -67,6 +69,7 @@ impl UnregisterBrokerControllerRefresh {
     ) -> UnregisterBrokerControllerRefreshPoll {
         match mem::replace(self, Self::None) {
             Self::None => UnregisterBrokerControllerRefreshPoll::Ready,
+            Self::Unrouted => UnregisterBrokerControllerRefreshPoll::RetryReady,
             Self::Queued { route_token, retry } => {
                 let Some(driver) = driver else {
                     *self = Self::Queued { route_token, retry };

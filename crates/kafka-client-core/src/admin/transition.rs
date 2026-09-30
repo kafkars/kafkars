@@ -22,6 +22,9 @@ impl CreateTopicsMachine {
             CreateTopicsInput::DriverAccepted => self.driver_accepted(),
             CreateTopicsInput::DriverRejected => self.driver_rejected(),
             CreateTopicsInput::DeadlineElapsed => self.deadline_elapsed(),
+            CreateTopicsInput::ControllerRouteUnavailable { now } => {
+                self.controller_route_unavailable(now)
+            }
             CreateTopicsInput::BrokerResponded { outcomes } => self.broker_responded(outcomes),
             CreateTopicsInput::VisibilityConfirmed => self.visibility_confirmed(),
             CreateTopicsInput::VisibilityFailed => self.visibility_failed(),
@@ -99,6 +102,30 @@ impl CreateTopicsMachine {
                 deadline: self.deadline,
             },
         ))
+    }
+
+    fn controller_route_unavailable(
+        &mut self,
+        now: crate::Moment,
+    ) -> Result<CreateTopicsTransition, CreateTopicsMachineError> {
+        if self.state != CreateTopicsState::Submitted {
+            return Err(CreateTopicsMachineError::InvalidState);
+        }
+        if self.deadline.is_elapsed_at(now) {
+            return Ok(self.finish(CreateTopicsTerminal::Failed(
+                CreateTopicsFailure::deadline_elapsed(),
+            )));
+        }
+        if self.controller_retry_used {
+            return self.transport_failed(DeliveryStatus::NotSent);
+        }
+        self.controller_retry_used = true;
+        self.state = CreateTopicsState::AwaitingDriver;
+        Ok(CreateTopicsTransition::one(CreateTopicsEffect::Submit {
+            operation_id: self.operation_id,
+            deadline: self.deadline,
+            plan: self.plan.clone(),
+        }))
     }
 
     fn visibility_confirmed(&mut self) -> Result<CreateTopicsTransition, CreateTopicsMachineError> {

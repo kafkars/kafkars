@@ -94,6 +94,9 @@ mod create_partitions_terminal_test;
 mod create_topics_calls;
 #[cfg(test)]
 mod create_topics_calls_test;
+mod create_topics_controller_refresh;
+#[cfg(test)]
+mod create_topics_controller_refresh_test;
 mod create_topics_submission;
 #[cfg(test)]
 mod create_topics_submission_test;

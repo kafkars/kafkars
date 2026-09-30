@@ -124,6 +124,8 @@ mod describe_shard_test;
 #[cfg(test)]
 mod handle_test;
 #[cfg(test)]
+mod host_controller_retry_test;
+#[cfg(test)]
 mod host_test;
 #[cfg(test)]
 mod model_test;

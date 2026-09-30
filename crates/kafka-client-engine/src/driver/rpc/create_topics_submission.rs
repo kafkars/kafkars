@@ -47,4 +47,5 @@ pub(super) const fn create_topics_options(deadline: Instant) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
         .with_maximum_version(CREATE_TOPICS_MAX_VERSION)
+        .with_route_failure_rejection()
 }

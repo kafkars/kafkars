@@ -2,7 +2,7 @@
 
 use std::{
     io::{Read, Write},
-    net::{TcpListener, TcpStream},
+    net::{Shutdown, TcpListener, TcpStream},
     time::Duration,
 };
 
@@ -83,6 +83,10 @@ impl LoopbackListener {
 pub(super) struct LoopbackConnection(TcpStream);
 
 impl LoopbackConnection {
+    pub(super) fn close(self) -> std::io::Result<()> {
+        self.0.shutdown(Shutdown::Both)
+    }
+
     pub(super) fn negotiate(&mut self, driver: &mut DriverOwner) {
         let request = self.read_after_turns(driver, "write ApiVersions request");
         assert_eq!(request.api_key, API_VERSIONS_API_DESCRIPTOR.api_key.value());

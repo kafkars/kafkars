@@ -12,6 +12,7 @@ fn create_topics_uses_interactive_lane_original_deadline_and_v7_ceiling() {
     let options = create_topics_options(deadline);
     assert_eq!(options.deadline(), deadline);
     assert_eq!(options.traffic_class(), TrafficClass::Interactive);
+    assert!(options.rejects_after_route_failure());
     assert_eq!(
         options.maximum_version(),
         Some(kafka_driver::ApiVersion::new(7))

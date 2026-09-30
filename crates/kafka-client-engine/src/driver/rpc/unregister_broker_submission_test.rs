@@ -66,9 +66,27 @@ fn only_definitely_unsent_observed_route_failure_requests_retry() {
             delivery: Delivery::PossiblySent,
         }
     )));
-    assert!(!request_requires_controller_retry(&Err(
+    assert!(request_requires_controller_retry(&Err(
         RequestError::RouteUnavailable
     )));
+}
+
+#[test]
+fn unavailable_controller_without_route_evidence_allows_one_core_authorized_retry() {
+    let plan = UnregisterBrokerPlan::new(3)
+        .unwrap_or_else(|error| panic!("valid broker identity: {error}"));
+    let mut terminal =
+        retain_unregister_broker_terminal(None, Err(RequestError::RouteUnavailable), None, plan);
+    assert_eq!(
+        terminal.poll_controller_refresh(None),
+        UnregisterBrokerControllerRefreshPoll::RetryReady,
+        "an unrouted, definitely-unsent call needs no fabricated invalidation token"
+    );
+    assert_eq!(
+        terminal.poll_controller_refresh(None),
+        UnregisterBrokerControllerRefreshPoll::Ready
+    );
+    terminal.discard();
 }
 
 #[test]

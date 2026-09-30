@@ -154,7 +154,10 @@ impl CreateTopicsHost {
                     deadline: self.operations[index].deadline,
                 }))
             }
-            Some(CreateTopicsEffect::Submit { .. }) => Err(CreateTopicsHostError::UnexpectedEffect),
+            Some(effect @ CreateTopicsEffect::Submit { .. }) => {
+                self.queue_retry(index, effect)?;
+                Ok(None)
+            }
             None => Ok(None),
         }
     }

@@ -57,6 +57,22 @@ impl LoopbackBroker {
         self.controller = Some(controller);
     }
 
+    pub(super) fn fail_controller_before_negotiation(&self, driver: &mut DriverOwner) {
+        self.listener
+            .accept(driver)
+            .close()
+            .unwrap_or_else(|error| panic!("close controller before request delivery: {error}"));
+    }
+
+    pub(super) fn respond_controller_refresh(&mut self, driver: &mut DriverOwner) {
+        let port = self.listener.port();
+        self.seed_mut().respond::<MetadataRequest, _>(
+            driver,
+            &cluster_metadata(port),
+            "refresh failed controller route",
+        );
+    }
+
     pub(super) fn respond_unknown_topic(&mut self, driver: &mut DriverOwner) {
         let port = self.listener.port();
         self.seed_mut().respond::<MetadataRequest, _>(

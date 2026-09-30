@@ -14,6 +14,35 @@ use super::{
 use crate::admin::{CreateTopicsAdmissionErrorKind, CreateTopicsObserver};
 
 impl CreateTopicsHost {
+    pub(super) fn queue_retry(
+        &mut self,
+        index: usize,
+        effect: CreateTopicsEffect,
+    ) -> Result<(), CreateTopicsHostError> {
+        let CreateTopicsEffect::Submit {
+            operation_id,
+            deadline,
+            plan,
+        } = effect
+        else {
+            return Err(CreateTopicsHostError::UnexpectedEffect);
+        };
+        let operation = &mut self.operations[index];
+        if operation_id != operation.operation_id
+            || deadline != operation.deadline.core()
+            || operation.submission.is_some()
+        {
+            return Err(CreateTopicsHostError::EffectMismatch);
+        }
+        operation.submission = Some(CreateTopicsSubmission {
+            operation_id,
+            deadline: operation.deadline,
+            plan,
+            retained_bytes: operation.retained_bytes,
+        });
+        Ok(())
+    }
+
     pub(crate) fn try_admit(
         &mut self,
         now: Moment,

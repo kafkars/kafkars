@@ -8,6 +8,8 @@ mod alter_partition_reassignments;
 mod alter_replica_log_dirs;
 mod alter_share_group_offsets;
 mod alter_user_scram_credentials;
+#[cfg(test)]
+mod controller_retry_test;
 mod create_acls;
 mod create_delegation_token;
 mod delete_acls;

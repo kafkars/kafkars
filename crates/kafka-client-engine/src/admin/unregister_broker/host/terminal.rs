@@ -25,6 +25,14 @@ impl UnregisterBrokerHost {
             .iter()
             .position(|operation| operation.raw_terminal.is_some())
         {
+            if self.operations[index].deadline.core().is_elapsed_at(now)
+                && self.operations[index].raw_terminal.as_ref().is_some_and(
+                    crate::driver::UnregisterBrokerRawTerminal::controller_retry_eligible,
+                )
+            {
+                self.retry_after_controller_refresh(index, now)?;
+                return Ok(true);
+            }
             let refresh = self.operations[index]
                 .raw_terminal
                 .as_mut()

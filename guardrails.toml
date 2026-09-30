@@ -84,7 +84,7 @@ baseline = [
   { path = "crates/kafka-client-core/src/admin/describe_streams_group/transition.rs", lines = 292, reason = "the API 89 transition keeps singleton and caller-ordered batch topology progression under one original deadline and cumulative byte budget" },
   { path = "crates/kafka-client-core/src/admin/exports.rs", lines = 561, reason = "the deterministic Admin export facade explicitly exposes the complete source-preview policy, lifecycle, exact-error, generic configuration-resource, and exact-broker routing vocabulary after the DescribeLogDirs surface moved behind a focused declarative child" },
   { path = "crates/kafka-client-core/src/admin/list_consumer_groups/transition_test.rs", lines = 326, reason = "the ListGroups transition evidence covers exact-broker sequencing, consumer and all-group scopes, canonical deduplication, exact broker errors, and protocol-type filtering together" },
-  { path = "crates/kafka-client-core/src/admin/mod.rs", lines = 110, reason = "the declarative deterministic Admin facade names the complete source-preview policy and sibling evidence surface" },
+  { path = "crates/kafka-client-core/src/admin/mod.rs", lines = 112, reason = "the declarative deterministic Admin facade names the complete source-preview policy and focused controller retry evidence" },
   { path = "crates/kafka-client-core/src/admin/model.rs", lines = 345, reason = "the deterministic CreateTopics input seam keeps automatic and manual placement, configuration, bounded validation, and canonical retained-plan construction cohesive" },
   { path = "crates/kafka-client-core/src/admin/update_features/transition_test.rs", lines = 302, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-core/src/consumer/classic_group/assignment.rs", lines = 267, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -114,7 +114,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/admin/describe_streams_group/outcome/translate.rs", lines = 287, reason = "the API 89 outcome translator exhaustively preserves the complete core topology graph, future-compatible raw values, batch outcomes, broker rejection, and delivery facts for the public bridge" },
   { path = "crates/kafka-client-engine/src/admin/fence_producers/host.rs", lines = 245, reason = "the bounded API 22 owner retains sequential coordinator handoff, raw terminal ownership, publication, recovery, and exact byte accounting in one lifecycle seam" },
   { path = "crates/kafka-client-engine/src/admin/handle.rs", lines = 298, reason = "the runtime-neutral engine Admin handle retains bounded capture-first admission ports for the complete source-preview surface" },
-  { path = "crates/kafka-client-engine/src/admin/mod.rs", lines = 135, reason = "the declarative engine Admin facade names the complete source-preview owner, public vocabulary, and completion evidence surface" },
+  { path = "crates/kafka-client-engine/src/admin/mod.rs", lines = 137, reason = "the declarative engine Admin facade names the complete source-preview owner surface and focused creation retry reservation evidence" },
   { path = "crates/kafka-client-engine/src/admin/model.rs", lines = 261, reason = "the engine-owned CreateTopics request seam keeps generated-free automatic and manual placement conversion plus validation before deterministic core handoff" },
   { path = "crates/kafka-client-engine/src/admin/public_api.rs", lines = 624, reason = "the declarative engine Admin API facade explicitly reexports the complete typed source-preview admission, observer, outcome, and generic configuration-resource surface" },
   { path = "crates/kafka-client-engine/src/consumer/fetch_store.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -162,7 +162,9 @@ baseline = [
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs", lines = 268, reason = "AddPartitionsToTxn retains exact response correlation, coordinator-refresh eligibility, and retry-safety evidence in one terminal owner" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs", lines = 296, reason = "AddOffsetsToTxn retains one explicit call, causal coordinator refresh, terminal delivery, and abort-required ownership state machine" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs", lines = 254, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/driver/rpc.rs", lines = 671, reason = "the declarative driver RPC facade explicitly names the bounded group-commit coordinator-retry owner, causal CreateTopics visibility, ShareGroupHeartbeat, and ShareAcknowledge beside every concrete source-preview tracked lane without a glob capability bypass" },
+  { path = "crates/kafka-client-engine/src/driver/rpc.rs", lines = 674, reason = "the declarative driver RPC facade explicitly names the deadline-bounded CreateTopics controller refresh and its sibling evidence beside the existing concrete tracked lanes" },
+  { path = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs", lines = 248, reason = "the single bounded tracked-call owner retains each original deadline while transferring controller refresh and visibility settlement without reserving a second completion slot" },
+  { path = "crates/kafka-client-engine/src/admin/unregister_broker/host/terminal.rs", lines = 247, reason = "the concrete terminal owner expires pending definitely-unsent controller refresh under the original deadline before any retry admission while retaining exactly one publication and reclamation path" },
   { path = "crates/kafka-client-engine/src/engine.rs", lines = 338, reason = "the engine composition root retains common configuration and admission ports while Admin and shutdown admission live in focused child seams" },
   { path = "crates/kafka-client-engine/src/engine_host/admin/recovery.rs", lines = 251, reason = "the Admin recovery dispatcher exhaustively returns each concrete tracked owner to its exact bounded host after driver shutdown" },
   { path = "crates/kafka-client-engine/src/engine_host/admin/schedule.rs", lines = 452, reason = "the fair Admin scheduler drives every bounded source-preview operation and supplies fresh captured time to completion-owned retries once per host cycle" },
@@ -1899,6 +1901,10 @@ test = "crates/kafka-client-engine/src/driver/rpc/create_topics_submission_test.
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/create_topics_terminal.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/create_topics_terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/create_topics_controller_refresh.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/create_topics_controller_refresh_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs"
@@ -5601,6 +5607,7 @@ allow = [
   { path = "crates/kafka-client-engine/src/admin/renew_delegation_token/host_test.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
   { path = "crates/kafka-client-engine/src/admin/unregister_broker/host/terminal/test_support.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
   { path = "crates/kafka-client-engine/src/admin/unregister_broker/host_test.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
+  { path = "crates/kafka-client-engine/src/admin/unregister_broker/host_deadline_test.rs", capability = "crate::driver", reason = "The focused deadline regression retains a definitely-unsent controller terminal while proving that pending invalidation cannot extend the original public deadline." },
   { path = "crates/kafka-client-engine/src/admin/update_features/host/model.rs", capability = "crate::driver", reason = "This exact adapter retains or translates driver evidence at the deterministic ownership boundary." },
   { path = "crates/kafka-client-engine/src/admin/update_features/host/ownership_test.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
   { path = "crates/kafka-client-engine/src/admin/update_features/host/terminal.rs", capability = "crate::driver", reason = "This exact adapter retains or translates driver evidence at the deterministic ownership boundary." },
@@ -7777,6 +7784,14 @@ allowed_paths = [
 [[mutation_owners]]
 owner_type = "CreateTopicsMachine"
 field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/admin/machine.rs",
+  "crates/kafka-client-core/src/admin/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "CreateTopicsMachine"
+field = "controller_retry_used"
 allowed_paths = [
   "crates/kafka-client-core/src/admin/machine.rs",
   "crates/kafka-client-core/src/admin/transition.rs",
@@ -10418,6 +10433,10 @@ path = "crates/kafka-client-engine/src/driver/rpc/create_topics_visibility.rs"
 [[linear_owners]]
 owner_type = "CreateTopicsVisibility"
 path = "crates/kafka-client-engine/src/driver/rpc/create_topics_visibility.rs"
+
+[[linear_owners]]
+owner_type = "CreateTopicsControllerRefresh"
+path = "crates/kafka-client-engine/src/driver/rpc/create_topics_controller_refresh.rs"
 
 [[linear_owners]]
 owner_type = "DeleteTopicsHost"
@@ -19292,6 +19311,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/add_raft_voter_terminal/refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/calls/route_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_partitions_refresh.rs",
+  "crates/kafka-client-engine/src/driver/rpc/create_topics_controller_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/elect_leaders_terminal.rs",
   "crates/kafka-client-engine/src/driver/rpc/fetch/route_refresh.rs",

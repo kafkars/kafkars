@@ -26,6 +26,8 @@ pub(crate) use shard::{
 };
 
 #[cfg(test)]
+mod host_deadline_test;
+#[cfg(test)]
 mod host_test;
 #[cfg(test)]
 mod outcome_test;

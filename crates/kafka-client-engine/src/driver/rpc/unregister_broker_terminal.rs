@@ -68,6 +68,10 @@ impl UnregisterBrokerRawTerminal {
         }
     }
 
+    pub(crate) fn controller_retry_eligible(&self) -> bool {
+        request_requires_controller_retry(&self.result)
+    }
+
     /// Advances at most one causal invalidation transition without replaying the mutation.
     ///
     pub(crate) fn poll_controller_refresh(
@@ -136,7 +140,7 @@ pub(super) fn request_requires_controller_retry(
         Err(RequestError::Rejected {
             failure: CallFailure::NotReady,
             delivery: Delivery::NotSent,
-        })
+        } | RequestError::RouteUnavailable)
     )
 }
 

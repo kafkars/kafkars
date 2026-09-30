@@ -18,6 +18,7 @@ pub(super) use self::target::visibility_targets;
 use self::{retry::VisibilityRetry, target::CreateTopicVisibilityTarget};
 use super::{
     super::DriverOwner,
+    create_topics_controller_refresh::{CreateTopicsControllerRefresh, RefreshPoll},
     topic_view::{TopicPartitionCountCall, TopicPartitionCountFailure},
 };
 
@@ -60,6 +61,7 @@ pub(crate) struct SettledCreateTopicsCall {
     route_token: Option<RouteFailureToken>,
     visibility_targets: Option<Vec<CreateTopicVisibilityTarget>>,
     visibility: Option<CreateTopicsVisibility>,
+    controller_refresh: Option<CreateTopicsControllerRefresh>,
 }
 
 impl SettledCreateTopicsCall {
@@ -68,6 +70,7 @@ impl SettledCreateTopicsCall {
         input: CreateTopicsInput,
         route_token: Option<RouteFailureToken>,
         visibility_targets: Vec<CreateTopicVisibilityTarget>,
+        controller_refresh: Option<CreateTopicsControllerRefresh>,
     ) -> Self {
         Self {
             operation_id,
@@ -75,6 +78,7 @@ impl SettledCreateTopicsCall {
             route_token,
             visibility_targets: Some(visibility_targets),
             visibility: None,
+            controller_refresh,
         }
     }
 
@@ -83,7 +87,25 @@ impl SettledCreateTopicsCall {
     }
 
     pub(crate) fn take_input(&mut self) -> Option<CreateTopicsInput> {
+        if self.controller_refresh.is_some() {
+            return None;
+        }
         self.input.take()
+    }
+
+    pub(super) fn poll_controller_refresh(&mut self, driver: &DriverOwner, now: Moment) -> bool {
+        let Some(refresh) = self.controller_refresh.as_mut() else {
+            return false;
+        };
+        match refresh.poll(driver, now) {
+            RefreshPoll::Pending => return false,
+            RefreshPoll::RetryReady => {
+                self.input = Some(CreateTopicsInput::ControllerRouteUnavailable { now });
+            }
+            RefreshPoll::Failed => {}
+        }
+        self.controller_refresh = None;
+        true
     }
 
     pub(crate) fn begin_visibility(
@@ -124,13 +146,18 @@ impl SettledCreateTopicsCall {
     }
 
     pub(super) const fn input_ready(&self) -> bool {
-        self.input.is_some()
+        self.input.is_some() && self.controller_refresh.is_none()
     }
 
     pub(super) fn next_deadline(&self) -> Option<Deadline> {
-        self.visibility
+        self.controller_refresh
             .as_ref()
-            .map(CreateTopicsVisibility::next_deadline)
+            .map(CreateTopicsControllerRefresh::next_deadline)
+            .or_else(|| {
+                self.visibility
+                    .as_ref()
+                    .map(CreateTopicsVisibility::next_deadline)
+            })
     }
 
     pub(super) fn discard(self) {
@@ -140,6 +167,6 @@ impl SettledCreateTopicsCall {
 
     #[cfg(test)]
     pub(super) fn from_input_for_test(operation_id: OperationId, input: CreateTopicsInput) -> Self {
-        Self::new(operation_id, input, None, Vec::new())
+        Self::new(operation_id, input, None, Vec::new(), None)
     }
 }
