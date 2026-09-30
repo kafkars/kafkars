@@ -1,12 +1,12 @@
 //! Public assigned-consumer linearity, threading, and deadline contract.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::{
     AssignedConsumer, AssignedConsumerEvent, CloseAssignedConsumer, RecordBatch, StartPosition,
-    TopicPartition,
+    TopicPartition, assigned_incremental_test::close_when_admitted,
 };
-use crate::{Client, ErrorKind};
+use crate::{Client, ErrorKind, RetryAdvice};
 
 macro_rules! assert_not_impl {
     ($type:ty: $trait:path) => {
@@ -99,9 +99,7 @@ fn missing_assignment_is_stable_state_for_every_control() {
     assert_eq!(pause.kind(), ErrorKind::State);
     assert_eq!(resume.kind(), ErrorKind::State);
     assert_eq!(seek.kind(), ErrorKind::State);
-    consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit close after rejections: {error}"))
+    close_when_admitted(&mut consumer)
         .wait()
         .unwrap_or_else(|error| panic!("observe close: {error}"));
 }
@@ -129,9 +127,7 @@ fn control_deadline_capture_precedes_target_and_position_conversion() {
 
     assert_eq!(resume.kind(), ErrorKind::Timeout);
     assert_eq!(seek.kind(), ErrorKind::Timeout);
-    consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit close after rejections: {error}"))
+    close_when_admitted(&mut consumer)
         .wait()
         .unwrap_or_else(|error| panic!("observe close: {error}"));
 }
@@ -176,9 +172,7 @@ fn immediate_batch_observation_does_not_start_fetch_work() {
             .is_none()
     );
 
-    consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit close after observation: {error}"))
+    close_when_admitted(&mut consumer)
         .wait()
         .unwrap_or_else(|error| panic!("observe close: {error}"));
 }
@@ -193,16 +187,22 @@ fn immediate_event_observation_drains_without_reopening_close() {
         .assigned_consumer()
         .build()
         .unwrap_or_else(|error| panic!("claim assigned consumer: {error}"));
-    let close = consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit close: {error}"));
-
-    assert!(
-        consumer
-            .try_take_event()
-            .unwrap_or_else(|error| panic!("drain retained events: {error}"))
-            .is_none()
-    );
+    let close = close_when_admitted(&mut consumer);
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let event = loop {
+        assert!(Instant::now() < deadline, "event observation timed out");
+        match consumer.try_take_event() {
+            Ok(event) => break event,
+            Err(error)
+                if error.kind() == ErrorKind::Backpressure
+                    && error.retry_advice() == RetryAdvice::RetrySafe =>
+            {
+                std::hint::spin_loop();
+            }
+            Err(error) => panic!("drain retained events: {error}"),
+        }
+    };
+    assert!(event.is_none());
 
     close
         .wait()
@@ -229,9 +229,7 @@ fn deadline_capture_precedes_facade_input_conversion() {
         .unwrap_or_else(|| panic!("unrepresentable deadline must win"));
     assert_eq!(error.kind(), ErrorKind::Timeout);
 
-    consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit close after rejection: {error}"))
+    close_when_admitted(&mut consumer)
         .wait()
         .unwrap_or_else(|error| panic!("observe close: {error}"));
 }
@@ -254,9 +252,7 @@ fn duplicate_rejection_keeps_the_handle_available_for_close() {
         .unwrap_or_else(|| panic!("duplicate assignment must fail"));
     assert_eq!(error.kind(), ErrorKind::Configuration);
 
-    consumer
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit close after rejection: {error}"))
+    close_when_admitted(&mut consumer)
         .wait()
         .unwrap_or_else(|error| panic!("observe close: {error}"));
 }

@@ -125,13 +125,18 @@ fn empty_deltas_are_inert_without_inventing_an_assignment() {
         .unwrap_or_else(|error| panic!("observe close: {error}"));
 }
 
-fn close_when_admitted(consumer: &mut AssignedConsumer) -> CloseAssignedConsumer {
+pub(super) fn close_when_admitted(consumer: &mut AssignedConsumer) -> CloseAssignedConsumer {
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
+        assert!(
+            Instant::now() < deadline,
+            "assigned close admission timed out"
+        );
         match consumer.try_close() {
             Ok(close) => return close,
             Err(error)
-                if error.retry_advice() == RetryAdvice::RetrySafe && Instant::now() < deadline =>
+                if error.kind() == ErrorKind::Backpressure
+                    && error.retry_advice() == RetryAdvice::RetrySafe =>
             {
                 std::hint::spin_loop();
             }
