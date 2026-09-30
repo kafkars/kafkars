@@ -35,7 +35,7 @@ fn pending_controller_refresh_expires_without_admitting_a_retry() {
     let (id, deadline, plan, _) = submission.into_parts();
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver: {error}"));
-    let call = UnregisterBrokerCall::submit(&driver, plan, deadline.transport())
+    let call = UnregisterBrokerCall::submit(&driver, plan, deadline.transport(), false)
         .unwrap_or_else(|_| panic!("accepted call"));
     host.accept_call(id, call)
         .unwrap_or_else(|error| panic!("accept call: {error}"));

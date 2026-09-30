@@ -2,7 +2,7 @@
 
 use std::{
     io::{Read, Write},
-    net::{Shutdown, TcpListener, TcpStream},
+    net::{Shutdown, TcpListener, TcpStream, ToSocketAddrs},
     time::Duration,
 };
 
@@ -24,6 +24,24 @@ impl LoopbackListener {
         Self(
             TcpListener::bind("127.0.0.1:0")
                 .unwrap_or_else(|error| panic!("bind loopback Kafka broker: {error}")),
+        )
+    }
+
+    pub(super) fn bind_nonpreferred_localhost() -> Self {
+        let addresses = ("localhost", 0)
+            .to_socket_addrs()
+            .unwrap_or_else(|error| panic!("resolve loopback candidates: {error}"))
+            .collect::<Vec<_>>();
+        let first = addresses
+            .first()
+            .unwrap_or_else(|| panic!("localhost address required"));
+        let alternate = addresses
+            .iter()
+            .find(|address| address.is_ipv4() != first.is_ipv4())
+            .unwrap_or_else(|| panic!("both localhost address families required"));
+        Self(
+            TcpListener::bind(alternate)
+                .unwrap_or_else(|error| panic!("bind fallback loopback broker: {error}")),
         )
     }
 
@@ -141,7 +159,6 @@ impl LoopbackConnection {
             .unwrap_or_else(|error| panic!("make broker peer nonblocking: {error}"));
         let mut byte = [0; 1];
         for _turn in 0..32 {
-            drive(driver, Duration::from_millis(100), phase);
             match self.0.peek(&mut byte) {
                 Ok(observed) if observed != 0 => {
                     self.0
@@ -153,6 +170,7 @@ impl LoopbackConnection {
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
                 Err(error) => panic!("inspect broker request: {error}"),
             }
+            drive(driver, Duration::from_millis(10), phase);
         }
         panic!("{phase} did not produce a broker frame")
     }

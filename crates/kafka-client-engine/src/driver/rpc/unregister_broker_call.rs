@@ -28,11 +28,12 @@ impl UnregisterBrokerCall {
         driver: &DriverOwner,
         plan: UnregisterBrokerPlan,
         deadline: Instant,
+        controller_retry: bool,
     ) -> Result<Self, UnregisterBrokerCallAdmissionFailure> {
         let request = unregister_broker_request(plan.broker_id())
             .map_err(|_source| UnregisterBrokerCallAdmissionFailure::Request)?;
         let call = driver
-            .submit_tracked_unregister_broker(request, deadline)
+            .submit_tracked_unregister_broker(request, deadline, controller_retry)
             .map_err(|_source| UnregisterBrokerCallAdmissionFailure::Submit)?;
         Ok(Self {
             call: Some(call),

@@ -23,7 +23,7 @@ use super::{
 #[test]
 fn mutation_uses_controller_and_preserves_original_deadline() {
     let deadline = Instant::now() + Duration::from_secs(5);
-    let options = unregister_broker_options(deadline);
+    let options = unregister_broker_options(deadline, false);
 
     assert_eq!(unregister_broker_route(), Route::Controller);
     assert_eq!(options.deadline(), deadline);
@@ -31,6 +31,17 @@ fn mutation_uses_controller_and_preserves_original_deadline() {
     assert_eq!(options.minimum_version(), Some(ApiVersion::new(0)));
     assert_eq!(options.maximum_version(), Some(ApiVersion::new(0)));
     assert!(options.rejects_after_route_failure());
+}
+
+#[test]
+fn authorized_replacement_waits_for_recovery_without_restarting_its_deadline() {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let options = unregister_broker_options(deadline, true);
+    assert_eq!(options.deadline(), deadline);
+    assert_eq!(options.traffic_class(), TrafficClass::Interactive);
+    assert_eq!(options.minimum_version(), Some(ApiVersion::new(0)));
+    assert_eq!(options.maximum_version(), Some(ApiVersion::new(0)));
+    assert!(!options.rejects_after_route_failure());
 }
 
 #[test]
@@ -174,9 +185,13 @@ fn definitely_unsent_route_failure_becomes_retryable_only_after_refresh() {
 fn completion_fault_retains_call_and_broker_correlation_after_driver_shutdown() {
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver owner: {error}"));
-    let mut call =
-        UnregisterBrokerCall::submit(&driver, plan(7), Instant::now() + Duration::from_secs(1))
-            .unwrap_or_else(|_error| panic!("accepted call"));
+    let mut call = UnregisterBrokerCall::submit(
+        &driver,
+        plan(7),
+        Instant::now() + Duration::from_secs(1),
+        false,
+    )
+    .unwrap_or_else(|_error| panic!("accepted call"));
     drop(driver);
 
     assert!(matches!(

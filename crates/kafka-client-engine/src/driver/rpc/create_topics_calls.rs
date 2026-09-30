@@ -31,9 +31,15 @@ struct TrackedCreateTopicsCall {
 
 pub(crate) struct CreateTopicsCallPermit<'a> {
     calls: &'a mut Vec<TrackedCreateTopicsCall>,
+    controller_retry: bool,
 }
 
 impl CreateTopicsCallPermit<'_> {
+    pub(crate) fn for_controller_retry(mut self) -> Self {
+        self.controller_retry = true;
+        self
+    }
+
     pub(crate) fn submit(
         self,
         driver: &DriverOwner,
@@ -45,7 +51,11 @@ impl CreateTopicsCallPermit<'_> {
     ) -> Result<(), CreateTopicsAdmissionFailure> {
         let timeout_ms = remaining_timeout_ms(now, deadline.core())?;
         let request = create_topics_request(&plan, timeout_ms)?;
-        let call = driver.submit_tracked_create_topics(request, deadline.transport())?;
+        let call = driver.submit_tracked_create_topics(
+            request,
+            deadline.transport(),
+            self.controller_retry,
+        )?;
         self.calls.push(TrackedCreateTopicsCall {
             operation_id,
             plan,
@@ -141,6 +151,7 @@ impl TrackedCreateTopicsCalls {
         }
         Some(CreateTopicsCallPermit {
             calls: &mut self.calls,
+            controller_retry: false,
         })
     }
 

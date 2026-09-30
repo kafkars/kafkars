@@ -115,6 +115,7 @@ impl UnregisterBrokerHost {
                     deadline: operation.deadline,
                     plan,
                     result_limit: operation.remaining_result_bytes,
+                    controller_retry: true,
                 });
                 Ok(())
             }

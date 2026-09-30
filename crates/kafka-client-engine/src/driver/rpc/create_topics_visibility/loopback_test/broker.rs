@@ -32,6 +32,14 @@ impl LoopbackBroker {
         self.listener.address()
     }
 
+    pub(super) fn bind_nonpreferred_localhost() -> Self {
+        Self {
+            listener: LoopbackListener::bind_nonpreferred_localhost(),
+            seed: None,
+            controller: None,
+        }
+    }
+
     pub(super) fn initialize(&mut self, driver: &mut DriverOwner) {
         LoopbackListener::await_seed(driver);
         let mut seed = self.listener.accept(driver);
@@ -55,6 +63,42 @@ impl LoopbackBroker {
         );
         assert!(self.controller.is_none());
         self.controller = Some(controller);
+    }
+
+    pub(super) fn initialize_with_controller(
+        &mut self,
+        driver: &mut DriverOwner,
+        controller: &Self,
+        controller_host: &str,
+    ) {
+        LoopbackListener::await_seed(driver);
+        let mut seed = self.listener.accept(driver);
+        seed.negotiate(driver);
+        let metadata = separate_controller_metadata(
+            self.listener.port(),
+            controller.listener.port(),
+            controller_host,
+        );
+        seed.respond::<MetadataRequest, _>(driver, &metadata, "install separate controller");
+        self.seed = Some(seed);
+    }
+
+    pub(super) fn refresh_separate_controller(
+        &mut self,
+        driver: &mut DriverOwner,
+        controller: &Self,
+        controller_host: &str,
+    ) {
+        let metadata = separate_controller_metadata(
+            self.listener.port(),
+            controller.listener.port(),
+            controller_host,
+        );
+        self.seed_mut().respond::<MetadataRequest, _>(
+            driver,
+            &metadata,
+            "refresh separate controller",
+        );
     }
 
     pub(super) fn fail_controller_before_negotiation(&self, driver: &mut DriverOwner) {
@@ -112,6 +156,20 @@ impl LoopbackBroker {
             .as_mut()
             .unwrap_or_else(|| panic!("seed connection must be initialized"))
     }
+}
+
+fn separate_controller_metadata(
+    seed_port: u16,
+    controller_port: u16,
+    host: &str,
+) -> MetadataResponse {
+    let mut metadata = cluster_metadata(seed_port);
+    let mut other = metadata_broker(controller_port);
+    other.node_id = 2;
+    other.host = StrBytes::from(host);
+    metadata.brokers.push(other);
+    metadata.controller_id = 2;
+    metadata
 }
 
 fn create_topics_response() -> CreateTopicsResponse {

@@ -45,12 +45,14 @@ pub(super) fn drive(
         UnregisterBrokerTurn::Idle => false,
         UnregisterBrokerTurn::Progress => true,
         UnregisterBrokerTurn::Submit(submission) => {
+            let controller_retry = submission.controller_retry();
             let (operation_id, deadline, plan, _result_limit) = submission.into_parts();
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match UnregisterBrokerCall::submit(driver, plan, deadline.transport()) {
+            match UnregisterBrokerCall::submit(driver, plan, deadline.transport(), controller_retry)
+            {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::UnregisterBroker)?,

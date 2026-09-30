@@ -38,6 +38,11 @@ pub(super) fn drive(
         CreateTopicsTurn::Idle => false,
         CreateTopicsTurn::Progress => true,
         CreateTopicsTurn::Submit(submission) => {
+            let permit = if submission.controller_retry {
+                permit.for_controller_retry()
+            } else {
+                permit
+            };
             let (operation_id, deadline, plan, retained_bytes) = submission.into_parts();
             let driver = resources
                 .driver

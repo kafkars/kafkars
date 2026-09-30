@@ -55,6 +55,8 @@ fn controller_retry_keeps_one_terminal_reservation_and_both_deadlines() {
     assert_eq!(retry.deadline, deadline);
     assert_eq!(retry.plan, plan);
     assert_eq!(retry.retained_bytes, first.retained_bytes);
+    assert!(!first.controller_retry);
+    assert!(retry.controller_retry);
     host.apply(retry.operation_id, CreateTopicsInput::DriverRejected)
         .unwrap_or_else(|error| panic!("settle unadmitted retry: {error}"));
     assert!(matches!(

@@ -10,9 +10,14 @@ pub(crate) struct UnregisterBrokerSubmission {
     pub(super) deadline: OperationDeadline,
     pub(super) plan: UnregisterBrokerPlan,
     pub(super) result_limit: usize,
+    pub(super) controller_retry: bool,
 }
 
 impl UnregisterBrokerSubmission {
+    pub(crate) const fn controller_retry(&self) -> bool {
+        self.controller_retry
+    }
+
     pub(crate) const fn into_parts(
         self,
     ) -> (OperationId, OperationDeadline, UnregisterBrokerPlan, usize) {

@@ -36,16 +36,29 @@ impl DriverOwner {
         &self,
         request: CreateTopicsRequest,
         deadline: Instant,
+        controller_retry: bool,
     ) -> Result<RoutedCall<CreateTopicsResponse>, CreateTopicsSubmitError> {
         self.driver
-            .request_tracked_with(Route::Controller, request, create_topics_options(deadline))
+            .request_tracked_with(
+                Route::Controller,
+                request,
+                create_topics_options(deadline, controller_retry),
+            )
             .map_err(|source| CreateTopicsSubmitError { source })
     }
 }
 
-pub(super) const fn create_topics_options(deadline: Instant) -> RequestOptions {
-    RequestOptions::new(deadline)
+pub(super) const fn create_topics_options(
+    deadline: Instant,
+    controller_retry: bool,
+) -> RequestOptions {
+    let options = RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
-        .with_maximum_version(CREATE_TOPICS_MAX_VERSION)
-        .with_route_failure_rejection()
+        .with_maximum_version(CREATE_TOPICS_MAX_VERSION);
+    if controller_retry {
+        // Core spent its one retry; the driver now owns bounded address recovery.
+        options
+    } else {
+        options.with_route_failure_rejection()
+    }
 }

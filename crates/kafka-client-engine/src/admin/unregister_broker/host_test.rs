@@ -178,9 +178,13 @@ fn completion_fault_retains_call_and_broker_correlation_until_recovery() {
     let (operation_id, submitted_deadline, submitted_plan, _result_limit) = submission.into_parts();
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver owner: {error}"));
-    let call =
-        UnregisterBrokerCall::submit(&driver, submitted_plan, submitted_deadline.transport())
-            .unwrap_or_else(|_error| panic!("accepted call"));
+    let call = UnregisterBrokerCall::submit(
+        &driver,
+        submitted_plan,
+        submitted_deadline.transport(),
+        false,
+    )
+    .unwrap_or_else(|_error| panic!("accepted call"));
     host.accept_call(operation_id, call)
         .unwrap_or_else(|error| panic!("host acceptance: {error}"));
     drop(driver);
@@ -223,12 +227,17 @@ fn stopped_follower_route_failure_refreshes_and_retries_the_controller_request()
     else {
         panic!("first submission expected");
     };
+    assert!(!submission.controller_retry());
     let (operation_id, submitted_deadline, submitted_plan, result_limit) = submission.into_parts();
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver owner: {error}"));
-    let call =
-        UnregisterBrokerCall::submit(&driver, submitted_plan, submitted_deadline.transport())
-            .unwrap_or_else(|_error| panic!("accepted first call"));
+    let call = UnregisterBrokerCall::submit(
+        &driver,
+        submitted_plan,
+        submitted_deadline.transport(),
+        false,
+    )
+    .unwrap_or_else(|_error| panic!("accepted first call"));
     host.accept_call(operation_id, call)
         .unwrap_or_else(|error| panic!("first host acceptance: {error}"));
     host.replace_call_with_controller_route_failure_for_test(plan(3));
@@ -245,6 +254,7 @@ fn stopped_follower_route_failure_refreshes_and_retries_the_controller_request()
     else {
         panic!("retry submission expected");
     };
+    assert!(retry.controller_retry());
     let (retry_id, retry_deadline, retry_plan, retry_limit) = retry.into_parts();
     assert_eq!(retry_id, operation_id);
     assert_eq!(retry_deadline, submitted_deadline);

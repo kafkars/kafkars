@@ -167,6 +167,9 @@ after a definitely-unsent controller-route failure. Observed routes must settle
 their causal invalidation first; an unrouted failure cannot manufacture a route
 token. A retry retains the original absolute deadline, request identity, plan,
 and terminal reservation. Possibly-sent mutations are never replayed by this path.
+The replacement attempt waits behind driver-owned connection and address recovery
+under that same deadline. It must not spend the retry on a still-recovering route's
+previous failure stamp; only the first attempt opts into early route-failure rejection.
 Successful `CreateTopics` outcomes are published only after a metadata query
 causally newer than the controller response confirms each created topic's
 requested partition count under the original public deadline.

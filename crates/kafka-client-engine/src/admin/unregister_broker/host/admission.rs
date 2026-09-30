@@ -100,6 +100,7 @@ fn start(
                 deadline,
                 plan,
                 result_limit: operation.remaining_result_bytes,
+                controller_retry: false,
             });
             Ok(false)
         }

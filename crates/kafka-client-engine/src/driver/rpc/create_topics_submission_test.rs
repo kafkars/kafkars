@@ -9,10 +9,23 @@ use super::create_topics_submission::create_topics_options;
 #[test]
 fn create_topics_uses_interactive_lane_original_deadline_and_v7_ceiling() {
     let deadline = Instant::now() + Duration::from_secs(9);
-    let options = create_topics_options(deadline);
+    let options = create_topics_options(deadline, false);
     assert_eq!(options.deadline(), deadline);
     assert_eq!(options.traffic_class(), TrafficClass::Interactive);
     assert!(options.rejects_after_route_failure());
+    assert_eq!(
+        options.maximum_version(),
+        Some(kafka_driver::ApiVersion::new(7))
+    );
+}
+
+#[test]
+fn authorized_replacement_waits_for_address_recovery_under_the_original_deadline() {
+    let deadline = Instant::now() + Duration::from_secs(9);
+    let options = create_topics_options(deadline, true);
+    assert_eq!(options.deadline(), deadline);
+    assert_eq!(options.traffic_class(), TrafficClass::Interactive);
+    assert!(!options.rejects_after_route_failure());
     assert_eq!(
         options.maximum_version(),
         Some(kafka_driver::ApiVersion::new(7))

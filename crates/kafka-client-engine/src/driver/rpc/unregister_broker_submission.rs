@@ -37,12 +37,13 @@ impl DriverOwner {
         &self,
         request: UnregisterBrokerRequest,
         deadline: Instant,
+        controller_retry: bool,
     ) -> Result<RoutedCall<UnregisterBrokerResponse>, UnregisterBrokerSubmitError> {
         self.driver
             .request_tracked_with(
                 unregister_broker_route(),
                 request,
-                unregister_broker_options(deadline),
+                unregister_broker_options(deadline, controller_retry),
             )
             .map_err(|source| UnregisterBrokerSubmitError { source })
     }
@@ -52,10 +53,17 @@ pub(super) const fn unregister_broker_route() -> Route {
     Route::Controller
 }
 
-pub(super) const fn unregister_broker_options(deadline: Instant) -> RequestOptions {
-    RequestOptions::new(deadline)
+pub(super) const fn unregister_broker_options(
+    deadline: Instant,
+    controller_retry: bool,
+) -> RequestOptions {
+    let options = RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
         .with_minimum_version(UNREGISTER_BROKER_VERSION)
-        .with_maximum_version(UNREGISTER_BROKER_VERSION)
-        .with_route_failure_rejection()
+        .with_maximum_version(UNREGISTER_BROKER_VERSION);
+    if controller_retry {
+        options
+    } else {
+        options.with_route_failure_rejection()
+    }
 }

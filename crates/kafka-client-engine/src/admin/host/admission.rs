@@ -39,6 +39,7 @@ impl CreateTopicsHost {
             deadline: operation.deadline,
             plan,
             retained_bytes: operation.retained_bytes,
+            controller_retry: true,
         });
         Ok(())
     }
@@ -109,6 +110,7 @@ fn start(
                 deadline,
                 plan,
                 retained_bytes: operation.retained_bytes,
+                controller_retry: false,
             });
             Ok(false)
         }

@@ -30,6 +30,7 @@ pub(crate) struct CreateTopicsSubmission {
     pub(crate) deadline: OperationDeadline,
     pub(crate) plan: CreateTopicsPlan,
     pub(crate) retained_bytes: usize,
+    pub(crate) controller_retry: bool,
 }
 
 pub(crate) struct CreateTopicsVisibilitySubmission {
