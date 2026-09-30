@@ -29,5 +29,5 @@ pub(super) fn translate_assigned_event_observation_kind(
             "assigned-consumer event ownership is inconsistent",
         ),
     };
-    KafkaError::new(kind, message)
+    KafkaError::new(kind, message).with_safe_retry_if(kind == ErrorKind::Backpressure)
 }

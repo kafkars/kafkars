@@ -90,6 +90,8 @@ impl AssignedConsumer {
     ///
     /// This call has no timeout, starts no Fetch work, and remains usable while
     /// already-retained events drain after close admission.
+    /// Contention transfers no event and reports [`crate::error::RetryAdvice::RetrySafe`];
+    /// owner-unavailable and invariant failures do not advise another attempt.
     pub fn try_take_event(&mut self) -> Result<Option<AssignedConsumerEvent>, crate::KafkaError> {
         self.engine.try_take_event()
     }

@@ -27,6 +27,8 @@ deadline; no layer starts a replacement timeout.
 
 Background consumer work captures its own explicit internal attempt deadline.
 Application observation does not start or extend Fetch work.
+Immediate assigned-event contention transfers no retained event and is retry-safe;
+owner loss and invariant failures remain non-retryable observation failures.
 
 ### Bytes
 
