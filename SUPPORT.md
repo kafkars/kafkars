@@ -616,7 +616,7 @@ partial, failed, or invalid gating cell cannot become a passing release.
 | Configuration | Code path | Real-broker qualification |
 | --- | --- | --- |
 | Plain TCP without SASL | Present and the default | Configured for single-broker Kafka 3.7.2, 3.8.1, 3.9.2, 4.0.2, 4.1.2, 4.2.1, and 4.3.1 plus two three-broker Kafka 4.3.1 cells, including dedicated modern Streams-group Admin coverage; consult the exact archived verdict |
-| TLS with platform roots | Present | Not configured in the release tier |
+| TLS with platform roots | Present | Excluded from initial supported scope until exact real-broker qualification |
 | TLS with a custom PEM root bundle | Present | Configured without SASL for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
 | SASL/PLAIN over plain TCP | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
 | SASL/PLAIN over custom-root TLS | Present | Configured for one three-broker Kafka 4.3.1 cell; consult the exact archived verdict |
@@ -660,8 +660,8 @@ requires the original cluster identity and complete broker set to return.
 
 Raft voter addition and removal require a Kafka dynamic-quorum deployment and
 exact voter directory identities. The current Testlab release tier uses a
-static controller quorum, so those two methods are implemented but not
-real-broker-qualified for the first stable cut. Unit, protocol, and loopback
+static controller quorum, so those two methods are implemented but excluded
+from initial supported scope until exact real-broker qualification. Unit, protocol, and loopback
 coverage must not be widened into a compatibility claim.
 
 ### Multi-topic subscriptions
