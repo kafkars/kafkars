@@ -49,12 +49,15 @@ fn pending_recv_wakes_only_on_the_group_notifier() {
 fn drop_cancels_only_observation_and_preserves_ready_delivery() {
     let mut fixture = GroupRecvFixture::start();
     let wake = CountingWake::new();
+    // Prevent a probe-unlock notification from publishing before cancellation.
+    let registry = fixture.owner.lock_registry_for_test();
     let mut recv = fixture.handle.recv();
     assert!(matches!(
         poll_once(&mut recv, Arc::clone(&wake)),
         Poll::Pending
     ));
     drop(recv);
+    drop(registry);
 
     fixture.install_ready(17);
     fixture.owner.notify_recv_change();
