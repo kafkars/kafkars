@@ -59,7 +59,7 @@ impl ShareFetchSessionOwner {
                             attempt,
                             terminal.capture,
                             now,
-                            topic,
+                            &topic,
                             observed,
                         );
                         let recovery = match recovery {
@@ -169,9 +169,11 @@ impl ShareFetchSessionOwner {
                 let recovery = driver_recovery(
                     terminal.route,
                     attempt,
+                    terminal.capture,
                     terminal.context.submitted_at,
                     now,
                     kind,
+                    self.request_plan().broker_route_refresh_topic(),
                 );
                 let recovery = match recovery {
                     Ok(recovery) => Some(recovery),

@@ -1,6 +1,6 @@
 //! Exact broker and transport facts that authorize share-session replacement.
 
-use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use core::num::NonZeroI16;
 
@@ -22,17 +22,28 @@ const INVALID_SHARE_SESSION_EPOCH: i16 = 123;
 pub(super) fn driver_recovery(
     route: ShareFetchRoute,
     attempt: ShareFetchAttempt,
+    capture: DeadlineCapture,
     submitted_at: Moment,
     now: Moment,
     kind: ShareFetchFailureKind,
+    topic: Option<&str>,
 ) -> Result<ShareFetchSessionRecovery, ShareFetchRoute> {
-    if !driver_recovery_authorized(kind) {
+    if !driver_recovery_authorized(kind) || attempt.deadline() != capture.deadline() {
         return Err(route);
     }
     let Some(deadline) = replacement_deadline(attempt.deadline(), submitted_at, now) else {
         return Err(route);
     };
-    ShareFetchRouteRefresh::try_new(route, deadline).map(ShareFetchSessionRecovery::route)
+    let Some(transport_deadline) =
+        replacement_transport_deadline(capture.operation_deadline().transport(), submitted_at, now)
+    else {
+        return Err(route);
+    };
+    let Some(topic) = topic else {
+        return Err(route);
+    };
+    ShareFetchRouteRefresh::try_new(route, deadline, transport_deadline, topic)
+        .map(ShareFetchSessionRecovery::route)
 }
 
 pub(super) fn route_recovery(
@@ -40,7 +51,7 @@ pub(super) fn route_recovery(
     attempt: ShareFetchAttempt,
     capture: DeadlineCapture,
     now: Moment,
-    topic: Arc<str>,
+    topic: &str,
     observed: TopicMetadataGeneration,
 ) -> Result<ShareFetchSessionRecovery, ShareFetchRoute> {
     if attempt.deadline() != capture.deadline() || capture.deadline().is_elapsed_at(now) {
@@ -82,6 +93,16 @@ pub(super) const fn broker_recovery(code: NonZeroI16) -> Option<ShareFetchSessio
         }
         _ => None,
     }
+}
+
+/// Shift the existing background-attempt bound through the same monotonic mapping.
+pub(super) fn replacement_transport_deadline(
+    original: Instant,
+    submitted_at: Moment,
+    now: Moment,
+) -> Option<Instant> {
+    let elapsed = now.tick().checked_sub(submitted_at.tick())?;
+    original.checked_add(Duration::from_nanos(elapsed))
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

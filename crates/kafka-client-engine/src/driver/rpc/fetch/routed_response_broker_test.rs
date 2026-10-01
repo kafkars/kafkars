@@ -48,6 +48,9 @@ impl RoutedBroker {
         format!("127.0.0.1:{}", self.port)
     }
 
+    pub(crate) fn cut_seed(&mut self) {
+        drop(self.seed.take());
+    }
     pub(crate) fn await_seed(driver: &mut DriverOwner) {
         let deadline = Instant::now() + Duration::from_secs(3);
         while Instant::now() < deadline {
@@ -75,6 +78,11 @@ impl RoutedBroker {
         self.seed = Some(seed);
     }
 
+    pub(crate) fn reconnect_seed(&mut self, driver: &mut DriverOwner) {
+        let mut seed = accept_after_driving(&self.listener, driver);
+        complete_negotiation(&mut seed, driver);
+        self.seed = Some(seed);
+    }
     pub(crate) fn install_topic(&mut self, driver: &mut DriverOwner, leader: i32) {
         let Some(seed) = self.seed.as_mut() else {
             panic!("cluster connection must precede topic Metadata");
@@ -82,10 +90,9 @@ impl RoutedBroker {
         respond_metadata(seed, driver, self.port, Some(leader));
     }
 
-    pub(super) fn complete_fetch(&mut self, driver: &mut DriverOwner) -> ApiVersion {
+    pub(crate) fn complete_fetch(&mut self, driver: &mut DriverOwner) -> ApiVersion {
         self.complete_fetch_request(driver).0
     }
-
     pub(super) fn complete_fetch_request(
         &mut self,
         driver: &mut DriverOwner,
@@ -148,6 +155,14 @@ fn respond_metadata(
     wait_for_frame(peer, driver, "write Metadata request");
     let request = read_request(peer);
     assert_eq!(request.api_key, METADATA_API_DESCRIPTOR.api_key.value());
+    if leader.is_some() {
+        let topics = request
+            .decode::<MetadataRequest>()
+            .topics
+            .unwrap_or_default();
+        assert_eq!(topics.len(), 1, "recovery requests one exact topic");
+        assert_eq!(topics[0].name.as_ref().map(AsRef::as_ref), Some("events"));
+    }
     let mut response = MetadataResponse::default();
     response.brokers.push(broker(port));
     response.controller_id = 1;

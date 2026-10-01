@@ -48,13 +48,31 @@ impl TopicPartitionCountCall {
         token: RouteFailureToken,
         deadline: Instant,
     ) -> Result<Self, TopicPartitionCountAdmissionFailure> {
+        Self::submit_after_outcome_retaining(driver, topic, token, deadline).map_err(
+            |(source, token)| {
+                drop(token);
+                source
+            },
+        )
+    }
+
+    /// Rejected admission leaves the exact causal token with its current owner.
+    #[expect(
+        clippy::result_large_err,
+        reason = "unadmitted backpressure returns the exact opaque driver token without allocating another owner"
+    )]
+    pub(crate) fn submit_after_outcome_retaining(
+        driver: &DriverOwner,
+        topic: TopicName,
+        token: RouteFailureToken,
+        deadline: Instant,
+    ) -> Result<Self, (TopicPartitionCountAdmissionFailure, RouteFailureToken)> {
         let call = driver
             .driver
             .topic_view_after_failure(topic.clone(), token, deadline)
             .map_err(|rejection| {
                 let (source, token) = rejection.into_parts();
-                drop(token);
-                TopicPartitionCountAdmissionFailure::Driver(source)
+                (TopicPartitionCountAdmissionFailure::Driver(source), token)
             })?;
         Ok(Self {
             topic_view_topic: topic,

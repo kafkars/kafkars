@@ -24,6 +24,7 @@ fn membership_subset_becomes_one_complete_canonical_initial_plan() {
     )
     .unwrap_or_else(|error| panic!("valid broker plan: {error:?}"));
     let (broker_id, assignment, request_plan) = plan.into_parts();
+    assert_eq!(request_plan.broker_route_refresh_topic(), Some("a"));
     let prepared = request_plan
         .prepare(
             "workers",
@@ -97,6 +98,7 @@ fn routed_plan_retains_the_newest_observed_generation_for_each_topic() {
     )
     .unwrap_or_else(|error| panic!("routed plan: {error:?}"));
     let (_broker, _assignment, request) = plan.into_parts();
+    assert_eq!(request.broker_route_refresh_topic(), Some("a"));
 
     assert_eq!(
         request.route_refresh_requirement([1; 16]),

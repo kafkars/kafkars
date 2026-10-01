@@ -1,6 +1,7 @@
 //! Recovery-authority classification for share-session and transport failures.
 
 use core::num::NonZeroI16;
+use std::time::{Duration, Instant};
 
 use crate::driver::ShareFetchFailureKind;
 use crate::protocol::consumer::share_fetch::ShareFetchPartitionRejection;
@@ -9,7 +10,7 @@ use kafka_client_core::{Deadline, Moment};
 use super::{
     recovery::{
         ShareFetchResponseRecovery, broker_recovery, driver_recovery_authorized,
-        replacement_deadline, response_recovery,
+        replacement_deadline, replacement_transport_deadline, response_recovery,
     },
     settlement_test::success,
 };
@@ -139,6 +140,31 @@ fn route_refresh_gets_one_fresh_bound_equal_to_the_configured_attempt_duration()
             Deadline::from_tick(5),
             Moment::from_tick(5),
             Moment::from_tick(40),
+        ),
+        None
+    );
+}
+
+#[test]
+fn background_recovery_maps_the_same_existing_bound_without_observing_ambient_time() {
+    let original = Instant::now();
+    assert_eq!(
+        replacement_transport_deadline(original, Moment::from_tick(5), Moment::from_tick(40)),
+        original.checked_add(Duration::from_nanos(35))
+    );
+    assert_eq!(
+        replacement_transport_deadline(original, Moment::from_tick(5), Moment::from_tick(5)),
+        Some(original)
+    );
+    assert_eq!(
+        replacement_transport_deadline(original, Moment::from_tick(5), Moment::from_tick(4)),
+        None
+    );
+    assert_eq!(
+        replacement_deadline(
+            Deadline::from_tick(u64::MAX),
+            Moment::from_tick(1),
+            Moment::from_tick(40)
         ),
         None
     );

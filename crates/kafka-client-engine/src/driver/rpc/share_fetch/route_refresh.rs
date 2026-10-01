@@ -1,40 +1,31 @@
-//! Deadline-bounded invalidation of one failed broker-local share-fetch route.
+//! Deadline-bounded causal metadata recovery of one failed broker-local share route.
 
-use std::{mem, sync::Arc, time::Instant};
+use std::{mem, time::Instant};
 
 use kafka_client_core::{Deadline, Moment, partitioning::TopicMetadataGeneration};
-use kafka_driver::{Call, InvalidationDisposition, RouteFailureToken, SubmitError};
+use kafka_driver::{RouteFailureToken, TopicName};
 
-use crate::driver::{DriverOwner, TopicPartitionCountAdmissionFailureKind, TopicRouteViewCall};
+use crate::driver::{
+    DriverOwner, TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall,
+};
 
 use super::route::ShareFetchRoute;
 
-/// Exact failed broker route retained until invalidation permits session replacement.
-#[must_use = "a failed ShareFetch route must be invalidated or accepted"]
+/// Exact failed route retained until post-outcome metadata permits session replacement.
+#[must_use = "a failed ShareFetch route must settle causal recovery or be accepted"]
 pub(crate) struct ShareFetchRouteRefresh {
     deadline: Deadline,
+    transport_deadline: Instant,
+    topic: TopicName,
+    observed: Option<TopicMetadataGeneration>,
     state: ShareFetchRouteRefreshState,
 }
 
 enum ShareFetchRouteRefreshState {
-    InvalidationQueued {
-        token: RouteFailureToken,
-        metadata: Option<ShareFetchMetadataRefresh>,
-    },
-    InvalidationActive {
-        call: Call<InvalidationDisposition>,
-        metadata: Option<ShareFetchMetadataRefresh>,
-    },
-    MetadataQueued(ShareFetchMetadataRefresh),
-    MetadataActive(TopicRouteViewCall),
+    Queued(RouteFailureToken),
+    Active(TopicPartitionCountCall),
     Ready,
     Failed,
-}
-
-struct ShareFetchMetadataRefresh {
-    topic: Arc<str>,
-    observed: TopicMetadataGeneration,
-    transport_deadline: Instant,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -49,118 +40,87 @@ impl ShareFetchRouteRefresh {
     pub(crate) fn try_new(
         route: ShareFetchRoute,
         deadline: Deadline,
+        transport_deadline: Instant,
+        topic: &str,
     ) -> Result<Self, ShareFetchRoute> {
-        route.into_broker_token().map(|token| Self {
-            deadline,
-            state: ShareFetchRouteRefreshState::InvalidationQueued {
-                token,
-                metadata: None,
-            },
-        })
+        Self::try_new_inner(route, deadline, transport_deadline, topic, None)
     }
 
     pub(crate) fn try_new_with_metadata(
         route: ShareFetchRoute,
         deadline: Deadline,
         transport_deadline: Instant,
-        topic: Arc<str>,
+        topic: &str,
         observed: TopicMetadataGeneration,
     ) -> Result<Self, ShareFetchRoute> {
+        Self::try_new_inner(route, deadline, transport_deadline, topic, Some(observed))
+    }
+
+    fn try_new_inner(
+        route: ShareFetchRoute,
+        deadline: Deadline,
+        transport_deadline: Instant,
+        topic: &str,
+        observed: Option<TopicMetadataGeneration>,
+    ) -> Result<Self, ShareFetchRoute> {
+        let Ok(topic) = TopicName::new(topic.to_string()) else {
+            return Err(route);
+        };
         route.into_broker_token().map(|token| Self {
             deadline,
-            state: ShareFetchRouteRefreshState::InvalidationQueued {
-                token,
-                metadata: Some(ShareFetchMetadataRefresh {
-                    topic,
-                    observed,
-                    transport_deadline,
-                }),
-            },
+            transport_deadline,
+            topic,
+            observed,
+            state: ShareFetchRouteRefreshState::Queued(token),
         })
     }
 
     pub(crate) fn poll(&mut self, driver: &DriverOwner, now: Moment) -> ShareFetchRouteRefreshPoll {
         if self.deadline.is_elapsed_at(now)
-            && matches!(
-                self.state,
-                ShareFetchRouteRefreshState::InvalidationQueued { .. }
-                    | ShareFetchRouteRefreshState::MetadataQueued(_)
-            )
+            && matches!(self.state, ShareFetchRouteRefreshState::Queued(_))
         {
             self.state = ShareFetchRouteRefreshState::Failed;
             return ShareFetchRouteRefreshPoll::Failed;
         }
         match mem::replace(&mut self.state, ShareFetchRouteRefreshState::Failed) {
-            ShareFetchRouteRefreshState::InvalidationQueued { token, metadata } => {
-                match driver.driver.invalidate(token) {
-                    Ok(call) => {
-                        self.state =
-                            ShareFetchRouteRefreshState::InvalidationActive { call, metadata };
-                        ShareFetchRouteRefreshPoll::Progress
-                    }
-                    Err(rejection) => {
-                        let retryable = matches!(rejection.reason(), SubmitError::Full);
-                        let (_source, token) = rejection.into_parts();
-                        if retryable {
-                            self.state =
-                                ShareFetchRouteRefreshState::InvalidationQueued { token, metadata };
-                            ShareFetchRouteRefreshPoll::Pending
-                        } else {
-                            drop(token);
-                            ShareFetchRouteRefreshPoll::Failed
-                        }
-                    }
-                }
-            }
-            ShareFetchRouteRefreshState::InvalidationActive { call, metadata } => {
-                match call.try_result() {
-                    None => {
-                        self.state =
-                            ShareFetchRouteRefreshState::InvalidationActive { call, metadata };
-                        ShareFetchRouteRefreshPoll::Pending
-                    }
-                    Some(Ok(
-                        InvalidationDisposition::Applied | InvalidationDisposition::IgnoredStale,
-                    )) => {
-                        if let Some(metadata) = metadata {
-                            self.state = ShareFetchRouteRefreshState::MetadataQueued(metadata);
-                            ShareFetchRouteRefreshPoll::Progress
-                        } else {
-                            self.state = ShareFetchRouteRefreshState::Ready;
-                            ShareFetchRouteRefreshPoll::Ready
-                        }
-                    }
-                    Some(Ok(_) | Err(_)) => ShareFetchRouteRefreshPoll::Failed,
-                }
-            }
-            ShareFetchRouteRefreshState::MetadataQueued(metadata) => {
-                match TopicRouteViewCall::submit_newer_than(
+            ShareFetchRouteRefreshState::Queued(token) => {
+                match TopicPartitionCountCall::submit_after_outcome_retaining(
                     driver,
-                    &metadata.topic,
-                    metadata.observed,
-                    metadata.transport_deadline,
+                    self.topic.clone(),
+                    token,
+                    self.transport_deadline,
                 ) {
                     Ok(call) => {
-                        self.state = ShareFetchRouteRefreshState::MetadataActive(call);
+                        self.state = ShareFetchRouteRefreshState::Active(call);
                         ShareFetchRouteRefreshPoll::Progress
                     }
-                    Err(error) if error.kind() == TopicPartitionCountAdmissionFailureKind::Full => {
-                        self.state = ShareFetchRouteRefreshState::MetadataQueued(metadata);
+                    Err((error, token))
+                        if error.kind() == TopicPartitionCountAdmissionFailureKind::Full =>
+                    {
+                        self.state = ShareFetchRouteRefreshState::Queued(token);
                         ShareFetchRouteRefreshPoll::Pending
                     }
-                    Err(_error) => ShareFetchRouteRefreshPoll::Failed,
+                    Err((_error, token)) => {
+                        drop(token);
+                        ShareFetchRouteRefreshPoll::Failed
+                    }
                 }
             }
-            ShareFetchRouteRefreshState::MetadataActive(mut call) => match call.try_terminal() {
+            ShareFetchRouteRefreshState::Active(mut call) => match call.try_terminal() {
                 None => {
-                    self.state = ShareFetchRouteRefreshState::MetadataActive(call);
+                    self.state = ShareFetchRouteRefreshState::Active(call);
                     ShareFetchRouteRefreshPoll::Pending
                 }
-                Some(Ok(_view)) => {
+                Some(Ok(view))
+                    if view.logical_partition_count > 0
+                        && self
+                            .observed
+                            .is_none_or(|floor| view.metadata_generation > floor.get()) =>
+                {
                     self.state = ShareFetchRouteRefreshState::Ready;
                     ShareFetchRouteRefreshPoll::Ready
                 }
-                Some(Err(_error)) => ShareFetchRouteRefreshPoll::Failed,
+                Some(Ok(_) | Err(_)) => ShareFetchRouteRefreshPoll::Failed,
             },
             ShareFetchRouteRefreshState::Ready => {
                 self.state = ShareFetchRouteRefreshState::Ready;
@@ -171,7 +131,7 @@ impl ShareFetchRouteRefresh {
     }
 
     pub(crate) fn discard_after_driver_shutdown(&mut self) {
-        if let ShareFetchRouteRefreshState::MetadataActive(call) =
+        if let ShareFetchRouteRefreshState::Active(call) =
             mem::replace(&mut self.state, ShareFetchRouteRefreshState::Ready)
         {
             call.discard_after_driver_shutdown();

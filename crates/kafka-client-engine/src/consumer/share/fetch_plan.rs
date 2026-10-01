@@ -1,4 +1,4 @@
-//! Exact membership-to-broker `ShareFetch` assignment and initial-session planning.
+//! Nonempty broker-local `ShareFetch` plans retain an exact topic for causal recovery.
 
 use std::sync::Arc;
 
@@ -141,6 +141,10 @@ impl ShareBrokerSessionPlan {
 }
 
 impl ShareFetchSessionRequestPlan {
+    pub(super) fn broker_route_refresh_topic(&self) -> Option<&str> {
+        self.topics.first().map(|topic| topic.name.as_ref())
+    }
+
     pub(super) fn resolve_partition(
         &self,
         kafka_topic_id: [u8; 16],
@@ -169,14 +173,12 @@ impl ShareFetchSessionRequestPlan {
         &self,
         kafka_topic_id: [u8; 16],
     ) -> Option<(Arc<str>, TopicMetadataGeneration)> {
-        self.topics
+        let topic = self
+            .topics
             .iter()
-            .find(|topic| topic.kafka_topic_id == kafka_topic_id)
-            .and_then(|topic| {
-                topic
-                    .metadata_generation
-                    .map(|generation| (Arc::clone(&topic.name), generation))
-            })
+            .find(|topic| topic.kafka_topic_id == kafka_topic_id)?;
+        let generation = topic.metadata_generation?;
+        Some((Arc::clone(&topic.name), generation))
     }
 
     pub(super) fn prepare(
