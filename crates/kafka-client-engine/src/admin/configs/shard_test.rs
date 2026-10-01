@@ -85,6 +85,52 @@ fn generic_and_mixed_plans_reserve_one_bounded_operation() {
     crate::admin::test_support::stop_notifier(notifier);
 }
 
+#[test]
+fn contention_retains_no_operation_or_bytes_before_reconstruction() {
+    let (host, notifier) = crate::admin::test_support::describe_configs_host();
+    let owner = DescribeConfigsShardOwner::new(host, Arc::new(NoopWake));
+    let port = owner.admission_port();
+    let deadline = crate::clock::OperationDeadline::from_parts_for_test(
+        kafka_client_core::Deadline::from_tick(10),
+        std::time::Instant::now() + std::time::Duration::from_secs(1),
+    );
+    let host = owner
+        .try_host()
+        .unwrap_or_else(|error| panic!("hold host: {error:?}"));
+    for _attempt in 0..4 {
+        assert!(matches!(
+            port.try_admit(
+                kafka_client_core::Moment::from_tick(1),
+                deadline,
+                plan(&[(2, "orders")]),
+                DescribeConfigsRetention::from_parts(16 * 1024, 256 * 1024),
+            ),
+            Err(DescribeConfigsAdmissionErrorKind::Contended)
+        ));
+    }
+    assert_eq!(host.unsettled(), 0);
+    assert_eq!(host.retained_bytes_for_test(), 0);
+    drop(host);
+    let accepted = port
+        .try_admit(
+            kafka_client_core::Moment::from_tick(2),
+            deadline,
+            plan(&[(2, "orders")]),
+            DescribeConfigsRetention::from_parts(16 * 1024, 256 * 1024),
+        )
+        .unwrap_or_else(|error| panic!("reconstruct under original deadline: {error:?}"));
+    let host = owner
+        .try_host()
+        .unwrap_or_else(|error| panic!("inspect admitted host: {error:?}"));
+    assert_eq!(host.unsettled(), 1);
+    assert_eq!(host.retained_bytes_for_test(), 16 * 1024);
+    drop(host);
+    drop(accepted);
+    drop(port);
+    drop(owner);
+    crate::admin::test_support::stop_notifier(notifier);
+}
+
 fn plan(resources: &[(i8, &str)]) -> kafka_client_core::DescribeConfigsPlan {
     kafka_client_core::DescribeConfigsPlan::new(
         resources

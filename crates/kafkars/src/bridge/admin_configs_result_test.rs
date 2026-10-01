@@ -9,7 +9,36 @@ use super::admin_configs_result::{
     translate_accepted_fault, translate_admission_kind, translate_failure_parts,
     translate_observer_error, translate_resource_error_parts,
 };
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
+
+#[test]
+fn only_unadmitted_config_contention_is_safe_to_reconstruct() {
+    use DescribeConfigsAdmissionErrorKind as Admission;
+
+    for kind in [
+        Admission::InvalidRequest,
+        Admission::UnsupportedResource,
+        Admission::InvalidDeadline,
+        Admission::Contended,
+        Admission::Capacity,
+        Admission::RetainedBytes,
+        Admission::Closed,
+        Admission::IdentityExhausted,
+        Admission::HostUnavailable,
+    ] {
+        let error = translate_admission_kind(kind);
+        assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        assert_eq!(
+            error.retry_advice(),
+            if kind == Admission::Contended {
+                RetryAdvice::RetrySafe
+            } else {
+                RetryAdvice::DoNotRetry
+            },
+            "admission category {kind:?}"
+        );
+    }
+}
 
 #[test]
 fn all_admission_observer_and_fault_categories_remain_stable() {
@@ -33,7 +62,9 @@ fn all_admission_observer_and_fault_categories_remain_stable() {
         DescribeConfigsAcceptedFaultKind::Wake,
         DescribeConfigsAcceptedFaultKind::HostInvariant,
     ] {
-        assert_eq!(translate_accepted_fault(fault).kind(), ErrorKind::Internal);
+        let error = translate_accepted_fault(fault);
+        assert_eq!(error.kind(), ErrorKind::Internal);
+        assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry);
     }
 }
 
@@ -75,5 +106,6 @@ fn failures_preserve_category_and_driver_authoritative_delivery() {
         let error = translate_failure_parts(failure, DescribeConfigsDeliveryStatus::PossiblySent);
         assert_eq!(error.kind(), expected);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::PossiblySent));
+        assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry);
     }
 }

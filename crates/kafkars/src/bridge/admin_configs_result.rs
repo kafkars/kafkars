@@ -43,6 +43,7 @@ pub(super) fn translate_admission_kind(kind: DescribeConfigsAdmissionErrorKind) 
         format!("DescribeConfigs admission failed: {kind:?}"),
     )
     .with_delivery_status(DeliveryStatus::NotSent)
+    .with_safe_retry_if(kind == DescribeConfigsAdmissionErrorKind::Contended)
 }
 
 pub(super) fn translate_accepted_fault(fault: DescribeConfigsAcceptedFaultKind) -> KafkaError {
