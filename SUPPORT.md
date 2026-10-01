@@ -564,7 +564,7 @@ that evidence into a production-support claim.
 ### Configured release-tier cells
 
 The release tier pinned by this repository at Testlab revision
-`16a5cbe6177fd5be1e3775d362dd2e16fe7322f3` defines the following gating cells.
+`9f43a432dac9d8b5a71fa429aaf8932ca4851e63` defines the following gating cells.
 This table records configuration only. The archived qualification artifact is
 the authority for whether any cell passed, failed, or was invalid.
 
