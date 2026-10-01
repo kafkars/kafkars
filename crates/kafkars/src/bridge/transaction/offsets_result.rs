@@ -23,6 +23,7 @@ pub(super) fn translate_admission(kind: TransactionOffsetsAdmissionErrorKind) ->
     };
     KafkaError::new(public, format!("transactional offsets rejected: {kind:?}"))
         .with_delivery_status(DeliveryStatus::NotSent)
+        .with_safe_retry_if(kind == TransactionOffsetsAdmissionErrorKind::Contended)
 }
 
 pub(super) fn translate_observation(
