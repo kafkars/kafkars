@@ -14,52 +14,52 @@ struct PublishedDependency {
 const PUBLISHED_DEPENDENCIES: [PublishedDependency; 4] = [
     PublishedDependency {
         name: "kafka-driver",
-        version: "=0.1.0-rc.7",
+        version: "=0.1.0-rc.8",
     },
     PublishedDependency {
         name: "kafka-wire",
-        version: "=0.1.0-rc.3",
+        version: "=0.1.0",
     },
     PublishedDependency {
         name: "kafka-wire-records",
-        version: "=0.1.0-rc.3",
+        version: "=0.1.0",
     },
     PublishedDependency {
         name: "kafka-wire-core",
-        version: "=0.1.0-rc.3",
+        version: "=0.1.0",
     },
 ];
 
 const PUBLISHED: [(&str, &str, &str); 6] = [
     (
         "kafka-driver",
-        "0.1.0-rc.7",
-        "dba09b0eb814d3ac93b2e3af609ed8952e6fe99cf2f16150ef587270b5de49e2",
+        "0.1.0-rc.8",
+        "4785bae496fdaeb39e52e4a84a2e588525a235ee63a967fd08a6aaa3c35bfaba",
     ),
     (
         "kafka-driver-core",
-        "0.1.0-rc.7",
-        "78fbfc8b655076d039bae32cf7b13f6eb105b3f33f73a54f3c4d0f47d28ed05e",
+        "0.1.0-rc.8",
+        "fa4ee71408e6b01c261002e84b26ef8e1a54bd38f28b5ab63438c69a20d36410",
     ),
     (
         "kafka-driver-transport",
-        "0.1.0-rc.7",
-        "1b638a032f197ffdfafac2910e36c4bfdd98f45c7835e5be5b6f6f388ba70e13",
+        "0.1.0-rc.8",
+        "62b5dd98013d34ef2d8b5ec3bd0f3ac29d95882b9fd2ae0cc4251531e3aefd19",
     ),
     (
         "kafka-wire",
-        "0.1.0-rc.3",
-        "ef04e07a7f2f73a4d00e3341b60504e0f2baf91491ce55e023f2bdfa5ea60b32",
+        "0.1.0",
+        "4a6bbde74286d49bf2f8531e64bb46132824a03bf6058583c0c79dd5ebd00e78",
     ),
     (
         "kafka-wire-core",
-        "0.1.0-rc.3",
-        "ac4f6d455c6371e95044818fbbdc816d35fa0fff3f5bbc7669ce8c83ccf1c6a4",
+        "0.1.0",
+        "85717dc7f7e3530cc197a92b5087bd7aa975904ed657edbc6ad5c4184e045203",
     ),
     (
         "kafka-wire-records",
-        "0.1.0-rc.3",
-        "442e451f90cdcfb7d97570b6ee030b52776a20a62a7c60ac50e0521ce8794905",
+        "0.1.0",
+        "aafe0f476f8e7ca72401bced93523612b060dc3f5f0039a8ee82177c44e39add",
     ),
 ];
 

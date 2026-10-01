@@ -104,7 +104,7 @@ fn alternate_sources_checksums_and_duplicate_versions_are_rejected() {
     assert!(!lock_violations(&alternate_source).is_empty());
 
     let alternate_checksum = source.replace(
-        "dba09b0eb814d3ac93b2e3af609ed8952e6fe99cf2f16150ef587270b5de49e2",
+        "4785bae496fdaeb39e52e4a84a2e588525a235ee63a967fd08a6aaa3c35bfaba",
         "0000000000000000000000000000000000000000000000000000000000000000",
     );
     assert!(
@@ -112,7 +112,7 @@ fn alternate_sources_checksums_and_duplicate_versions_are_rejected() {
             .iter()
             .any(|violation| {
                 violation
-                    == "lockfile must bind kafka-driver 0.1.0-rc.7 to its exact crates.io checksum"
+                    == "lockfile must bind kafka-driver 0.1.0-rc.8 to its exact crates.io checksum"
             })
     );
 
@@ -122,7 +122,7 @@ fn alternate_sources_checksums_and_duplicate_versions_are_rejected() {
          checksum = \"0000000000000000000000000000000000000000000000000000000000000000\"\n"
     );
     assert!(lock_violations(&duplicate_wire).iter().any(|violation| {
-        violation == "lockfile must bind kafka-wire 0.1.0-rc.3 to its exact crates.io checksum"
+        violation == "lockfile must bind kafka-wire 0.1.0 to its exact crates.io checksum"
     }));
 }
 

@@ -2,10 +2,10 @@
 members = ["crates/kafka-client-engine"]
 
 [workspace.dependencies]
-kafka-driver = "=0.1.0-rc.7"
-kafka-wire = "=0.1.0-rc.3"
-kafka-wire-core = "=0.1.0-rc.3"
-kafka-wire-records = "=0.1.0-rc.3"
+kafka-driver = "=0.1.0-rc.8"
+kafka-wire = "=0.1.0"
+kafka-wire-core = "=0.1.0"
+kafka-wire-records = "=0.1.0"
 
 [replace]
 "bytes:1.0.0" = { path = "../bytes-fork" }
