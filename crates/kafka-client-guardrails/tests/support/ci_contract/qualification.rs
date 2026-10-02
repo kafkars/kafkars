@@ -60,7 +60,7 @@ fn inspect_triggers(root: &Mapping, violations: &mut Vec<String>) {
     };
     reject_unexpected_keys(
         triggers,
-        &["pull_request", "schedule", "workflow_dispatch"],
+        &["pull_request", "workflow_dispatch"],
         "qualification triggers",
         violations,
     );
@@ -70,14 +70,6 @@ fn inspect_triggers(root: &Mapping, violations: &mut Vec<String>) {
                 "qualification trigger `{trigger}` must be unconditional"
             ));
         }
-    }
-    let schedules = yaml_entry(triggers, "schedule").and_then(YamlNode::sequence);
-    let cron = schedules
-        .and_then(|items| (items.len() == 1).then_some(items))
-        .and_then(|items| items[0].mapping())
-        .and_then(|item| scalar(item, "cron"));
-    if cron != Some("17 7 * * *") {
-        violations.push("qualification schedule must retain its exact daily trigger".to_owned());
     }
 }
 

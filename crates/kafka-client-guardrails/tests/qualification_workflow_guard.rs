@@ -74,3 +74,26 @@ fn release_workflow_cannot_change_pin_skip_aggregation_or_swallow_failures() {
         assert!(!qualification_workflow_violations(&broken).is_empty());
     }
 }
+
+#[test]
+fn full_qualification_requires_explicit_dispatch() {
+    let workflow = read(&workspace_root().join(".github/workflows/qualification.yml"));
+    for broken in [
+        workflow.replace(
+            "  workflow_dispatch:",
+            "  schedule:\n    - cron: \"17 7 * * *\"\n  workflow_dispatch:",
+        ),
+        workflow.replace("  workflow_dispatch:", "  push:\n  workflow_dispatch:"),
+        workflow.replace("  workflow_dispatch:", "  release:\n  workflow_dispatch:"),
+        workflow.replace(
+            "${{ github.event_name == 'workflow_dispatch' }}",
+            "${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}",
+        ),
+        workflow.replace("  pull_request:\n", ""),
+    ] {
+        assert!(
+            !qualification_workflow_violations(&broken).is_empty(),
+            "qualification guard accepted an automatic full run or removed the PR gate"
+        );
+    }
+}

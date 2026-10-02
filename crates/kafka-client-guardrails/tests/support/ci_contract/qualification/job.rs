@@ -28,11 +28,7 @@ pub(super) fn inspect_release(jobs: &Mapping, violations: &mut Vec<String>) {
         violations,
     );
     if !exact_scalar(job, "name", "release-qualification-gate")
-        || !exact_scalar(
-            job,
-            "if",
-            "${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}",
-        )
+        || !exact_scalar(job, "if", "${{ github.event_name == 'workflow_dispatch' }}")
         || !exact_scalar(job, "uses", RELEASE)
     {
         violations.push(
