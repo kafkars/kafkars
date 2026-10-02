@@ -21,6 +21,56 @@ real-broker evidence and separate release authorization.
 
 Source qualification does not authorize registry publication or production support.
 
+## Requirements for the first supported release
+
+These requirements define the intended release boundary; they do not promote
+the current preview, select a version, or declare any configuration supported.
+
+The supported SDK is the documented public Rust `kafkars` facade, including its
+builders, named futures, blocking observers, and semantic error vocabulary.
+`kafka-client-core` and `kafka-client-engine` remain version-locked implementation
+dependencies, not independently supported SDKs. A supported compatibility line
+must preserve its public source API, documented defaults, ownership and error
+semantics, and MSRV in patch releases. Breaking changes require an explicitly
+announced new compatibility line. Diagnostic strings, private implementation
+layout, generated wire types, and a foreign ABI are not compatibility contracts.
+
+The initial qualification target is Rust 1.88 on
+`x86_64-unknown-linux-gnu`. Dependency portability tests do not establish
+Kafkars real-broker support on another target. Broker, topology, authentication,
+TLS trust, and operation coverage must remain limited to the exact passing
+release-tier cells and the exclusions below, not their Cartesian product.
+
+Existing defaults remain deliberate: plain TCP without SASL, a 30-second
+ordinary delivery duration, no compression, idempotent production with
+`acks=all`, no automatic topic creation, and bounded retries under the original
+deadline. Group consumers default to classic membership, fail closed on missing
+committed offsets, and use `ReadUncommitted`. Applications must explicitly
+select TLS/authentication and `ReadCommitted` when their deployment requires
+them. Processing must finish before an application commits its checkpoint;
+processed-prefix checkpoints may advance only through the ordered processed
+records. Producer idempotence does not make application side effects or
+processing across unrelated transactions exactly-once.
+
+The deadline, byte, completion, cancellation, and identity-fence contracts in
+`ARCHITECTURE.md` remain mandatory. Dropping an observer does not cancel work;
+`PossiblySent` never becomes proof of non-delivery. Retained batches keep their
+charges until their exact owners release them, and graceful child close may
+require that release. Independent execution owners require explicit close and
+are not included in the originating client's shutdown. Configured byte limits
+bound the specified ownership domains, not total process RSS or operating-system
+socket storage. Security reporting follows `SECURITY.md`; no response-time SLA
+is implied by the stable-release target.
+
+Before authorization, runtime and build dependency requirements must be
+non-prerelease. External dependencies must resolve to registry releases; the
+three native packages must match the same reviewed candidate. The final packaged
+stack must pass canonical, external-use, and ordinary CI checks, and release
+qualification plus bounded endurance must pass on the exact frozen Kafkars and
+Testlab revisions. Any repair changes the candidate and requires fresh applicable
+evidence. Neither a version label nor an earlier candidate's passing run satisfies
+these requirements.
+
 ## Runtime surface
 
 The qualification column below describes configured release-tier scenario
