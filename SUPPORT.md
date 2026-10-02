@@ -593,11 +593,11 @@ partial, failed, or invalid gating cell cannot become a passing release.
 | --- | --- | --- | --- | ---: |
 | `apache-kafka-4-3-1-plaintext` | Apache Kafka 4.3.1 | Single broker, plaintext | `kafkars-share-release` | 3 |
 | `apache-kafka-4-2-1-plaintext` | Apache Kafka 4.2.1 | Single broker, plaintext | `kafkars-share-release` | 1 |
-| `apache-kafka-4-1-2-plaintext` | Apache Kafka 4.1.2 | Single broker, plaintext | `kafkars-share-release` | 1 |
+| `apache-kafka-4-1-2-plaintext` | Apache Kafka 4.1.2 | Single broker, plaintext | `kafkars-share-4-1` | 1 |
 | `apache-kafka-4-0-2-plaintext` | Apache Kafka 4.0.2 | Single broker, plaintext | `kafkars-release` | 1 |
 | `apache-kafka-3-9-2-plaintext` | Apache Kafka 3.9.2 | Single broker, plaintext | `kafkars-classic` | 1 |
 | `apache-kafka-3-8-1-plaintext` | Apache Kafka 3.8.1 | Single broker, plaintext | `kafkars-classic` | 1 |
-| `apache-kafka-3-7-2-plaintext` | Apache Kafka 3.7.2 | Single broker, plaintext | `kafkars-classic` | 1 |
+| `apache-kafka-3-7-2-plaintext` | Apache Kafka 3.7.2 | Single broker, plaintext | `kafkars-classic-3-7` | 1 |
 | `apache-kafka-4-3-1-three-tls` | Apache Kafka 4.3.1 | Three brokers, custom-root TLS without SASL | `kafkars-three-broker-security` | 1 |
 | `apache-kafka-4-3-1-three-sasl-plain` | Apache Kafka 4.3.1 | Three brokers, plaintext with SASL/PLAIN | `kafkars-three-broker-security` | 1 |
 | `apache-kafka-4-3-1-three-scram-sha-256` | Apache Kafka 4.3.1 | Three brokers, plaintext with SCRAM-SHA-256 | `kafkars-three-broker-security` | 1 |
