@@ -6,11 +6,11 @@ repository.
 
 ## Release status
 
-- Workspace version: `0.0.2-rc.2`
+- Workspace version: `0.0.2-rc.3`
 - Publication: enabled for `kafkars`, `kafka-client-core`, and
   `kafka-client-engine`; disabled for simulation and guardrails
 - Stability: no semantic-versioning or source-compatibility promise
-- Supported releases: no production release; `0.0.2-rc.2` is a
+- Supported releases: no production release; `0.0.2-rc.3` is a
   release-candidate source preview
 - Intended audience: design review, source and registry integration evaluation,
   and contribution
@@ -18,6 +18,8 @@ repository.
 This release candidate is not production-supported and is not recommended for
 production traffic. A supported release requires complete passing archived
 real-broker evidence and separate release authorization.
+
+Source qualification does not authorize registry publication or production support.
 
 ## Runtime surface
 

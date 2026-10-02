@@ -11,16 +11,18 @@ consumers, share groups, transactions, and admin APIs.
 - **Bounded:** explicit deadlines, memory limits, cancellation, and delivery outcomes.
 - **Deterministic core:** client policy can be tested with virtual time.
 
-**Status:** `0.0.2-rc.2` is an experimental release candidate with no stable API
+**Status:** `0.0.2-rc.3` is an experimental release candidate with no stable API
 or production-support promise. See [support and compatibility](SUPPORT.md).
 
 ## Quick start
 
 Requires Rust 1.88 or later.
 
+Use this candidate's exact dependency after registry publication:
+
 ```toml
 [dependencies]
-kafkars = "=0.0.2-rc.2"
+kafkars = "=0.0.2-rc.3"
 ```
 
 ```rust

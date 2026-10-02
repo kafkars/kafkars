@@ -5,13 +5,15 @@
 # kafkars
 
 `kafkars` is an experimental, deterministic, runtime-neutral Rust client for
-Apache Kafka®. Version `0.0.2-rc.2` is a release-candidate source preview for
+Apache Kafka®. Version `0.0.2-rc.3` is a release-candidate source preview for
 API and registry integration evaluation, not a production-supported release or
 broker-compatibility claim.
 
+Use this candidate's exact dependency after registry publication:
+
 ```toml
 [dependencies]
-kafkars = "=0.0.2-rc.2"
+kafkars = "=0.0.2-rc.3"
 ```
 
 ```rust
