@@ -1,4 +1,4 @@
-//! Production reading paths exclude embedded tests and unfinished escape hatches.
+//! Production paths keep tests separate; client-owning examples observe shutdown.
 
 mod support;
 
@@ -153,4 +153,122 @@ fn embedded_tests_and_placeholders_are_rejected() {
             .any(|value| value.contains("owner/tests/case.rs")),
         "nested src tests directory bypassed hygiene: {violations:?}"
     );
+}
+
+fn example_binding(local: &syn::Local) -> Option<(&syn::Ident, &syn::Expr)> {
+    let pattern = match &local.pat {
+        syn::Pat::Type(typed) => typed.pat.as_ref(),
+        pattern => pattern,
+    };
+    let syn::Pat::Ident(binding) = pattern else {
+        return None;
+    };
+    local
+        .init
+        .as_ref()
+        .map(|initialization| (&binding.ident, initialization.expr.as_ref()))
+}
+
+fn example_observes_shutdown(function: &ItemFn) -> bool {
+    use syn::{Expr, Stmt};
+
+    let [
+        Stmt::Local(client),
+        Stmt::Local(result),
+        Stmt::Local(shutdown),
+        Stmt::Expr(Expr::MethodCall(combine), None),
+    ] = function.block.stmts.as_slice()
+    else {
+        return false;
+    };
+    let (Some((client_name, _)), Some((result_name, result)), Some((shutdown_name, shutdown))) = (
+        example_binding(client),
+        example_binding(result),
+        example_binding(shutdown),
+    ) else {
+        return false;
+    };
+    if !matches!(result, Expr::Await(awaited) if matches!(awaited.base.as_ref(), Expr::Async(_))) {
+        return false;
+    }
+    let shutdown = match shutdown {
+        Expr::MethodCall(mapping) if mapping.method == "map_err" => mapping.receiver.as_ref(),
+        expression => expression,
+    };
+    let Expr::Await(awaited) = shutdown else {
+        return false;
+    };
+    let Expr::MethodCall(shutdown) = awaited.base.as_ref() else {
+        return false;
+    };
+    shutdown.method == "shutdown"
+        && shutdown.args.is_empty()
+        && matches!(shutdown.receiver.as_ref(), Expr::Path(path) if path.path.is_ident(client_name))
+        && combine.method == "and"
+        && matches!(combine.receiver.as_ref(), Expr::Path(path) if path.path.is_ident(result_name))
+        && combine.args.len() == 1
+        && matches!(&combine.args[0], Expr::Path(path) if path.path.is_ident(shutdown_name))
+}
+
+#[test]
+fn client_owning_examples_observe_shutdown_without_replacing_operation_errors() {
+    let examples = workspace_root().join("crates/kafkars/examples");
+    let mut violations = Vec::new();
+    for (file, functions) in [
+        ("producer.rs", &["produce"][..]),
+        ("consumer.rs", &["consume"][..]),
+        ("transaction.rs", &["initialize_transactional_owner"][..]),
+        (
+            "admin.rs",
+            &[
+                "create_topic",
+                "delete_topics",
+                "create_partitions",
+                "list_visible_topics",
+            ][..],
+        ),
+    ] {
+        let syntax = syn::parse_file(&read(&examples.join(file)))
+            .unwrap_or_else(|error| panic!("parse {file}: {error}"));
+        for name in functions {
+            let function = syntax
+                .items
+                .iter()
+                .find_map(|item| match item {
+                    syn::Item::Fn(function) if function.sig.ident == name => Some(function),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("missing {file}::{name}"));
+            if !example_observes_shutdown(function) {
+                violations.push(format!("{file}::{name}"));
+            }
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "examples bypass terminal shutdown: {violations:?}"
+    );
+}
+
+#[test]
+fn example_shutdown_guard_rejects_early_error_escape_and_error_replacement() {
+    for source in [
+        "async fn run() -> Result<()> {
+            let client = Client::builder().build()?;
+            let producer = client.producer().build()?;
+            let result = async { producer.send().await }.await;
+            let shutdown = client.shutdown().await;
+            result.and(shutdown)
+        }",
+        "async fn run() -> Result<()> {
+            let client = Client::builder().build()?;
+            let result = async { operation().await }.await;
+            let shutdown = client.shutdown().await;
+            shutdown.and(result)
+        }",
+    ] {
+        let function = syn::parse_str::<ItemFn>(source)
+            .unwrap_or_else(|error| panic!("parse refusal example: {error}"));
+        assert!(!example_observes_shutdown(&function));
+    }
 }

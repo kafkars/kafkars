@@ -1,4 +1,4 @@
-//! Compile-checked transactional ownership and direct-consumer record transfer.
+//! Transactional ownership, explicit shutdown, and direct-consumer record transfer.
 
 use std::{sync::Arc, time::Duration};
 
@@ -18,13 +18,18 @@ async fn initialize_transactional_owner() -> Result<()> {
     let client = Client::builder()
         .bootstrap_servers(["localhost:9092"])
         .build()?;
-    let producer = client
-        .transactional_producer("invoice-worker-v1")
-        .build()
-        .await?;
-    let _identity = producer.identity();
-    producer.close();
-    Ok(())
+    let result: Result<()> = async {
+        let producer = client
+            .transactional_producer("invoice-worker-v1")
+            .build()
+            .await?;
+        let _identity = producer.identity();
+        producer.close();
+        Ok(())
+    }
+    .await;
+    let shutdown = client.shutdown().await;
+    result.and(shutdown)
 }
 
 /// Copies one directly assigned batch through ordinary transactional sends.
@@ -33,8 +38,9 @@ async fn initialize_transactional_owner() -> Result<()> {
 /// terminal while the outgoing record shares bytes without copying payloads or
 /// header names. The target record preserves timestamp, key, value, headers,
 /// nulls, and empty values while this example explicitly keeps the source
-/// partition. A send or commit error attempts an explicit abort before returning
-/// the original error.
+/// partition. A send error or rejected commit admission attempts an explicit
+/// abort before returning the original error. An admitted commit error is
+/// returned unchanged: do not assume it proves abort or safely replay the work.
 #[allow(dead_code)]
 async fn copy_one_batch(
     source: &mut AssignedConsumer,
