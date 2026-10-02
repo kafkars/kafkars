@@ -39,6 +39,16 @@ pub(super) struct ShareConsumerEntry {
 }
 
 impl ShareConsumerEntry {
+    pub(super) const fn share_close_has_retained_calls(&self) -> bool {
+        self.heartbeat_call.is_some() || self.topic_call.is_some()
+    }
+
+    pub(super) const fn share_membership_failure(
+        &self,
+    ) -> Option<kafka_client_core::ShareGroupHeartbeatFailure> {
+        self.fault
+    }
+
     pub(super) fn try_new(
         group_id: GroupId,
         group: Arc<str>,

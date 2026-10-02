@@ -42,11 +42,7 @@ impl ShareConsumerRegistry {
                     .release_after_driver_shutdown()
                     .map_err(|_error| ShareMembershipHostError::EffectShape)?;
             }
-            if let Some(membership) = &mut entry.membership
-                && membership.machine().phase() != ShareGroupHeartbeatPhase::Closed
-            {
-                membership.close_locally()?;
-            }
+            let _closed = entry.close_share_membership_if_untracked()?;
             if let Some(completion_id) = entry
                 .close()
                 .and_then(super::close_state::ShareConsumerCloseState::completion_id)
@@ -54,7 +50,12 @@ impl ShareConsumerRegistry {
                 self.close_completions
                     .publish(
                         completion_id,
-                        ShareConsumerCloseTerminal::Failed(ShareGroupHeartbeatFailure::Execution),
+                        entry
+                            .close()
+                            .and_then(super::close_state::ShareConsumerCloseState::terminal)
+                            .unwrap_or(ShareConsumerCloseTerminal::Failed(
+                                ShareGroupHeartbeatFailure::Execution,
+                            )),
                     )
                     .map_err(|(error, _terminal)| completion_failure(error))?;
             }
@@ -65,6 +66,21 @@ impl ShareConsumerRegistry {
             drop(entry);
         }
         Ok(())
+    }
+}
+
+impl super::entry::ShareConsumerEntry {
+    pub(super) fn close_share_membership_if_untracked(
+        &mut self,
+    ) -> Result<bool, ShareMembershipHostError> {
+        if !self.share_close_has_retained_calls()
+            && let Some(membership) = &mut self.membership
+            && membership.machine().phase() != ShareGroupHeartbeatPhase::Closed
+        {
+            membership.close_locally()?;
+            return Ok(true);
+        }
+        Ok(false)
     }
 }
 

@@ -1,4 +1,4 @@
-//! Completion-first share close admission, leave progress, and entry removal.
+//! Completion-first share close with bounded failure observation before physical drain.
 
 use kafka_client_core::{GroupId, ShareGroupHeartbeatFailure, ShareGroupHeartbeatPhase};
 
@@ -72,25 +72,35 @@ impl ShareConsumerRegistry {
         &mut self,
         now: kafka_client_core::Moment,
     ) -> Result<ShareConsumerCloseTurn, ShareMembershipHostError> {
+        if self
+            .entries
+            .iter_mut()
+            .any(|entry| entry.expire_share_close(now))
+        {
+            return Ok(ShareConsumerCloseTurn::Progress);
+        }
         if let Some(index) = self.entries.iter().position(|entry| {
-            entry
-                .close()
-                .is_some_and(|close| close.terminal().is_some())
+            entry.share_close_terminal_is_actionable(
+                self.invalidations.blocks_submission(entry.group_id()),
+            )
         }) {
             return self.publish_and_remove(index);
         }
         let Some(index) = self
             .entries
             .iter()
-            .position(super::entry::ShareConsumerEntry::has_close)
+            .position(super::entry::ShareConsumerEntry::share_close_needs_terminal)
         else {
-            return Ok(ShareConsumerCloseTurn::Idle);
+            return Ok(if self.has_pending_close() {
+                ShareConsumerCloseTurn::Blocked
+            } else {
+                ShareConsumerCloseTurn::Idle
+            });
         };
         if self
             .invalidations
             .blocks_submission(self.entries[index].group_id())
-            || self.entries[index].heartbeat_call.is_some()
-            || self.entries[index].topic_call.is_some()
+            || self.entries[index].share_close_has_retained_calls()
             || self.entries[index].fetch().blocks_close()
         {
             return Ok(ShareConsumerCloseTurn::Blocked);
@@ -130,16 +140,35 @@ impl ShareConsumerRegistry {
         let terminal = close
             .terminal()
             .ok_or(ShareMembershipHostError::EffectShape)?;
+        let mut progressed = false;
         if let Some(completion_id) = close.completion_id() {
             match self.close_completions.publish(completion_id, terminal) {
                 Ok(()) => {}
                 Err((CompletionRegistryError::NotificationBackpressure, _terminal)) => {
                     return Ok(ShareConsumerCloseTurn::Blocked);
                 }
-                Err((_error, _terminal)) => {
-                    return Err(ShareMembershipHostError::EffectShape);
-                }
+                Err(_) => return Err(ShareMembershipHostError::EffectShape),
             }
+            if !self.entries[index]
+                .close_mut()
+                .is_some_and(|close| close.mark_share_close_published(completion_id))
+            {
+                return Err(ShareMembershipHostError::EffectShape);
+            }
+            progressed = true;
+        }
+        let entry = &mut self.entries[index];
+        let retained_calls = entry.share_close_has_retained_calls()
+            || self.invalidations.blocks_submission(entry.group_id());
+        if !retained_calls {
+            progressed |= entry.close_share_membership_if_untracked()?;
+        }
+        if retained_calls || entry.fetch().blocks_close() {
+            return Ok(if progressed {
+                ShareConsumerCloseTurn::Progress
+            } else {
+                ShareConsumerCloseTurn::Blocked
+            });
         }
         let entry = self.entries.swap_remove(index);
         self.retained_name_bytes = self
@@ -160,11 +189,6 @@ fn close_terminal(
         .ok_or(ShareMembershipHostError::EffectShape)?
         .capture();
     if let Some(failure) = entry.fault {
-        if let Some(membership) = &mut entry.membership
-            && membership.machine().phase() != ShareGroupHeartbeatPhase::Closed
-        {
-            membership.close_locally()?;
-        }
         return Ok(Some(ShareConsumerCloseTerminal::Failed(failure)));
     }
     let Some(membership) = &mut entry.membership else {
@@ -173,37 +197,30 @@ fn close_terminal(
     };
     let phase = membership.machine().phase();
     match phase {
-        ShareGroupHeartbeatPhase::Closed => Ok(Some(ShareConsumerCloseTerminal::Succeeded)),
+        ShareGroupHeartbeatPhase::Closed
+        | ShareGroupHeartbeatPhase::Dormant
+        | ShareGroupHeartbeatPhase::Joining => Ok(Some(ShareConsumerCloseTerminal::Succeeded)),
         ShareGroupHeartbeatPhase::Fatal => {
             let failure = membership.machine().fatal().map_or(
                 ShareGroupHeartbeatFailure::Execution,
                 kafka_client_core::ShareGroupHeartbeatFatal::failure,
             );
-            membership.close_locally()?;
             Ok(Some(ShareConsumerCloseTerminal::Failed(failure)))
         }
-        ShareGroupHeartbeatPhase::Dormant | ShareGroupHeartbeatPhase::Joining => {
-            membership.close_locally()?;
-            Ok(Some(ShareConsumerCloseTerminal::Succeeded))
-        }
-        ShareGroupHeartbeatPhase::Stable | ShareGroupHeartbeatPhase::AwaitingAssignment => {
+        ShareGroupHeartbeatPhase::Stable
+        | ShareGroupHeartbeatPhase::AwaitingAssignment
+        | ShareGroupHeartbeatPhase::Heartbeating => {
             if close_capture.deadline().is_elapsed_at(now) {
                 membership.close_locally()?;
                 return Ok(Some(ShareConsumerCloseTerminal::Failed(
                     ShareGroupHeartbeatFailure::DeadlineElapsed,
                 )));
             }
-            membership.begin_leave(close_capture)?;
-            Ok(None)
-        }
-        ShareGroupHeartbeatPhase::Heartbeating => {
-            if close_capture.deadline().is_elapsed_at(now) {
-                membership.close_locally()?;
-                return Ok(Some(ShareConsumerCloseTerminal::Failed(
-                    ShareGroupHeartbeatFailure::DeadlineElapsed,
-                )));
+            if phase == ShareGroupHeartbeatPhase::Heartbeating {
+                membership.replace_heartbeat_with_leave(close_capture)?;
+            } else {
+                membership.begin_leave(close_capture)?;
             }
-            membership.replace_heartbeat_with_leave(close_capture)?;
             Ok(None)
         }
         ShareGroupHeartbeatPhase::Leaving => {

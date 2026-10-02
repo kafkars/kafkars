@@ -137,6 +137,8 @@ impl Future for ShareConsumerClose {
 
 impl ShareConsumerHandle {
     /// Begins one bounded graceful Leave after reserving terminal capacity.
+    /// Release retained batches for successful cleanup. Deadline failure remains
+    /// observable while those batches retain their exact acquisition and bytes.
     pub fn try_close(self) -> Result<ShareConsumerClose, ShareConsumerCloseAdmissionError> {
         match self.port.try_begin_close(self.group_id, self.close_timeout) {
             Ok(admission) => {

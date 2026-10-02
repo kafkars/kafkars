@@ -1492,9 +1492,13 @@ evidence = [
 [[invariant]]
 id = "GEN-02"
 title = "Replacement batch executions never reuse identity"
-statement = "Future replacement or revision of sealed batch membership advances without identity reuse, defines exhaustion behavior, and carries the exact execution through the real kafka-driver handoff and acceptance receipt."
-status = "planned"
-milestone = "generation-fenced-driver-handoff"
+statement = "Authorized replacement or revision of sealed batch membership advances without identity reuse, refuses generation exhaustion before partial mutation, and carries the exact execution through the real kafka-driver handoff and linear acceptance receipt."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer/cancellation_revision_test.rs::materializing_cancellation_revises_target_and_fences_stale_facts",
+  "crates/kafka-client-core/src/producer/cancellation_revision_test.rs::generation_exhaustion_has_no_partial_mutation",
+  "crates/kafka-client-engine/src/driver/rpc/produce_acceptance_test.rs::accepted_receipt_preserves_replacement_execution_through_real_driver_handoff",
+]
 
 [[invariant]]
 id = "IDM-01"
@@ -1566,9 +1570,13 @@ evidence = [
 [[invariant]]
 id = "META-01"
 title = "The driver is sole cluster-topology authority"
-statement = "Metadata generations and exact route receipts fence stale leader knowledge without a second client-owned topology cache."
-status = "planned"
-milestone = "metadata-driven-partitioning"
+statement = "The engine borrows immutable driver-owned topic views and normalized generation-stamped partition facts without copying a second topology cache. Exact driver route receipts and completed Applied or IgnoredStale invalidation fence retry authority; a broker-aggregate Produce result cannot manufacture shared partition-refresh authority. Driver TopicView imports remain restricted to the exact guarded RPC adapters."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer/topic_partitions_test.rs::facts_borrow_a_lazy_source_without_copying_a_topic_cache",
+  "crates/kafka-client-engine/src/driver/rpc/calls/route_refresh_test.rs::only_applied_or_stale_route_refresh_authorizes_retry",
+  "crates/kafka-client-engine/src/driver/rpc/calls/settlement_test.rs::aggregate_preserves_each_routing_failure_without_shared_retry_authority",
+]
 
 [[invariant]]
 id = "OBS-01"
@@ -1616,7 +1624,6 @@ title = "Unkeyed selection is sticky and availability-aware"
 statement = "Per-topic unkeyed selection captures one generation, logical count, and available length, lazily reads driver-owned entries without copying a topology cache, remains on one available partition until its batch seals, reselects when that partition becomes unavailable, and advances from target-independent caller dispersion."
 status = "enforced"
 evidence = [
-  "crates/kafka-client-core/src/producer/topic_partitions_test.rs::facts_borrow_a_lazy_source_without_copying_a_topic_cache",
   "crates/kafka-client-core/src/producer/topic_partitions_test.rs::missing_index_below_captured_source_length_is_rejected_at_use",
   "crates/kafka-client-core/src/producer/topic_partitions_test.rs::source_partitions_must_fit_the_total_logical_count",
   "crates/kafka-client-core/src/producer/topic_partition_test.rs::kafka_absent_leader_epoch_is_distinct_from_malformed_negative_values",
@@ -1654,7 +1661,6 @@ evidence = [
   "crates/kafka-client-core/src/producer/retry_safety_test.rs::close_waits_across_retry_and_completes_after_record_terminal",
   "crates/kafka-client-engine/src/driver/delivery_test.rs::only_recoverable_connection_shapes_are_transient",
   "crates/kafka-client-engine/src/driver/delivery_test.rs::possibly_sent_transport_loss_is_transient_but_keeps_delivery_uncertain",
-  "crates/kafka-client-engine/src/driver/rpc/calls/route_refresh_test.rs::only_applied_or_stale_route_refresh_authorizes_retry",
   "crates/kafka-client-engine/src/driver/rpc/calls/settlement_test.rs::single_transport_failure_retains_partition_refresh_authority",
   "crates/kafka-client-engine/src/driver/rpc/calls/settlement_test.rs::single_broker_routing_failure_retains_partition_refresh_authority",
   "crates/kafka-client-engine/src/producer/host/driver_input_test.rs::live_retry_rematerializes_fresh_execution_with_original_deadline",
@@ -1741,13 +1747,16 @@ evidence = [
 [[invariant]]
 id = "SHR-04"
 title = "Share close preserves broker and local ownership truth"
-statement = "Dropping a ShareConsumerBatch sends no acknowledgement and releases only local delivery bytes; dropping an observer abandons observation without cancelling accepted work. Close stops new membership and fetch admission, drains accepted acknowledgement ownership, sends one explicit leave under the original public deadline, and reports partial or ambiguous outcomes without manufacturing broker release. Leader, connection, session, member, lock-expiry, engine-shutdown, and driver-loss recovery remain generation-fenced and reclaim retained bytes only after their exact owners retire."
+statement = "Dropping a ShareConsumerBatch sends no acknowledgement and releases only local delivery bytes; dropping an observer abandons observation without cancelling accepted work. Close stops new membership and fetch admission, drains accepted acknowledgement ownership, sends one explicit leave under the original public deadline, and reports partial or ambiguous outcomes without manufacturing broker release. Original-deadline failure remains observable while an application retains a delivery; that failure neither releases its acquisition or bytes nor permits physical entry removal before exact reclamation. Successful publication consumes its completion identity once, and shutdown recovery preserves any already-selected terminal rather than replacing it. Leader, connection, session, member, lock-expiry, engine-shutdown, and driver-loss recovery remain generation-fenced and reclaim retained bytes only after their exact owners retire."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement_test.rs::drop_releases_payload_once_but_retains_lock_until_expiry",
   "crates/kafka-client-core/src/consumer/share_fetch/ledger_retirement_test.rs::application_owned_ranges_survive_lock_expiry_and_session_loss",
   "crates/kafka-client-engine/src/consumer/share/fetch_session_execution_test.rs::post_driver_recovery_conservatively_loses_the_accepted_session",
   "crates/kafka-client-engine/src/consumer/share/registry_fetch_sessions_test.rs::close_releases_prepared_sessions_before_membership_leave",
+  "crates/kafka-client-engine/src/consumer/share/registry_fetch_sessions_test.rs::retained_share_delivery_does_not_hide_the_original_close_deadline",
+  "crates/kafka-client-engine/src/consumer/share/public_close_test.rs::shutdown_recovery_preserves_the_selected_share_close_failure",
+  "crates/kafka-client-engine/src/consumer/share/public_close_test.rs::retained_first_share_close_does_not_hide_a_second_close_failure",
   "crates/kafka-client-engine/src/consumer/share/registry_close_test.rs::stable_member_prepares_epoch_minus_one_leave_before_success",
   "crates/kafka-client-engine/src/consumer/share/registry_close_test.rs::control_close_needs_no_completion_and_recovery_settles_explicit_observer",
   "crates/kafka-client-engine/src/consumer/share/public_close_test.rs::only_pre_admission_contention_is_publicly_retryable_by_ownership",

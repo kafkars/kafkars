@@ -5,6 +5,10 @@ use kafka_client_core::{Deadline, ShareGroupHeartbeatPhase};
 use super::{entry::ShareConsumerEntry, registry::ShareConsumerRegistry};
 
 impl ShareConsumerRegistry {
+    pub(super) fn has_pending_close(&self) -> bool {
+        self.entries.iter().any(ShareConsumerEntry::has_close)
+    }
+
     pub(crate) fn unsettled(&self) -> usize {
         self.invalidations
             .retained_count()
@@ -54,7 +58,7 @@ impl ShareConsumerEntry {
         [
             start,
             self.close()
-                .map(super::close_state::ShareConsumerCloseState::deadline),
+                .and_then(super::close_state::ShareConsumerCloseState::next_deadline),
             self.membership
                 .as_ref()
                 .and_then(super::ShareMembershipInterpreter::next_deadline),
