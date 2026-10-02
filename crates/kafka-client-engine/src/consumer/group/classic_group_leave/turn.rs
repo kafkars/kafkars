@@ -1,4 +1,4 @@
-//! One-at-a-time registry scheduling for explicit-close broker departure.
+//! Bounded broker departure and failure publication independent of physical drain.
 
 use std::sync::Arc;
 
@@ -10,6 +10,7 @@ use super::owner::ClassicGroupLeaveOwnerTurn;
 use crate::consumer::group::{
     classic_group_join::ClassicGroupExecutionState,
     registry::GroupConsumerRegistry,
+    registry_close::GroupConsumerRemovalError,
     registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
 };
 
@@ -22,6 +23,26 @@ pub(in crate::consumer::group) enum ClassicGroupLeaveTurn {
 }
 
 impl GroupConsumerRegistry {
+    pub(in crate::consumer::group) fn publish_one_failed_group_close(
+        &mut self,
+        now: Moment,
+    ) -> Result<bool, GroupConsumerRemovalError> {
+        for entry in &mut self.entries {
+            if entry.state != GroupConsumerEntryState::Closing {
+                continue;
+            }
+            entry.leave.expire_unpublished_success(now);
+            if !entry.leave.failed_terminal_is_unpublished() {
+                continue;
+            }
+            if !entry.leave.publish_failed_terminal() {
+                return Err(GroupConsumerRemovalError::TerminalInvariant);
+            }
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
     pub(in crate::consumer::group) fn turn_one_classic_group_leave(
         &mut self,
         now: Moment,

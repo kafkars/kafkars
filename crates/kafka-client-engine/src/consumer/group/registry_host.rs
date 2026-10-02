@@ -29,6 +29,9 @@ impl GroupConsumerRegistry {
         if self
             .close_one_requested_group()
             .map_err(GroupConsumerHostError::close)?
+            || self
+                .publish_one_failed_group_close(now)
+                .map_err(GroupConsumerHostError::close)?
         {
             return Ok(GroupConsumerRegistryTurn {
                 progressed: true,

@@ -56,6 +56,82 @@ fn ordinary_liveness_loss_revokes_then_arms_an_exact_retained_rejoin() {
     );
 }
 
+#[test]
+fn repeated_heartbeat_loss_rejoins_with_fresh_fences_and_rejects_late_terminals() {
+    let (mut machine, mut attempt) = stable(true);
+    let mut now = 10;
+    for _cycle in 0..256 {
+        assert_rejoin(
+            &mut machine,
+            ClassicGroupInput::HeartbeatFailed {
+                attempt,
+                now: Moment::from_tick(now),
+            },
+            attempt,
+            now + 5,
+        );
+        let schedule = machine.pending_rejoin().unwrap_or_else(|| panic!("rejoin"));
+        let joined = machine
+            .apply(ClassicGroupInput::RejoinDue {
+                schedule,
+                now: Moment::from_tick(now + 5),
+            })
+            .unwrap_or_else(|error| panic!("rejoin due: {error}"));
+        let cycle = machine.active_cycle().unwrap_or_else(|| panic!("cycle"));
+        assert!(cycle > attempt.cycle());
+        assert!(matches!(
+            joined.effects().next(),
+            Some(ClassicGroupEffect::Join { deadline, .. })
+                if *deadline == Deadline::from_tick(now + 55)
+        ));
+        machine
+            .apply(ClassicGroupInput::JoinFollower {
+                cycle,
+                now: Moment::from_tick(now + 6),
+                member_id: MemberId::try_from_raw(2).unwrap_or_else(|| panic!("member")),
+                generation: ClassicGeneration::try_from_raw(7)
+                    .unwrap_or_else(|| panic!("generation")),
+            })
+            .unwrap_or_else(|error| panic!("follower: {error}"));
+        let installed = machine
+            .apply(ClassicGroupInput::SyncSucceeded {
+                cycle,
+                now: Moment::from_tick(now + 7),
+                partitions: Vec::new(),
+            })
+            .unwrap_or_else(|error| panic!("sync: {error}"));
+        let Some(ClassicGroupEffect::Install { heartbeat, .. }) = installed.effects().next() else {
+            panic!("fresh assignment");
+        };
+        let replacement = heartbeat.attempt();
+        assert!(replacement.assignment_generation() > attempt.assignment_generation());
+        assert!(
+            machine
+                .apply(ClassicGroupInput::HeartbeatSucceeded {
+                    attempt,
+                    now: Moment::from_tick(now + 7),
+                    throttle_ticks: 0,
+                })
+                .is_err()
+        );
+        assert_eq!(machine.phase(), ClassicGroupPhase::Stable);
+        machine
+            .apply(ClassicGroupInput::HeartbeatDue {
+                attempt: replacement,
+                now: Moment::from_tick(now + 7),
+            })
+            .unwrap_or_else(|error| panic!("replacement heartbeat: {error}"));
+        attempt = replacement;
+        now += 14;
+    }
+    machine
+        .apply(ClassicGroupInput::Close)
+        .unwrap_or_else(|error| panic!("close: {error}"));
+    assert_eq!(machine.phase(), ClassicGroupPhase::Closed);
+    assert!(machine.live_assignment().is_none());
+    assert!(machine.pending_rejoin().is_none());
+}
+
 fn assert_rejoin(
     machine: &mut ClassicGroupMachine,
     input: ClassicGroupInput,

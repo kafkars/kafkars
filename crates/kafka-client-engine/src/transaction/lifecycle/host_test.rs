@@ -51,6 +51,63 @@ fn commit_uses_original_deadline_and_publishes_one_terminal() {
 }
 
 #[test]
+fn repeated_commit_abort_and_abandoned_observation_reclaim_the_single_terminal_slot() {
+    let (mut host, active, release, _completion) = host();
+    assert_eq!(super::host::END_COMPLETION_CAPACITY, 1);
+    let finish_by = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let mut previous_epoch = None;
+    for cycle in 0..128 {
+        let epoch = host
+            .begin()
+            .unwrap_or_else(|error| panic!("cycle {cycle} begin: {error:?}"));
+        assert_ne!(Some(epoch), previous_epoch);
+        previous_epoch = Some(epoch);
+        let deadline = deadline(31);
+        let mode = if cycle % 2 == 0 {
+            TransactionEndMode::Commit
+        } else {
+            TransactionEndMode::Abort
+        };
+        let observer = match mode {
+            TransactionEndMode::Commit => host.commit(epoch, deadline),
+            TransactionEndMode::Abort => host.abort(epoch, deadline),
+        }
+        .unwrap_or_else(|error| panic!("cycle {cycle} end admission: {error:?}"));
+        let mut port = FakePort::succeeding();
+        drive_three(&mut host, &mut port);
+        assert_eq!(host.completions.unsettled_len(), 0);
+        assert_eq!(host.completions.published_or_reclaiming_len(), 1);
+        if cycle % 3 == 0 {
+            drop(observer);
+        } else {
+            let expected = match mode {
+                TransactionEndMode::Commit => TransactionLifecycleTerminal::Committed,
+                TransactionEndMode::Abort => TransactionLifecycleTerminal::Aborted,
+            };
+            assert_eq!(observer.wait(), Ok(expected));
+        }
+        while host.completions.published_or_reclaiming_len() != 0 {
+            assert!(std::time::Instant::now() < finish_by, "bounded reclaim");
+            host.turn_with(&mut port)
+                .unwrap_or_else(|error| panic!("cycle {cycle} reclaim: {error:?}"));
+            std::hint::spin_loop();
+        }
+        assert_eq!(host.machine.active_epoch(), None);
+        let requests = port
+            .requests
+            .lock()
+            .unwrap_or_else(|error| panic!("request lock: {error:?}"));
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].mode, mode);
+        assert_eq!(requests[0].deadline, deadline.transport());
+    }
+    host.idle_owner_lost()
+        .unwrap_or_else(|error| panic!("idle owner releases: {error:?}"));
+    assert_released(&active, &release);
+    assert!(release.try_recv().is_err(), "owner releases exactly once");
+}
+
+#[test]
 fn refreshed_coordinator_rejection_retries_under_the_original_deadline() {
     let retry_policy = ProducerRetryPolicy::try_fixed(1, 1)
         .unwrap_or_else(|_| panic!("one bounded retry with positive backoff"));

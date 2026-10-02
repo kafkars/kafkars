@@ -16,6 +16,9 @@ impl Consumer {
     /// Attempts explicit close and returns its sole terminal observer.
     ///
     /// Rejection returns this exact consumer; acceptance fences later work.
+    /// Release retained batches before awaiting successful cleanup. An elapsed
+    /// close or broker failure is observable without reclaiming those batches;
+    /// their bytes remain owned until the application releases them.
     #[expect(
         clippy::result_large_err,
         reason = "pre-admission rejection returns the exact unique consumer"

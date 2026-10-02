@@ -49,6 +49,8 @@ struct ClassicGroupLeaveFacts {
 /// Per-entry broker leave ownership with at most one causally-authorized replacement.
 pub(in crate::consumer::group) struct ClassicGroupLeaveOwner {
     completion: Option<Arc<GroupConsumerCloseCompletion>>,
+    early_failure_published: bool,
+    completion_deadline: Option<OperationDeadline>,
     state: ClassicGroupLeaveState,
     replacement_used: bool,
     coordinator_invalidation_outstanding: bool,
@@ -91,6 +93,8 @@ impl ClassicGroupLeaveOwner {
     pub(in crate::consumer::group) const fn new() -> Self {
         Self {
             completion: None,
+            early_failure_published: false,
+            completion_deadline: None,
             state: ClassicGroupLeaveState::Dormant,
             replacement_used: false,
             coordinator_invalidation_outstanding: false,
@@ -106,6 +110,7 @@ impl ClassicGroupLeaveOwner {
             return Err(completion);
         }
         self.completion = Some(completion);
+        self.completion_deadline = Some(deadline);
         self.replacement_used = false;
         self.coordinator_invalidation_outstanding = false;
         self.state = ClassicGroupLeaveState::Pending(deadline);
@@ -190,17 +195,6 @@ impl ClassicGroupLeaveOwner {
         };
         self.state = ClassicGroupLeaveState::Terminal(GroupConsumerCloseTerminal::Succeeded);
         true
-    }
-
-    pub(in crate::consumer::group) fn publish_terminal(&mut self) -> bool {
-        let Some(completion) = self.completion.take() else {
-            return matches!(self.state, ClassicGroupLeaveState::Dormant);
-        };
-        let ClassicGroupLeaveState::Terminal(terminal) = self.state else {
-            self.completion = Some(completion);
-            return false;
-        };
-        completion.publish(terminal)
     }
 
     pub(in crate::consumer::group) fn recover_after_driver_shutdown(&mut self) {

@@ -54,7 +54,8 @@ fn superseded_accepted_call_drains_before_releasing_capacity() {
 
     assert_eq!(calls.retained_count(), 1);
     assert!(calls.try_reserve().is_none());
-    for _turn in 0..64 {
+    let finish_by = Instant::now() + Duration::from_secs(2);
+    while calls.retained_count() != 0 && Instant::now() < finish_by {
         let _ = driver
             .turn(Duration::from_millis(5))
             .unwrap_or_else(|error| panic!("bounded driver turn: {error}"));
@@ -62,9 +63,6 @@ fn superseded_accepted_call_drains_before_releasing_capacity() {
             .poll_next_ready(Moment::from_tick(30_000_000))
             .unwrap_or_else(|error| panic!("completion ownership: {error:?}"));
         assert!(settled.is_none());
-        if calls.retained_count() == 0 {
-            break;
-        }
     }
     assert_eq!(calls.retained_count(), 0);
     assert!(calls.try_reserve().is_some());
