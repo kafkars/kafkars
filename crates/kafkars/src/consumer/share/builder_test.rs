@@ -1,9 +1,9 @@
 //! Public share builder policy and exact rejection ownership.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::{ShareConsumerBuilder, ShareConsumerFetchConfig};
-use crate::{Client, ErrorKind};
+use crate::{Client, ErrorKind, RetryAdvice};
 
 fn client() -> Client {
     Client::builder()
@@ -41,13 +41,30 @@ fn builder_retains_group_rack_subscription_and_bounded_deadlines() {
 #[test]
 fn invalid_fetch_policy_returns_the_exact_consumed_builder() {
     let fetch = ShareConsumerFetchConfig::default().with_max_records(0);
-    let rejected = client()
+    let mut builder = client()
         .share_consumer("workers")
         .subscribe(["orders"])
-        .fetch_config(fetch)
-        .build()
-        .err()
-        .unwrap_or_else(|| panic!("zero records must reject"));
+        .fetch_config(fetch);
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let rejected = loop {
+        let rejected = builder
+            .build()
+            .err()
+            .unwrap_or_else(|| panic!("zero records must reject"));
+        if rejected.error().kind() != ErrorKind::Backpressure {
+            break rejected;
+        }
+        assert_eq!(rejected.error().retry_advice(), RetryAdvice::RetrySafe);
+        assert!(
+            Instant::now() < deadline,
+            "share registration stayed contended"
+        );
+        builder = rejected.into_parts().0;
+        assert_eq!(builder.group_id(), "workers");
+        assert_eq!(builder.subscription(), ["orders"]);
+        assert_eq!(builder.selected_fetch_config(), fetch);
+        std::hint::spin_loop();
+    };
 
     assert_eq!(rejected.error().kind(), ErrorKind::Configuration);
     let (builder, error) = rejected.into_parts();
