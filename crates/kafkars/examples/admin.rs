@@ -1,4 +1,4 @@
-//! Batched admin sketches preserve operation errors while observing shutdown.
+//! Admin sketches propagate per-resource errors and observe terminal shutdown.
 
 use kafkars::{
     Client, Result,
@@ -23,6 +23,11 @@ async fn create_topic() -> Result<()> {
             .submit()
             .await?;
         assert_eq!(result.entries().len(), 1);
+        // A completed batch can still contain broker refusals. Propagate the
+        // first caller-ordered error; do not replay successful mutations.
+        for (_, outcome) in result.into_entries() {
+            outcome?;
+        }
         Ok(())
     }
     .await;
@@ -42,6 +47,9 @@ async fn delete_topics() -> Result<()> {
             .submit()
             .await?;
         assert_eq!(result.entries().len(), 2);
+        for (_, outcome) in result.into_entries() {
+            outcome?;
+        }
         Ok(())
     }
     .await;
@@ -65,6 +73,9 @@ async fn create_partitions() -> Result<()> {
             .submit()
             .await?;
         assert_eq!(result.entries().len(), 2);
+        for (_, outcome) in result.into_entries() {
+            outcome?;
+        }
         Ok(())
     }
     .await;
@@ -84,10 +95,9 @@ async fn list_visible_topics() -> Result<()> {
             .include_internal(false)
             .submit()
             .await?;
-        for (name, description) in result.entries() {
-            if let Ok(description) = description {
-                assert_eq!(name.as_str(), description.name());
-            }
+        for (name, description) in result.into_entries() {
+            let description = description?;
+            assert_eq!(name.as_str(), description.name());
         }
         Ok(())
     }
